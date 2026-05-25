@@ -2,8 +2,8 @@
 
 Run date: 2026-05-21 JST.
 
-Login account used for smoke: `@testn2sq`.
-Target account: `@dogenzaka_pua`.
+Login account used for smoke: `@sample_login`.
+Target account: `@target_user`.
 
 No password or live cookie value is stored in tracked files. Local auth artifacts, adapter state,
 and built sidecar binaries stay under ignored `.secrets/`.
@@ -19,7 +19,7 @@ uv run python -m research_x pipeline --config examples\x_pipeline.toml --out run
 Result:
 
 ```text
-profile:@dogenzaka_pua: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,crawl4ai,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
+profile:@target_user: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,crawl4ai,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
 ```
 
 Every registered provider returned `ok` with 5 items in the final full-chain smoke.

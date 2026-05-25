@@ -4,7 +4,7 @@ description = "Run a role-based resilient X acquisition pipeline."
 
 [[targets]]
 kind = "profile"
-value = "@dogenzaka_pua"
+value = "@target_user"
 limit = 5
 
 [run]
@@ -16,7 +16,7 @@ id = "twscrape_raw"
 enabled = true
 accounts_db = ".secrets/twscrape_accounts.db"
 bootstrap_account = true
-username = "testn2sq"
+username = "sample_login"
 playwright_storage_state = ".secrets/playwright_x_state.json"
 
 [[adapters]]

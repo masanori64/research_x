@@ -217,13 +217,13 @@ def _home_page() -> str:
         <form method="post" action="/run">
           <section>
             <h2>アカウント</h2>
-            <label>Account ID <input name="account" placeholder="MCreatefuture_3"></label>
+            <label>Account ID <input name="account" placeholder="my_account"></label>
             <label>Screen name
-              <input name="screen_name" placeholder="MCreatefuture_3" required>
+              <input name="screen_name" placeholder="my_screen_name" required>
             </label>
-            <label>User ID <input name="user_id" placeholder="1166126639350042624"></label>
-            <label>Display name <input name="display_name" placeholder="大学生"></label>
-            <label>URL <input name="url" placeholder="https://x.com/MCreatefuture_3"></label>
+            <label>User ID <input name="user_id" placeholder="1234567890"></label>
+            <label>Display name <input name="display_name" placeholder="My Account"></label>
+            <label>URL <input name="url" placeholder="https://x.com/my_screen_name"></label>
             <label>Password
               <input name="password" type="password" autocomplete="current-password">
             </label>

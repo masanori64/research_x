@@ -10,12 +10,12 @@ from research_x.runner import run_experiment
 
 
 def test_playwright_target_parsers() -> None:
-    href = "/dogenzaka_pua/status/12345"
+    href = "/target_user/status/12345"
 
-    assert _screen_name("@dogenzaka_pua") == "dogenzaka_pua"
-    assert _screen_name("https://x.com/dogenzaka_pua") == "dogenzaka_pua"
+    assert _screen_name("@target_user") == "target_user"
+    assert _screen_name("https://x.com/target_user") == "target_user"
     assert _tweet_id(href) == "12345"
-    assert _author_from_href(href) == "dogenzaka_pua"
+    assert _author_from_href(href) == "target_user"
 
 
 def test_playwright_bookmark_metadata_marker() -> None:
@@ -38,7 +38,7 @@ def test_playwright_bookmark_metadata_marker() -> None:
 def test_playwright_missing_storage_is_not_configured(tmp_path) -> None:
     config = parse_config(
         {
-            "targets": [{"kind": "profile", "value": "@dogenzaka_pua", "limit": 1}],
+            "targets": [{"kind": "profile", "value": "@target_user", "limit": 1}],
             "adapters": [
                 {
                     "id": "playwright",

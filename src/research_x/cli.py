@@ -278,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
         "add",
         help="register non-password account metadata for account-scoped sessions",
     )
-    accounts_add_parser.add_argument("--account", required=True, help="account id, e.g. zvuvm6")
+    accounts_add_parser.add_argument("--account", required=True, help="account id, e.g. my_account")
     accounts_add_parser.add_argument("--screen-name", default=None)
     accounts_add_parser.add_argument("--user-id", default=None)
     accounts_add_parser.add_argument("--display-name", default=None)

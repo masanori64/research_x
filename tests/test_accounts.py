@@ -4,17 +4,17 @@ from research_x.accounts import normalize_account_id, resolve_account_paths, wri
 
 
 def test_account_paths_are_scoped_by_account() -> None:
-    paths = resolve_account_paths("@Zvuvm6")
+    paths = resolve_account_paths("@SampleUser")
 
-    assert paths.account_id == "zvuvm6"
+    assert paths.account_id == "sampleuser"
     assert paths.storage_state.parts[-3:] == (
         "accounts",
-        "zvuvm6",
+        "sampleuser",
         "playwright_x_state.json",
     )
     assert paths.twikit_cookies_file.parts[-3:] == (
         "accounts",
-        "zvuvm6",
+        "sampleuser",
         "twikit_cookies.json",
     )
 
@@ -23,18 +23,18 @@ def test_account_profile_does_not_store_password(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
 
     profile = write_account_profile(
-        account="@zvuvm6",
-        user_id="1630423227792244739",
-        display_name="masa",
+        account="@sampleuser",
+        user_id="1234567890",
+        display_name="sample",
     )
 
     payload = json.loads(
-        (tmp_path / ".secrets" / "accounts" / "zvuvm6" / "account.json").read_text(
+        (tmp_path / ".secrets" / "accounts" / "sampleuser" / "account.json").read_text(
             encoding="utf-8"
         )
     )
-    assert profile.account_id == "zvuvm6"
-    assert payload["user_id"] == "1630423227792244739"
+    assert profile.account_id == "sampleuser"
+    assert payload["user_id"] == "1234567890"
     assert "password" not in payload
 
 

@@ -8,7 +8,7 @@ from research_x.x_store import write_x_store_outputs
 
 def test_x_store_dedupes_bookmarks_and_profile_tweets_in_same_db(tmp_path) -> None:
     db_path = tmp_path / "x.sqlite3"
-    profile = AccountProfile(account_id="zvuvm6", screen_name="zvuvm6")
+    profile = AccountProfile(account_id="sampleuser", screen_name="sampleuser")
     bookmark_item = _item(
         "1",
         raw={
@@ -28,7 +28,7 @@ def test_x_store_dedupes_bookmarks_and_profile_tweets_in_same_db(tmp_path) -> No
         items=(bookmark_item,),
         collection_kind="bookmarks",
         target=AcquisitionTarget(TargetKind.BOOKMARKS, "me", limit=10),
-        account_id="zvuvm6",
+        account_id="sampleuser",
         account_profile=profile,
         db_path=db_path,
         download_media=False,
@@ -38,7 +38,7 @@ def test_x_store_dedupes_bookmarks_and_profile_tweets_in_same_db(tmp_path) -> No
         items=(profile_item,),
         collection_kind="profile",
         target=AcquisitionTarget(TargetKind.PROFILE, "@someone", limit=10),
-        account_id="zvuvm6",
+        account_id="sampleuser",
         account_profile=profile,
         db_path=db_path,
         download_media=False,
