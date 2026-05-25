@@ -1,0 +1,11 @@
+.venv/
+.pytest_cache/
+.ruff_cache/
+.secrets/
+__pycache__/
+*.py[cod]
+accounts*.db
+runs/
+.tools/
+*.exe
+*.test

@@ -1,0 +1,46 @@
+[[categories]]
+id = "ai_ml"
+label = "AI / Machine Learning"
+description = "LLM, agents, ML, automation, AI products"
+
+[[categories]]
+id = "software_dev"
+label = "Software Development"
+description = "Programming, infrastructure, libraries, engineering practice"
+
+[[categories]]
+id = "business"
+label = "Business / Marketing"
+description = "Startups, sales, monetization, growth, offers"
+
+[[categories]]
+id = "finance_crypto"
+label = "Finance / Crypto"
+description = "Markets, investing, trading, crypto"
+
+[[categories]]
+id = "productivity"
+label = "Productivity"
+description = "Habits, workflows, note-taking, knowledge management"
+
+[[categories]]
+id = "writing_content"
+label = "Writing / Content"
+description = "Threads, copywriting, media strategy, publishing"
+
+[[categories]]
+id = "characters_fandom"
+label = "Characters / Fandom"
+description = "Official character accounts, anime/game mascots, greetings, announcements, fandom context"
+cues = ["character", "mascot", "anime", "game", "official character", "greeting", "二次元", "公式キャラクター", "あいさつ"]
+examples = ["A fictional character account posts a greeting or casual in-character update."]
+
+[[categories]]
+id = "research_learning"
+label = "Research / Learning"
+description = "Papers, explainers, education, long-term learning"
+
+[[categories]]
+id = "other"
+label = "Other"
+description = "Anything that does not fit the other categories"

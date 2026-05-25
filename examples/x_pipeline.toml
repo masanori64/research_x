@@ -1,0 +1,103 @@
+[experiment]
+name = "x-resilient-pipeline"
+description = "Run a role-based resilient X acquisition pipeline."
+
+[[targets]]
+kind = "profile"
+value = "@dogenzaka_pua"
+limit = 5
+
+[run]
+timeout_seconds = 120
+max_concurrency = 1
+
+[[adapters]]
+id = "twscrape_raw"
+enabled = true
+accounts_db = ".secrets/twscrape_accounts.db"
+bootstrap_account = true
+username = "testn2sq"
+playwright_storage_state = ".secrets/playwright_x_state.json"
+
+[[adapters]]
+id = "scweet"
+enabled = true
+db_path = ".secrets/scweet_state.db"
+playwright_storage_state = ".secrets/playwright_x_state.json"
+display_type = "Latest"
+max_empty_pages = 1
+request_timeout_seconds = 75
+
+[[adapters]]
+id = "twikit"
+enabled = true
+cookies_file = ".secrets/twikit_cookies.json"
+playwright_storage_state = ".secrets/playwright_x_state.json"
+enable_ui_metrics = false
+
+[[adapters]]
+id = "masa_twitter_scraper"
+enabled = true
+cookies_file = ".secrets/masa_cookies.json"
+binary = ".secrets/bin/masa-twitter-scraper.exe"
+request_timeout_seconds = 45
+
+[[adapters]]
+id = "playwright"
+enabled = true
+login = false
+headless = true
+storage_state = ".secrets/playwright_x_state.json"
+timeout_ms = 45000
+
+[[adapters]]
+id = "scrapling"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+request_timeout_seconds = 30
+render_fallback = true
+
+[[adapters]]
+id = "crawl4ai"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+headless = true
+request_timeout_seconds = 35
+delay_before_return_seconds = 2
+max_scroll_steps = 2
+
+[[adapters]]
+id = "camoufox"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+headless = true
+timeout_ms = 45000
+wait_until = "commit"
+
+[[adapters]]
+id = "patchright"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+headless = true
+timeout_ms = 45000
+
+[[adapters]]
+id = "rebrowser_playwright"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+headless = true
+timeout_ms = 45000
+
+[[adapters]]
+id = "rebrowser_patches"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+headless = true
+timeout_ms = 45000
+
+[[adapters]]
+id = "scrapy"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+request_timeout_seconds = 30
+render_fallback = true

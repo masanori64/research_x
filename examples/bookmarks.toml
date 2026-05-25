@@ -1,0 +1,75 @@
+[experiment]
+name = "x-bookmarks"
+description = "Fetch the logged-in account's X bookmarks through the browser session."
+
+[[targets]]
+kind = "bookmarks"
+value = "me"
+limit = 100
+
+[run]
+timeout_seconds = 120
+max_concurrency = 1
+
+[[adapters]]
+id = "twscrape_raw"
+enabled = true
+playwright_storage_state = ".secrets/playwright_x_state.json"
+direct_graphql = true
+max_pages = 5
+request_timeout_seconds = 90
+
+[[adapters]]
+id = "twikit"
+enabled = true
+cookies_file = ".secrets/twikit_cookies.json"
+playwright_storage_state = ".secrets/playwright_x_state.json"
+enable_ui_metrics = false
+bookmark_page_size = 100
+request_timeout_seconds = 90
+
+[[adapters]]
+id = "x_web_graphql_bookmarks"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+page_size = 100
+request_timeout_seconds = 90
+
+[[adapters]]
+id = "gallery_dl_bookmarks"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+work_dir = "runs/bookmarks/_gallery_dl"
+request_timeout_seconds = 180
+
+[[adapters]]
+id = "playwright_network_bookmarks"
+enabled = true
+headless = true
+storage_state = ".secrets/playwright_x_state.json"
+timeout_ms = 45000
+max_scroll_steps = 20
+
+[[adapters]]
+id = "playwright"
+enabled = true
+login = false
+headless = true
+storage_state = ".secrets/playwright_x_state.json"
+timeout_ms = 45000
+max_scroll_steps = 20
+
+[[adapters]]
+id = "scrapling"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+request_timeout_seconds = 45
+render_fallback = true
+
+[[adapters]]
+id = "crawl4ai"
+enabled = true
+storage_state = ".secrets/playwright_x_state.json"
+headless = true
+request_timeout_seconds = 45
+max_scroll_steps = 20

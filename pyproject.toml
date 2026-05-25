@@ -1,0 +1,43 @@
+[project]
+name = "research-x"
+version = "0.1.0"
+description = "Experimental harness for comparing X acquisition adapters under one contract."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "camoufox>=0.4.11",
+    "crawl4ai>=0.8.6",
+    "gallery-dl>=1.30.8",
+    "patchright>=1.59.1",
+    "playwright>=1.60.0",
+    "rebrowser-playwright>=1.52.0",
+    "scrapling>=0.2.99",
+    "scrapy>=2.16.0",
+    "Scweet>=4.0.0",
+    "twikit>=2.3.3",
+    "twscrape>=0.17.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.11.0",
+]
+
+[project.scripts]
+research-x = "research_x.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
