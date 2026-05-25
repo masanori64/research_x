@@ -86,6 +86,9 @@ class CollectionApp:
                     "RESEARCH_X_APP_USERNAME": screen_name,
                     "RESEARCH_X_APP_PASSWORD": password,
                     "RESEARCH_X_APP_EMAIL_OR_PHONE": form.get("email_or_phone", "").strip(),
+                    "RESEARCH_X_APP_VERIFICATION_CODE": form.get(
+                        "verification_code", ""
+                    ).strip(),
                 }
                 with self.auth_lock, _temporary_env(app_env):
                     ok = capture_storage_state_auto(
@@ -94,6 +97,7 @@ class CollectionApp:
                         username_env="RESEARCH_X_APP_USERNAME",
                         password_env="RESEARCH_X_APP_PASSWORD",
                         email_or_phone_env="RESEARCH_X_APP_EMAIL_OR_PHONE",
+                        verification_code_env="RESEARCH_X_APP_VERIFICATION_CODE",
                         try_cdp=True,
                         try_system_browser=True,
                         system_browser=form.get("browser", "msedge") or "msedge",
@@ -237,16 +241,22 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
             <label>Email/phone challenge
               <input name="email_or_phone" placeholder="必要な場合だけ">
             </label>
+            <label>Security code
+              <input name="verification_code" placeholder="8桁コードが送られた場合だけ">
+            </label>
           </section>
           <section>
             <h2>取得</h2>
             <label>Output dir
-              <input name="out_dir" placeholder="runs/bookmarks_mcreatefuture_3_full">
+              <input name="out_dir" placeholder="runs/bookmarks_my_account_full">
             </label>
             <label>DB path <input name="db_path" value="runs/x_data.sqlite3"></label>
             <label>Limit <input name="limit" type="number" value="100"></label>
             <label><input name="fetch_all" type="checkbox" checked> 全件取得モード</label>
-            <label><input name="download_media" type="checkbox" checked> 画像も保存</label>
+            <label>
+              <input name="download_media" type="checkbox" checked>
+              画像も保存（大量件数では時間がかかります）
+            </label>
             <label>Browser
               <select name="browser">
                 <option value="msedge">Edge</option>
@@ -291,9 +301,10 @@ def _status_page(job: AppJob | None) -> str:
     if job is None:
         return _page("Job not found", "<h1>Job not found</h1><a href='/'>戻る</a>")
     refresh = "" if job.status in {"done", "failed"} else "<meta http-equiv='refresh' content='5'>"
-    state_text = _status_label(job.status)
-    elapsed = _elapsed_text(job)
     progress = _progress_box(job)
+    cursor_state = _cursor_state(job.out_dir)
+    state_text = _status_label(job.status, cursor_state=cursor_state)
+    elapsed = _elapsed_text(job)
     result_params = urlencode(
         {
             "db": str(job.db_path),
@@ -392,7 +403,9 @@ def _job_links(jobs: list[AppJob]) -> str:
     )
 
 
-def _status_label(status: str) -> str:
+def _status_label(status: str, *, cursor_state: dict[str, Any] | None = None) -> str:
+    if status == "bookmarks" and cursor_state and cursor_state.get("finished"):
+        return "<span class='running'>本文取得完了。画像保存またはDB書き込み中</span>"
     labels = {
         "queued": "<span class='running'>待機中</span>",
         "account": "<span class='running'>アカウント情報を保存中</span>",
@@ -415,12 +428,14 @@ def _progress_box(job: AppJob) -> str:
     out_dir = job.out_dir
     item_count = _jsonl_count(out_dir / "bookmarks_items.jsonl")
     page_count = len(list((out_dir / "bookmark_pages" / "x_web_graphql").glob("*.json")))
+    media_count = len(list((out_dir / "media").glob("*/*"))) if (out_dir / "media").exists() else 0
     cursor_state = _cursor_state(out_dir)
     existing = out_dir.exists()
     lines = [
         f"output exists: {existing}",
         f"bookmarks_items.jsonl rows: {item_count}",
         f"x_web_graphql saved pages: {page_count}",
+        f"downloaded media files: {media_count}",
     ]
     if cursor_state:
         lines.append(f"cursor item_count: {cursor_state.get('item_count')}")
