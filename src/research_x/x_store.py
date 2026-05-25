@@ -4,9 +4,11 @@ import hashlib
 import json
 import mimetypes
 import sqlite3
+import time
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime
+from http.client import IncompleteRead
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -111,8 +113,24 @@ def write_x_store_outputs(
 
     media_rows = list(media.values())
     if download_media:
-        for row in media_rows:
+        progress_path = output_path / "media_progress.json"
+        started = time.monotonic()
+        _write_media_progress(progress_path, media_rows, current_index=0, started=started)
+        for index, row in enumerate(media_rows, start=1):
             _download_media(row, media_dir=media_dir, timeout_seconds=media_timeout_seconds)
+            _write_media_progress(
+                progress_path,
+                media_rows,
+                current_index=index,
+                started=started,
+            )
+        _write_media_progress(
+            progress_path,
+            media_rows,
+            current_index=len(media_rows),
+            started=started,
+            finished=True,
+        )
 
     tree_rows = [
         _tree_for_bookmark(row, tweets=tweets, edges=edges, root_ids=root_ids)
@@ -919,6 +937,11 @@ def _download_media(
     target_dir = media_dir / str(row["tweet_id"])
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / f"{row['media_id']}{ext}"
+    if target_path.exists() and target_path.stat().st_size > 0:
+        row["download_status"] = "ok"
+        row["local_path"] = str(target_path)
+        row["bytes"] = target_path.stat().st_size
+        return
     request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
     try:
         with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
@@ -928,9 +951,47 @@ def _download_media(
             row["local_path"] = str(target_path)
             row["bytes"] = len(data)
             row["content_type"] = response.headers.get("content-type")
-    except (OSError, URLError, TimeoutError) as exc:
+    except (OSError, URLError, TimeoutError, IncompleteRead) as exc:
         row["download_status"] = "error"
         row["download_error"] = f"{type(exc).__name__}: {exc}"
+
+
+def _write_media_progress(
+    path: Path,
+    media_rows: list[dict[str, Any]],
+    *,
+    current_index: int,
+    started: float,
+    finished: bool = False,
+) -> None:
+    total = len(media_rows)
+    counts: dict[str, int] = {}
+    for row in media_rows:
+        status = str(row.get("download_status") or "pending")
+        counts[status] = counts.get(status, 0) + 1
+    done = sum(counts.get(status, 0) for status in ("ok", "error", "skipped"))
+    elapsed = max(0.001, time.monotonic() - started)
+    rate = done / elapsed if done else 0.0
+    remaining = max(0, total - done)
+    payload = {
+        "updated_at": utc_now().isoformat(),
+        "finished": finished,
+        "total": total,
+        "done": done,
+        "remaining": remaining,
+        "current_index": current_index,
+        "ok": counts.get("ok", 0),
+        "error": counts.get("error", 0),
+        "skipped": counts.get("skipped", 0),
+        "pending": counts.get("pending", 0),
+        "elapsed_seconds": elapsed,
+        "items_per_second": rate,
+        "estimated_remaining_seconds": remaining / rate if rate > 0 else None,
+    }
+    path.write_text(
+        json.dumps(_jsonable(payload), ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def _media_extension(url: str) -> str:

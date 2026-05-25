@@ -428,7 +428,8 @@ def _progress_box(job: AppJob) -> str:
     out_dir = job.out_dir
     item_count = _jsonl_count(out_dir / "bookmarks_items.jsonl")
     page_count = len(list((out_dir / "bookmark_pages" / "x_web_graphql").glob("*.json")))
-    media_count = len(list((out_dir / "media").glob("*/*"))) if (out_dir / "media").exists() else 0
+    media_count = _media_file_count(out_dir / "media")
+    media_progress = _media_progress(out_dir)
     cursor_state = _cursor_state(out_dir)
     existing = out_dir.exists()
     lines = [
@@ -437,6 +438,30 @@ def _progress_box(job: AppJob) -> str:
         f"x_web_graphql saved pages: {page_count}",
         f"downloaded media files: {media_count}",
     ]
+    if media_progress:
+        total = _safe_int(media_progress.get("total"))
+        done = _safe_int(media_progress.get("done"))
+        remaining = _safe_int(media_progress.get("remaining"), default=max(0, total - done))
+        percent = (done / total * 100) if total else 0.0
+        eta = _duration_text(media_progress.get("estimated_remaining_seconds"))
+        lines.extend(
+            [
+                f"media progress: {done}/{total} remaining {remaining} ({percent:.1f}%)",
+                f"media ok/error/skipped: {media_progress.get('ok', 0)}/"
+                f"{media_progress.get('error', 0)}/{media_progress.get('skipped', 0)}",
+                f"estimated media remaining: {eta}",
+            ]
+        )
+    elif (out_dir / "items.jsonl").exists():
+        total = _estimate_media_total_from_items(out_dir / "items.jsonl")
+        done = min(media_count, total) if total else media_count
+        remaining = max(0, total - done)
+        percent = (done / total * 100) if total else 0.0
+        eta = _duration_text(_estimated_remaining_seconds(job, done=done, remaining=remaining))
+        lines.append(
+            f"media progress estimate: {done}/{total} remaining {remaining} ({percent:.1f}%)"
+        )
+        lines.append(f"estimated media remaining: {eta}")
     if cursor_state:
         lines.append(f"cursor item_count: {cursor_state.get('item_count')}")
         lines.append(f"cursor finished: {cursor_state.get('finished')}")
@@ -451,6 +476,12 @@ def _jsonl_count(path: Path) -> int:
         return sum(1 for _ in handle)
 
 
+def _media_file_count(path: Path) -> int:
+    if not path.exists():
+        return 0
+    return sum(1 for candidate in path.glob("*/*") if candidate.is_file())
+
+
 def _cursor_state(out_dir: Path) -> dict[str, Any]:
     path = out_dir / "bookmark_pages" / "x_web_graphql_cursor_state.json"
     if not path.exists():
@@ -460,6 +491,64 @@ def _cursor_state(out_dir: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return value if isinstance(value, dict) else {}
+
+
+def _media_progress(out_dir: Path) -> dict[str, Any]:
+    path = out_dir / "media_progress.json"
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _estimate_media_total_from_items(path: Path) -> int:
+    try:
+        from research_x.x_store import _add_media
+
+        media: dict[str, dict[str, Any]] = {}
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if not isinstance(row, dict):
+                    continue
+                source_id = str(row.get("source_id") or "")
+                raw = row.get("raw")
+                if source_id and isinstance(raw, dict):
+                    _add_media(media, source_id, raw)
+        return len(media)
+    except Exception:  # noqa: BLE001 - progress fallback should never break status page.
+        return 0
+
+
+def _estimated_remaining_seconds(job: AppJob, *, done: int, remaining: int) -> float | None:
+    if done <= 0 or remaining <= 0:
+        return 0.0 if remaining <= 0 else None
+    elapsed = max(0.001, time.time() - job.started_at)
+    rate = done / elapsed
+    return remaining / rate if rate > 0 else None
+
+
+def _duration_text(value: Any) -> str:
+    if not isinstance(value, int | float):
+        return "unknown"
+    seconds = max(0, int(value))
+    minutes, rest = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {rest}s"
+    return f"{minutes}m {rest}s"
+
+
+def _safe_int(value: Any, *, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _first(params: dict[str, list[str]], key: str) -> str:
