@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 import threading
 import time
@@ -60,6 +61,10 @@ class CollectionApp:
     def get_job(self, job_id: str) -> AppJob | None:
         with self.lock:
             return self.jobs.get(job_id)
+
+    def list_jobs(self) -> list[AppJob]:
+        with self.lock:
+            return sorted(self.jobs.values(), key=lambda job: job.started_at, reverse=True)
 
     def _run_job(self, job: AppJob, form: dict[str, str]) -> None:
         try:
@@ -160,7 +165,7 @@ def serve_collection_app(
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API.
             parsed = urlparse(self.path)
             if parsed.path == "/":
-                self._html(_home_page())
+                self._html(_home_page(app.list_jobs()))
                 return
             if parsed.path == "/status":
                 params = parse_qs(parsed.query)
@@ -209,11 +214,13 @@ def serve_collection_app(
     server.serve_forever()
 
 
-def _home_page() -> str:
+def _home_page(jobs: list[AppJob] | None = None) -> str:
+    job_links = _job_links(jobs or [])
     return _page(
         "X収集アプリ",
-        """
+        f"""
         <h1>X収集アプリ</h1>
+        {job_links}
         <form method="post" action="/run">
           <section>
             <h2>アカウント</h2>
@@ -284,6 +291,9 @@ def _status_page(job: AppJob | None) -> str:
     if job is None:
         return _page("Job not found", "<h1>Job not found</h1><a href='/'>戻る</a>")
     refresh = "" if job.status in {"done", "failed"} else "<meta http-equiv='refresh' content='5'>"
+    state_text = _status_label(job.status)
+    elapsed = _elapsed_text(job)
+    progress = _progress_box(job)
     result_params = urlencode(
         {
             "db": str(job.db_path),
@@ -303,11 +313,14 @@ def _status_page(job: AppJob | None) -> str:
         f"""
         {refresh}
         <h1>Job {html.escape(job.job_id)}</h1>
-        <p>status: <strong>{html.escape(job.status)}</strong></p>
+        <p>status: <strong>{html.escape(job.status)}</strong> - {state_text}</p>
+        <p>elapsed: {html.escape(elapsed)}</p>
         <p>account: {html.escape(job.account_id)}</p>
         <p>out: {html.escape(str(job.out_dir))}</p>
         <p>db: {html.escape(str(job.db_path))}</p>
+        {progress}
         <p>{result_link} <a href="/">新規実行</a></p>
+        <p class="note">新規実行はこのジョブを止めません。別の入力画面へ戻るだけです。</p>
         <pre>{logs}</pre>
         """,
     )
@@ -345,10 +358,93 @@ def _page(title: str, body: str) -> str:
     input, select, button {{ font: inherit; padding: 8px; }}
     button {{ width: fit-content; }}
     pre {{ white-space: pre-wrap; background: #f6f6f6; padding: 12px; overflow: auto; }}
+    .note {{ color: #555; }}
+    .ok {{ color: #126b28; }}
+    .bad {{ color: #9f1239; }}
+    .running {{ color: #92400e; }}
+    table {{ border-collapse: collapse; }}
+    th, td {{ border-bottom: 1px solid #ddd; padding: 6px 10px; text-align: left; }}
   </style>
 </head>
 <body>{body}</body>
 </html>"""
+
+
+def _job_links(jobs: list[AppJob]) -> str:
+    if not jobs:
+        return ""
+    rows = []
+    for job in jobs[:10]:
+        status_url = "/status?" + urlencode({"job": job.job_id})
+        rows.append(
+            "<tr>"
+            f"<td><a href='{status_url}'>{html.escape(job.job_id)}</a></td>"
+            f"<td>{html.escape(job.account_id)}</td>"
+            f"<td>{html.escape(job.status)}</td>"
+            f"<td>{html.escape(_elapsed_text(job))}</td>"
+            "</tr>"
+        )
+    return (
+        "<section><h2>最近のジョブ</h2><table>"
+        "<tr><th>Job</th><th>Account</th><th>Status</th><th>Elapsed</th></tr>"
+        + "".join(rows)
+        + "</table></section>"
+    )
+
+
+def _status_label(status: str) -> str:
+    labels = {
+        "queued": "<span class='running'>待機中</span>",
+        "account": "<span class='running'>アカウント情報を保存中</span>",
+        "auth": "<span class='running'>自動ログイン中。まだ取得は始まっていません</span>",
+        "bookmarks": "<span class='running'>ブックマーク取得中</span>",
+        "done": "<span class='ok'>完了</span>",
+        "failed": "<span class='bad'>失敗。ログ末尾に原因があります</span>",
+    }
+    return labels.get(status, html.escape(status))
+
+
+def _elapsed_text(job: AppJob) -> str:
+    end = job.finished_at or time.time()
+    seconds = max(0, int(end - job.started_at))
+    minutes, rest = divmod(seconds, 60)
+    return f"{minutes}m {rest}s"
+
+
+def _progress_box(job: AppJob) -> str:
+    out_dir = job.out_dir
+    item_count = _jsonl_count(out_dir / "bookmarks_items.jsonl")
+    page_count = len(list((out_dir / "bookmark_pages" / "x_web_graphql").glob("*.json")))
+    cursor_state = _cursor_state(out_dir)
+    existing = out_dir.exists()
+    lines = [
+        f"output exists: {existing}",
+        f"bookmarks_items.jsonl rows: {item_count}",
+        f"x_web_graphql saved pages: {page_count}",
+    ]
+    if cursor_state:
+        lines.append(f"cursor item_count: {cursor_state.get('item_count')}")
+        lines.append(f"cursor finished: {cursor_state.get('finished')}")
+        lines.append(f"rate_limited: {cursor_state.get('rate_limited')}")
+    return "<pre>" + html.escape("\n".join(lines)) + "</pre>"
+
+
+def _jsonl_count(path: Path) -> int:
+    if not path.exists():
+        return 0
+    with path.open("r", encoding="utf-8") as handle:
+        return sum(1 for _ in handle)
+
+
+def _cursor_state(out_dir: Path) -> dict[str, Any]:
+    path = out_dir / "bookmark_pages" / "x_web_graphql_cursor_state.json"
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def _first(params: dict[str, list[str]], key: str) -> str:

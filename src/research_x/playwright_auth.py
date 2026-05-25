@@ -683,7 +683,11 @@ async def _first_visible_locator(page, selectors: tuple[str, ...], timeout_secon
         for selector in selectors:
             locator = page.locator(selector).first
             try:
-                if await locator.count() and await locator.is_visible(timeout=300):
+                if (
+                    await locator.count()
+                    and await locator.is_visible(timeout=300)
+                    and await _is_actionable_login_field(locator)
+                ):
                     return locator
             except Exception:  # noqa: BLE001 - try the next selector.
                 continue
@@ -722,7 +726,10 @@ async def _set_first_visible_input(
 
 
 async def _set_locator_input(page, locator, value: str, description: str = "text") -> None:
-    await locator.click()
+    try:
+        await locator.click(timeout=5000)
+    except Exception:  # noqa: BLE001 - fallback for login fields covered by animated shells.
+        await locator.evaluate("(element) => element.focus()")
     await locator.fill("")
     await locator.press_sequentially(value, delay=45)
     await page.wait_for_timeout(300)
@@ -747,6 +754,25 @@ async def _set_locator_input(page, locator, value: str, description: str = "text
     await page.wait_for_timeout(300)
     if await _locator_value(locator) != value:
         raise RuntimeError(f"Could not set X login {description} field value.")
+
+
+async def _is_actionable_login_field(locator) -> bool:
+    return bool(
+        await locator.evaluate(
+            """
+            (element) => {
+              const style = window.getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+              return element.getAttribute('aria-hidden') !== 'true'
+                && element.tabIndex !== -1
+                && style.visibility !== 'hidden'
+                && style.display !== 'none'
+                && rect.width > 0
+                && rect.height > 0;
+            }
+            """
+        )
+    )
 
 
 async def _locator_value(locator) -> str | None:
