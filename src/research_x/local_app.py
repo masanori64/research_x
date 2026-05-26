@@ -19,6 +19,7 @@ from research_x.accounts import normalize_account_id, resolve_account_paths, wri
 from research_x.bookmarks import run_bookmark_job
 from research_x.db_view import format_display_rows, load_display_rows
 from research_x.playwright_auth import capture_storage_state_auto, storage_state_has_x_auth_cookies
+from research_x.progress import ProgressSnapshot, progress_snapshot
 
 
 @dataclass
@@ -195,6 +196,14 @@ def serve_collection_app(
                 job = app.get_job(_first(params, "job"))
                 self._html(_status_page(job))
                 return
+            if parsed.path == "/api/status":
+                params = parse_qs(parsed.query)
+                job = app.get_job(_first(params, "job"))
+                if job is None:
+                    self._json({"error": "job_not_found"}, status=404)
+                    return
+                self._json(_job_status_payload(job))
+                return
             if parsed.path == "/results":
                 params = parse_qs(parsed.query)
                 db = _first(params, "db") or "runs/x_data.sqlite3"
@@ -225,6 +234,15 @@ def serve_collection_app(
             payload = body.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def _json(self, value: dict[str, Any], *, status: int = 200) -> None:
+            payload = json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
@@ -338,7 +356,11 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
 def _status_page(job: AppJob | None) -> str:
     if job is None:
         return _page("Job not found", "<h1>Job not found</h1><a href='/'>戻る</a>")
-    refresh = "" if job.status in {"done", "failed"} else "<meta http-equiv='refresh' content='5'>"
+    snapshot = progress_snapshot(
+        job.out_dir,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )
     progress = _progress_box(job)
     cursor_state = _cursor_state(job.out_dir)
     state_text = _status_label(job.status, cursor_state=cursor_state)
@@ -358,21 +380,25 @@ def _status_page(job: AppJob | None) -> str:
     )
     logs = "\n".join(html.escape(item) for item in job.logs[-80:])
     completion_sound = _completion_sound_script(job)
+    live_script = _live_status_script(job)
     return _page(
         f"Job {job.job_id}",
         f"""
-        {refresh}
         {completion_sound}
+        {live_script}
         <h1>Job {html.escape(job.job_id)}</h1>
-        <p>status: <strong>{html.escape(job.status)}</strong> - {state_text}</p>
-        <p>elapsed: {html.escape(elapsed)}</p>
+        <p>status: <strong id="job-status">{html.escape(job.status)}</strong> -
+          <span id="job-status-label">{state_text}</span>
+        </p>
+        <p>elapsed: <span id="job-elapsed">{html.escape(elapsed)}</span></p>
         <p>account: {html.escape(job.account_id)}</p>
         <p>out: {html.escape(str(job.out_dir))}</p>
         <p>db: {html.escape(str(job.db_path))}</p>
+        {_progress_bars(snapshot)}
         {progress}
         <p>{result_link} <a href="/">新規実行</a></p>
         <p class="note">新規実行はこのジョブを止めません。別の入力画面へ戻るだけです。</p>
-        <pre>{logs}</pre>
+        <pre id="job-logs">{logs}</pre>
         """,
     )
 
@@ -409,6 +435,14 @@ def _page(title: str, body: str) -> str:
     input, select, button {{ font: inherit; padding: 8px; }}
     button {{ width: fit-content; }}
     pre {{ white-space: pre-wrap; background: #f6f6f6; padding: 12px; overflow: auto; }}
+    .progress-grid {{ display: grid; gap: 12px; margin: 14px 0; }}
+    .progress-row {{ display: flex; justify-content: space-between; gap: 12px; }}
+    .progress-bar {{ height: 18px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }}
+    .progress-fill {{
+      height: 100%; width: 0%; background: #2563eb; transition: width .25s linear;
+    }}
+    .progress-fill.done {{ background: #16a34a; }}
+    .progress-fill.waiting {{ background: #d97706; }}
     .note {{ color: #555; }}
     .ok {{ color: #126b28; }}
     .bad {{ color: #9f1239; }}
@@ -419,6 +453,31 @@ def _page(title: str, body: str) -> str:
 </head>
 <body>{body}</body>
 </html>"""
+
+
+def _job_status_payload(job: AppJob) -> dict[str, Any]:
+    snapshot = progress_snapshot(
+        job.out_dir,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )
+    cursor_state = _cursor_state(job.out_dir)
+    logs = list(job.logs[-80:])
+    status = job.status
+    error = job.error
+    finished_at = job.finished_at
+    return {
+        "job_id": job.job_id,
+        "account_id": job.account_id,
+        "status": status,
+        "status_label": _status_label(status, cursor_state=cursor_state),
+        "error": error,
+        "started_at": job.started_at,
+        "finished_at": finished_at,
+        "server_time": time.time(),
+        "logs": logs,
+        "progress": snapshot.as_dict(),
+    }
 
 
 def _completion_sound_script(job: AppJob) -> str:
@@ -458,6 +517,164 @@ def _completion_sound_script(job: AppJob) -> str:
               window.speechSynthesis.speak(utterance);
             }}
           }} catch (error) {{}}
+        }})();
+        </script>
+    """
+
+
+def _progress_bars(snapshot: ProgressSnapshot) -> str:
+    text_percent = 100.0 if snapshot.cursor_finished else 0.0
+    media_percent = _percent(snapshot.media_done, snapshot.media_total)
+    text_label = (
+        f"完了 {snapshot.cursor_item_count or 0}件 / {snapshot.page_count} pages"
+        if snapshot.cursor_finished
+        else f"取得中 {snapshot.cursor_item_count or 0}件 / {snapshot.page_count} pages"
+    )
+    media_label = (
+        f"{snapshot.media_done or 0}/{snapshot.media_total or 0} ({media_percent:.1f}%)"
+        if snapshot.media_total
+        else "待機中"
+    )
+    escaped_text_label = html.escape(text_label)
+    escaped_media_label = html.escape(media_label)
+    return f"""
+        <section class="progress-grid">
+          <div>
+            <div class="progress-row">
+              <strong>本文取得</strong>
+              <span id="text-progress-label">{escaped_text_label}</span>
+            </div>
+            <div class="progress-bar">
+              <div id="text-progress-fill"
+                class="progress-fill waiting"
+                style="width: {text_percent:.1f}%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="progress-row">
+              <strong>画像保存</strong>
+              <span id="media-progress-label">{escaped_media_label}</span>
+            </div>
+            <div class="progress-bar">
+              <div id="media-progress-fill"
+                class="progress-fill"
+                style="width: {media_percent:.1f}%"></div>
+            </div>
+          </div>
+        </section>
+    """
+
+
+def _live_status_script(job: AppJob) -> str:
+    job_id = json.dumps(job.job_id)
+    return f"""
+        <script>
+        (() => {{
+          const jobId = {job_id};
+          let payload = null;
+          let receivedAt = Date.now();
+
+          function durationText(value) {{
+            if (value === null || value === undefined || !Number.isFinite(value)) {{
+              return "unknown";
+            }}
+            const seconds = Math.max(0, Math.floor(value));
+            const minutes = Math.floor(seconds / 60);
+            const rest = seconds % 60;
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return hours ? `${{hours}}h ${{mins}}m ${{rest}}s` : `${{mins}}m ${{rest}}s`;
+          }}
+
+          function percent(done, total) {{
+            if (!total || total <= 0 || done === null || done === undefined) return 0;
+            return Math.max(0, Math.min(100, done / total * 100));
+          }}
+
+          function setFill(id, value, finished) {{
+            const fill = document.getElementById(id);
+            if (!fill) return;
+            fill.style.width = `${{value.toFixed(1)}}%`;
+            fill.classList.toggle("done", Boolean(finished));
+            fill.classList.toggle("waiting", !finished && value <= 0);
+          }}
+
+          function render() {{
+            if (!payload) return;
+            const progress = payload.progress || {{}};
+            const now = Date.now();
+            const drift = (now - receivedAt) / 1000;
+            const end = payload.finished_at || (Date.now() / 1000);
+            document.getElementById("job-status").textContent = payload.status || "";
+            document.getElementById("job-status-label").innerHTML = payload.status_label || "";
+            document.getElementById("job-elapsed").textContent =
+              durationText(end - payload.started_at);
+
+            const textFinished = progress.cursor_finished === true;
+            const textCount = progress.cursor_item_count || 0;
+            const textPercent = textFinished ? 100 : 0;
+            document.getElementById("text-progress-label").textContent = textFinished
+              ? `完了 ${{textCount}}件 / ${{progress.page_count || 0}} pages`
+              : `取得中 ${{textCount}}件 / ${{progress.page_count || 0}} pages`;
+            setFill("text-progress-fill", textPercent, textFinished);
+
+            const mediaDone = progress.media_done || 0;
+            const mediaTotal = progress.media_total || 0;
+            const mediaPercent = percent(mediaDone, mediaTotal);
+            const eta = progress.media_estimated_remaining_seconds == null
+              ? null
+              : Math.max(0, progress.media_estimated_remaining_seconds - drift);
+            document.getElementById("media-progress-label").textContent = mediaTotal
+              ? (
+                `${{mediaDone}}/${{mediaTotal}} ` +
+                `(${{mediaPercent.toFixed(1)}}%) 残り ${{durationText(eta)}}`
+              )
+              : "待機中";
+            setFill("media-progress-fill", mediaPercent, progress.media_finished === true);
+
+            const mediaElapsed = progress.media_elapsed_seconds == null
+              ? null
+              : progress.media_elapsed_seconds + drift;
+            document.getElementById("progress-details").textContent = [
+              `output exists: ${{progress.output_exists}}`,
+              `bookmarks_items.jsonl rows: ${{progress.bookmarks_rows || 0}}`,
+              `x_web_graphql saved pages: ${{progress.page_count || 0}}`,
+              (
+                `media progress: ${{mediaDone}}/${{mediaTotal}} ` +
+                `remaining ${{progress.media_remaining || 0}} ` +
+                `(${{mediaPercent.toFixed(1)}}%)`
+              ),
+              `media elapsed: ${{durationText(mediaElapsed)}}`,
+              (
+                `media ok/error/skipped: ${{progress.media_ok || 0}}/` +
+                `${{progress.media_error || 0}}/${{progress.media_skipped || 0}}`
+              ),
+              `estimated media remaining: ${{durationText(eta)}}`,
+              `cursor item_count: ${{progress.cursor_item_count || 0}}`,
+              `cursor finished: ${{progress.cursor_finished}}`,
+              `rate_limited: ${{progress.rate_limited}}`
+            ].join("\\n");
+            const logs = document.getElementById("job-logs");
+            if (logs) logs.textContent = (payload.logs || []).join("\\n");
+          }}
+
+          async function poll() {{
+            try {{
+              const response = await fetch(`/api/status?job=${{encodeURIComponent(jobId)}}`, {{
+                cache: "no-store"
+              }});
+              payload = await response.json();
+              receivedAt = Date.now();
+              render();
+            }} catch (error) {{
+              const details = document.getElementById("progress-details");
+              if (details) details.textContent = `progress update failed: ${{error}}`;
+            }}
+          }}
+
+          setInterval(render, 1000);
+          setInterval(poll, 1000);
+          poll();
         }})();
         </script>
     """
@@ -507,48 +724,45 @@ def _elapsed_text(job: AppJob) -> str:
 
 
 def _progress_box(job: AppJob) -> str:
-    out_dir = job.out_dir
-    item_count = _jsonl_count(out_dir / "bookmarks_items.jsonl")
-    page_count = len(list((out_dir / "bookmark_pages" / "x_web_graphql").glob("*.json")))
-    media_count = _media_file_count(out_dir / "media")
-    media_progress = _media_progress(out_dir)
-    cursor_state = _cursor_state(out_dir)
-    existing = out_dir.exists()
+    snapshot = progress_snapshot(
+        job.out_dir,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )
+    media_percent = _percent(snapshot.media_done, snapshot.media_total)
     lines = [
-        f"output exists: {existing}",
-        f"bookmarks_items.jsonl rows: {item_count}",
-        f"x_web_graphql saved pages: {page_count}",
-        f"downloaded media files: {media_count}",
+        f"output exists: {snapshot.output_exists}",
+        f"bookmarks_items.jsonl rows: {snapshot.bookmarks_rows}",
+        f"x_web_graphql saved pages: {snapshot.page_count}",
     ]
-    if media_progress:
-        total = _safe_int(media_progress.get("total"))
-        done = _safe_int(media_progress.get("done"))
-        remaining = _safe_int(media_progress.get("remaining"), default=max(0, total - done))
-        percent = (done / total * 100) if total else 0.0
-        eta = _duration_text(media_progress.get("estimated_remaining_seconds"))
+    if snapshot.media_total is not None:
         lines.extend(
             [
-                f"media progress: {done}/{total} remaining {remaining} ({percent:.1f}%)",
-                f"media ok/error/skipped: {media_progress.get('ok', 0)}/"
-                f"{media_progress.get('error', 0)}/{media_progress.get('skipped', 0)}",
-                f"estimated media remaining: {eta}",
+                (
+                    f"media progress: {snapshot.media_done or 0}/{snapshot.media_total or 0} "
+                    f"remaining {snapshot.media_remaining or 0} ({media_percent:.1f}%)"
+                ),
+                (
+                    f"media ok/error/skipped: {snapshot.media_ok or 0}/"
+                    f"{snapshot.media_error or 0}/{snapshot.media_skipped or 0}"
+                ),
+                (
+                    "estimated media remaining: "
+                    f"{_duration_text(snapshot.media_estimated_remaining_seconds)}"
+                ),
             ]
         )
-    elif (out_dir / "items.jsonl").exists():
-        total = _estimate_media_total_from_items(out_dir / "items.jsonl")
-        done = min(media_count, total) if total else media_count
-        remaining = max(0, total - done)
-        percent = (done / total * 100) if total else 0.0
-        eta = _duration_text(_estimated_remaining_seconds(job, done=done, remaining=remaining))
-        lines.append(
-            f"media progress estimate: {done}/{total} remaining {remaining} ({percent:.1f}%)"
-        )
-        lines.append(f"estimated media remaining: {eta}")
-    if cursor_state:
-        lines.append(f"cursor item_count: {cursor_state.get('item_count')}")
-        lines.append(f"cursor finished: {cursor_state.get('finished')}")
-        lines.append(f"rate_limited: {cursor_state.get('rate_limited')}")
-    return "<pre>" + html.escape("\n".join(lines)) + "</pre>"
+    if snapshot.cursor_item_count is not None:
+        lines.append(f"cursor item_count: {snapshot.cursor_item_count}")
+        lines.append(f"cursor finished: {snapshot.cursor_finished}")
+        lines.append(f"rate_limited: {snapshot.rate_limited}")
+    return "<pre id='progress-details'>" + html.escape("\n".join(lines)) + "</pre>"
+
+
+def _percent(done: int | None, total: int | None) -> float:
+    if not total or total <= 0 or done is None:
+        return 0.0
+    return max(0.0, min(100.0, done / total * 100))
 
 
 def _jsonl_count(path: Path) -> int:

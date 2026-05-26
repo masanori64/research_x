@@ -111,6 +111,20 @@ def main(argv: list[str] | None = None) -> int:
         help="return non-zero if no notification method succeeds",
     )
 
+    progress_parser = subparsers.add_parser(
+        "progress",
+        help="serve a live progress page for an output directory",
+    )
+    progress_parser.add_argument("--out", required=True, help="output directory to monitor")
+    progress_parser.add_argument("--host", default="127.0.0.1")
+    progress_parser.add_argument("--port", type=int, default=8766)
+    progress_parser.add_argument(
+        "--open-browser",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="open the progress page in the default browser",
+    )
+
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
         "--details",
@@ -620,6 +634,16 @@ def main(argv: list[str] | None = None) -> int:
         if result.errors:
             print("notification warnings: " + "; ".join(result.errors), file=sys.stderr)
         return 0 if result.ok or not args.strict else 1
+    if args.command == "progress":
+        from research_x.progress import serve_progress_monitor
+
+        serve_progress_monitor(
+            out_dir=args.out,
+            host=args.host,
+            port=args.port,
+            open_browser=args.open_browser,
+        )
+        return 0
     if args.command == "accounts":
         if args.accounts_command == "add":
             profile = write_account_profile(
