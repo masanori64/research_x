@@ -36,3 +36,10 @@ def test_notify_completion_collects_errors(monkeypatch) -> None:
     assert result.beep_ok is False
     assert result.voice_ok is False
     assert result.errors
+
+
+def test_completion_sound_asset_exists() -> None:
+    sound = notify._completion_sound()
+
+    assert sound.name == "completion.wav"
+    assert sound.is_file()

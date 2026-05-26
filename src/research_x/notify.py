@@ -3,6 +3,7 @@ from __future__ import annotations
 import platform
 import subprocess
 from dataclasses import dataclass
+from importlib.resources import as_file, files
 
 
 @dataclass(frozen=True)
@@ -45,10 +46,15 @@ def _beep() -> bool:
     if platform.system() == "Windows":
         import winsound
 
-        winsound.MessageBeep(winsound.MB_ICONASTERISK)
-        return True
+        with as_file(_completion_sound()) as sound_path:
+            winsound.PlaySound(str(sound_path), winsound.SND_FILENAME)
+            return True
     print("\a", end="", flush=True)
     return True
+
+
+def _completion_sound():
+    return files("research_x.assets").joinpath("completion.wav")
 
 
 def _speak(message: str) -> bool:
