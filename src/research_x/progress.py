@@ -84,6 +84,7 @@ def serve_progress_monitor(
     open_browser: bool = True,
 ) -> None:
     output_path = Path(out_dir)
+    state_cache: dict[str, Any] = {}
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API.
@@ -92,7 +93,8 @@ def serve_progress_monitor(
                 self._html(_monitor_page(output_path))
                 return
             if parsed.path == "/data":
-                self._json(progress_snapshot(output_path).as_dict())
+                payload = _stable_progress_payload(output_path, state_cache)
+                self._json(payload)
                 return
             self.send_error(404)
 
@@ -167,6 +169,7 @@ def _monitor_page(out_dir: Path) -> str:
   <script>
     let state = null;
     let receivedAt = Date.now();
+    let statusMessage = "";
 
     function fmtDuration(value) {{
       if (value === null || value === undefined || !Number.isFinite(value)) return "unknown";
@@ -221,6 +224,7 @@ def _monitor_page(out_dir: Path) -> str:
         ? null
         : state.media_elapsed_seconds + drift;
       document.getElementById("details").textContent = [
+        statusMessage,
         `output exists: ${{state.output_exists}}`,
         `bookmarks_items rows: ${{state.bookmarks_rows}}`,
         `cursor finished: ${{state.cursor_finished}}`,
@@ -241,14 +245,28 @@ def _monitor_page(out_dir: Path) -> str:
       ].join("\\n");
     }}
 
+    function hasMediaProgress(candidate) {{
+      return candidate && candidate.media_total && candidate.media_total > 0;
+    }}
+
     async function poll() {{
       try {{
         const response = await fetch("/data", {{ cache: "no-store" }});
-        state = await response.json();
-        receivedAt = Date.now();
-        render();
+        const next = await response.json();
+        statusMessage = next.stale
+          ? `progress source is temporarily busy; showing cached data (${{next.stale_reason}})`
+          : "";
+        if (hasMediaProgress(next) || !state) {{
+          state = next;
+          receivedAt = Date.now();
+          render();
+        }} else {{
+          statusMessage = "progress source returned incomplete data; keeping last value";
+          render();
+        }}
       }} catch (error) {{
-        document.getElementById("details").textContent = `poll failed: ${{error}}`;
+        statusMessage = `poll failed; keeping last value: ${{error}}`;
+        render();
       }}
     }}
 
@@ -258,6 +276,31 @@ def _monitor_page(out_dir: Path) -> str:
   </script>
 </body>
 </html>"""
+
+
+def _stable_progress_payload(out_dir: Path, cache: dict[str, Any]) -> dict[str, Any]:
+    snapshot = progress_snapshot(out_dir).as_dict()
+    if _has_media_progress(snapshot):
+        snapshot["stale"] = False
+        snapshot["stale_reason"] = None
+        cache["snapshot"] = snapshot
+        return snapshot
+    previous = cache.get("snapshot")
+    if isinstance(previous, dict):
+        stale = dict(previous)
+        stale["server_time"] = time.time()
+        stale["stale"] = True
+        stale["stale_reason"] = "incomplete_media_progress"
+        return stale
+    snapshot["stale"] = True
+    snapshot["stale_reason"] = "no_complete_snapshot_yet"
+    return snapshot
+
+
+def _has_media_progress(snapshot: dict[str, Any]) -> bool:
+    total = snapshot.get("media_total")
+    done = snapshot.get("media_done")
+    return isinstance(total, int) and total > 0 and isinstance(done, int) and done >= 0
 
 
 def _read_json(path: Path) -> dict[str, Any]:

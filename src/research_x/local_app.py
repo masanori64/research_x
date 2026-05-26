@@ -573,6 +573,7 @@ def _live_status_script(job: AppJob) -> str:
           const jobId = {job_id};
           let payload = null;
           let receivedAt = Date.now();
+          let statusMessage = "";
 
           function durationText(value) {{
             if (value === null || value === undefined || !Number.isFinite(value)) {{
@@ -636,6 +637,7 @@ def _live_status_script(job: AppJob) -> str:
               ? null
               : progress.media_elapsed_seconds + drift;
             document.getElementById("progress-details").textContent = [
+              statusMessage,
               `output exists: ${{progress.output_exists}}`,
               `bookmarks_items.jsonl rows: ${{progress.bookmarks_rows || 0}}`,
               `x_web_graphql saved pages: ${{progress.page_count || 0}}`,
@@ -663,12 +665,21 @@ def _live_status_script(job: AppJob) -> str:
               const response = await fetch(`/api/status?job=${{encodeURIComponent(jobId)}}`, {{
                 cache: "no-store"
               }});
-              payload = await response.json();
-              receivedAt = Date.now();
-              render();
+              const next = await response.json();
+              const nextProgress = next.progress || {{}};
+              const hasMediaProgress = nextProgress.media_total && nextProgress.media_total > 0;
+              if (hasMediaProgress || !payload) {{
+                payload = next;
+                receivedAt = Date.now();
+                statusMessage = "";
+                render();
+              }} else {{
+                statusMessage = "progress source returned incomplete data; keeping last value";
+                render();
+              }}
             }} catch (error) {{
-              const details = document.getElementById("progress-details");
-              if (details) details.textContent = `progress update failed: ${{error}}`;
+              statusMessage = `progress update failed; keeping last value: ${{error}}`;
+              render();
             }}
           }}
 

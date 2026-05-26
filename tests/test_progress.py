@@ -1,6 +1,6 @@
 import json
 
-from research_x.progress import progress_snapshot
+from research_x.progress import _stable_progress_payload, progress_snapshot
 
 
 def test_progress_snapshot_reads_cursor_and_media_progress(tmp_path) -> None:
@@ -49,3 +49,23 @@ def test_progress_snapshot_reads_cursor_and_media_progress(tmp_path) -> None:
     assert snapshot.media_total == 10
     assert snapshot.media_done == 4
     assert snapshot.media_estimated_remaining_seconds == 18.5
+
+
+def test_stable_progress_payload_keeps_last_complete_media_snapshot(tmp_path) -> None:
+    progress_path = tmp_path / "media_progress.json"
+    progress_path.write_text(
+        json.dumps({"total": 10, "done": 4, "remaining": 6}),
+        encoding="utf-8",
+    )
+    cache = {}
+
+    first = _stable_progress_payload(tmp_path, cache)
+    assert first["media_total"] == 10
+    assert first["stale"] is False
+
+    progress_path.write_text("{", encoding="utf-8")
+
+    second = _stable_progress_payload(tmp_path, cache)
+    assert second["media_total"] == 10
+    assert second["media_done"] == 4
+    assert second["stale"] is True
