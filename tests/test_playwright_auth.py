@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+import research_x.playwright_auth as auth
 from research_x.playwright_auth import (
     _totp_code,
     capture_storage_state_auto,
@@ -68,6 +69,35 @@ def test_auto_auth_uses_cookie_env(tmp_path, monkeypatch) -> None:
         try_cdp=False,
     )
     assert storage_state_has_x_auth_cookies(tmp_path / "state.json")
+
+
+def test_auto_auth_prefers_system_browser_before_headless_credentials(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("RESEARCH_X_X_USERNAME", "screen_name")
+    monkeypatch.setenv("RESEARCH_X_X_PASSWORD", "password")
+    calls = []
+
+    def fake_system_browser(**kwargs) -> bool:
+        calls.append("system_browser")
+        return True
+
+    def fake_credentials(**kwargs) -> bool:
+        raise AssertionError("headless credentials should not run first")
+
+    monkeypatch.setattr(
+        auth,
+        "capture_storage_state_with_system_browser_credentials",
+        fake_system_browser,
+    )
+    monkeypatch.setattr(auth, "capture_storage_state_with_credentials", fake_credentials)
+
+    assert auth.capture_storage_state_auto(
+        storage_state=tmp_path / "state.json",
+        user_data_dir=tmp_path / "missing-profile",
+        try_cdp=False,
+    )
+    assert calls == ["system_browser"]
 
 
 def test_totp_code_uses_rfc_6238_vector() -> None:

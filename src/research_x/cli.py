@@ -83,6 +83,33 @@ def main(argv: list[str] | None = None) -> int:
         help="open the app in the default browser",
     )
 
+    notify_parser = subparsers.add_parser(
+        "notify",
+        help="play a local completion notification",
+    )
+    notify_parser.add_argument(
+        "--message",
+        default="作業が終了しました",
+        help="message to speak when voice output is available",
+    )
+    notify_parser.add_argument(
+        "--beep",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="play a short notification sound",
+    )
+    notify_parser.add_argument(
+        "--voice",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="speak the message when the OS supports it",
+    )
+    notify_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return non-zero if no notification method succeeds",
+    )
+
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
         "--details",
@@ -525,6 +552,17 @@ def main(argv: list[str] | None = None) -> int:
             open_browser=args.open_browser,
         )
         return 0
+    if args.command == "notify":
+        from research_x.notify import notify_completion
+
+        result = notify_completion(
+            args.message,
+            beep=args.beep,
+            voice=args.voice,
+        )
+        if result.errors:
+            print("notification warnings: " + "; ".join(result.errors), file=sys.stderr)
+        return 0 if result.ok or not args.strict else 1
     if args.command == "accounts":
         if args.accounts_command == "add":
             profile = write_account_profile(

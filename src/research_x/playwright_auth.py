@@ -198,7 +198,52 @@ def capture_storage_state_auto(
     else:
         attempts.append({"route": "cookie_env", "status": "skipped_missing_env"})
 
+    ok = capture_storage_state_from_persistent_profile(
+        storage_state=storage_state_path,
+        user_data_dir=user_data_dir,
+        channel=channel,
+        executable_path=executable_path,
+    )
+    attempts.append({"route": "persistent_profile", "status": "ok" if ok else "failed"})
+    if ok:
+        return True
+
+    if try_cdp:
+        ok = capture_storage_state_from_cdp(
+            storage_state=storage_state_path,
+            endpoint_url=endpoint_url,
+            timeout_seconds=cdp_timeout_seconds,
+        )
+        attempts.append({"route": "cdp", "status": "ok" if ok else "failed"})
+        if ok:
+            return True
+
     if os.environ.get(username_env) and os.environ.get(password_env):
+        if try_system_browser:
+            ok = capture_storage_state_with_system_browser_credentials(
+                storage_state=storage_state_path,
+                user_data_dir=user_data_dir,
+                username_env=username_env,
+                password_env=password_env,
+                email_or_phone_env=email_or_phone_env,
+                verification_code_env=verification_code_env,
+                totp_secret_env=totp_secret_env,
+                browser=system_browser,
+                executable_path=executable_path,
+                start_url=start_url,
+                debugging_port=system_browser_debugging_port,
+                disable_extensions=system_browser_disable_extensions,
+                timeout_seconds=timeout_seconds,
+            )
+            attempts.append(
+                {
+                    "route": "system_browser_credentials",
+                    "status": "ok" if ok else "failed",
+                }
+            )
+            if ok:
+                return True
+
         ok = capture_storage_state_with_credentials(
             storage_state=storage_state_path,
             user_data_dir=user_data_dir,
@@ -242,42 +287,8 @@ def capture_storage_state_auto(
                 )
                 if ok:
                     return True
-        if try_system_browser:
-            ok = capture_storage_state_with_system_browser_credentials(
-                storage_state=storage_state_path,
-                user_data_dir=user_data_dir,
-                username_env=username_env,
-                password_env=password_env,
-                email_or_phone_env=email_or_phone_env,
-                verification_code_env=verification_code_env,
-                totp_secret_env=totp_secret_env,
-                browser=system_browser,
-                executable_path=executable_path,
-                start_url=start_url,
-                debugging_port=system_browser_debugging_port,
-                disable_extensions=system_browser_disable_extensions,
-                timeout_seconds=timeout_seconds,
-            )
-            attempts.append(
-                {
-                    "route": "system_browser_credentials",
-                    "status": "ok" if ok else "failed",
-                }
-            )
-            if ok:
-                return True
     else:
         attempts.append({"route": "credentials", "status": "skipped_missing_env"})
-
-    if try_cdp:
-        ok = capture_storage_state_from_cdp(
-            storage_state=storage_state_path,
-            endpoint_url=endpoint_url,
-            timeout_seconds=cdp_timeout_seconds,
-        )
-        attempts.append({"route": "cdp", "status": "ok" if ok else "failed"})
-        if ok:
-            return True
 
     print("No automatic X auth route produced a valid storage state.")
     print(json.dumps(attempts, ensure_ascii=False, indent=2, sort_keys=True))
@@ -604,6 +615,45 @@ def capture_storage_state_from_cdp(
             timeout_seconds=timeout_seconds,
         )
     )
+
+
+def capture_storage_state_from_persistent_profile(
+    *,
+    storage_state: str | Path,
+    user_data_dir: str | Path = ".secrets/playwright_profile",
+    channel: str | None = None,
+    executable_path: str | Path | None = None,
+) -> bool:
+    return asyncio.run(
+        _capture_storage_state_from_persistent_profile(
+            storage_state=Path(storage_state),
+            user_data_dir=Path(user_data_dir),
+            channel=channel,
+            executable_path=Path(executable_path) if executable_path else None,
+        )
+    )
+
+
+async def _capture_storage_state_from_persistent_profile(
+    *,
+    storage_state: Path,
+    user_data_dir: Path,
+    channel: str | None,
+    executable_path: Path | None,
+) -> bool:
+    if not user_data_dir.exists():
+        return False
+    from playwright.async_api import async_playwright
+
+    storage_state.parent.mkdir(parents=True, exist_ok=True)
+    async with async_playwright() as pw:
+        return await _export_from_persistent_profile(
+            pw=pw,
+            user_data_dir=user_data_dir,
+            channel=channel,
+            executable_path=executable_path,
+            storage_state=storage_state,
+        )
 
 
 async def _poll_storage_state_from_cdp(

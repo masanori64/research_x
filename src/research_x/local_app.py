@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from research_x.accounts import normalize_account_id, resolve_account_paths, write_account_profile
 from research_x.bookmarks import run_bookmark_job
 from research_x.db_view import format_display_rows, load_display_rows
-from research_x.playwright_auth import capture_storage_state_auto
+from research_x.playwright_auth import capture_storage_state_auto, storage_state_has_x_auth_cookies
 
 
 @dataclass
@@ -81,33 +81,43 @@ class CollectionApp:
 
             password = form.get("password", "")
             if password:
-                self._set_status(job, "auth", "自動ログインを実行しています")
-                app_env = {
-                    "RESEARCH_X_APP_USERNAME": screen_name,
-                    "RESEARCH_X_APP_PASSWORD": password,
-                    "RESEARCH_X_APP_EMAIL_OR_PHONE": form.get("email_or_phone", "").strip(),
-                    "RESEARCH_X_APP_VERIFICATION_CODE": form.get(
-                        "verification_code", ""
-                    ).strip(),
-                }
-                with self.auth_lock, _temporary_env(app_env):
-                    ok = capture_storage_state_auto(
-                        storage_state=paths.storage_state,
-                        user_data_dir=paths.user_data_dir,
-                        username_env="RESEARCH_X_APP_USERNAME",
-                        password_env="RESEARCH_X_APP_PASSWORD",
-                        email_or_phone_env="RESEARCH_X_APP_EMAIL_OR_PHONE",
-                        verification_code_env="RESEARCH_X_APP_VERIFICATION_CODE",
-                        try_cdp=True,
-                        try_system_browser=True,
-                        system_browser=form.get("browser", "msedge") or "msedge",
-                        system_browser_disable_extensions=True,
-                        cdp_timeout_seconds=3,
-                        headless=True,
-                        timeout_seconds=float(form.get("auth_timeout", "180") or 180),
+                if storage_state_has_x_auth_cookies(paths.storage_state):
+                    self._append_log(
+                        job,
+                        "既存storage_stateにXログインCookieがあるためログインをスキップします",
                     )
-                if not ok:
-                    raise RuntimeError("automatic auth did not produce X cookies")
+                else:
+                    self._set_status(job, "auth", "自動ログインを実行しています")
+                    app_env = {
+                        "RESEARCH_X_APP_USERNAME": screen_name,
+                        "RESEARCH_X_APP_PASSWORD": password,
+                        "RESEARCH_X_APP_EMAIL_OR_PHONE": form.get(
+                            "email_or_phone", ""
+                        ).strip(),
+                        "RESEARCH_X_APP_VERIFICATION_CODE": form.get(
+                            "verification_code", ""
+                        ).strip(),
+                        "RESEARCH_X_APP_TOTP_SECRET": form.get("totp_secret", "").strip(),
+                    }
+                    with self.auth_lock, _temporary_env(app_env):
+                        ok = capture_storage_state_auto(
+                            storage_state=paths.storage_state,
+                            user_data_dir=paths.user_data_dir,
+                            username_env="RESEARCH_X_APP_USERNAME",
+                            password_env="RESEARCH_X_APP_PASSWORD",
+                            email_or_phone_env="RESEARCH_X_APP_EMAIL_OR_PHONE",
+                            verification_code_env="RESEARCH_X_APP_VERIFICATION_CODE",
+                            totp_secret_env="RESEARCH_X_APP_TOTP_SECRET",
+                            try_cdp=True,
+                            try_system_browser=True,
+                            system_browser=form.get("browser", "msedge") or "msedge",
+                            system_browser_disable_extensions=True,
+                            cdp_timeout_seconds=3,
+                            headless=True,
+                            timeout_seconds=float(form.get("auth_timeout", "180") or 180),
+                        )
+                    if not ok:
+                        raise RuntimeError("automatic auth did not produce X cookies")
             else:
                 self._append_log(job, "password未入力のため、既存storage_stateだけを使います")
 
@@ -213,9 +223,14 @@ def serve_collection_app(
     server = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}"
     print(f"research_x app: {url}")
-    if open_browser:
-        webbrowser.open(url)
-    server.serve_forever()
+    try:
+        if open_browser:
+            webbrowser.open(url)
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("research_x app: shutting down")
+    finally:
+        server.server_close()
 
 
 def _home_page(jobs: list[AppJob] | None = None) -> str:
@@ -243,6 +258,9 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
             </label>
             <label>Security code
               <input name="verification_code" placeholder="8桁コードが送られた場合だけ">
+            </label>
+            <label>TOTP secret
+              <input name="totp_secret" type="password" autocomplete="off">
             </label>
           </section>
           <section>
@@ -319,10 +337,12 @@ def _status_page(job: AppJob | None) -> str:
         else ""
     )
     logs = "\n".join(html.escape(item) for item in job.logs[-80:])
+    completion_sound = _completion_sound_script(job)
     return _page(
         f"Job {job.job_id}",
         f"""
         {refresh}
+        {completion_sound}
         <h1>Job {html.escape(job.job_id)}</h1>
         <p>status: <strong>{html.escape(job.status)}</strong> - {state_text}</p>
         <p>elapsed: {html.escape(elapsed)}</p>
@@ -379,6 +399,48 @@ def _page(title: str, body: str) -> str:
 </head>
 <body>{body}</body>
 </html>"""
+
+
+def _completion_sound_script(job: AppJob) -> str:
+    if job.status not in {"done", "failed"}:
+        return ""
+    message = "作業が終了しました" if job.status == "done" else "作業が失敗しました"
+    key = f"research_x_notified_{job.job_id}"
+    return f"""
+        <script>
+        (() => {{
+          const key = {json.dumps(key)};
+          if (sessionStorage.getItem(key)) return;
+          sessionStorage.setItem(key, "1");
+          const message = {json.dumps(message, ensure_ascii=False)};
+          try {{
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {{
+              const context = new AudioContext();
+              const oscillator = context.createOscillator();
+              const gain = context.createGain();
+              oscillator.type = "sine";
+              oscillator.frequency.setValueAtTime(880, context.currentTime);
+              oscillator.frequency.setValueAtTime(1174, context.currentTime + 0.12);
+              gain.gain.setValueAtTime(0.001, context.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.03);
+              gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.45);
+              oscillator.connect(gain);
+              gain.connect(context.destination);
+              oscillator.start();
+              oscillator.stop(context.currentTime + 0.5);
+            }}
+          }} catch (error) {{}}
+          try {{
+            if ("speechSynthesis" in window) {{
+              const utterance = new SpeechSynthesisUtterance(message);
+              utterance.lang = "ja-JP";
+              window.speechSynthesis.speak(utterance);
+            }}
+          }} catch (error) {{}}
+        }})();
+        </script>
+    """
 
 
 def _job_links(jobs: list[AppJob]) -> str:
