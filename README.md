@@ -137,14 +137,40 @@ uv run python -m research_x accounts add `
   --url https://x.com/my_screen_name
 ```
 
-認証情報は環境変数から渡します。
+PC標準の Edge に既に X ログイン済みの場合は、別 `user-data-dir` を作らずに
+標準プロファイルから storage_state を書き出せます。Edge をすべて閉じてから実行すると
+CDP ポートが確実に有効になります。
+
+```powershell
+uv run python -m research_x auth system-profile `
+  --account my_account `
+  --browser msedge `
+  --profile-directory Default `
+  --close-existing-browser
+```
+
+複数プロファイルを使っている場合は `--profile-directory "Profile 1"` のように指定します。
+手動で Edge を CDP 起動済みなら、既存の CDP ルートも使えます。
+
+```powershell
+uv run python -m research_x auth cdp `
+  --account my_account `
+  --endpoint-url http://127.0.0.1:9222
+```
+
+パスワード自動ログインを使う場合、認証情報は環境変数から渡します。
 
 ```powershell
 $env:RESEARCH_X_X_USERNAME="my_screen_name"
 $env:RESEARCH_X_X_PASSWORD="<password>"
 $env:RESEARCH_X_X_EMAIL_OR_PHONE="<email-or-phone-if-needed>"
 
-uv run python -m research_x auth auto --account my_account --system-browser msedge
+uv run python -m research_x auth auto `
+  --account my_account `
+  --try-system-browser-profile `
+  --system-browser-profile-directory Default `
+  --system-browser-profile-close-existing `
+  --system-browser msedge
 ```
 
 保存先:
@@ -314,4 +340,3 @@ uv run ruff check src tests
 - `.secrets/` が Git に入っていないこと
 - `runs/` が Git に入っていないこと
 - 実アカウント名、Cookie、パスワード、メールアドレスを README や docs に残していないこと
-

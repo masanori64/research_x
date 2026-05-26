@@ -70,14 +70,42 @@ Only non-password account metadata is stored by `accounts add`.
 
 1. existing storage state,
 2. cookie env values,
-3. username/password env login,
-4. CDP export from a running browser.
+3. saved persistent Playwright profile,
+4. CDP export from a running browser,
+5. optional normal Edge/Chrome profile export,
+6. username/password env login.
 
 ```powershell
 $env:RESEARCH_X_X_USERNAME="my_screen_name"
 $env:RESEARCH_X_X_PASSWORD="<password>"
 $env:RESEARCH_X_X_EMAIL_OR_PHONE="<email-or-phone-if-required>"
-uv run python -m research_x auth auto --account my_account --channel msedge --no-headless
+uv run python -m research_x auth auto `
+  --account my_account `
+  --try-system-browser-profile `
+  --system-browser-profile-directory Default `
+  --system-browser-profile-close-existing `
+  --channel msedge `
+  --no-headless
+```
+
+For a PC-standard Edge profile that is already logged in to X, close all Edge windows first
+and export through CDP without passing a separate `--user-data-dir`:
+
+```powershell
+uv run python -m research_x auth system-profile `
+  --account my_account `
+  --browser msedge `
+  --profile-directory Default `
+  --close-existing-browser
+```
+
+If Edge was launched manually with `--remote-debugging-port=9222`, use the existing CDP
+route:
+
+```powershell
+uv run python -m research_x auth cdp `
+  --account my_account `
+  --endpoint-url http://127.0.0.1:9222
 ```
 
 The credential route can also be called directly:

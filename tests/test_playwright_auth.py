@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import pytest
@@ -98,6 +99,110 @@ def test_auto_auth_prefers_system_browser_before_headless_credentials(
         try_cdp=False,
     )
     assert calls == ["system_browser"]
+
+
+def test_auto_auth_can_use_standard_system_profile(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("RESEARCH_X_X_USERNAME", "screen_name")
+    monkeypatch.setenv("RESEARCH_X_X_PASSWORD", "password")
+    calls = []
+
+    def fake_system_profile(**kwargs) -> bool:
+        calls.append(("system_profile", kwargs["profile_directory"]))
+        return True
+
+    def fake_system_browser(**kwargs) -> bool:
+        raise AssertionError("custom system browser login should not run after profile succeeds")
+
+    monkeypatch.setattr(
+        auth,
+        "capture_storage_state_from_system_browser_profile",
+        fake_system_profile,
+    )
+    monkeypatch.setattr(
+        auth,
+        "capture_storage_state_with_system_browser_credentials",
+        fake_system_browser,
+    )
+
+    assert auth.capture_storage_state_auto(
+        storage_state=tmp_path / "state.json",
+        user_data_dir=tmp_path / "missing-profile",
+        try_cdp=False,
+        try_system_browser_profile=True,
+        system_browser_profile_directory="Default",
+    )
+    assert calls == [("system_profile", "Default")]
+
+
+def test_system_profile_launch_omits_user_data_dir_and_uses_daily_browser_cdp(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    popen_calls = []
+    poll_calls = []
+
+    class Process:
+        pass
+
+    def fake_popen(args):
+        popen_calls.append(args)
+        return Process()
+
+    async def fake_poll(**kwargs) -> bool:
+        poll_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(auth.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(auth, "_poll_storage_state_from_cdp", fake_poll)
+
+    assert auth.capture_storage_state_from_system_browser_profile(
+        storage_state=tmp_path / "state.json",
+        executable_path=tmp_path / "msedge.exe",
+        profile_directory="Profile 1",
+        debugging_port=9333,
+    )
+
+    assert not any(arg.startswith("--user-data-dir") for arg in popen_calls[0])
+    assert "--profile-directory=Profile 1" in popen_calls[0]
+    assert poll_calls == [
+        {
+            "storage_state": tmp_path / "state.json",
+            "endpoint_url": "http://127.0.0.1:9333",
+            "timeout_seconds": 30,
+            "no_defaults": True,
+        }
+    ]
+
+
+def test_password_submit_accepts_continue_button(monkeypatch) -> None:
+    calls = []
+
+    async def fake_click_named_button(_page, patterns) -> None:
+        calls.append(patterns)
+
+    async def fake_has_visible_locator(_page, _selectors) -> bool:
+        return False
+
+    async def fake_needs_verification_code(_page) -> bool:
+        return False
+
+    class Keyboard:
+        async def press(self, key: str) -> None:
+            calls.append(("press", key))
+
+    class Page:
+        keyboard = Keyboard()
+
+        async def wait_for_timeout(self, _milliseconds: int) -> None:
+            return None
+
+    monkeypatch.setattr(auth, "_click_named_button", fake_click_named_button)
+    monkeypatch.setattr(auth, "_has_visible_locator", fake_has_visible_locator)
+    monkeypatch.setattr(auth, "_needs_verification_code", fake_needs_verification_code)
+
+    asyncio.run(auth._submit_password_and_wait(Page()))
+
+    assert any(pattern.startswith("^(Continue") for pattern in calls[0])
 
 
 def test_totp_code_uses_rfc_6238_vector() -> None:

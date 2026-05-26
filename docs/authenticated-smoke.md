@@ -53,5 +53,9 @@ and used as a cookie source for twscrape direct GraphQL.
 If the storage state expires, refresh it with an interactive browser flow:
 
 ```powershell
-uv run python -m research_x auth cdp --endpoint-url http://127.0.0.1:9222 --storage-state .secrets/playwright_x_state.json
+uv run python -m research_x auth system-profile `
+  --storage-state .secrets/playwright_x_state.json `
+  --browser msedge `
+  --profile-directory Default `
+  --close-existing-browser
 ```

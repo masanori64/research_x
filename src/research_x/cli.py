@@ -15,6 +15,7 @@ from research_x.playwright_auth import (
     capture_playwright_storage_state,
     capture_storage_state_auto,
     capture_storage_state_from_cdp,
+    capture_storage_state_from_system_browser_profile,
     capture_storage_state_with_credentials,
     capture_storage_state_with_system_browser_credentials,
     write_storage_state_from_cookie_env,
@@ -391,6 +392,12 @@ def main(argv: list[str] | None = None) -> int:
         default=900,
         help="maximum time to wait for a CDP browser with X auth cookies",
     )
+    cdp_auth_parser.add_argument(
+        "--no-defaults",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="avoid Playwright default context overrides when attaching to a daily browser",
+    )
     credentials_auth_parser = auth_subparsers.add_parser(
         "credentials",
         help="log in to X automatically with username/password env values",
@@ -455,6 +462,13 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
     )
     auto_auth_parser.add_argument(
+        "--try-system-browser-profile",
+        "--try-edge-profile",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="try the normal Edge/Chrome profile before password login",
+    )
+    auto_auth_parser.add_argument(
         "--system-browser-disable-extensions",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -465,7 +479,50 @@ def main(argv: list[str] | None = None) -> int:
         default="msedge",
     )
     auto_auth_parser.add_argument("--system-browser-debugging-port", type=int, default=9225)
+    auto_auth_parser.add_argument(
+        "--system-browser-profile-directory",
+        "--edge-profile-directory",
+        default=None,
+        help="normal browser profile directory name, for example Default or Profile 1",
+    )
+    auto_auth_parser.add_argument(
+        "--system-browser-profile-close-existing",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="close existing Edge/Chrome before launching the normal profile with CDP",
+    )
     auto_auth_parser.add_argument("--cdp-timeout-seconds", type=float, default=3)
+    system_profile_auth_parser = auth_subparsers.add_parser(
+        "system-profile",
+        aliases=["edge-profile"],
+        help="export X auth from the normal Edge/Chrome profile over CDP",
+    )
+    system_profile_auth_parser.add_argument(
+        "--account",
+        default=None,
+        help="account id to save under",
+    )
+    system_profile_auth_parser.add_argument("--storage-state", default=None)
+    system_profile_auth_parser.add_argument(
+        "--browser",
+        choices=["msedge", "chrome"],
+        default="msedge",
+    )
+    system_profile_auth_parser.add_argument("--executable-path", default=None)
+    system_profile_auth_parser.add_argument(
+        "--profile-directory",
+        default=None,
+        help="normal browser profile directory name, for example Default or Profile 1",
+    )
+    system_profile_auth_parser.add_argument("--debugging-port", type=int, default=9225)
+    system_profile_auth_parser.add_argument("--start-url", default="https://x.com")
+    system_profile_auth_parser.add_argument(
+        "--close-existing-browser",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="close existing Edge/Chrome before launching the normal profile with CDP",
+    )
+    system_profile_auth_parser.add_argument("--timeout-seconds", type=float, default=30)
     auto_auth_parser.add_argument(
         "--channel",
         choices=["chrome", "msedge", "chromium", "chrome-beta", "msedge-beta", "msedge-dev"],
@@ -605,6 +662,7 @@ def main(argv: list[str] | None = None) -> int:
                 storage_state=paths.storage_state,
                 endpoint_url=args.endpoint_url,
                 timeout_seconds=args.timeout_seconds,
+                no_defaults=args.no_defaults,
             )
             return 0 if ok else 1
         if args.auth_command == "credentials":
@@ -649,14 +707,32 @@ def main(argv: list[str] | None = None) -> int:
                 try_cdp=args.try_cdp,
                 cdp_timeout_seconds=args.cdp_timeout_seconds,
                 try_system_browser=args.try_system_browser,
+                try_system_browser_profile=args.try_system_browser_profile,
                 system_browser=args.system_browser,
                 system_browser_debugging_port=args.system_browser_debugging_port,
+                system_browser_profile_directory=args.system_browser_profile_directory,
+                system_browser_profile_close_existing=(
+                    args.system_browser_profile_close_existing
+                ),
                 system_browser_disable_extensions=args.system_browser_disable_extensions,
                 channel=args.channel,
                 executable_path=args.executable_path,
                 start_url=args.start_url,
                 headless=args.headless,
                 user_agent=args.user_agent,
+                timeout_seconds=args.timeout_seconds,
+            )
+            return 0 if ok else 1
+        if args.auth_command in {"system-profile", "edge-profile"}:
+            paths = resolve_account_paths(args.account, storage_state=args.storage_state)
+            ok = capture_storage_state_from_system_browser_profile(
+                storage_state=paths.storage_state,
+                browser=args.browser,
+                executable_path=args.executable_path,
+                profile_directory=args.profile_directory,
+                close_existing=args.close_existing_browser,
+                debugging_port=args.debugging_port,
+                start_url=args.start_url,
                 timeout_seconds=args.timeout_seconds,
             )
             return 0 if ok else 1

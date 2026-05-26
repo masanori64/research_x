@@ -80,7 +80,8 @@ class CollectionApp:
             paths = resolve_account_paths(job.account_id)
 
             password = form.get("password", "")
-            if password:
+            use_standard_profile = form.get("use_standard_browser_profile") == "on"
+            if password or use_standard_profile:
                 if storage_state_has_x_auth_cookies(paths.storage_state):
                     self._append_log(
                         job,
@@ -110,8 +111,16 @@ class CollectionApp:
                             totp_secret_env="RESEARCH_X_APP_TOTP_SECRET",
                             try_cdp=True,
                             try_system_browser=True,
+                            try_system_browser_profile=use_standard_profile,
                             system_browser=form.get("browser", "msedge") or "msedge",
                             system_browser_disable_extensions=True,
+                            system_browser_profile_directory=form.get(
+                                "browser_profile_directory", ""
+                            ).strip()
+                            or None,
+                            system_browser_profile_close_existing=(
+                                form.get("close_existing_browser") == "on"
+                            ),
                             cdp_timeout_seconds=3,
                             headless=True,
                             timeout_seconds=float(form.get("auth_timeout", "180") or 180),
@@ -261,6 +270,17 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
             </label>
             <label>TOTP secret
               <input name="totp_secret" type="password" autocomplete="off">
+            </label>
+            <label>
+              <input name="use_standard_browser_profile" type="checkbox" checked>
+              PC標準Edge/Chromeのログイン済みプロファイルを優先
+            </label>
+            <label>Browser profile directory
+              <input name="browser_profile_directory" placeholder="Default / Profile 1">
+            </label>
+            <label>
+              <input name="close_existing_browser" type="checkbox">
+              既存Edge/Chromeを一度閉じて標準プロファイルをCDP付きで再起動
             </label>
           </section>
           <section>

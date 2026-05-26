@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import os
+import platform
 import re
 import struct
 import subprocess
@@ -166,8 +167,11 @@ def capture_storage_state_auto(
     try_cdp: bool = True,
     cdp_timeout_seconds: float = 3,
     try_system_browser: bool = True,
+    try_system_browser_profile: bool = False,
     system_browser: str = "msedge",
     system_browser_debugging_port: int = 9225,
+    system_browser_profile_directory: str | None = None,
+    system_browser_profile_close_existing: bool = False,
     system_browser_disable_extensions: bool = True,
     channel: str | None = None,
     executable_path: str | Path | None = None,
@@ -215,6 +219,26 @@ def capture_storage_state_auto(
             timeout_seconds=cdp_timeout_seconds,
         )
         attempts.append({"route": "cdp", "status": "ok" if ok else "failed"})
+        if ok:
+            return True
+
+    if try_system_browser_profile:
+        ok = capture_storage_state_from_system_browser_profile(
+            storage_state=storage_state_path,
+            browser=system_browser,
+            executable_path=executable_path,
+            profile_directory=system_browser_profile_directory,
+            close_existing=system_browser_profile_close_existing,
+            debugging_port=system_browser_debugging_port,
+            start_url=start_url,
+            timeout_seconds=timeout_seconds,
+        )
+        attempts.append(
+            {
+                "route": "system_browser_profile",
+                "status": "ok" if ok else "failed",
+            }
+        )
         if ok:
             return True
 
@@ -499,8 +523,12 @@ async def _drive_x_credential_login(
         print(f"Saved Playwright storage state to {storage_state}")
         return True
 
-    await _set_first_visible_input(page, _USERNAME_SELECTORS, username, "username")
-    await _submit_username_and_wait(page)
+    if await _has_visible_locator(page, _PASSWORD_SELECTORS):
+        if await _has_visible_locator(page, _USERNAME_SELECTORS):
+            await _set_first_visible_input(page, _USERNAME_SELECTORS, username, "username")
+    else:
+        await _set_first_visible_input(page, _USERNAME_SELECTORS, username, "username")
+        await _submit_username_and_wait(page)
     await _close_non_x_pages(context, keep=page)
 
     if await _wait_for_x_auth_cookies(context, 2):
@@ -521,8 +549,7 @@ async def _drive_x_credential_login(
             await _close_non_x_pages(context, keep=page)
 
     await _set_first_visible_input(page, _PASSWORD_SELECTORS, password, "password")
-    await _click_named_button(page, _LOGIN_BUTTON_PATTERNS)
-    await page.wait_for_timeout(2500)
+    await _submit_password_and_wait(page)
     await _close_non_x_pages(context, keep=page)
 
     code = verification_code or (_totp_code(totp_secret) if totp_secret else None)
@@ -607,12 +634,14 @@ def capture_storage_state_from_cdp(
     storage_state: str | Path,
     endpoint_url: str = "http://localhost:9222",
     timeout_seconds: float = 900,
+    no_defaults: bool = False,
 ) -> bool:
     return asyncio.run(
         _poll_storage_state_from_cdp(
             storage_state=Path(storage_state),
             endpoint_url=endpoint_url,
             timeout_seconds=timeout_seconds,
+            no_defaults=no_defaults,
         )
     )
 
@@ -653,7 +682,85 @@ async def _capture_storage_state_from_persistent_profile(
             channel=channel,
             executable_path=executable_path,
             storage_state=storage_state,
+    )
+
+
+def capture_storage_state_from_system_browser_profile(
+    *,
+    storage_state: str | Path,
+    browser: str = "msedge",
+    executable_path: str | Path | None = None,
+    profile_directory: str | None = None,
+    close_existing: bool = False,
+    debugging_port: int = 9225,
+    start_url: str = "https://x.com",
+    timeout_seconds: float = 30,
+) -> bool:
+    print(
+        "Starting the normal browser profile with CDP; no --user-data-dir will be passed."
+    )
+    print("If the browser is already running without CDP, close all browser windows and retry.")
+    return asyncio.run(
+        _capture_storage_state_from_system_browser_profile(
+            storage_state=Path(storage_state),
+            browser=browser,
+            executable_path=Path(executable_path) if executable_path else None,
+            profile_directory=profile_directory,
+            close_existing=close_existing,
+            debugging_port=debugging_port,
+            start_url=start_url,
+            timeout_seconds=timeout_seconds,
         )
+    )
+
+
+async def _capture_storage_state_from_system_browser_profile(
+    *,
+    storage_state: Path,
+    browser: str,
+    executable_path: Path | None,
+    profile_directory: str | None,
+    close_existing: bool,
+    debugging_port: int,
+    start_url: str,
+    timeout_seconds: float,
+) -> bool:
+    executable = executable_path or _system_browser_executable(browser)
+    storage_state.parent.mkdir(parents=True, exist_ok=True)
+    if close_existing:
+        _close_existing_system_browser(browser)
+    args = [
+        str(executable),
+        f"--remote-debugging-port={debugging_port}",
+        "--no-first-run",
+        "--no-default-browser-check",
+    ]
+    if profile_directory:
+        args.append(f"--profile-directory={profile_directory}")
+    args.append(start_url)
+    subprocess.Popen(args)  # noqa: S603
+    return await _poll_storage_state_from_cdp(
+        storage_state=storage_state,
+        endpoint_url=f"http://127.0.0.1:{debugging_port}",
+        timeout_seconds=timeout_seconds,
+        no_defaults=True,
+    )
+
+
+def _close_existing_system_browser(browser: str) -> None:
+    if platform.system() != "Windows":
+        raise RuntimeError("closing existing system browser is only implemented on Windows")
+    image_name = {"msedge": "msedge.exe", "chrome": "chrome.exe"}.get(browser)
+    if image_name is None:
+        raise RuntimeError(f"Unsupported system browser: {browser}")
+    subprocess.run(
+        ["taskkill", "/IM", image_name, "/F"],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=15,
+    )
+    time.sleep(2)
 
 
 async def _poll_storage_state_from_cdp(
@@ -661,6 +768,7 @@ async def _poll_storage_state_from_cdp(
     storage_state: Path,
     endpoint_url: str,
     timeout_seconds: float,
+    no_defaults: bool,
 ) -> bool:
     deadline = time.monotonic() + timeout_seconds
     last_error: str | None = None
@@ -669,6 +777,7 @@ async def _poll_storage_state_from_cdp(
             if await _capture_storage_state_from_cdp(
                 storage_state=storage_state,
                 endpoint_url=endpoint_url,
+                no_defaults=no_defaults,
             ):
                 return True
         except Exception as exc:  # noqa: BLE001 - retry until timeout for interactive login.
@@ -682,15 +791,24 @@ async def _poll_storage_state_from_cdp(
         await asyncio.sleep(2)
 
 
-async def _capture_storage_state_from_cdp(*, storage_state: Path, endpoint_url: str) -> bool:
+async def _capture_storage_state_from_cdp(
+    *,
+    storage_state: Path,
+    endpoint_url: str,
+    no_defaults: bool,
+) -> bool:
     from playwright.async_api import async_playwright
 
     storage_state.parent.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as pw:
-        browser = await pw.chromium.connect_over_cdp(endpoint_url)
+        browser = await pw.chromium.connect_over_cdp(
+            endpoint_url,
+            is_local=True,
+            no_defaults=no_defaults,
+        )
         try:
             context = browser.contexts[0] if browser.contexts else await browser.new_context()
-            if not context.pages:
+            if not context.pages and not no_defaults:
                 await context.new_page()
             if not await _has_x_auth_cookies(context):
                 print("Connected browser does not contain X auth cookies.")
@@ -845,6 +963,25 @@ async def _submit_username_and_wait(page) -> None:
     body = await _body_text(page)
     if _looks_like_initial_login_screen(body):
         raise RuntimeError("X did not advance from the username screen after submitting.")
+
+
+async def _submit_password_and_wait(page) -> None:
+    actions = (
+        lambda: _click_named_button(page, _LOGIN_BUTTON_PATTERNS + _NEXT_BUTTON_PATTERNS),
+        lambda: page.keyboard.press("Enter"),
+        lambda: _click_text_button_with_dispatch(
+            page,
+            _LOGIN_BUTTON_PATTERNS + _NEXT_BUTTON_PATTERNS,
+        ),
+    )
+    for action in actions:
+        await action()
+        await page.wait_for_timeout(2500)
+        if not await _has_visible_locator(page, _PASSWORD_SELECTORS):
+            return
+        if await _needs_verification_code(page):
+            return
+    await _raise_if_hard_challenge(page)
 
 
 async def _wait_for_post_username_state(page, *, timeout_seconds: float) -> bool:
