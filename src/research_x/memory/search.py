@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from research_x.memory.corpus import build_memory_corpus
+from research_x.memory.embeddings import (
+    SemanticHit,
+    SemanticScore,
+    semantic_scores_for_doc_ids,
+    semantic_search_memory,
+)
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
@@ -36,6 +42,13 @@ def search_memory(
     doc_type: str | None = None,
     account: str | None = None,
     rebuild_if_empty: bool = True,
+    semantic_provider: str | None = None,
+    semantic_model: str | None = None,
+    semantic_dimensions: int | None = None,
+    semantic_api_key_env: str | None = None,
+    semantic_base_url: str | None = None,
+    semantic_weight: float = 3.0,
+    semantic_candidates: int = 80,
 ) -> tuple[MemorySearchResult, ...]:
     path = Path(db_path)
     if not path.exists():
@@ -44,6 +57,7 @@ def search_memory(
     plan = build_query_plan(query)
     pool_limit = max(resolved_limit * 8, 50)
 
+    semantic_hits: tuple[SemanticHit, ...] = ()
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
@@ -78,6 +92,20 @@ def search_memory(
                 account=account,
             )
         )
+        if semantic_provider:
+            semantic_hits = semantic_search_memory(
+                path,
+                query,
+                provider=None if semantic_provider == "auto" else semantic_provider,
+                model=semantic_model,
+                dimensions=semantic_dimensions,
+                api_key_env=semantic_api_key_env,
+                base_url=semantic_base_url,
+                limit=semantic_candidates,
+                doc_type=doc_type,
+                account=account,
+            )
+            raw_rows.extend(_rows_by_doc_ids(conn, tuple(hit.doc_id for hit in semantic_hits)))
         candidates = _merge_candidates(raw_rows)
         doc_ids = tuple(candidate["doc_id"] for candidate in candidates)
         tweet_ids = tuple(
@@ -89,6 +117,20 @@ def search_memory(
         account_counts = _bookmark_account_counts(conn, tweet_ids)
         latest_observed_at = _latest_observed_at(conn)
 
+    semantic_by_doc = {hit.doc_id: hit for hit in semantic_hits}
+    if semantic_provider:
+        semantic_by_doc.update(
+            semantic_scores_for_doc_ids(
+                path,
+                query,
+                tuple(candidate["doc_id"] for candidate in candidates),
+                provider=None if semantic_provider == "auto" else semantic_provider,
+                model=semantic_model,
+                dimensions=semantic_dimensions,
+                api_key_env=semantic_api_key_env,
+                base_url=semantic_base_url,
+            )
+        )
     results = [
         _result_from_candidate(
             candidate,
@@ -96,6 +138,8 @@ def search_memory(
             feedback_score=feedback.get(candidate["doc_id"], 0.0),
             bookmark_account_count=account_counts.get(str(candidate.get("source_tweet_id")), 0),
             latest_observed_at=latest_observed_at,
+            semantic_hit=semantic_by_doc.get(str(candidate["doc_id"])),
+            semantic_weight=semantic_weight,
         )
         for candidate in candidates
     ]
@@ -278,6 +322,29 @@ def _metadata_search(
     return [dict(row) for row in conn.execute(sql, (*params, limit)).fetchall()]
 
 
+def _rows_by_doc_ids(
+    conn: sqlite3.Connection,
+    doc_ids: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    if not doc_ids:
+        return []
+    placeholders = ",".join("?" for _ in doc_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
+            d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.created_at, d.observed_at, d.updated_at,
+            0.0 AS raw_score,
+            'semantic' AS match_method
+        FROM memory_documents d
+        WHERE d.doc_id IN ({placeholders})
+        """,
+        doc_ids,
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for row in rows:
@@ -297,7 +364,7 @@ def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _method_priority(method: str) -> int:
-    return {"fts": 3, "like": 2, "metadata": 1}.get(method, 0)
+    return {"fts": 4, "semantic": 3, "like": 2, "metadata": 1}.get(method, 0)
 
 
 def _result_from_candidate(
@@ -307,6 +374,8 @@ def _result_from_candidate(
     feedback_score: float,
     bookmark_account_count: int,
     latest_observed_at: datetime | None,
+    semantic_hit: SemanticHit | SemanticScore | None,
+    semantic_weight: float,
 ) -> MemorySearchResult:
     metadata = _loads_json(row.get("metadata_json"))
     body = str(row.get("body") or "")
@@ -324,6 +393,9 @@ def _result_from_candidate(
         "retrieval_method": _method_score(methods),
         "doc_type": plan.doc_type_weights.get(str(row["doc_type"]), 0.0),
         "context": _context_score(plan, str(row["doc_type"]), body, metadata),
+        "semantic": max(0.0, semantic_hit.similarity) * semantic_weight
+        if semantic_hit
+        else 0.0,
         "freshness": _freshness_score(
             row.get("observed_at") or row.get("created_at"),
             plan=plan,
@@ -347,6 +419,14 @@ def _result_from_candidate(
     )
     if bookmark_account_count:
         metadata["bookmark_account_count"] = bookmark_account_count
+    if semantic_hit:
+        metadata["semantic"] = {
+            "provider": semantic_hit.provider,
+            "model": semantic_hit.model,
+            "dimensions": semantic_hit.dimensions,
+            "similarity": semantic_hit.similarity,
+            "weight": semantic_weight,
+        }
     if plan.excludes_old and components["freshness"] < 0:
         metadata["freshness"] = "possibly_stale"
     else:
@@ -409,6 +489,8 @@ def _method_score(methods: tuple[str, ...]) -> float:
     score = 0.0
     if "fts" in methods:
         score += 1.2
+    if "semantic" in methods:
+        score += 0.7
     if "like" in methods:
         score += 0.5
     if "metadata" in methods:

@@ -16,10 +16,30 @@ def build_evidence_bundle(
     limit: int = 5,
     doc_type: str | None = None,
     account: str | None = None,
+    semantic_provider: str | None = None,
+    semantic_model: str | None = None,
+    semantic_dimensions: int | None = None,
+    semantic_api_key_env: str | None = None,
+    semantic_base_url: str | None = None,
+    semantic_weight: float = 3.0,
+    semantic_candidates: int = 80,
 ) -> dict[str, Any]:
     path = Path(db_path)
     plan = build_query_plan(query)
-    results = search_memory(path, query, limit=limit, doc_type=doc_type, account=account)
+    results = search_memory(
+        path,
+        query,
+        limit=limit,
+        doc_type=doc_type,
+        account=account,
+        semantic_provider=semantic_provider,
+        semantic_model=semantic_model,
+        semantic_dimensions=semantic_dimensions,
+        semantic_api_key_env=semantic_api_key_env,
+        semantic_base_url=semantic_base_url,
+        semantic_weight=semantic_weight,
+        semantic_candidates=semantic_candidates,
+    )
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         hits = [_hit(conn, query=query, result=result) for result in results]

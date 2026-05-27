@@ -3,7 +3,9 @@ import sqlite3
 from pathlib import Path
 
 from research_x.cli import main
+from research_x.memory import embeddings
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
+from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.feedback import add_feedback
 from research_x.memory.query import build_query_plan
@@ -95,12 +97,98 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
     assert count == 1
 
 
+def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    summary = build_memory_embeddings(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        batch_size=2,
+    )
+    results = search_memory(
+        db_path,
+        "robot paper",
+        limit=3,
+        semantic_provider="local_hash",
+        semantic_dimensions=64,
+    )
+    rerun = build_memory_embeddings(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        batch_size=2,
+    )
+
+    assert summary.embedded == 5
+    assert rerun.embedded == 0
+    assert rerun.selected == 0
+    assert results
+    assert any(result.score_components["semantic"] > 0 for result in results)
+
+
+def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        return {"embeddings": [{"values": [0.1, 0.2, 0.3]}]}
+
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    spec = embeddings.resolve_embedding_spec(
+        provider="gemini",
+        model="gemini-embedding-2",
+        dimensions=3,
+    )
+    vector = embeddings._GeminiEmbedder(spec).embed_texts(  # noqa: SLF001
+        ["robot learning"],
+        task_type="RETRIEVAL_QUERY",
+    )[0]
+
+    request = captured["payload"]["requests"][0]
+    assert vector
+    assert "taskType" not in request
+    assert request["embedContentConfig"]["outputDimensionality"] == 3
+    assert "Represent this search query" in request["content"]["parts"][0]["text"]
+
+
 def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
 
     assert main(["memory", "build-corpus", "--db", str(db_path)]) == 0
+    assert main(
+        [
+            "memory",
+            "build-embeddings",
+            "--db",
+            str(db_path),
+            "--dimensions",
+            "64",
+        ]
+    ) == 0
+    assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
     assert main(["memory", "search", "--db", str(db_path), "--query", "ロボット"]) == 0
+    assert main(
+        [
+            "memory",
+            "search",
+            "--db",
+            str(db_path),
+            "--query",
+            "robot paper",
+            "--semantic-provider",
+            "local_hash",
+            "--semantic-dimensions",
+            "64",
+        ]
+    ) == 0
     assert main(["memory", "plan", "--query", "引用元を見たい"]) == 0
     assert main(["memory", "evidence", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0

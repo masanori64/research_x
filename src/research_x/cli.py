@@ -251,6 +251,29 @@ def main(argv: list[str] | None = None) -> int:
         default="runs/x_data.sqlite3",
         help="SQLite database path",
     )
+    memory_embedding_parser = memory_subparsers.add_parser(
+        "build-embeddings",
+        help="build semantic embedding index over memory_documents",
+    )
+    memory_embedding_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_parser.add_argument(
+        "--provider",
+        default="local_hash",
+        choices=["local_hash", "openai", "gemini"],
+    )
+    memory_embedding_parser.add_argument("--model", default=None)
+    memory_embedding_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_parser.add_argument("--api-key-env", default=None)
+    memory_embedding_parser.add_argument("--base-url", default=None)
+    memory_embedding_parser.add_argument("--batch-size", type=int, default=64)
+    memory_embedding_parser.add_argument("--limit", type=int, default=None)
+    memory_embedding_parser.add_argument("--rebuild", action="store_true")
+    memory_embedding_parser.add_argument("--progress-every", type=int, default=1000)
+    memory_specs_parser = memory_subparsers.add_parser(
+        "embedding-specs",
+        help="list available embedding indexes in the DB",
+    )
+    memory_specs_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_search_parser = memory_subparsers.add_parser(
         "search",
         help="search memory_documents using local FTS with fallback matching",
@@ -261,6 +284,17 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument("--doc-type", default=None)
     memory_search_parser.add_argument("--account", default=None)
     memory_search_parser.add_argument("--json", action="store_true")
+    memory_search_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        help="optional semantic provider: local_hash, openai, gemini, or auto",
+    )
+    memory_search_parser.add_argument("--semantic-model", default=None)
+    memory_search_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_search_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_search_parser.add_argument("--semantic-base-url", default=None)
+    memory_search_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_search_parser.add_argument("--semantic-candidates", type=int, default=80)
     memory_plan_parser = memory_subparsers.add_parser(
         "plan",
         help="explain how a natural-language memory query will be interpreted",
@@ -275,6 +309,13 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument("--limit", type=int, default=5)
     memory_evidence_parser.add_argument("--doc-type", default=None)
     memory_evidence_parser.add_argument("--account", default=None)
+    memory_evidence_parser.add_argument("--semantic-provider", default=None)
+    memory_evidence_parser.add_argument("--semantic-model", default=None)
+    memory_evidence_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_evidence_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_evidence_parser.add_argument("--semantic-base-url", default=None)
+    memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_evidence_parser.add_argument("--semantic-candidates", type=int, default=80)
     memory_feedback_parser = memory_subparsers.add_parser(
         "feedback",
         help="record search-result feedback for later ranking improvements",
@@ -875,6 +916,29 @@ def main(argv: list[str] | None = None) -> int:
             summary = build_memory_corpus(args.db)
             print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
             return 0
+        if args.memory_command == "build-embeddings":
+            from research_x.memory.embeddings import build_memory_embeddings, summary_as_dict
+
+            summary = build_memory_embeddings(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                dimensions=args.dimensions,
+                api_key_env=args.api_key_env,
+                base_url=args.base_url,
+                batch_size=args.batch_size,
+                limit=args.limit,
+                rebuild=args.rebuild,
+                progress_every=args.progress_every,
+            )
+            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+            return 0
+        if args.memory_command == "embedding-specs":
+            from research_x.memory.embeddings import available_embedding_specs
+
+            specs = [spec.__dict__ for spec in available_embedding_specs(args.db)]
+            print(json.dumps(specs, ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
         if args.memory_command == "search":
             from research_x.memory.search import format_search_results, search_memory
 
@@ -884,6 +948,13 @@ def main(argv: list[str] | None = None) -> int:
                 limit=args.limit,
                 doc_type=args.doc_type,
                 account=args.account,
+                semantic_provider=args.semantic_provider,
+                semantic_model=args.semantic_model,
+                semantic_dimensions=args.semantic_dimensions,
+                semantic_api_key_env=args.semantic_api_key_env,
+                semantic_base_url=args.semantic_base_url,
+                semantic_weight=args.semantic_weight,
+                semantic_candidates=args.semantic_candidates,
             )
             print(format_search_results(results, json_output=args.json))
             return 0
@@ -901,6 +972,13 @@ def main(argv: list[str] | None = None) -> int:
                 limit=args.limit,
                 doc_type=args.doc_type,
                 account=args.account,
+                semantic_provider=args.semantic_provider,
+                semantic_model=args.semantic_model,
+                semantic_dimensions=args.semantic_dimensions,
+                semantic_api_key_env=args.semantic_api_key_env,
+                semantic_base_url=args.semantic_base_url,
+                semantic_weight=args.semantic_weight,
+                semantic_candidates=args.semantic_candidates,
             )
             print(evidence_bundle_json(bundle))
             return 0

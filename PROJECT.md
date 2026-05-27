@@ -313,3 +313,32 @@ Remaining after this milestone:
 - [ ] Add reranking or a small judge step for final evidence ordering.
 - [ ] Add freshness/obsolete relation tables rather than only transient freshness scoring.
 - [ ] Integrate Corpus2Skill OSS as a navigation sidecar after the DB search contract is stable.
+
+## Third Milestone
+
+Add an embedding-backed semantic layer without making the CLI dependent on paid APIs.
+
+Required commands:
+
+```powershell
+uv run python -m research_x memory build-embeddings --db runs/x_data.sqlite3 --provider local_hash --dimensions 256 --batch-size 512
+uv run python -m research_x memory embedding-specs --db runs/x_data.sqlite3
+uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "曖昧に覚えているロボットと学習の資料" --limit 5 --semantic-provider local_hash --semantic-dimensions 256
+```
+
+Implementation goals:
+
+- [x] Add `memory_embeddings` as a rebuildable index table attached to `memory_documents`.
+- [x] Add `local_hash` embeddings so semantic plumbing can be tested without API keys or cost.
+- [x] Add OpenAI and Gemini embedding providers behind the same contract.
+- [x] Keep OpenAI default at `text-embedding-3-small`; keep Gemini default at `gemini-embedding-2`.
+- [x] Use Gemini `embedContentConfig.outputDimensionality` and avoid `taskType` for
+      `gemini-embedding-2`, where task intent should be represented in prompt text instead.
+- [x] Let search combine lexical/context ranking with semantic similarity and expose the semantic
+      score in `score_components`.
+- [x] Use NumPy for faster local vector scans, with a pure-Python fallback.
+
+Current limitation:
+
+- `local_hash` is a deterministic no-cost fallback, not a real semantic model. For production
+  semantic quality, build the same index with OpenAI or Gemini embeddings.

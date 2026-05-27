@@ -320,6 +320,8 @@ Initial implementation should be a separate `research_x.memory` package, with co
 
 ```text
 research_x memory build-corpus
+research_x memory build-embeddings
+research_x memory embedding-specs
 research_x memory plan
 research_x memory search
 research_x memory evidence
@@ -337,7 +339,7 @@ Do this in stages:
 5. fixed evaluation queries,
 6. natural-language query planning,
 7. local hybrid ranking from FTS/substring/metadata/feedback/freshness signals,
-8. embeddings and semantic reranking,
+8. embedding index and semantic reranking,
 9. Corpus2Skill export/navigation,
 10. freshness/obsolete edges.
 

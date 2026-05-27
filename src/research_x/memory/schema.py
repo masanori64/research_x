@@ -46,6 +46,18 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS memory_embeddings (
+            doc_id TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            dimensions INTEGER NOT NULL,
+            embedding BLOB NOT NULL,
+            embedded_text_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(doc_id, provider, model, dimensions)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_memory_documents_doc_type
             ON memory_documents(doc_type);
         CREATE INDEX IF NOT EXISTS idx_memory_documents_source_tweet
@@ -54,6 +66,8 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_documents(account_id);
         CREATE INDEX IF NOT EXISTS idx_memory_feedback_doc
             ON memory_feedback(doc_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider_model
+            ON memory_embeddings(provider, model, dimensions);
         """
     )
 
@@ -63,4 +77,3 @@ def memory_document_count(conn: sqlite3.Connection) -> int:
         return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])
     except sqlite3.OperationalError:
         return 0
-
