@@ -256,13 +256,27 @@ Milestone 1 evaluation can be smoke-level:
 
 ## First Implementation Checklist
 
-- [ ] Add `src/research_x/memory/__init__.py`
-- [ ] Add memory schema creation
-- [ ] Add document builder from existing DB rows
-- [ ] Add SQLite FTS5 index population
-- [ ] Add search command
-- [ ] Add evidence command
-- [ ] Add eval smoke command
-- [ ] Add tests with an in-memory/temp SQLite DB fixture
-- [ ] Run `uv run ruff check src\research_x tests`
-- [ ] Run `uv run pytest`
+- [x] Add `src/research_x/memory/__init__.py`
+- [x] Add memory schema creation
+- [x] Add document builder from existing DB rows
+- [x] Add SQLite FTS5 index population
+- [x] Add search command
+- [x] Add evidence command
+- [x] Add feedback command
+- [x] Add Corpus2Skill JSONL export command
+- [x] Add eval smoke command
+- [x] Add tests with an in-memory/temp SQLite DB fixture
+- [x] Run `uv run ruff check src\research_x tests`
+- [x] Run `uv run pytest`
+
+Milestone 1 was verified against `runs/x_data.sqlite3`:
+
+```text
+memory build-corpus -> 54,886 memory documents
+memory search "カフェ" -> ranked local results
+memory evidence "強化学習 ロボット" -> compact evidence JSON
+memory eval --limit 1 -> 10/10 smoke queries returned structurally valid hits
+```
+
+Important caveat: the eval pass is structural, not semantic relevance proof. The next milestone
+should improve ranking quality with better query planning, embeddings, and reranking.

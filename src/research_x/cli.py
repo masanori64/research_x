@@ -237,6 +237,75 @@ def main(argv: list[str] | None = None) -> int:
         help="open the progress page in the default browser",
     )
 
+    memory_parser = subparsers.add_parser(
+        "memory",
+        help="build and query the local AI-callable memory search layer",
+    )
+    memory_subparsers = memory_parser.add_subparsers(dest="memory_command", required=True)
+    memory_build_parser = memory_subparsers.add_parser(
+        "build-corpus",
+        help="build memory_documents and FTS index from the canonical X store",
+    )
+    memory_build_parser.add_argument(
+        "--db",
+        default="runs/x_data.sqlite3",
+        help="SQLite database path",
+    )
+    memory_search_parser = memory_subparsers.add_parser(
+        "search",
+        help="search memory_documents using local FTS with fallback matching",
+    )
+    memory_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_search_parser.add_argument("--query", required=True)
+    memory_search_parser.add_argument("--limit", type=int, default=10)
+    memory_search_parser.add_argument("--doc-type", default=None)
+    memory_search_parser.add_argument("--account", default=None)
+    memory_search_parser.add_argument("--json", action="store_true")
+    memory_evidence_parser = memory_subparsers.add_parser(
+        "evidence",
+        help="return compact evidence bundle JSON for an AI caller",
+    )
+    memory_evidence_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_evidence_parser.add_argument("--query", required=True)
+    memory_evidence_parser.add_argument("--limit", type=int, default=5)
+    memory_evidence_parser.add_argument("--doc-type", default=None)
+    memory_evidence_parser.add_argument("--account", default=None)
+    memory_feedback_parser = memory_subparsers.add_parser(
+        "feedback",
+        help="record search-result feedback for later ranking improvements",
+    )
+    memory_feedback_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_feedback_parser.add_argument("--query", required=True)
+    memory_feedback_parser.add_argument("--doc-id", required=True)
+    memory_feedback_parser.add_argument(
+        "--label",
+        required=True,
+        choices=[
+            "useful",
+            "not_useful",
+            "wrong_topic",
+            "too_old",
+            "missing_context",
+            "good_for_skill",
+            "bad_skill_route",
+        ],
+    )
+    memory_feedback_parser.add_argument("--note", default=None)
+    memory_export_parser = memory_subparsers.add_parser(
+        "export-corpus2skill",
+        help="export memory_documents to Corpus2Skill-compatible JSONL",
+    )
+    memory_export_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_export_parser.add_argument("--out", required=True)
+    memory_export_parser.add_argument("--limit", type=int, default=None)
+    memory_eval_parser = memory_subparsers.add_parser(
+        "eval",
+        help="run smoke evaluation queries against the memory search layer",
+    )
+    memory_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_parser.add_argument("--limit", type=int, default=3)
+    memory_eval_parser.add_argument("--json", action="store_true")
+
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
         "--details",
@@ -794,6 +863,66 @@ def main(argv: list[str] | None = None) -> int:
             open_browser=args.open_browser,
         )
         return 0
+    if args.command == "memory":
+        if args.memory_command == "build-corpus":
+            from research_x.memory.corpus import build_memory_corpus, summary_as_dict
+
+            summary = build_memory_corpus(args.db)
+            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+            return 0
+        if args.memory_command == "search":
+            from research_x.memory.search import format_search_results, search_memory
+
+            results = search_memory(
+                args.db,
+                args.query,
+                limit=args.limit,
+                doc_type=args.doc_type,
+                account=args.account,
+            )
+            print(format_search_results(results, json_output=args.json))
+            return 0
+        if args.memory_command == "evidence":
+            from research_x.memory.evidence import build_evidence_bundle, evidence_bundle_json
+
+            bundle = build_evidence_bundle(
+                args.db,
+                args.query,
+                limit=args.limit,
+                doc_type=args.doc_type,
+                account=args.account,
+            )
+            print(evidence_bundle_json(bundle))
+            return 0
+        if args.memory_command == "feedback":
+            from research_x.memory.feedback import add_feedback
+
+            feedback_id = add_feedback(
+                args.db,
+                query=args.query,
+                doc_id=args.doc_id,
+                label=args.label,
+                note=args.note,
+            )
+            print(f"feedback: {feedback_id}")
+            return 0
+        if args.memory_command == "export-corpus2skill":
+            from research_x.memory.corpus import export_corpus2skill_jsonl
+
+            count = export_corpus2skill_jsonl(args.db, args.out, limit=args.limit)
+            print(f"corpus2skill-export: rows={count} out={args.out}")
+            return 0
+        if args.memory_command == "eval":
+            from research_x.memory.evals import (
+                eval_results_json,
+                format_eval_results,
+                run_memory_eval,
+            )
+
+            results = run_memory_eval(args.db, limit=args.limit)
+            print(eval_results_json(results) if args.json else format_eval_results(results))
+            return 0
+        raise AssertionError(f"unhandled memory command {args.memory_command}")
     if args.command == "accounts":
         if args.accounts_command == "add":
             profile = write_account_profile(
