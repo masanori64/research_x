@@ -342,3 +342,45 @@ Current limitation:
 
 - `local_hash` is a deterministic no-cost fallback, not a real semantic model. For production
   semantic quality, build the same index with OpenAI or Gemini embeddings.
+
+## Fourth Milestone
+
+Add rebuildable relation edges so the memory DB can expose context, duplicate saves, and freshness
+signals without rewriting raw records.
+
+Required commands:
+
+```powershell
+uv run python -m research_x memory build-relations --db runs/x_data.sqlite3
+uv run python -m research_x memory relations --db runs/x_data.sqlite3 --doc-id tweet:1939691054728720590 --limit 10
+uv run python -m research_x memory evidence --db runs/x_data.sqlite3 --query "引用元を見ないと意味が変わる投稿を根拠付きで出して" --limit 2
+```
+
+Implementation goals:
+
+- [x] Add `memory_relations` as a rebuildable index table.
+- [x] Add `bookmark_of_tweet`, `has_media`, `quotes`, `has_quote_tree`,
+      `quote_tree_includes`, `same_bookmarked_tweet`, and `older_same_author_label`.
+- [x] Use `tweet_doc` as the hub for bookmark/media/quote edges to avoid unnecessary all-pair
+      relation growth.
+- [x] Include relation summaries in search scoring for quote/media/cross-account/freshness queries.
+- [x] Include top relation edges in evidence bundles so an AI caller can inspect why context was
+      expanded.
+
+Verified against `runs/x_data.sqlite3`:
+
+```text
+memory build-relations -> 43,799 relations
+bookmark_of_tweet      -> 14,397
+has_media              -> 21,901
+has_quote_tree         -> 2,359
+quote_tree_includes    -> 2,359
+quotes                 -> 2,359
+same_bookmarked_tweet  -> 421
+older_same_author_label -> 3
+```
+
+Current limitation:
+
+- `older_same_author_label` is only a weak stale candidate signal. It does not prove that older
+  content is obsolete.

@@ -15,6 +15,7 @@ from research_x.memory.embeddings import (
     semantic_search_memory,
 )
 from research_x.memory.query import QueryPlan, build_query_plan
+from research_x.memory.relations import relation_summary_for_docs
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
 
@@ -115,6 +116,7 @@ def search_memory(
         )
         feedback = _feedback_scores(conn, doc_ids)
         account_counts = _bookmark_account_counts(conn, tweet_ids)
+        relation_counts = relation_summary_for_docs(conn, doc_ids)
         latest_observed_at = _latest_observed_at(conn)
 
     semantic_by_doc = {hit.doc_id: hit for hit in semantic_hits}
@@ -137,6 +139,7 @@ def search_memory(
             plan=plan,
             feedback_score=feedback.get(candidate["doc_id"], 0.0),
             bookmark_account_count=account_counts.get(str(candidate.get("source_tweet_id")), 0),
+            relation_counts=relation_counts.get(str(candidate["doc_id"]), {}),
             latest_observed_at=latest_observed_at,
             semantic_hit=semantic_by_doc.get(str(candidate["doc_id"])),
             semantic_weight=semantic_weight,
@@ -373,6 +376,7 @@ def _result_from_candidate(
     plan: QueryPlan,
     feedback_score: float,
     bookmark_account_count: int,
+    relation_counts: dict[str, int],
     latest_observed_at: datetime | None,
     semantic_hit: SemanticHit | SemanticScore | None,
     semantic_weight: float,
@@ -404,6 +408,7 @@ def _result_from_candidate(
         "cross_account": 1.5
         if plan.wants_cross_account and bookmark_account_count > 1
         else 0.0,
+        "relations": _relation_score(plan, str(row["doc_type"]), relation_counts),
         "feedback": feedback_score,
     }
     score = round(sum(components.values()), 6)
@@ -419,6 +424,8 @@ def _result_from_candidate(
     )
     if bookmark_account_count:
         metadata["bookmark_account_count"] = bookmark_account_count
+    if relation_counts:
+        metadata["relation_counts"] = relation_counts
     if semantic_hit:
         metadata["semantic"] = {
             "provider": semantic_hit.provider,
@@ -517,6 +524,31 @@ def _context_score(
         score += 1.0
     if metadata.get("media_count"):
         score += 0.2
+    return score
+
+
+def _relation_score(
+    plan: QueryPlan,
+    doc_type: str,
+    relation_counts: dict[str, int],
+) -> float:
+    if not relation_counts:
+        return 0.0
+    score = 0.0
+    if plan.requires_quote_context:
+        score += min(1.2, 0.4 * relation_counts.get("quote_tree_includes", 0))
+        score += min(0.8, 0.3 * relation_counts.get("has_quote_tree", 0))
+        score += min(0.6, 0.2 * relation_counts.get("quotes", 0))
+    if plan.requires_media_context:
+        score += min(1.0, 0.25 * relation_counts.get("has_media", 0))
+        if doc_type == "media_doc":
+            score += min(0.6, 0.2 * relation_counts.get("incoming:has_media", 0))
+    if plan.wants_cross_account:
+        score += min(2.0, 0.5 * relation_counts.get("same_bookmarked_tweet", 0))
+    if plan.excludes_old:
+        score -= min(2.0, 0.6 * relation_counts.get("older_same_author_label", 0))
+    if plan.prefers_recent:
+        score += min(1.0, 0.4 * relation_counts.get("incoming:older_same_author_label", 0))
     return score
 
 

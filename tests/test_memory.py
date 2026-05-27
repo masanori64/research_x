@@ -9,6 +9,7 @@ from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.feedback import add_feedback
 from research_x.memory.query import build_query_plan
+from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.search import search_memory
 
 
@@ -129,6 +130,25 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
     assert any(result.score_components["semantic"] > 0 for result in results)
 
 
+def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    summary = build_memory_relations(db_path)
+    relations = relations_for_doc(db_path, "tweet:tweet-1")
+    results = search_memory(db_path, "引用元を見たい", limit=5)
+    bundle = build_evidence_bundle(db_path, "引用元を見たい", limit=3)
+
+    assert summary.by_type["bookmark_of_tweet"] == 1
+    assert summary.by_type["has_media"] == 1
+    assert summary.by_type["quotes"] == 1
+    assert summary.by_type["has_quote_tree"] == 1
+    assert any(relation.relation_type == "has_quote_tree" for relation in relations)
+    assert any(result.score_components["relations"] > 0 for result in results)
+    assert bundle["hits"][0]["evidence"]["relations"]
+
+
 def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     captured = {}
 
@@ -174,6 +194,17 @@ def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
         ]
     ) == 0
     assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
+    assert main(["memory", "build-relations", "--db", str(db_path)]) == 0
+    assert main(
+        [
+            "memory",
+            "relations",
+            "--db",
+            str(db_path),
+            "--doc-id",
+            "tweet:tweet-1",
+        ]
+    ) == 0
     assert main(["memory", "search", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(
         [

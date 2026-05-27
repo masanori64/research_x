@@ -274,6 +274,19 @@ def main(argv: list[str] | None = None) -> int:
         help="list available embedding indexes in the DB",
     )
     memory_specs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_relations_build_parser = memory_subparsers.add_parser(
+        "build-relations",
+        help="build relation edges over memory_documents",
+    )
+    memory_relations_build_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_relations_parser = memory_subparsers.add_parser(
+        "relations",
+        help="show relation edges for a memory document",
+    )
+    memory_relations_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_relations_parser.add_argument("--doc-id", required=True)
+    memory_relations_parser.add_argument("--limit", type=int, default=20)
+    memory_relations_parser.add_argument("--json", action="store_true")
     memory_search_parser = memory_subparsers.add_parser(
         "search",
         help="search memory_documents using local FTS with fallback matching",
@@ -938,6 +951,18 @@ def main(argv: list[str] | None = None) -> int:
 
             specs = [spec.__dict__ for spec in available_embedding_specs(args.db)]
             print(json.dumps(specs, ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
+        if args.memory_command == "build-relations":
+            from research_x.memory.relations import build_memory_relations, summary_as_dict
+
+            summary = build_memory_relations(args.db)
+            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+            return 0
+        if args.memory_command == "relations":
+            from research_x.memory.relations import format_relations, relations_for_doc
+
+            relations = relations_for_doc(args.db, args.doc_id, limit=args.limit)
+            print(format_relations(relations, json_output=args.json))
             return 0
         if args.memory_command == "search":
             from research_x.memory.search import format_search_results, search_memory

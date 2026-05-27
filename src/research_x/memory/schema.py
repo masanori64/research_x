@@ -58,6 +58,18 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             PRIMARY KEY(doc_id, provider, model, dimensions)
         );
 
+        CREATE TABLE IF NOT EXISTS memory_relations (
+            relation_id TEXT PRIMARY KEY,
+            source_doc_id TEXT NOT NULL,
+            target_doc_id TEXT NOT NULL,
+            relation_type TEXT NOT NULL,
+            strength REAL NOT NULL,
+            status TEXT NOT NULL,
+            evidence_json TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_memory_documents_doc_type
             ON memory_documents(doc_type);
         CREATE INDEX IF NOT EXISTS idx_memory_documents_source_tweet
@@ -68,6 +80,12 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_feedback(doc_id);
         CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider_model
             ON memory_embeddings(provider, model, dimensions);
+        CREATE INDEX IF NOT EXISTS idx_memory_relations_source
+            ON memory_relations(source_doc_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_relations_target
+            ON memory_relations(target_doc_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_relations_type
+            ON memory_relations(relation_type);
         """
     )
 

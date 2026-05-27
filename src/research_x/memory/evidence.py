@@ -71,6 +71,7 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
             "account_id": result.account_id,
             "quoted_tweets": _quoted_tweets(conn, tweet_id) if tweet_id else [],
             "media": _media(conn, tweet_id) if tweet_id else [],
+            "relations": _relations(conn, result.doc_id),
         },
     }
 
@@ -153,6 +154,41 @@ def _media(conn: sqlite3.Connection, tweet_id: str) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def _relations(conn: sqlite3.Connection, doc_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT
+            source_doc_id, target_doc_id, relation_type, strength, status, evidence_json
+        FROM memory_relations
+        WHERE source_doc_id = ? OR target_doc_id = ?
+        ORDER BY strength DESC, relation_type, target_doc_id
+        LIMIT 8
+        """,
+        (doc_id, doc_id),
+    ).fetchall()
+    return [
+        {
+            "source_doc_id": row["source_doc_id"],
+            "target_doc_id": row["target_doc_id"],
+            "relation_type": row["relation_type"],
+            "strength": row["strength"],
+            "status": row["status"],
+            "evidence": _loads_json(row["evidence_json"]),
+        }
+        for row in rows
+    ]
+
+
+def _loads_json(value: str | None) -> dict[str, Any]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _compact(value: str, *, limit: int) -> str:
