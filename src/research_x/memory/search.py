@@ -221,8 +221,8 @@ def _fts_search(
     """
     try:
         return [dict(row) for row in conn.execute(sql, (fts_query, *params, limit)).fetchall()]
-    except sqlite3.OperationalError:
-        return []
+    except sqlite3.OperationalError as exc:
+        raise RuntimeError(f"memory FTS query failed for query {fts_query!r}") from exc
 
 
 def _like_search(

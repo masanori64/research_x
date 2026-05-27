@@ -4,6 +4,7 @@ from pathlib import Path
 
 from research_x.cli import main
 from research_x.memory import embeddings
+from research_x.memory.audit import audit_memory_db
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
 from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evidence import build_evidence_bundle
@@ -130,6 +131,33 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
     assert any(result.score_components["semantic"] > 0 for result in results)
 
 
+def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    report = audit_memory_db(db_path)
+
+    assert report.documents == 5
+    assert report.relation_covered_documents == 5
+    assert not report.isolated_documents_by_type
+    assert any("only local_hash embeddings" in warning for warning in report.warnings)
+
+
+def test_embedding_auto_requires_production_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    try:
+        embeddings.resolve_embedding_spec(provider="auto")
+    except RuntimeError as exc:
+        assert "local_hash" in str(exc)
+    else:
+        raise AssertionError("auto embedding provider should require a production key")
+
+
 def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
@@ -189,10 +217,13 @@ def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
             "build-embeddings",
             "--db",
             str(db_path),
+            "--provider",
+            "local_hash",
             "--dimensions",
             "64",
         ]
     ) == 0
+    assert main(["memory", "audit", "--db", str(db_path)]) == 0
     assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
     assert main(["memory", "build-relations", "--db", str(db_path)]) == 0
     assert main(

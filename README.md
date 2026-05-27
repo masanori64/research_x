@@ -320,6 +320,7 @@ Initial implementation should be a separate `research_x.memory` package, with co
 
 ```text
 research_x memory build-corpus
+research_x memory audit
 research_x memory build-embeddings
 research_x memory embedding-specs
 research_x memory build-relations
@@ -343,8 +344,9 @@ Do this in stages:
 7. local hybrid ranking from FTS/substring/metadata/feedback/freshness signals,
 8. embedding index and semantic reranking,
 9. relation edges for bookmarks, media, quotes, duplicate bookmarks, and stale candidates,
-10. Corpus2Skill export/navigation,
-11. richer freshness/obsolete edges.
+10. audit checks for missing indexes and diagnostic-only fallbacks,
+11. Corpus2Skill export/navigation,
+12. richer freshness/obsolete edges.
 
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.

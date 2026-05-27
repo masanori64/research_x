@@ -251,6 +251,12 @@ def main(argv: list[str] | None = None) -> int:
         default="runs/x_data.sqlite3",
         help="SQLite database path",
     )
+    memory_audit_parser = memory_subparsers.add_parser(
+        "audit",
+        help="audit memory indexes and warn about non-production fallbacks",
+    )
+    memory_audit_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_audit_parser.add_argument("--json", action="store_true")
     memory_embedding_parser = memory_subparsers.add_parser(
         "build-embeddings",
         help="build semantic embedding index over memory_documents",
@@ -258,8 +264,8 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_embedding_parser.add_argument(
         "--provider",
-        default="local_hash",
-        choices=["local_hash", "openai", "gemini"],
+        default="auto",
+        choices=["auto", "local_hash", "openai", "gemini"],
     )
     memory_embedding_parser.add_argument("--model", default=None)
     memory_embedding_parser.add_argument("--dimensions", type=int, default=None)
@@ -300,7 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument(
         "--semantic-provider",
         default=None,
-        help="optional semantic provider: local_hash, openai, gemini, or auto",
+        help="optional semantic provider: auto, local_hash, openai, or gemini",
     )
     memory_search_parser.add_argument("--semantic-model", default=None)
     memory_search_parser.add_argument("--semantic-dimensions", type=int, default=None)
@@ -928,6 +934,16 @@ def main(argv: list[str] | None = None) -> int:
 
             summary = build_memory_corpus(args.db)
             print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+            return 0
+        if args.memory_command == "audit":
+            from research_x.memory.audit import (
+                audit_memory_db,
+                audit_report_json,
+                format_audit_report,
+            )
+
+            report = audit_memory_db(args.db)
+            print(audit_report_json(report) if args.json else format_audit_report(report))
             return 0
         if args.memory_command == "build-embeddings":
             from research_x.memory.embeddings import build_memory_embeddings, summary_as_dict

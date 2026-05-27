@@ -11,11 +11,12 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from array import array
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
@@ -82,7 +83,9 @@ def resolve_embedding_spec(
     base_url: str | None = None,
     timeout_seconds: float = 60.0,
 ) -> EmbeddingSpec:
-    resolved_provider = (provider or LOCAL_HASH_PROVIDER).strip().lower()
+    resolved_provider = (provider or "auto").strip().lower()
+    if resolved_provider == "auto":
+        resolved_provider = _auto_embedding_provider()
     if resolved_provider == LOCAL_HASH_PROVIDER:
         resolved_model = model or LOCAL_HASH_MODEL
     elif resolved_provider == OPENAI_PROVIDER:
@@ -299,16 +302,12 @@ def unpack_embedding(value: bytes, dimensions: int) -> list[float]:
     return list(struct.unpack(f"<{dimensions}f", value))
 
 
-def unpack_embedding_array(value: bytes, dimensions: int) -> array:
+def unpack_embedding_array(value: bytes, dimensions: int):
     if len(value) != dimensions * 4:
         raise ValueError(
             f"embedding blob size mismatch: got {len(value)} bytes for {dimensions} dimensions"
         )
-    result = array("f")
-    result.frombytes(value)
-    if sys.byteorder != "little":
-        result.byteswap()
-    return result
+    return np.frombuffer(value, dtype="<f4")
 
 
 def cosine_similarity(left, right) -> float:
@@ -511,12 +510,6 @@ def _semantic_hits_from_rows(
 ) -> list[SemanticHit]:
     if not rows:
         return []
-    try:
-        import numpy as np
-    except ImportError:
-        np = None
-    if np is None:
-        return _semantic_hits_from_rows_python(rows, query_vector=query_vector)
     dimensions = int(rows[0]["dimensions"])
     query = np.asarray(query_vector[:dimensions], dtype=np.float32)
     hits: list[SemanticHit] = []
@@ -535,26 +528,6 @@ def _semantic_hits_from_rows(
                     dimensions=dimensions,
                 )
             )
-    return hits
-
-
-def _semantic_hits_from_rows_python(
-    rows: list[sqlite3.Row],
-    *,
-    query_vector: list[float],
-) -> list[SemanticHit]:
-    hits = []
-    for row in rows:
-        vector = unpack_embedding_array(row["embedding"], int(row["dimensions"]))
-        hits.append(
-            SemanticHit(
-                doc_id=row["doc_id"],
-                similarity=cosine_similarity(query_vector, vector),
-                provider=row["provider"],
-                model=row["model"],
-                dimensions=int(row["dimensions"]),
-            )
-        )
     return hits
 
 
@@ -705,6 +678,17 @@ def _api_key(env_name: str) -> str:
     if not value:
         raise RuntimeError(f"missing API key environment variable: {env_name}")
     return value
+
+
+def _auto_embedding_provider() -> str:
+    if os.environ.get("GEMINI_API_KEY"):
+        return GEMINI_PROVIDER
+    if os.environ.get("OPENAI_API_KEY"):
+        return OPENAI_PROVIDER
+    raise RuntimeError(
+        "no production embedding API key found. Set GEMINI_API_KEY or OPENAI_API_KEY, "
+        "or explicitly pass --provider local_hash for an offline diagnostic index."
+    )
 
 
 def _post_json(

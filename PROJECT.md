@@ -321,7 +321,8 @@ Add an embedding-backed semantic layer without making the CLI dependent on paid 
 Required commands:
 
 ```powershell
-uv run python -m research_x memory build-embeddings --db runs/x_data.sqlite3 --provider local_hash --dimensions 256 --batch-size 512
+uv run python -m research_x memory build-embeddings --db runs/x_data.sqlite3 --provider gemini --dimensions 768 --batch-size 100
+uv run python -m research_x memory build-embeddings --db runs/x_data.sqlite3 --provider local_hash --dimensions 256 --batch-size 512  # explicit diagnostic mode
 uv run python -m research_x memory embedding-specs --db runs/x_data.sqlite3
 uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "曖昧に覚えているロボットと学習の資料" --limit 5 --semantic-provider local_hash --semantic-dimensions 256
 ```
@@ -329,19 +330,20 @@ uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "曖�
 Implementation goals:
 
 - [x] Add `memory_embeddings` as a rebuildable index table attached to `memory_documents`.
-- [x] Add `local_hash` embeddings so semantic plumbing can be tested without API keys or cost.
+- [x] Add `local_hash` embeddings only as an explicit diagnostic mode so semantic plumbing can be
+      tested without API keys or cost.
 - [x] Add OpenAI and Gemini embedding providers behind the same contract.
 - [x] Keep OpenAI default at `text-embedding-3-small`; keep Gemini default at `gemini-embedding-2`.
 - [x] Use Gemini `embedContentConfig.outputDimensionality` and avoid `taskType` for
       `gemini-embedding-2`, where task intent should be represented in prompt text instead.
 - [x] Let search combine lexical/context ranking with semantic similarity and expose the semantic
       score in `score_components`.
-- [x] Use NumPy for faster local vector scans, with a pure-Python fallback.
+- [x] Require NumPy for local vector scans instead of silently falling back to slow pure Python.
 
 Current limitation:
 
-- `local_hash` is a deterministic no-cost fallback, not a real semantic model. For production
-  semantic quality, build the same index with OpenAI or Gemini embeddings.
+- `local_hash` is a deterministic no-cost diagnostic mode, not a real semantic model. Production
+  semantic quality requires an OpenAI or Gemini embedding index.
 
 ## Fourth Milestone
 
@@ -384,3 +386,25 @@ Current limitation:
 
 - `older_same_author_label` is only a weak stale candidate signal. It does not prove that older
   content is obsolete.
+
+## Fifth Milestone
+
+Remove silent quality downgrades and make index health visible.
+
+Required commands:
+
+```powershell
+uv run python -m research_x memory audit --db runs/x_data.sqlite3
+uv run python -m research_x memory audit --db runs/x_data.sqlite3 --json
+```
+
+Implementation goals:
+
+- [x] Add `memory audit` to report document count, FTS coverage, relation coverage, embedding
+      coverage, and warnings.
+- [x] Confirm relation count can be lower than document count because relations are edges, while
+      relation-covered documents should match the document count.
+- [x] Stop silently using `local_hash` when `build-embeddings` is run without a provider. `auto`
+      now requires `GEMINI_API_KEY` or `OPENAI_API_KEY`; `local_hash` must be explicit.
+- [x] Require NumPy for vector scan performance.
+- [x] Stop hiding FTS failures as empty result sets.
