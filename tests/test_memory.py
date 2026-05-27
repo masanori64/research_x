@@ -6,6 +6,7 @@ from research_x.cli import main
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.feedback import add_feedback
+from research_x.memory.query import build_query_plan
 from research_x.memory.search import search_memory
 
 
@@ -32,6 +33,15 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     assert any(result.source_tweet_id == "tweet-1" for result in results)
     assert all(result.compact_text for result in results)
     assert any(result.source_tweet_id == "tweet-1" for result in natural_results)
+    assert natural_results[0].score_components["doc_type"] > 0
+    assert "カフェ" in natural_results[0].matched_terms
+
+    plan = build_query_plan("画像付きで保存した技術資料っぽい投稿を出して")
+    assert plan.requires_media_context is True
+    assert "media_doc" in plan.doc_type_weights
+    exclude_plan = build_query_plan("最近保存した強化学習を古いものを除いて出して")
+    assert exclude_plan.excludes_old is True
+    assert "古い" not in exclude_plan.search_terms
 
 
 def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
@@ -47,10 +57,13 @@ def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
     )
 
     assert bundle["query"] == "強化学習 ロボット"
+    assert bundle["query_plan"]["search_terms"]
     assert bundle["hits"]
     hit = bundle["hits"][0]
     assert hit["tweet_id"] == "tweet-1"
     assert hit["compact_text"]
+    assert hit["matched_terms"]
+    assert hit["score_components"]
     assert hit["evidence"]["url"] == "https://x.com/a/status/tweet-1"
     assert hit["evidence"]["quoted_tweets"][0]["tweet_id"] == "tweet-2"
     assert hit["evidence"]["media"][0]["media_id"] == "media-1"
@@ -88,6 +101,7 @@ def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
 
     assert main(["memory", "build-corpus", "--db", str(db_path)]) == 0
     assert main(["memory", "search", "--db", str(db_path), "--query", "ロボット"]) == 0
+    assert main(["memory", "plan", "--query", "引用元を見たい"]) == 0
     assert main(["memory", "evidence", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 

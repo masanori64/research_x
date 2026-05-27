@@ -320,6 +320,7 @@ Initial implementation should be a separate `research_x.memory` package, with co
 
 ```text
 research_x memory build-corpus
+research_x memory plan
 research_x memory search
 research_x memory evidence
 research_x memory export-corpus2skill
@@ -334,9 +335,11 @@ Do this in stages:
 3. compact evidence bundles,
 4. feedback table,
 5. fixed evaluation queries,
-6. embeddings and hybrid search,
-7. Corpus2Skill export,
-8. freshness/obsolete edges.
+6. natural-language query planning,
+7. local hybrid ranking from FTS/substring/metadata/feedback/freshness signals,
+8. embeddings and semantic reranking,
+9. Corpus2Skill export/navigation,
+10. freshness/obsolete edges.
 
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.

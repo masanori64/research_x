@@ -3,46 +3,13 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from research_x.memory.corpus import build_memory_corpus
+from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
-
-QUERY_HINTS = (
-    "カフェ",
-    "居酒屋",
-    "自炊",
-    "強化学習",
-    "機械学習",
-    "ロボット",
-    "ネットワーク",
-    "物理",
-    "宇宙",
-    "漫画",
-    "動画",
-    "イラスト",
-    "成人",
-    "エロ",
-    "公式",
-    "リンク",
-    "イベント",
-    "日付",
-    "作者",
-    "引用",
-    "引用元",
-    "画像",
-    "技術",
-    "資料",
-    "重複",
-    "アカウント",
-    "関心",
-    "領域",
-    "保存",
-    "ブクマ",
-    "古い",
-    "新しい",
-)
 
 
 @dataclass(frozen=True)
@@ -56,6 +23,8 @@ class MemorySearchResult:
     compact_text: str
     score: float
     match_method: str
+    matched_terms: tuple[str, ...]
+    score_components: dict[str, float]
     metadata: dict[str, Any]
 
 
@@ -72,28 +41,66 @@ def search_memory(
     if not path.exists():
         raise FileNotFoundError(f"database not found: {path}")
     resolved_limit = max(1, limit)
+    plan = build_query_plan(query)
+    pool_limit = max(resolved_limit * 8, 50)
+
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
         if rebuild_if_empty and memory_document_count(conn) == 0:
             build_memory_corpus(path)
-        terms = _query_terms(query)
-        rows = _fts_search(
-            conn,
-            terms,
-            limit=resolved_limit,
-            doc_type=doc_type,
-            account=account,
-        )
-        if not rows:
-            rows = _like_search(
+
+        raw_rows: list[dict[str, Any]] = []
+        raw_rows.extend(
+            _fts_search(
                 conn,
-                terms,
-                limit=resolved_limit,
+                plan,
+                limit=pool_limit,
                 doc_type=doc_type,
                 account=account,
             )
-    return tuple(_result_from_row(row) for row in rows)
+        )
+        raw_rows.extend(
+            _like_search(
+                conn,
+                plan,
+                limit=pool_limit,
+                doc_type=doc_type,
+                account=account,
+            )
+        )
+        raw_rows.extend(
+            _metadata_search(
+                conn,
+                plan,
+                limit=pool_limit,
+                doc_type=doc_type,
+                account=account,
+            )
+        )
+        candidates = _merge_candidates(raw_rows)
+        doc_ids = tuple(candidate["doc_id"] for candidate in candidates)
+        tweet_ids = tuple(
+            str(candidate["source_tweet_id"])
+            for candidate in candidates
+            if candidate.get("source_tweet_id")
+        )
+        feedback = _feedback_scores(conn, doc_ids)
+        account_counts = _bookmark_account_counts(conn, tweet_ids)
+        latest_observed_at = _latest_observed_at(conn)
+
+    results = [
+        _result_from_candidate(
+            candidate,
+            plan=plan,
+            feedback_score=feedback.get(candidate["doc_id"], 0.0),
+            bookmark_account_count=account_counts.get(str(candidate.get("source_tweet_id")), 0),
+            latest_observed_at=latest_observed_at,
+        )
+        for candidate in candidates
+    ]
+    results.sort(key=lambda result: (result.score, _date_sort_value(result.metadata)), reverse=True)
+    return tuple(results[:resolved_limit])
 
 
 def results_as_dicts(results: tuple[MemorySearchResult, ...]) -> list[dict[str, Any]]:
@@ -118,6 +125,8 @@ def format_search_results(
             f"type={result.doc_type}",
             f"id={result.doc_id}",
         ]
+        if result.matched_terms:
+            parts.append(f"matches={','.join(result.matched_terms[:6])}")
         if result.author_screen_name:
             parts.append(f"@{result.author_screen_name}")
         if result.account_id:
@@ -130,6 +139,7 @@ def format_search_results(
                     f"text: {result.compact_text}",
                     f"tweet_id: {result.source_tweet_id or ''}",
                     f"url: {result.metadata.get('url') or ''}",
+                    f"rank: {_components_text(result.score_components)}",
                 ]
             )
         )
@@ -138,43 +148,45 @@ def format_search_results(
 
 def _fts_search(
     conn: sqlite3.Connection,
-    terms: tuple[str, ...],
+    plan: QueryPlan,
     *,
     limit: int,
     doc_type: str | None,
     account: str | None,
-) -> list[sqlite3.Row]:
-    fts_query = _fts_query(terms)
+) -> list[dict[str, Any]]:
+    fts_query = _fts_query(plan.search_terms)
     if not fts_query:
         return []
     filters, params = _filters(doc_type=doc_type, account=account)
     sql = f"""
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
-            d.author_screen_name, d.title, d.compact_text, d.metadata_json,
-            bm25(memory_document_fts) AS score,
+            d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.created_at, d.observed_at, d.updated_at,
+            bm25(memory_document_fts) AS raw_score,
             'fts' AS match_method
         FROM memory_document_fts
         JOIN memory_documents d ON d.doc_id = memory_document_fts.doc_id
         WHERE memory_document_fts MATCH ?
         {filters}
-        ORDER BY score ASC, d.observed_at DESC
+        ORDER BY raw_score ASC, d.observed_at DESC
         LIMIT ?
     """
     try:
-        return conn.execute(sql, (fts_query, *params, limit)).fetchall()
+        return [dict(row) for row in conn.execute(sql, (fts_query, *params, limit)).fetchall()]
     except sqlite3.OperationalError:
         return []
 
 
 def _like_search(
     conn: sqlite3.Connection,
-    terms: tuple[str, ...],
+    plan: QueryPlan,
     *,
     limit: int,
     doc_type: str | None,
     account: str | None,
-) -> list[sqlite3.Row]:
+) -> list[dict[str, Any]]:
+    terms = plan.search_terms
     if not terms:
         return []
     filters, params = _filters(doc_type=doc_type, account=account)
@@ -197,8 +209,9 @@ def _like_search(
     sql = f"""
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
-            d.author_screen_name, d.title, d.compact_text, d.metadata_json,
-            CAST(-1 * ({len(terms)}) AS REAL) AS score,
+            d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.created_at, d.observed_at, d.updated_at,
+            0.0 AS raw_score,
             'like' AS match_method
         FROM memory_documents d
         WHERE ({' OR '.join(like_filters)})
@@ -206,7 +219,153 @@ def _like_search(
         ORDER BY d.observed_at DESC, d.doc_id
         LIMIT ?
     """
-    return conn.execute(sql, (*like_params, *params, limit)).fetchall()
+    return [dict(row) for row in conn.execute(sql, (*like_params, *params, limit)).fetchall()]
+
+
+def _metadata_search(
+    conn: sqlite3.Connection,
+    plan: QueryPlan,
+    *,
+    limit: int,
+    doc_type: str | None,
+    account: str | None,
+) -> list[dict[str, Any]]:
+    filters, params = _filters(doc_type=doc_type, account=account)
+    clauses: list[str] = []
+    if plan.requires_quote_context:
+        clauses.append("d.doc_type = 'quote_tree_doc'")
+    if plan.requires_media_context:
+        clauses.append("d.doc_type = 'media_doc'")
+    if plan.requires_bookmark_context:
+        clauses.append("d.doc_type = 'bookmark_doc'")
+    if plan.wants_cross_account:
+        clauses.append(
+            """
+            d.source_tweet_id IN (
+                SELECT tweet_id
+                FROM account_bookmarks
+                GROUP BY tweet_id
+                HAVING COUNT(DISTINCT account_id) > 1
+            )
+            """
+        )
+    if plan.wants_event_dates:
+        clauses.append(
+            """
+            (
+                d.body LIKE '%202%'
+                OR d.body LIKE '%開催%'
+                OR d.body LIKE '%期限%'
+                OR d.body LIKE '%予約%'
+            )
+            """
+        )
+    if not clauses:
+        return []
+    sql = f"""
+        SELECT
+            d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
+            d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.created_at, d.observed_at, d.updated_at,
+            0.0 AS raw_score,
+            'metadata' AS match_method
+        FROM memory_documents d
+        WHERE ({' OR '.join(clauses)})
+        {filters}
+        ORDER BY d.observed_at DESC, d.doc_id
+        LIMIT ?
+    """
+    return [dict(row) for row in conn.execute(sql, (*params, limit)).fetchall()]
+
+
+def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        doc_id = str(row["doc_id"])
+        existing = merged.get(doc_id)
+        if existing is None:
+            row["_match_methods"] = {row["match_method"]}
+            merged[doc_id] = row
+            continue
+        existing["_match_methods"].add(row["match_method"])
+        if _method_priority(str(row["match_method"])) > _method_priority(
+            str(existing["match_method"])
+        ):
+            row["_match_methods"] = existing["_match_methods"]
+            merged[doc_id] = row
+    return list(merged.values())
+
+
+def _method_priority(method: str) -> int:
+    return {"fts": 3, "like": 2, "metadata": 1}.get(method, 0)
+
+
+def _result_from_candidate(
+    row: dict[str, Any],
+    *,
+    plan: QueryPlan,
+    feedback_score: float,
+    bookmark_account_count: int,
+    latest_observed_at: datetime | None,
+) -> MemorySearchResult:
+    metadata = _loads_json(row.get("metadata_json"))
+    body = str(row.get("body") or "")
+    title = str(row.get("title") or "")
+    compact = str(row.get("compact_text") or "")
+    text_blob = _searchable_text(title, body, compact, str(row.get("author_screen_name") or ""))
+    exact_terms = tuple(term for term in plan.exact_terms if _term_in_text(term, text_blob))
+    matched_terms = tuple(term for term in plan.search_terms if _term_in_text(term, text_blob))
+    expansion_matches = tuple(term for term in matched_terms if term not in exact_terms)
+    methods = tuple(sorted(row.get("_match_methods", (str(row.get("match_method") or ""),))))
+
+    components = {
+        "lexical_exact": 2.0 * len(exact_terms),
+        "lexical_expansion": 0.65 * len(expansion_matches),
+        "retrieval_method": _method_score(methods),
+        "doc_type": plan.doc_type_weights.get(str(row["doc_type"]), 0.0),
+        "context": _context_score(plan, str(row["doc_type"]), body, metadata),
+        "freshness": _freshness_score(
+            row.get("observed_at") or row.get("created_at"),
+            plan=plan,
+            latest_observed_at=latest_observed_at,
+        ),
+        "cross_account": 1.5
+        if plan.wants_cross_account and bookmark_account_count > 1
+        else 0.0,
+        "feedback": feedback_score,
+    }
+    score = round(sum(components.values()), 6)
+    metadata = dict(metadata)
+    metadata.update(
+        {
+            "rank_score_components": components,
+            "matched_terms": matched_terms,
+            "retrieval_methods": methods,
+            "observed_at": row.get("observed_at"),
+            "created_at": row.get("created_at"),
+        }
+    )
+    if bookmark_account_count:
+        metadata["bookmark_account_count"] = bookmark_account_count
+    if plan.excludes_old and components["freshness"] < 0:
+        metadata["freshness"] = "possibly_stale"
+    else:
+        metadata.setdefault("freshness", "active")
+
+    return MemorySearchResult(
+        doc_id=str(row["doc_id"]),
+        doc_type=str(row["doc_type"]),
+        source_tweet_id=row.get("source_tweet_id"),
+        account_id=row.get("account_id"),
+        author_screen_name=row.get("author_screen_name"),
+        title=title,
+        compact_text=compact,
+        score=score,
+        match_method="+".join(methods),
+        matched_terms=matched_terms,
+        score_components=components,
+        metadata=metadata,
+    )
 
 
 def _filters(*, doc_type: str | None, account: str | None) -> tuple[str, tuple[Any, ...]]:
@@ -221,45 +380,11 @@ def _filters(*, doc_type: str | None, account: str | None) -> tuple[str, tuple[A
     return "\n".join(parts), tuple(params)
 
 
-def _query_terms(query: str) -> tuple[str, ...]:
-    values: list[str] = []
-    for term in query.split():
-        _append_term(values, term)
-    for hint in QUERY_HINTS:
-        if hint in query:
-            _append_term(values, hint)
-    if not values:
-        _append_term(values, query)
-    return tuple(values)
-
-
-def _append_term(values: list[str], term: str) -> None:
-    value = term.strip().strip("。、,.!?！？「」『』（）()[]【】")
-    if not value or value in values:
-        return
-    values.append(value)
-
-
 def _fts_query(terms: tuple[str, ...]) -> str:
     terms = tuple(term.strip().replace('"', '""') for term in terms if term.strip())
     if not terms:
         return ""
     return " OR ".join(f'"{term}"' for term in terms)
-
-
-def _result_from_row(row: sqlite3.Row) -> MemorySearchResult:
-    return MemorySearchResult(
-        doc_id=row["doc_id"],
-        doc_type=row["doc_type"],
-        source_tweet_id=row["source_tweet_id"],
-        account_id=row["account_id"],
-        author_screen_name=row["author_screen_name"],
-        title=row["title"] or "",
-        compact_text=row["compact_text"] or "",
-        score=float(row["score"]),
-        match_method=row["match_method"],
-        metadata=_loads_json(row["metadata_json"]),
-    )
 
 
 def _loads_json(value: str | None) -> dict[str, Any]:
@@ -270,3 +395,155 @@ def _loads_json(value: str | None) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return parsed if isinstance(parsed, dict) else {}
+
+
+def _searchable_text(*parts: str) -> str:
+    return "\n".join(parts).casefold()
+
+
+def _term_in_text(term: str, text_blob: str) -> bool:
+    return term.casefold() in text_blob
+
+
+def _method_score(methods: tuple[str, ...]) -> float:
+    score = 0.0
+    if "fts" in methods:
+        score += 1.2
+    if "like" in methods:
+        score += 0.5
+    if "metadata" in methods:
+        score += 0.25
+    if len(methods) > 1:
+        score += 0.4
+    return score
+
+
+def _context_score(
+    plan: QueryPlan,
+    doc_type: str,
+    body: str,
+    metadata: dict[str, Any],
+) -> float:
+    score = 0.0
+    if plan.requires_quote_context and doc_type == "quote_tree_doc":
+        score += 2.0
+    if plan.requires_media_context and doc_type == "media_doc":
+        score += 1.8
+    if plan.requires_bookmark_context and doc_type == "bookmark_doc":
+        score += 1.2
+    if plan.wants_event_dates and _contains_event_date(body):
+        score += 1.0
+    if metadata.get("media_count"):
+        score += 0.2
+    return score
+
+
+def _contains_event_date(text: str) -> bool:
+    return any(token in text for token in ("202", "開催", "期限", "締切", "予約", "イベント"))
+
+
+def _feedback_scores(conn: sqlite3.Connection, doc_ids: tuple[str, ...]) -> dict[str, float]:
+    if not doc_ids:
+        return {}
+    placeholders = ",".join("?" for _ in doc_ids)
+    rows = conn.execute(
+        f"""
+        SELECT doc_id, label, COUNT(*) AS count
+        FROM memory_feedback
+        WHERE doc_id IN ({placeholders})
+        GROUP BY doc_id, label
+        """,
+        doc_ids,
+    ).fetchall()
+    weights = {
+        "useful": 1.0,
+        "good_for_skill": 0.8,
+        "not_useful": -1.2,
+        "wrong_topic": -1.8,
+        "too_old": -1.0,
+        "missing_context": -0.4,
+        "bad_skill_route": -0.8,
+    }
+    result: dict[str, float] = {}
+    for row in rows:
+        result[str(row["doc_id"])] = result.get(str(row["doc_id"]), 0.0) + (
+            weights.get(str(row["label"]), 0.0) * int(row["count"])
+        )
+    return result
+
+
+def _bookmark_account_counts(
+    conn: sqlite3.Connection,
+    tweet_ids: tuple[str, ...],
+) -> dict[str, int]:
+    if not tweet_ids:
+        return {}
+    placeholders = ",".join("?" for _ in tweet_ids)
+    rows = conn.execute(
+        f"""
+        SELECT tweet_id, COUNT(DISTINCT account_id) AS account_count
+        FROM account_bookmarks
+        WHERE tweet_id IN ({placeholders})
+        GROUP BY tweet_id
+        """,
+        tweet_ids,
+    ).fetchall()
+    return {str(row["tweet_id"]): int(row["account_count"]) for row in rows}
+
+
+def _latest_observed_at(conn: sqlite3.Connection) -> datetime | None:
+    row = conn.execute("SELECT MAX(observed_at) FROM memory_documents").fetchone()
+    if not row or not row[0]:
+        return None
+    return _parse_datetime(str(row[0]))
+
+
+def _freshness_score(
+    value: Any,
+    *,
+    plan: QueryPlan,
+    latest_observed_at: datetime | None,
+) -> float:
+    if not (plan.prefers_recent or plan.excludes_old):
+        return 0.0
+    observed_at = _parse_datetime(str(value)) if value else None
+    if observed_at is None:
+        return -0.5 if plan.excludes_old else 0.0
+    reference = latest_observed_at or datetime.now(tz=UTC)
+    age_days = max(0.0, (reference - observed_at).total_seconds() / 86400.0)
+    score = 0.0
+    if plan.prefers_recent:
+        if age_days <= 14:
+            score += 2.0
+        elif age_days <= 90:
+            score += 1.0
+        elif age_days <= 365:
+            score += 0.25
+    if plan.excludes_old:
+        if age_days > 365:
+            score -= 2.0
+        elif age_days > 180:
+            score -= 0.6
+    return score
+
+
+def _parse_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _date_sort_value(metadata: dict[str, Any]) -> str:
+    return str(metadata.get("observed_at") or metadata.get("created_at") or "")
+
+
+def _components_text(components: dict[str, float]) -> str:
+    return ", ".join(
+        f"{key}={value:.2f}" for key, value in components.items() if abs(value) > 0.0001
+    )

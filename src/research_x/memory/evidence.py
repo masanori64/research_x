@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.query import build_query_plan
 from research_x.memory.search import MemorySearchResult, search_memory
 
 
@@ -17,11 +18,12 @@ def build_evidence_bundle(
     account: str | None = None,
 ) -> dict[str, Any]:
     path = Path(db_path)
+    plan = build_query_plan(query)
     results = search_memory(path, query, limit=limit, doc_type=doc_type, account=account)
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         hits = [_hit(conn, query=query, result=result) for result in results]
-    return {"query": query, "hits": hits}
+    return {"query": query, "query_plan": plan.as_dict(), "hits": hits}
 
 
 def evidence_bundle_json(bundle: dict[str, Any]) -> str:
@@ -40,6 +42,9 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
         "compact_text": result.compact_text,
         "why_relevant": _why_relevant(query, result),
         "freshness": result.metadata.get("freshness", "active"),
+        "matched_terms": list(result.matched_terms),
+        "score_components": result.score_components,
+        "bookmark_account_count": result.metadata.get("bookmark_account_count"),
         "evidence": {
             "url": result.metadata.get("url") or tweet.get("url"),
             "author": result.author_screen_name or tweet.get("author_screen_name"),
@@ -51,8 +56,20 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
 
 
 def _why_relevant(query: str, result: MemorySearchResult) -> str:
-    method = "full-text" if result.match_method == "fts" else "fallback substring"
-    return f"{method} match for query: {query}"
+    terms = ", ".join(result.matched_terms[:6]) if result.matched_terms else query
+    components = sorted(
+        (
+            (name, value)
+            for name, value in result.score_components.items()
+            if abs(value) > 0.0001
+        ),
+        key=lambda item: abs(item[1]),
+        reverse=True,
+    )
+    component_text = ", ".join(f"{name}={value:.2f}" for name, value in components[:4])
+    if component_text:
+        return f"{result.match_method} match: {terms}; rank: {component_text}"
+    return f"{result.match_method} match: {terms}"
 
 
 def _tweet(conn: sqlite3.Connection, tweet_id: str | None) -> dict[str, Any]:

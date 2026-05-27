@@ -261,6 +261,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument("--doc-type", default=None)
     memory_search_parser.add_argument("--account", default=None)
     memory_search_parser.add_argument("--json", action="store_true")
+    memory_plan_parser = memory_subparsers.add_parser(
+        "plan",
+        help="explain how a natural-language memory query will be interpreted",
+    )
+    memory_plan_parser.add_argument("--query", required=True)
     memory_evidence_parser = memory_subparsers.add_parser(
         "evidence",
         help="return compact evidence bundle JSON for an AI caller",
@@ -881,6 +886,11 @@ def main(argv: list[str] | None = None) -> int:
                 account=args.account,
             )
             print(format_search_results(results, json_output=args.json))
+            return 0
+        if args.memory_command == "plan":
+            from research_x.memory.query import build_query_plan, query_plan_json
+
+            print(query_plan_json(build_query_plan(args.query)))
             return 0
         if args.memory_command == "evidence":
             from research_x.memory.evidence import build_evidence_bundle, evidence_bundle_json

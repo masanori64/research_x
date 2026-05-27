@@ -280,3 +280,36 @@ memory eval --limit 1 -> 10/10 smoke queries returned structurally valid hits
 
 Important caveat: the eval pass is structural, not semantic relevance proof. The next milestone
 should improve ranking quality with better query planning, embeddings, and reranking.
+
+## Second Milestone
+
+Improve the search contract before adding external embedding or RAG dependencies.
+
+Required commands:
+
+```powershell
+uv run python -m research_x memory plan --query "画像付きで保存した技術資料っぽい投稿を出して"
+uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "引用元を見ないと意味が変わる投稿を根拠付きで出して" --limit 5
+uv run python -m research_x memory evidence --db runs/x_data.sqlite3 --query "最近保存した強化学習とロボット系の情報を古いものを除いて出して" --limit 5
+uv run python -m research_x memory eval --db runs/x_data.sqlite3 --limit 3
+```
+
+Implementation goals:
+
+- [x] Add a query-planning layer that maps natural Japanese requests to search terms, intent flags,
+      doc-type preferences, and freshness/context requirements.
+- [x] Replace raw FTS ordering with local hybrid ranking from exact term matches, expanded term
+      matches, retrieval method, document type, quote/media/bookmark context, freshness, duplicate
+      account signals, and feedback.
+- [x] Include `query_plan`, `matched_terms`, and `score_components` in evidence bundles so an AI
+      caller can judge whether a result should be trusted.
+- [x] Make eval stricter than smoke tests: return `ok`, `needs_review`, or `fail` with notes instead
+      of pretending every structurally valid hit is semantically correct.
+
+Remaining after this milestone:
+
+- [ ] Add embedding-backed semantic retrieval for vague concepts that do not share words with the
+      tweet text.
+- [ ] Add reranking or a small judge step for final evidence ordering.
+- [ ] Add freshness/obsolete relation tables rather than only transient freshness scoring.
+- [ ] Integrate Corpus2Skill OSS as a navigation sidecar after the DB search contract is stable.
