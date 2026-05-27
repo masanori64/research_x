@@ -1,132 +1,122 @@
 # research-x
 
-X（Twitter）のツイート・ブックマーク取得を、複数の取得方式で比較しながら運用できる
-実験基盤です。
+AI-oriented project reference for the X acquisition and local knowledge-store codebase.
 
-単発のスクレイピングスクリプトではなく、次の目的で作っています。
+`research-x` is an experimental framework for collecting X/Twitter tweets and bookmarks without
+the official X API, comparing multiple acquisition providers under one normalized contract, and
+storing the results in a canonical local SQLite database. The current production-shaped surface is
+bookmark/tweet acquisition, account-scoped browser session handling, media capture, AI labeling,
+and a local web app for running and monitoring jobs.
 
-- 複数アダプタを同じ契約で実行して比較する
-- 成功した方式だけを本線候補にできるようにする
-- 失敗時も evidence を残して原因を追えるようにする
-- ブックマーク、プロフィール、検索、URL 指定取得を同じ SQLite DB に統合する
-- 引用ツイート、画像、AI ラベルをあとから UI や継続運用に使える形で保存する
+## Current Mission
 
-このプロジェクトは X 公式 API を前提にしていません。ログイン済みブラウザセッションや
-各種取得ライブラリを使い、取得結果を正規化して保存します。
+The repository has two phases:
 
-## 注意
+1. **Acquisition base, current state**  
+   Collect profile/search/url tweets and logged-in bookmarks, preserve raw evidence, normalize
+   tweet/media/quote relationships, and keep account-specific bookmark membership in one local DB.
 
-このリポジトリは、自分が管理しているアカウント、または明示的に許可された対象の調査・
-バックアップ・検証用途を想定しています。
+2. **Local AI memory search, next project**  
+   Build a local, user-specific search tool over the collected X DB. This should behave more like
+   an AI-callable local research tool than a simple viewer: compact evidence bundles, hybrid
+   retrieval, Corpus2Skill navigation, freshness/obsolete handling, and feedback-driven growth.
 
-- パスワードや Cookie は Git に入れないでください。
-- `.secrets/` と `runs/` は `.gitignore` 済みです。
-- X 側のレート制限、ログイン確認、CAPTCHA、凍結、非公開化、削除済み投稿などにより、
-  取得できる件数は変わります。
-- セキュリティチャレンジの回避機能は持ちません。検出した場合は失敗として記録します。
+This README describes the current acquisition base accurately so future agents can work from it
+without losing context.
 
-## 主な機能
+## Safety and Scope
 
-- **アダプタ比較**
-  - `twscrape_raw`
-  - `Scweet`
-  - `twikit`
-  - `masa-finance/masa-twitter-scraper`
-  - `Playwright`
-  - `Scrapling`
-  - `Crawl4AI`
-  - `Camoufox`
-  - `Patchright`
-  - `rebrowser-playwright`
-  - `rebrowser-patches`
-  - `Scrapy`
+- Do not commit passwords, cookies, storage states, API keys, or real account secrets.
+- `.secrets/` and `runs/` are ignored and should remain local.
+- Use only accounts, browser sessions, and targets the operator is authorized to access.
+- The project does not implement CAPTCHA/security-challenge bypassing. Challenge states should be
+  reported as auth failures.
+- Prefer extending the canonical DB and CLI over one-off scripts.
 
-- **ブックマーク大量取得**
-  - Web GraphQL のカーソル継続
-  - 生レスポンス保存
-  - 中断後の再開
-  - 引用元ツイートをブックマーク本体として誤カウントしない保存構造
+## Required Commands
 
-- **統合 DB**
-  - `tweets`: ツイート本体を `tweet_id` で一意管理
-  - `account_bookmarks`: アカウントごとのブックマーク関係
-  - `collection_items`: プロフィール、検索、URL、ブックマーク取得の所属関係
-  - `tweet_edges`: 引用ツイートなどの親子関係
-  - `media`: 画像などのメディア情報
-  - `ai_labels`: AI によるジャンル分類
-
-- **AI ラベル付け**
-  - OpenAI
-  - Gemini
-  - OpenAI 互換 API
-  - Qwen / Kimi / GLM などの互換プロバイダ
-
-- **ローカルアプリ**
-  - ブラウザ画面からアカウント情報を入力
-  - 自動ログイン、取得、DB 保存、本文確認まで実行
-
-## セットアップ
-
-Python 3.11 以上と `uv` を使います。
+This project uses `uv`. Do not run global `python`, `pytest`, or `ruff` directly.
 
 ```powershell
 uv sync
-```
-
-ブラウザ系プロバイダを使う場合は、必要に応じてブラウザを入れます。
-
-```powershell
-uv run patchright install chromium
-uv run rebrowser_playwright install chromium
-```
-
-## まず動かす
-
-認証なしで動く synthetic アダプタの smoke test です。
-
-```powershell
 uv run python -m research_x run --config examples/smoke.toml --out runs/smoke
-```
-
-テスト:
-
-```powershell
 uv run pytest
-uv run ruff check src tests
+uv run ruff check src\research_x tests
 ```
 
-## ローカルアプリを使う
-
-コマンドを毎回打ちたくない場合は、ローカルアプリを起動します。
-
-```powershell
-uv run python -m research_x app
-```
-
-既定では次の URL を開きます。
+## Main CLI Surfaces
 
 ```text
-http://127.0.0.1:8765
+run             Compare adapters under one normalized contract.
+pipeline        Run staged acquisition providers with fallback and evidence.
+bookmarks       Fetch logged-in X bookmarks into the canonical store.
+tweets          Fetch profile/search/url tweets into the canonical store.
+tweet-stages    Run staged tweet-limit checks, usually discarding stage outputs.
+db-show         Display stored bookmark/tweet text from the SQLite DB.
+label-existing  Classify already stored, unlabeled DB rows.
+accounts        Manage account metadata and account-scoped session paths.
+auth            Capture or reuse authorized browser/session state.
+app             Start the local browser app.
+progress        Start a standalone live progress monitor for an output directory.
+notify          Play/speak a local completion notification.
+adapters        List provider catalog and source-backed adapter notes.
 ```
 
-画面から以下を入力できます。
+## Providers
 
-- アカウント ID
-- screen name
-- user id
-- display name
-- パスワード
-- 出力先
-- DB パス
-- 全件取得モード
-- 画像保存
-- AI 分類設定
+Registered acquisition adapters include:
 
-パスワードはアカウント profile には保存しません。
+- `synthetic`
+- `twscrape_raw`
+- `scweet`
+- `twikit`
+- `masa_twitter_scraper`
+- `crawl4ai`
+- `camoufox`
+- `patchright`
+- `rebrowser_patches`
+- `rebrowser_playwright`
+- `scrapy`
+- `playwright`
+- `scrapling`
 
-## アカウントを登録する
+Use:
 
-アカウントごとに session / Cookie / DB 関係を分離します。
+```powershell
+uv run python -m research_x adapters --details
+uv run python -m research_x adapters --json
+```
+
+See also:
+
+- `docs/adapter-research.md`
+- `docs/pipeline.md`
+- `docs/authenticated-smoke.md`
+
+## Canonical Store
+
+The stable local store is SQLite, normally `runs/x_data.sqlite3`.
+
+Current tables:
+
+- `accounts`: non-secret account metadata.
+- `provider_runs`: provider attempt evidence and status.
+- `tweets`: one canonical row per tweet id.
+- `collection_items`: profile/search/url/bookmark run membership.
+- `account_bookmarks`: per-login-account bookmark membership.
+- `tweet_edges`: quote relationships and future tweet graph edges.
+- `media`: image/media metadata and local download state.
+- `raw_payloads`: raw provider payloads for debugging and schema drift.
+- `ai_labels`: current AI labeling output.
+
+Important invariant: quote tweets are stored as child tweets/edges, not counted as separate
+bookmark roots unless they are also independently bookmarked.
+
+## Account and Auth Model
+
+Account-specific files live under `.secrets/accounts/<account>/`.
+
+Useful commands:
 
 ```powershell
 uv run python -m research_x accounts add `
@@ -137,9 +127,7 @@ uv run python -m research_x accounts add `
   --url https://x.com/my_screen_name
 ```
 
-PC標準の Edge に既に X ログイン済みの場合は、別 `user-data-dir` を作らずに
-標準プロファイルから storage_state を書き出せます。Edge をすべて閉じてから実行すると
-CDP ポートが確実に有効になります。
+Reuse a normal Edge/Chrome profile that is already logged in:
 
 ```powershell
 uv run python -m research_x auth system-profile `
@@ -149,8 +137,7 @@ uv run python -m research_x auth system-profile `
   --close-existing-browser
 ```
 
-複数プロファイルを使っている場合は `--profile-directory "Profile 1"` のように指定します。
-手動で Edge を CDP 起動済みなら、既存の CDP ルートも使えます。
+Attach to an already CDP-enabled browser:
 
 ```powershell
 uv run python -m research_x auth cdp `
@@ -158,30 +145,12 @@ uv run python -m research_x auth cdp `
   --endpoint-url http://127.0.0.1:9222
 ```
 
-パスワード自動ログインを使う場合、認証情報は環境変数から渡します。
+Non-interactive auth attempts are routed through `auth auto`. Passwords and one-time values should
+be passed through environment variables, never committed.
 
-```powershell
-$env:RESEARCH_X_X_USERNAME="my_screen_name"
-$env:RESEARCH_X_X_PASSWORD="<password>"
-$env:RESEARCH_X_X_EMAIL_OR_PHONE="<email-or-phone-if-needed>"
+## Bookmark Acquisition
 
-uv run python -m research_x auth auto `
-  --account my_account `
-  --try-system-browser-profile `
-  --system-browser-profile-directory Default `
-  --system-browser-profile-close-existing `
-  --system-browser msedge
-```
-
-保存先:
-
-```text
-.secrets/accounts/<account>/playwright_x_state.json
-```
-
-## ブックマークを取得する
-
-全件取得:
+Full bookmark run:
 
 ```powershell
 uv run python -m research_x bookmarks `
@@ -193,69 +162,31 @@ uv run python -m research_x bookmarks `
   --download-media
 ```
 
-同じ `--out` で再実行すると、保存済みページとカーソル状態を使って再開します。
+The bookmark chain can use direct web GraphQL replay, exported session cookies, browser network
+capture, and rendered fallbacks. Cursor state and raw GraphQL pages are kept so long runs can be
+resumed.
 
-主な出力:
+Main outputs:
 
 ```text
-runs/bookmarks_my_account/
-  bookmarks_items.jsonl
-  bookmarks.jsonl
-  account_bookmarks.jsonl
-  collection_items.jsonl
-  tweets.jsonl
-  tweet_edges.jsonl
-  media.jsonl
-  media/
-  bookmark_trees.jsonl
-  raw_payloads.jsonl
-  bookmark_pages/
-  pipeline_report.json
+bookmarks_items.jsonl
+bookmarks.jsonl
+account_bookmarks.jsonl
+collection_items.jsonl
+tweets.jsonl
+tweet_edges.jsonl
+media.jsonl
+media/
+bookmark_trees.jsonl
+raw_payloads.jsonl
+bookmark_pages/
+pipeline_report.json
+x_store_report.json
 ```
 
-本文を確認する:
+## Tweet Acquisition
 
-```powershell
-uv run python -m research_x db-show `
-  --db runs/x_data.sqlite3 `
-  --account my_account `
-  --kind bookmarks `
-  --limit 20
-```
-
-JSON で見る:
-
-```powershell
-uv run python -m research_x db-show `
-  --db runs/x_data.sqlite3 `
-  --account my_account `
-  --kind bookmarks `
-  --limit 20 `
-  --json
-```
-
-## AI でジャンル分けする
-
-Gemini を使う例:
-
-```powershell
-$env:GEMINI_API_KEY="..."
-
-uv run python -m research_x bookmarks `
-  --account my_account `
-  --out runs/bookmarks_my_account_labeled `
-  --all `
-  --classify `
-  --classifier-provider gemini `
-  --categories examples/bookmark_categories.toml `
-  --db runs/x_data.sqlite3
-```
-
-分類カテゴリは `examples/bookmark_categories.toml` で追加・編集できます。
-
-## 通常ツイートを取得する
-
-プロフィール:
+Profile/search/url tweet acquisition writes into the same store:
 
 ```powershell
 uv run python -m research_x tweets `
@@ -267,19 +198,7 @@ uv run python -m research_x tweets `
   --db runs/x_data.sqlite3
 ```
 
-検索:
-
-```powershell
-uv run python -m research_x tweets `
-  --account my_account `
-  --kind search `
-  --value "検索キーワード" `
-  --limit 100 `
-  --out runs/search_keyword `
-  --db runs/x_data.sqlite3
-```
-
-段階的な件数テスト:
+Staged checks:
 
 ```powershell
 uv run python -m research_x tweet-stages `
@@ -290,53 +209,171 @@ uv run python -m research_x tweet-stages `
   --out runs/tweet_stages
 ```
 
-## 複数アダプタを比較する
-
-利用可能なアダプタを見る:
+## Displaying Stored Data
 
 ```powershell
-uv run python -m research_x adapters --details
-```
-
-パイプライン実行:
-
-```powershell
-uv run python -m research_x pipeline `
+uv run python -m research_x db-show `
+  --db runs/x_data.sqlite3 `
   --account my_account `
-  --config examples/x_pipeline.toml `
-  --out runs/x_pipeline_my_account `
-  --min-successful-providers 2
+  --kind bookmarks `
+  --limit 20
 ```
 
-各 provider の結果は `evidence/` と `pipeline_report.json` に残ります。
+JSON mode:
 
-## ディレクトリ構成
+```powershell
+uv run python -m research_x db-show `
+  --db runs/x_data.sqlite3 `
+  --account my_account `
+  --kind bookmarks `
+  --limit 20 `
+  --json
+```
+
+## AI Labeling
+
+There are two labeling routes:
+
+1. Label during acquisition with `bookmarks --classify` or `tweets --classify`.
+2. Label existing DB rows later with `label-existing`.
+
+Post-hoc labeling:
+
+```powershell
+$env:GEMINI_API_KEY="..."
+uv run python -m research_x label-existing `
+  --db runs/x_data.sqlite3 `
+  --kind bookmarks `
+  --all `
+  --classifier-provider gemini `
+  --model gemini-2.5-flash `
+  --categories examples/bookmark_categories.toml `
+  --out runs/labels_all_accounts
+```
+
+Supported classifier routes include OpenAI Responses, OpenAI-compatible chat, Gemini via the
+OpenAI-compatible endpoint, Qwen, Kimi, and GLM presets.
+
+Operational notes:
+
+- Labels are annotations, not canonical truth.
+- Gemini free-tier quota can be exhausted quickly on tens of thousands of rows.
+- `label-existing` supports request pacing, retry metadata, cancellation checks, and
+  `--stop-on-rate-limit`.
+- The local app can stop jobs and restore the DB to a pre-job backup.
+
+## Local App
+
+Start:
+
+```powershell
+uv run python -m research_x app
+```
+
+Default URL:
+
+```text
+http://127.0.0.1:8765
+```
+
+Current app capabilities:
+
+- account metadata input,
+- standard browser profile auth path,
+- bookmark acquisition,
+- media download,
+- AI labeling provider/model controls,
+- post-hoc DB labeling,
+- live progress bars for acquisition/media/labeling,
+- job stop and stop-with-rollback,
+- DB viewer form,
+- quota/rate-limit terminal states.
+
+Standalone progress monitor:
+
+```powershell
+uv run python -m research_x progress `
+  --out runs/bookmarks_my_account `
+  --host 127.0.0.1 `
+  --port 8766 `
+  --no-open-browser
+```
+
+## Next Project: AI-Callable Memory Search
+
+The next major branch should build on the existing DB, not replace it.
+
+Target architecture:
+
+```text
+Raw X DB
+  -> Living Corpus Layer
+  -> Hybrid Retrieval Core
+  -> Temporal / Obsolescence Layer
+  -> Corpus2Skill Navigation Layer
+  -> Evidence Bundle API
+  -> Lightweight Agentic Search Tool
+  -> Feedback / Eval / Rebuild Loop
+```
+
+Initial implementation should be a separate `research_x.memory` package, with commands such as:
+
+```text
+research_x memory build-corpus
+research_x memory search
+research_x memory evidence
+research_x memory export-corpus2skill
+research_x memory feedback
+research_x memory eval
+```
+
+Do this in stages:
+
+1. canonical/living documents from the current SQLite DB,
+2. SQLite FTS5 search,
+3. compact evidence bundles,
+4. feedback table,
+5. fixed evaluation queries,
+6. embeddings and hybrid search,
+7. Corpus2Skill export,
+8. freshness/obsolete edges.
+
+Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
+current store as its source of truth.
+
+## Project Layout
 
 ```text
 src/research_x/
-  adapters/              取得方式ごとの実装
-  accounts.py            アカウント別 session パス管理
-  bookmarks.py           ブックマーク取得ジョブ
-  tweets.py              通常ツイート取得ジョブ
-  x_store.py             SQLite / JSONL 保存
-  bookmark_classifier.py AI ラベル付け
-  local_app.py           ローカル操作画面
-  cli.py                 CLI エントリポイント
+  adapters/              Acquisition provider implementations.
+  accounts.py            Account metadata and session path management.
+  bookmarks.py           Bookmark acquisition job orchestration.
+  tweets.py              Profile/search/url acquisition jobs.
+  x_store.py             SQLite and JSONL canonical store writer.
+  bookmark_classifier.py AI label generation.
+  label_existing.py      Post-hoc labeling for stored DB rows.
+  local_app.py           Local browser app.
+  progress.py            Live progress monitor.
+  notify.py              Local completion notification.
+  cli.py                 CLI entrypoint.
 
-examples/                設定例
-docs/                    調査メモ・設計メモ
-tests/                   テスト
+examples/                Config and taxonomy examples.
+docs/                    Research notes and pipeline documentation.
+tests/                   Unit tests.
 ```
 
-## 開発
+## Verification
+
+Before commits that affect behavior:
 
 ```powershell
+uv run ruff check src\research_x tests
 uv run pytest
-uv run ruff check src tests
 ```
 
-公開前に確認すること:
+Before public pushes:
 
-- `.secrets/` が Git に入っていないこと
-- `runs/` が Git に入っていないこと
-- 実アカウント名、Cookie、パスワード、メールアドレスを README や docs に残していないこと
+- confirm `.secrets/` and `runs/` are not staged,
+- scan README/docs for real passwords, cookies, email addresses, and API keys,
+- avoid committing local account-specific output,
+- keep generated run data outside Git.
