@@ -10,6 +10,7 @@ from research_x.adapters import catalog_entries, known_adapter_ids
 from research_x.bookmarks import run_bookmark_job
 from research_x.config import load_config
 from research_x.contracts import OutcomeStatus
+from research_x.label_existing import LABEL_EXISTING_KINDS, label_existing_items
 from research_x.pipeline import run_pipeline
 from research_x.playwright_auth import (
     capture_playwright_storage_state,
@@ -70,6 +71,117 @@ def main(argv: list[str] | None = None) -> int:
     )
     db_show_parser.add_argument("--limit", type=int, default=20)
     db_show_parser.add_argument("--json", action="store_true", help="emit rows as JSON")
+
+    label_existing_parser = subparsers.add_parser(
+        "label-existing",
+        help="classify stored DB rows that do not yet have AI labels",
+    )
+    label_existing_parser.add_argument(
+        "--db",
+        default="runs/x_data.sqlite3",
+        help="SQLite database path containing stored tweets/bookmarks",
+    )
+    label_existing_parser.add_argument(
+        "--account",
+        default=None,
+        help="account id filter; omit to classify all accounts",
+    )
+    label_existing_parser.add_argument(
+        "--kind",
+        choices=LABEL_EXISTING_KINDS,
+        default="bookmarks",
+        help="stored rows to classify",
+    )
+    label_existing_parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="maximum unlabeled rows to classify in this run",
+    )
+    label_existing_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="classify all currently unlabeled rows",
+    )
+    label_existing_parser.add_argument(
+        "--include-labeled",
+        action="store_true",
+        help="classify even rows that already have an AI label",
+    )
+    label_existing_parser.add_argument(
+        "--out",
+        default=None,
+        help="optional output directory for classification JSONL/report files",
+    )
+    label_existing_parser.add_argument(
+        "--model",
+        default="gpt-4o-mini",
+        help="model used for classification",
+    )
+    label_existing_parser.add_argument(
+        "--classifier-provider",
+        default="gemini",
+        help=(
+            "classifier provider: openai_responses, openai_compatible, "
+            "qwen, kimi, glm, gemini, or openai_chat"
+        ),
+    )
+    label_existing_parser.add_argument(
+        "--api-base-url",
+        default=None,
+        help="OpenAI-compatible API base URL for non-Responses classifiers",
+    )
+    label_existing_parser.add_argument(
+        "--api-key-env",
+        default="GEMINI_API_KEY",
+        help="environment variable containing the classifier API key",
+    )
+    label_existing_parser.add_argument(
+        "--categories",
+        default="examples/bookmark_categories.toml",
+        help="optional TOML taxonomy with [[categories]] entries",
+    )
+    label_existing_parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=20,
+        help="number of rows per AI classification request",
+    )
+    label_existing_parser.add_argument(
+        "--retry-attempts",
+        type=int,
+        default=3,
+        help="retry count for transient classifier API errors",
+    )
+    label_existing_parser.add_argument(
+        "--retry-base-seconds",
+        type=float,
+        default=10.0,
+        help="base wait seconds between transient classifier retries",
+    )
+    label_existing_parser.add_argument(
+        "--request-timeout-seconds",
+        type=float,
+        default=120.0,
+        help="timeout for each classifier request",
+    )
+    label_existing_parser.add_argument(
+        "--reasoning-effort",
+        default="low",
+        help="Gemini/OpenAI-compatible reasoning effort: default, minimal, low, medium, or high",
+    )
+    label_existing_parser.add_argument(
+        "--min-request-interval-seconds",
+        type=float,
+        default=0.0,
+        help="minimum wait between classifier requests",
+    )
+    label_existing_parser.add_argument(
+        "--stop-on-rate-limit",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="finish the job immediately when the classifier returns quota/rate-limit 429",
+    )
 
     app_parser = subparsers.add_parser(
         "app",
@@ -222,6 +334,11 @@ def main(argv: list[str] | None = None) -> int:
         help="number of bookmarks per AI classification request",
     )
     bookmarks_parser.add_argument(
+        "--reasoning-effort",
+        default=None,
+        help="Gemini/OpenAI-compatible reasoning effort: default, minimal, low, medium, or high",
+    )
+    bookmarks_parser.add_argument(
         "--min-successful-providers",
         type=int,
         default=1,
@@ -288,6 +405,7 @@ def main(argv: list[str] | None = None) -> int:
     tweets_parser.add_argument("--api-key-env", default="OPENAI_API_KEY")
     tweets_parser.add_argument("--categories", default=None)
     tweets_parser.add_argument("--batch-size", type=int, default=20)
+    tweets_parser.add_argument("--reasoning-effort", default=None)
 
     stages_parser = subparsers.add_parser(
         "tweet-stages",
@@ -614,6 +732,38 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(format_display_rows(rows, json_output=args.json))
         return 0
+    if args.command == "label-existing":
+        limit = None if args.all else max(1, args.limit)
+        report, classification = label_existing_items(
+            db_path=args.db,
+            account=args.account,
+            kind=args.kind,
+            limit=limit,
+            include_labeled=args.include_labeled,
+            out_dir=args.out,
+            model=args.model,
+            api_key_env=args.api_key_env,
+            categories_path=args.categories or None,
+            batch_size=args.batch_size,
+            classifier_provider=args.classifier_provider,
+            api_base_url=args.api_base_url,
+            retry_attempts=args.retry_attempts,
+            retry_base_seconds=args.retry_base_seconds,
+            request_timeout_seconds=args.request_timeout_seconds,
+            reasoning_effort=args.reasoning_effort,
+            min_request_interval_seconds=args.min_request_interval_seconds,
+            stop_on_rate_limit=args.stop_on_rate_limit,
+        )
+        print(
+            "label-existing: "
+            f"{report.status} selected={report.selected_items} "
+            f"unique={report.unique_tweets} written={report.written_labels} "
+            f"already_labeled={report.already_labeled}/{report.candidate_total} "
+            f"model={report.model} db={report.db_path}"
+        )
+        if classification.error_message:
+            print(f"{classification.error_type}: {classification.error_message}", file=sys.stderr)
+        return 0 if report.status in {"ok", "empty"} else 1
     if args.command == "app":
         from research_x.local_app import serve_collection_app
 
@@ -806,6 +956,7 @@ def main(argv: list[str] | None = None) -> int:
             api_base_url=args.api_base_url,
             db_path=args.db,
             exhaustive=args.all,
+            reasoning_effort=args.reasoning_effort,
         )
         providers = ",".join(result.providers_used) or "-"
         print(
@@ -837,6 +988,7 @@ def main(argv: list[str] | None = None) -> int:
             batch_size=args.batch_size,
             classifier_provider=args.classifier_provider,
             api_base_url=args.api_base_url,
+            reasoning_effort=args.reasoning_effort,
         )
         providers = ",".join(result.providers_used) or "-"
         db_text = f" db={store_summary.db_path}" if store_summary else ""

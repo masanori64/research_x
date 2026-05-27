@@ -34,6 +34,21 @@ class ProgressSnapshot:
     media_estimated_remaining_seconds: float | None
     media_items_per_second: float | None
     media_updated_at: str | None
+    label_total: int | None
+    label_done: int | None
+    label_remaining: int | None
+    label_written: int | None
+    label_finished: bool | None
+    label_elapsed_seconds: float | None
+    label_estimated_remaining_seconds: float | None
+    label_items_per_second: float | None
+    label_status: str | None
+    label_error_message: str | None
+    label_retry_after_seconds: float | None
+    label_next_retry_at: float | None
+    label_retry_attempt: int | None
+    label_retry_attempts: int | None
+    label_updated_at: str | None
 
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
@@ -48,6 +63,7 @@ def progress_snapshot(
     output_path = Path(out_dir)
     cursor = _read_json(output_path / "bookmark_pages" / "x_web_graphql_cursor_state.json")
     media = _read_json(output_path / "media_progress.json")
+    label = _read_json(output_path / "label_progress.json")
     return ProgressSnapshot(
         out_dir=str(output_path),
         output_exists=output_path.exists(),
@@ -73,6 +89,23 @@ def progress_snapshot(
         ),
         media_items_per_second=_safe_float_or_none(media.get("items_per_second")),
         media_updated_at=str(media.get("updated_at") or "") or None,
+        label_total=_safe_int_or_none(label.get("total")),
+        label_done=_safe_int_or_none(label.get("done")),
+        label_remaining=_safe_int_or_none(label.get("remaining")),
+        label_written=_safe_int_or_none(label.get("written_labels")),
+        label_finished=_safe_bool_or_none(label.get("finished")),
+        label_elapsed_seconds=_safe_float_or_none(label.get("elapsed_seconds")),
+        label_estimated_remaining_seconds=_safe_float_or_none(
+            label.get("estimated_remaining_seconds")
+        ),
+        label_items_per_second=_safe_float_or_none(label.get("items_per_second")),
+        label_status=str(label.get("status") or "") or None,
+        label_error_message=str(label.get("error_message") or "") or None,
+        label_retry_after_seconds=_safe_float_or_none(label.get("retry_after_seconds")),
+        label_next_retry_at=_safe_float_or_none(label.get("next_retry_at")),
+        label_retry_attempt=_safe_int_or_none(label.get("retry_attempt")),
+        label_retry_attempts=_safe_int_or_none(label.get("retry_attempts")),
+        label_updated_at=str(label.get("updated_at") or "") or None,
     )
 
 
@@ -164,6 +197,10 @@ def _monitor_page(out_dir: Path) -> str:
       <div class="row"><strong>画像保存</strong><span id="media-label">loading</span></div>
       <div class="bar"><div id="media-fill" class="fill"></div></div>
     </div>
+    <div id="label-block" style="display:none">
+      <div class="row"><strong>AI分類</strong><span id="label-label">loading</span></div>
+      <div class="bar"><div id="label-fill" class="fill"></div></div>
+    </div>
     <pre id="details">loading</pre>
   </section>
   <script>
@@ -223,6 +260,23 @@ def _monitor_page(out_dir: Path) -> str:
       const mediaElapsed = state.media_elapsed_seconds == null
         ? null
         : state.media_elapsed_seconds + drift;
+      const labelDone = state.label_done ?? 0;
+      const labelTotal = state.label_total ?? 0;
+      const labelPercent = pct(labelDone, labelTotal);
+      const labelEta = state.label_estimated_remaining_seconds == null
+        ? null
+        : Math.max(0, state.label_estimated_remaining_seconds - drift);
+      const labelBlock = document.getElementById("label-block");
+      labelBlock.style.display = labelTotal ? "" : "none";
+      if (labelTotal) {{
+        document.getElementById("label-label").textContent =
+          `${{labelDone}}/${{labelTotal}} ` +
+          `(${{labelPercent.toFixed(1)}}%) 残り ${{fmtDuration(labelEta)}}`;
+        setBar("label-fill", labelPercent, state.label_finished === true);
+      }}
+      const labelElapsed = state.label_elapsed_seconds == null
+        ? null
+        : state.label_elapsed_seconds + drift;
       document.getElementById("details").textContent = [
         statusMessage,
         `output exists: ${{state.output_exists}}`,
@@ -240,6 +294,16 @@ def _monitor_page(out_dir: Path) -> str:
           `${{state.media_items_per_second == null
             ? "unknown"
             : state.media_items_per_second.toFixed(2) + "/s"}}`
+        ),
+        `label progress: ${{labelDone}}/${{labelTotal}}`,
+        `label written: ${{state.label_written ?? 0}}`,
+        `label elapsed: ${{fmtDuration(labelElapsed)}}`,
+        `label status: ${{state.label_status ?? "unknown"}}`,
+        `label error: ${{state.label_error_message ?? ""}}`,
+        (
+          `label retry: ${{state.label_retry_attempt ?? ""}}/` +
+          `${{state.label_retry_attempts ?? ""}} ` +
+          `after ${{fmtDuration(state.label_retry_after_seconds)}}`
         ),
         `updated: ${{state.media_updated_at ?? "unknown"}}`
       ].join("\\n");
@@ -280,7 +344,7 @@ def _monitor_page(out_dir: Path) -> str:
 
 def _stable_progress_payload(out_dir: Path, cache: dict[str, Any]) -> dict[str, Any]:
     snapshot = progress_snapshot(out_dir).as_dict()
-    if _has_media_progress(snapshot):
+    if _has_media_progress(snapshot) or _has_label_progress(snapshot):
         snapshot["stale"] = False
         snapshot["stale_reason"] = None
         cache["snapshot"] = snapshot
@@ -301,6 +365,12 @@ def _has_media_progress(snapshot: dict[str, Any]) -> bool:
     total = snapshot.get("media_total")
     done = snapshot.get("media_done")
     return isinstance(total, int) and total > 0 and isinstance(done, int) and done >= 0
+
+
+def _has_label_progress(snapshot: dict[str, Any]) -> bool:
+    total = snapshot.get("label_total")
+    done = snapshot.get("label_done")
+    return isinstance(total, int) and total >= 0 and isinstance(done, int) and done >= 0
 
 
 def _read_json(path: Path) -> dict[str, Any]:

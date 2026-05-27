@@ -104,7 +104,54 @@ def test_bookmark_classifier_supports_openai_compatible_chat(monkeypatch) -> Non
     assert run.status == "ok"
     assert captured["url"].endswith("/chat/completions")
     assert captured["payload"]["model"] == "qwen-turbo-latest"
+    assert "reasoning_effort" not in captured["payload"]
     assert run.metadata["api_key_env"] == "QWEN_API_KEY"
+
+
+def test_bookmark_classifier_uses_gemini_openai_compatible_preset(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    captured = {}
+
+    def fake_post_json(url, payload, **kwargs):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["kwargs"] = kwargs
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "items": [
+                                    {
+                                        "source_id": "1",
+                                        "category_id": "ai_ml",
+                                        "confidence": 0.8,
+                                        "tags": ["LLM"],
+                                        "summary": "AI",
+                                        "rationale": "AI topic",
+                                    }
+                                ]
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr("research_x.bookmark_classifier._post_json", fake_post_json)
+
+    run = classify_bookmarks(
+        [_item("1", "LLM agent tips")],
+        settings=BookmarkClassifierSettings(provider="gemini", batch_size=1),
+    )
+
+    assert run.status == "ok"
+    assert captured["url"].endswith("/openai/chat/completions")
+    assert captured["payload"]["model"] == "gemini-2.5-flash"
+    assert captured["payload"]["reasoning_effort"] == "low"
+    assert run.metadata["provider"] == "openai_compatible"
+    assert run.metadata["api_key_env"] == "GEMINI_API_KEY"
 
 
 def test_write_bookmark_outputs_groups_by_genre(tmp_path) -> None:

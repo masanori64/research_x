@@ -48,6 +48,7 @@ def run_tweet_job(
     batch_size: int = 20,
     classifier_provider: str = "openai_responses",
     api_base_url: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> tuple[PipelineTargetResult, XStoreSummary | None, BookmarkClassificationRun]:
     output_path = Path(out_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -107,6 +108,7 @@ def run_tweet_job(
                 batch_size=batch_size,
                 provider=classifier_provider,
                 api_base_url=api_base_url,
+                reasoning_effort=reasoning_effort,
             ),
             categories=categories,
         )

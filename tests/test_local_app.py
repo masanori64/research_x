@@ -1,3 +1,4 @@
+import sqlite3
 from types import SimpleNamespace
 
 from research_x import local_app
@@ -80,3 +81,52 @@ def test_app_reuses_existing_storage_state_without_auth(monkeypatch, tmp_path) -
 
     assert job.status == "done"
     assert any("storage_state" in line for line in job.logs)
+
+
+def test_app_can_restore_db_to_start_snapshot(tmp_path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE TABLE rows (value TEXT)")
+        conn.execute("INSERT INTO rows VALUES ('before')")
+
+    app = local_app.CollectionApp()
+    job = local_app.AppJob(
+        job_id="job",
+        account_id="acct",
+        out_dir=tmp_path / "out",
+        db_path=db_path,
+        status="done",
+    )
+    app.jobs[job.job_id] = job
+    app._prepare_db_backup(job)
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM rows")
+        conn.execute("INSERT INTO rows VALUES ('after')")
+
+    app.rollback_job(job.job_id)
+
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute("SELECT value FROM rows").fetchall()
+
+    assert rows == [("before",)]
+    assert job.status == "rolled_back"
+    assert job.rollback_applied is True
+
+
+def test_app_cancel_with_rollback_marks_running_job(tmp_path) -> None:
+    app = local_app.CollectionApp()
+    job = local_app.AppJob(
+        job_id="job",
+        account_id="acct",
+        out_dir=tmp_path / "out",
+        db_path=tmp_path / "x.sqlite3",
+        status="labeling",
+    )
+    app.jobs[job.job_id] = job
+
+    app.request_cancel(job.job_id, rollback=True)
+
+    assert job.status == "canceling"
+    assert job.cancel_requested is True
+    assert job.rollback_requested is True

@@ -43,6 +43,7 @@ def run_bookmark_job(
     api_base_url: str | None = None,
     db_path: str | Path | None = None,
     exhaustive: bool = False,
+    reasoning_effort: str | None = None,
 ) -> tuple[PipelineTargetResult, BookmarkClassificationRun]:
     output_path = Path(out_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -100,6 +101,7 @@ def run_bookmark_job(
                 batch_size=batch_size,
                 provider=classifier_provider,
                 api_base_url=api_base_url,
+                reasoning_effort=reasoning_effort,
             ),
             categories=categories,
         )

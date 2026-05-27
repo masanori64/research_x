@@ -3,6 +3,8 @@ from __future__ import annotations
 import html
 import json
 import os
+import shutil
+import sqlite3
 import threading
 import time
 import traceback
@@ -18,6 +20,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from research_x.accounts import normalize_account_id, resolve_account_paths, write_account_profile
 from research_x.bookmarks import run_bookmark_job
 from research_x.db_view import format_display_rows, load_display_rows
+from research_x.label_existing import LABEL_EXISTING_KINDS, label_existing_items
 from research_x.playwright_auth import capture_storage_state_auto, storage_state_has_x_auth_cookies
 from research_x.progress import ProgressSnapshot, progress_snapshot
 
@@ -28,11 +31,21 @@ class AppJob:
     account_id: str
     out_dir: Path
     db_path: Path
+    result_kind: str = "bookmarks"
+    account_filter: str | None = None
     status: str = "queued"
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
     logs: list[str] = field(default_factory=list)
     error: str | None = None
+    cancel_requested: bool = False
+    rollback_requested: bool = False
+    rollback_applied: bool = False
+    rollback_error: str | None = None
+    rollback_in_progress: bool = False
+    rollback_watch_started: bool = False
+    db_backup_path: Path | None = None
+    db_existed_at_start: bool | None = None
 
 
 class CollectionApp:
@@ -52,10 +65,33 @@ class CollectionApp:
             account_id=account_id,
             out_dir=out_dir,
             db_path=db_path,
+            result_kind="bookmarks",
+            account_filter=account_id,
         )
         with self.lock:
             self.jobs[job.job_id] = job
         thread = threading.Thread(target=self._run_job, args=(job, form), daemon=True)
+        thread.start()
+        return job
+
+    def start_label_job(self, form: dict[str, str]) -> AppJob:
+        raw_account = form.get("account", "").strip()
+        account_id = normalize_account_id(raw_account) if raw_account else "all_accounts"
+        job_id = uuid.uuid4().hex[:12]
+        out_dir = Path(form.get("out_dir", "").strip() or f"runs/labels_{account_id}_{job_id}")
+        db_path = Path(form.get("db_path", "").strip() or "runs/x_data.sqlite3")
+        kind = form.get("kind", "bookmarks") or "bookmarks"
+        job = AppJob(
+            job_id=job_id,
+            account_id=account_id,
+            out_dir=out_dir,
+            db_path=db_path,
+            result_kind=kind,
+            account_filter=normalize_account_id(raw_account) if raw_account else None,
+        )
+        with self.lock:
+            self.jobs[job.job_id] = job
+        thread = threading.Thread(target=self._run_label_job, args=(job, form), daemon=True)
         thread.start()
         return job
 
@@ -69,6 +105,8 @@ class CollectionApp:
 
     def _run_job(self, job: AppJob, form: dict[str, str]) -> None:
         try:
+            self._prepare_db_backup(job)
+            self._raise_if_cancelled(job)
             self._set_status(job, "account", "account profileを保存しています")
             screen_name = form.get("screen_name", "").strip().lstrip("@") or job.account_id
             write_account_profile(
@@ -131,26 +169,31 @@ class CollectionApp:
             else:
                 self._append_log(job, "password未入力のため、既存storage_stateだけを使います")
 
+            self._raise_if_cancelled(job)
             self._set_status(job, "bookmarks", "ブックマークを取得しています")
             fetch_all = form.get("fetch_all") == "on"
             limit = 100000 if fetch_all else max(1, int(form.get("limit", "100") or 100))
-            result, classification = run_bookmark_job(
-                out_dir=job.out_dir,
-                account=job.account_id,
-                limit=limit,
-                headless=True,
-                max_scroll_steps=1000 if fetch_all else 20,
-                classify=form.get("classify") == "on",
-                classifier_provider=form.get("classifier_provider", "gemini") or "gemini",
-                model=form.get("model", "gpt-4o-mini") or "gpt-4o-mini",
-                api_key_env=form.get("api_key_env", "GEMINI_API_KEY") or "GEMINI_API_KEY",
-                categories_path=form.get("categories", "examples/bookmark_categories.toml")
-                or None,
-                min_successful_providers=1,
-                download_media=form.get("download_media") == "on",
-                db_path=job.db_path,
-                exhaustive=fetch_all,
-            )
+            api_key_env = form.get("api_key_env", "GEMINI_API_KEY") or "GEMINI_API_KEY"
+            with _temporary_classifier_env(form, api_key_env):
+                result, classification = run_bookmark_job(
+                    out_dir=job.out_dir,
+                    account=job.account_id,
+                    limit=limit,
+                    headless=True,
+                    max_scroll_steps=1000 if fetch_all else 20,
+                    classify=form.get("classify") == "on",
+                    classifier_provider=form.get("classifier_provider", "gemini") or "gemini",
+                    model=form.get("model", "gemini-2.5-flash") or "gemini-2.5-flash",
+                    api_key_env=api_key_env,
+                    categories_path=form.get("categories", "examples/bookmark_categories.toml")
+                    or None,
+                    min_successful_providers=1,
+                    download_media=form.get("download_media") == "on",
+                    db_path=job.db_path,
+                    exhaustive=fetch_all,
+                    reasoning_effort=form.get("reasoning_effort", "low") or None,
+                )
+            self._raise_if_cancelled(job)
             providers = ",".join(result.providers_used) or "-"
             self._append_log(
                 job,
@@ -161,11 +204,147 @@ class CollectionApp:
             )
             self._set_status(job, "done", "完了")
             job.finished_at = time.time()
+            self._apply_pending_rollback(job)
+        except JobCancelled as exc:
+            self._append_log(job, str(exc))
+            self._set_status(job, "canceled", "停止しました")
+            job.finished_at = time.time()
+            self._apply_pending_rollback(job)
         except Exception as exc:  # noqa: BLE001 - app job must report failures in UI.
             job.error = f"{type(exc).__name__}: {exc}"
             self._append_log(job, traceback.format_exc())
             self._set_status(job, "failed", job.error)
             job.finished_at = time.time()
+            self._apply_pending_rollback(job)
+
+    def _run_label_job(self, job: AppJob, form: dict[str, str]) -> None:
+        try:
+            self._prepare_db_backup(job)
+            self._raise_if_cancelled(job)
+            self._set_status(job, "labeling", "既存DBの未分類データをAI分類しています")
+            label_all = form.get("all") == "on"
+            kind = form.get("kind", "bookmarks") or "bookmarks"
+            if kind not in LABEL_EXISTING_KINDS:
+                raise ValueError(f"unsupported kind: {kind}")
+            api_key_env = form.get("api_key_env", "GEMINI_API_KEY") or "GEMINI_API_KEY"
+            with _temporary_classifier_env(form, api_key_env):
+                report, classification = label_existing_items(
+                    db_path=job.db_path,
+                    account=job.account_filter,
+                    kind=kind,
+                    limit=None if label_all else max(1, int(form.get("limit", "100") or 100)),
+                    include_labeled=form.get("include_labeled") == "on",
+                    out_dir=job.out_dir,
+                    classifier_provider=form.get("classifier_provider", "gemini") or "gemini",
+                    model=form.get("model", "gemini-2.5-flash") or "gemini-2.5-flash",
+                    api_key_env=api_key_env,
+                    categories_path=form.get("categories", "examples/bookmark_categories.toml")
+                    or None,
+                    batch_size=max(1, int(form.get("batch_size", "20") or 20)),
+                    retry_attempts=max(0, int(form.get("retry_attempts", "100") or 100)),
+                    retry_base_seconds=max(
+                        0.0,
+                        float(form.get("retry_base_seconds", "10") or 10),
+                    ),
+                    request_timeout_seconds=max(
+                        10.0,
+                        float(form.get("request_timeout_seconds", "120") or 120),
+                    ),
+                    reasoning_effort=form.get("reasoning_effort", "low") or None,
+                    cancel_check=lambda: self._is_cancel_requested(job),
+                    min_request_interval_seconds=max(
+                        0.0,
+                        float(form.get("min_request_interval_seconds", "3.2") or 3.2),
+                    ),
+                    stop_on_rate_limit=form.get("stop_on_rate_limit") == "on",
+                )
+            self._append_log(
+                job,
+                (
+                    f"分類完了: status={classification.status} "
+                    f"selected={report.selected_items} unique={report.unique_tweets} "
+                    f"written={report.written_labels} "
+                    f"already_labeled={report.already_labeled}/{report.candidate_total} "
+                    f"model={report.model}"
+                ),
+            )
+            if classification.error_message and classification.status != "canceled":
+                self._append_log(
+                    job,
+                    f"{classification.error_type}: {classification.error_message}",
+                )
+            if classification.status == "canceled":
+                self._set_status(job, "canceled", "停止しました")
+            elif classification.status == "quota_exhausted":
+                job.error = (
+                    f"{classification.error_type or 'QuotaExhausted'}: "
+                    f"{classification.error_message or classification.status}"
+                )
+                self._set_status(job, "quota_exhausted", "API quota上限で終了しました")
+            elif classification.status in {"ok", "empty"}:
+                self._set_status(job, "done", "完了")
+            else:
+                job.error = (
+                    f"{classification.error_type or 'ClassificationError'}: "
+                    f"{classification.error_message or classification.status}"
+                )
+                self._set_status(job, "failed", job.error)
+            job.finished_at = time.time()
+            self._apply_pending_rollback(job)
+        except JobCancelled as exc:
+            self._append_log(job, str(exc))
+            self._set_status(job, "canceled", "停止しました")
+            job.finished_at = time.time()
+            self._apply_pending_rollback(job)
+        except Exception as exc:  # noqa: BLE001 - app job must report failures in UI.
+            job.error = f"{type(exc).__name__}: {exc}"
+            self._append_log(job, traceback.format_exc())
+            self._set_status(job, "failed", job.error)
+            job.finished_at = time.time()
+            self._apply_pending_rollback(job)
+
+    def request_cancel(self, job_id: str, *, rollback: bool = False) -> AppJob | None:
+        watch_rollback = False
+        with self.lock:
+            job = self.jobs.get(job_id)
+            if job is None:
+                return None
+            if rollback:
+                job.rollback_requested = True
+                watch_rollback = True
+            if _is_terminal_status(job.status):
+                job.logs.append("完了済みのジョブのため停止は不要です")
+            else:
+                job.cancel_requested = True
+                job.status = "canceling"
+                if rollback:
+                    job.logs.append("停止後に開始前DBへ戻す要求を受け付けました")
+                else:
+                    job.logs.append("停止要求を受け付けました")
+                watch_rollback = rollback
+        if _is_terminal_status(job.status) and rollback:
+            self.rollback_job(job_id)
+        elif watch_rollback:
+            self._start_rollback_watch(job)
+        return job
+
+    def rollback_job(self, job_id: str) -> AppJob | None:
+        watch_rollback = False
+        with self.lock:
+            job = self.jobs.get(job_id)
+            if job is None:
+                return None
+            if not _is_terminal_status(job.status):
+                job.cancel_requested = True
+                job.rollback_requested = True
+                job.status = "canceling"
+                job.logs.append("実行中のため、停止後に開始前DBへ戻します")
+                watch_rollback = True
+        if watch_rollback:
+            self._start_rollback_watch(job)
+        else:
+            self._restore_db_backup(job)
+        return job
 
     def _set_status(self, job: AppJob, status: str, message: str) -> None:
         with self.lock:
@@ -175,6 +354,100 @@ class CollectionApp:
     def _append_log(self, job: AppJob, message: str) -> None:
         with self.lock:
             job.logs.append(message)
+
+    def _prepare_db_backup(self, job: AppJob) -> None:
+        job.out_dir.mkdir(parents=True, exist_ok=True)
+        backup_dir = job.out_dir / "_rollback"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        db_path = job.db_path
+        if not db_path.exists():
+            with self.lock:
+                job.db_existed_at_start = False
+                job.db_backup_path = None
+                job.logs.append("DBは開始時点で存在しませんでした。復元時はDBを削除します")
+            return
+        backup_path = backup_dir / f"{job.job_id}_before.sqlite3"
+        source = sqlite3.connect(db_path)
+        backup = sqlite3.connect(backup_path)
+        try:
+            source.backup(backup)
+        finally:
+            backup.close()
+            source.close()
+        with self.lock:
+            job.db_existed_at_start = True
+            job.db_backup_path = backup_path
+            job.logs.append(f"開始前DBバックアップ: {backup_path}")
+
+    def _restore_db_backup(self, job: AppJob) -> None:
+        with self.lock:
+            if job.rollback_applied or job.rollback_in_progress:
+                return
+            job.rollback_in_progress = True
+        try:
+            if job.db_existed_at_start is None:
+                raise RuntimeError("開始前DBバックアップがまだ準備されていません")
+            if job.db_existed_at_start:
+                if job.db_backup_path is None or not job.db_backup_path.exists():
+                    raise RuntimeError("開始前DBバックアップが見つかりません")
+                job.db_path.parent.mkdir(parents=True, exist_ok=True)
+                _delete_sqlite_sidecars(job.db_path)
+                shutil.copy2(job.db_backup_path, job.db_path)
+            else:
+                _delete_sqlite_files(job.db_path)
+            with self.lock:
+                job.rollback_applied = True
+                job.rollback_error = None
+                job.status = "rolled_back"
+                job.logs.append("開始前DBへ戻しました")
+                job.finished_at = job.finished_at or time.time()
+        except Exception as exc:  # noqa: BLE001 - rollback errors must be visible in UI.
+            with self.lock:
+                job.rollback_error = f"{type(exc).__name__}: {exc}"
+                job.logs.append(f"DB復元に失敗しました: {job.rollback_error}")
+        finally:
+            with self.lock:
+                job.rollback_in_progress = False
+
+    def _apply_pending_rollback(self, job: AppJob) -> None:
+        with self.lock:
+            rollback_requested = job.rollback_requested
+        if rollback_requested:
+            self._restore_db_backup(job)
+
+    def _start_rollback_watch(self, job: AppJob) -> None:
+        with self.lock:
+            if job.rollback_watch_started:
+                return
+            job.rollback_watch_started = True
+        thread = threading.Thread(target=self._rollback_when_terminal, args=(job,), daemon=True)
+        thread.start()
+
+    def _rollback_when_terminal(self, job: AppJob) -> None:
+        while True:
+            with self.lock:
+                terminal = _is_terminal_status(job.status)
+                should_restore = (
+                    terminal and job.rollback_requested and not job.rollback_applied
+                )
+            if should_restore:
+                self._restore_db_backup(job)
+                return
+            if terminal:
+                return
+            time.sleep(0.25)
+
+    def _is_cancel_requested(self, job: AppJob) -> bool:
+        with self.lock:
+            return job.cancel_requested
+
+    def _raise_if_cancelled(self, job: AppJob) -> None:
+        if self._is_cancel_requested(job):
+            raise JobCancelled("停止要求によりジョブを中断しました")
+
+
+class JobCancelled(Exception):
+    pass
 
 
 def serve_collection_app(
@@ -215,13 +488,39 @@ def serve_collection_app(
             self.send_error(404)
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API.
-            if urlparse(self.path).path != "/run":
+            parsed_path = urlparse(self.path).path
+            if parsed_path not in {
+                "/run",
+                "/label-existing",
+                "/job/cancel",
+                "/job/cancel-rollback",
+                "/job/rollback",
+            }:
                 self.send_error(404)
                 return
             length = int(self.headers.get("content-length", "0") or "0")
             body = self.rfile.read(length).decode("utf-8", errors="replace")
             form = {key: values[-1] for key, values in parse_qs(body).items()}
-            job = app.start_job(form)
+            if parsed_path in {"/job/cancel", "/job/cancel-rollback", "/job/rollback"}:
+                job_id = form.get("job", "")
+                if parsed_path == "/job/cancel":
+                    job = app.request_cancel(job_id)
+                elif parsed_path == "/job/cancel-rollback":
+                    job = app.request_cancel(job_id, rollback=True)
+                else:
+                    job = app.rollback_job(job_id)
+                location = "/status?" + urlencode({"job": job_id})
+                if job is None:
+                    location = "/"
+                self.send_response(303)
+                self.send_header("Location", location)
+                self.end_headers()
+                return
+            job = (
+                app.start_label_job(form)
+                if parsed_path == "/label-existing"
+                else app.start_job(form)
+            )
             location = "/status?" + urlencode({"job": job.job_id})
             self.send_response(303)
             self.send_header("Location", location)
@@ -262,6 +561,9 @@ def serve_collection_app(
 
 def _home_page(jobs: list[AppJob] | None = None) -> str:
     job_links = _job_links(jobs or [])
+    provider_options = _provider_options("gemini")
+    model_options = _model_options("gemini-2.5-flash")
+    reasoning_options = _reasoning_options("low")
     return _page(
         "X収集アプリ",
         f"""
@@ -326,14 +628,76 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
           <section>
             <h2>AI分類</h2>
             <label><input name="classify" type="checkbox"> AI分類する</label>
-            <label>Provider <input name="classifier_provider" value="gemini"></label>
-            <label>Model <input name="model" value="gpt-4o-mini"></label>
+            <label>Provider
+              <select name="classifier_provider">{provider_options}</select>
+            </label>
+            <label>Model
+              <select name="model">{model_options}</select>
+            </label>
+            <label>Reasoning effort
+              <select name="reasoning_effort">{reasoning_options}</select>
+            </label>
             <label>API key env <input name="api_key_env" value="GEMINI_API_KEY"></label>
+            <label>API key
+              <input name="api_key_value" type="password" autocomplete="off">
+            </label>
             <label>Categories
               <input name="categories" value="examples/bookmark_categories.toml">
             </label>
           </section>
           <button type="submit">収集開始</button>
+        </form>
+        <form method="post" action="/label-existing">
+          <h2>既存DBをAI分類</h2>
+          <label>DB path <input name="db_path" value="runs/x_data.sqlite3"></label>
+          <label>Account
+            <input name="account" placeholder="空なら全アカウント">
+          </label>
+          <label>Kind
+            <select name="kind">
+              <option value="bookmarks">bookmarks</option>
+              <option value="tweets">tweets</option>
+              <option value="all">all</option>
+            </select>
+          </label>
+          <label>Output dir
+            <input name="out_dir" placeholder="runs/labels_my_account">
+          </label>
+          <label>Limit <input name="limit" type="number" value="100"></label>
+          <label><input name="all" type="checkbox"> 未分類を全部処理</label>
+          <label><input name="include_labeled" type="checkbox"> ラベル済みも再分類</label>
+          <label>Provider
+            <select name="classifier_provider">{provider_options}</select>
+          </label>
+          <label>Model
+            <select name="model">{model_options}</select>
+          </label>
+          <label>Reasoning effort
+            <select name="reasoning_effort">{reasoning_options}</select>
+          </label>
+          <label>API key env <input name="api_key_env" value="GEMINI_API_KEY"></label>
+          <label>API key
+            <input name="api_key_value" type="password" autocomplete="off">
+          </label>
+          <label>Categories
+            <input name="categories" value="examples/bookmark_categories.toml">
+          </label>
+          <label>Batch size <input name="batch_size" type="number" value="20"></label>
+          <label>Retry attempts <input name="retry_attempts" type="number" value="100"></label>
+          <label>Retry base seconds
+            <input name="retry_base_seconds" type="number" value="10">
+          </label>
+          <label>Request timeout seconds
+            <input name="request_timeout_seconds" type="number" value="120">
+          </label>
+          <label>Min request interval seconds
+            <input name="min_request_interval_seconds" type="number" step="0.1" value="3.2">
+          </label>
+          <label>
+            <input name="stop_on_rate_limit" type="checkbox" checked>
+            quota上限が来たら待たずに終了
+          </label>
+          <button type="submit">分類開始</button>
         </form>
         <form method="get" action="/results" class="inline">
           <h2>既存DBを見る</h2>
@@ -365,14 +729,18 @@ def _status_page(job: AppJob | None) -> str:
     cursor_state = _cursor_state(job.out_dir)
     state_text = _status_label(job.status, cursor_state=cursor_state)
     elapsed = _elapsed_text(job)
-    result_params = urlencode(
-        {
-            "db": str(job.db_path),
-            "account": job.account_id,
-            "kind": "bookmarks",
-            "limit": "100",
-        }
-    )
+    result_query = {
+        "db": str(job.db_path),
+        "kind": (
+            job.result_kind
+            if job.result_kind in {"bookmarks", "tweets", "all"}
+            else "bookmarks"
+        ),
+        "limit": "100",
+    }
+    if job.account_filter:
+        result_query["account"] = job.account_filter
+    result_params = urlencode(result_query)
     result_link = (
         f"<a href='/results?{result_params}'>本文を見る</a>"
         if job.status == "done"
@@ -381,6 +749,7 @@ def _status_page(job: AppJob | None) -> str:
     logs = "\n".join(html.escape(item) for item in job.logs[-80:])
     completion_sound = _completion_sound_script(job)
     live_script = _live_status_script(job)
+    controls = _job_controls(job)
     return _page(
         f"Job {job.job_id}",
         f"""
@@ -394,6 +763,7 @@ def _status_page(job: AppJob | None) -> str:
         <p>account: {html.escape(job.account_id)}</p>
         <p>out: {html.escape(str(job.out_dir))}</p>
         <p>db: {html.escape(str(job.db_path))}</p>
+        {controls}
         {_progress_bars(snapshot)}
         {progress}
         <p>{result_link} <a href="/">新規実行</a></p>
@@ -434,6 +804,9 @@ def _page(title: str, body: str) -> str:
     label {{ display: grid; gap: 4px; }}
     input, select, button {{ font: inherit; padding: 8px; }}
     button {{ width: fit-content; }}
+    .actions {{ display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }}
+    .actions form {{ display: inline; }}
+    .danger {{ background: #991b1b; color: white; border: 1px solid #991b1b; }}
     pre {{ white-space: pre-wrap; background: #f6f6f6; padding: 12px; overflow: auto; }}
     .progress-grid {{ display: grid; gap: 12px; margin: 14px 0; }}
     .progress-row {{ display: flex; justify-content: space-between; gap: 12px; }}
@@ -476,8 +849,66 @@ def _job_status_payload(job: AppJob) -> dict[str, Any]:
         "finished_at": finished_at,
         "server_time": time.time(),
         "logs": logs,
+        "cancel_requested": job.cancel_requested,
+        "rollback_requested": job.rollback_requested,
+        "rollback_applied": job.rollback_applied,
+        "rollback_error": job.rollback_error,
+        "rollback_in_progress": job.rollback_in_progress,
+        "db_backup_path": str(job.db_backup_path) if job.db_backup_path else None,
+        "db_existed_at_start": job.db_existed_at_start,
         "progress": snapshot.as_dict(),
     }
+
+
+def _job_controls(job: AppJob) -> str:
+    escaped_job = html.escape(job.job_id, quote=True)
+    active = not _is_terminal_status(job.status)
+    rollback_available = _rollback_available(job)
+    backup_text = "なし"
+    if job.db_existed_at_start is False:
+        backup_text = "開始時DBなし"
+    elif job.db_backup_path:
+        backup_text = str(job.db_backup_path)
+    rollback_state = ""
+    if job.rollback_applied:
+        rollback_state = "<p class='note'>開始前DBへ復元済みです。</p>"
+    elif job.rollback_error:
+        rollback_state = f"<p class='bad'>DB復元失敗: {html.escape(job.rollback_error)}</p>"
+    forms: list[str] = []
+    if active:
+        forms.append(
+            f"""
+            <form method="post" action="/job/cancel">
+              <input type="hidden" name="job" value="{escaped_job}">
+              <button type="submit">停止</button>
+            </form>
+            """
+        )
+        forms.append(
+            f"""
+            <form method="post" action="/job/cancel-rollback">
+              <input type="hidden" name="job" value="{escaped_job}">
+              <button class="danger" type="submit">停止して開始前DBへ戻す</button>
+            </form>
+            """
+        )
+    elif rollback_available and not job.rollback_applied:
+        forms.append(
+            f"""
+            <form method="post" action="/job/rollback">
+              <input type="hidden" name="job" value="{escaped_job}">
+              <button class="danger" type="submit">開始前DBへ戻す</button>
+            </form>
+            """
+        )
+    return f"""
+        <section>
+          <h2>ジョブ操作</h2>
+          <p class="note">開始前DBバックアップ: {html.escape(backup_text)}</p>
+          <div class="actions">{''.join(forms)}</div>
+          {rollback_state}
+        </section>
+    """
 
 
 def _completion_sound_script(job: AppJob) -> str:
@@ -525,6 +956,7 @@ def _completion_sound_script(job: AppJob) -> str:
 def _progress_bars(snapshot: ProgressSnapshot) -> str:
     text_percent = 100.0 if snapshot.cursor_finished else 0.0
     media_percent = _percent(snapshot.media_done, snapshot.media_total)
+    label_percent = _percent(snapshot.label_done, snapshot.label_total)
     text_label = (
         f"完了 {snapshot.cursor_item_count or 0}件 / {snapshot.page_count} pages"
         if snapshot.cursor_finished
@@ -535,8 +967,15 @@ def _progress_bars(snapshot: ProgressSnapshot) -> str:
         if snapshot.media_total
         else "待機中"
     )
+    label_label = (
+        f"{snapshot.label_done or 0}/{snapshot.label_total or 0} ({label_percent:.1f}%)"
+        if snapshot.label_total
+        else "待機中"
+    )
     escaped_text_label = html.escape(text_label)
     escaped_media_label = html.escape(media_label)
+    escaped_label_label = html.escape(label_label)
+    label_style = "" if snapshot.label_total else "display:none"
     return f"""
         <section class="progress-grid">
           <div>
@@ -559,6 +998,17 @@ def _progress_bars(snapshot: ProgressSnapshot) -> str:
               <div id="media-progress-fill"
                 class="progress-fill"
                 style="width: {media_percent:.1f}%"></div>
+            </div>
+          </div>
+          <div id="label-progress-section" style="{label_style}">
+            <div class="progress-row">
+              <strong>AI分類</strong>
+              <span id="label-progress-label">{escaped_label_label}</span>
+            </div>
+            <div class="progress-bar">
+              <div id="label-progress-fill"
+                class="progress-fill"
+                style="width: {label_percent:.1f}%"></div>
             </div>
           </div>
         </section>
@@ -636,6 +1086,27 @@ def _live_status_script(job: AppJob) -> str:
             const mediaElapsed = progress.media_elapsed_seconds == null
               ? null
               : progress.media_elapsed_seconds + drift;
+            const labelDone = progress.label_done || 0;
+            const labelTotal = progress.label_total || 0;
+            const labelPercent = percent(labelDone, labelTotal);
+            const labelEta = progress.label_estimated_remaining_seconds == null
+              ? null
+              : Math.max(0, progress.label_estimated_remaining_seconds - drift);
+            const labelSection = document.getElementById("label-progress-section");
+            if (labelSection) labelSection.style.display = labelTotal ? "" : "none";
+            if (labelTotal) {{
+              document.getElementById("label-progress-label").textContent =
+                `${{labelDone}}/${{labelTotal}} ` +
+                `(${{labelPercent.toFixed(1)}}%) 残り ${{durationText(labelEta)}}`;
+              setFill(
+                "label-progress-fill",
+                labelPercent,
+                progress.label_finished === true
+              );
+            }}
+            const labelElapsed = progress.label_elapsed_seconds == null
+              ? null
+              : progress.label_elapsed_seconds + drift;
             document.getElementById("progress-details").textContent = [
               statusMessage,
               `output exists: ${{progress.output_exists}}`,
@@ -652,12 +1123,34 @@ def _live_status_script(job: AppJob) -> str:
                 `${{progress.media_error || 0}}/${{progress.media_skipped || 0}}`
               ),
               `estimated media remaining: ${{durationText(eta)}}`,
+              (
+                `label progress: ${{labelDone}}/${{labelTotal}} ` +
+                `remaining ${{progress.label_remaining || 0}} ` +
+                `(${{labelPercent.toFixed(1)}}%)`
+              ),
+              `label written: ${{progress.label_written || 0}}`,
+              `label elapsed: ${{durationText(labelElapsed)}}`,
+              `estimated label remaining: ${{durationText(labelEta)}}`,
+              `label status: ${{progress.label_status || "unknown"}}`,
+              `label error: ${{progress.label_error_message || ""}}`,
+              (
+                `label retry: ${{progress.label_retry_attempt || ""}}/` +
+                `${{progress.label_retry_attempts || ""}} ` +
+                `after ${{durationText(progress.label_retry_after_seconds)}}`
+              ),
               `cursor item_count: ${{progress.cursor_item_count || 0}}`,
               `cursor finished: ${{progress.cursor_finished}}`,
               `rate_limited: ${{progress.rate_limited}}`
             ].join("\\n");
             const logs = document.getElementById("job-logs");
             if (logs) logs.textContent = (payload.logs || []).join("\\n");
+          }}
+
+          function hasUsefulProgress(progress) {{
+            return (
+              (progress.media_total && progress.media_total > 0) ||
+              (progress.label_total !== null && progress.label_total !== undefined)
+            );
           }}
 
           async function poll() {{
@@ -667,8 +1160,7 @@ def _live_status_script(job: AppJob) -> str:
               }});
               const next = await response.json();
               const nextProgress = next.progress || {{}};
-              const hasMediaProgress = nextProgress.media_total && nextProgress.media_total > 0;
-              if (hasMediaProgress || !payload) {{
+              if (hasUsefulProgress(nextProgress) || !payload) {{
                 payload = next;
                 receivedAt = Date.now();
                 statusMessage = "";
@@ -713,6 +1205,62 @@ def _job_links(jobs: list[AppJob]) -> str:
     )
 
 
+def _provider_options(selected: str) -> str:
+    providers = (
+        ("gemini", "Gemini"),
+        ("openai_chat", "OpenAI Chat"),
+        ("openai_responses", "OpenAI Responses"),
+        ("qwen", "Qwen"),
+        ("kimi", "Kimi"),
+        ("glm", "GLM"),
+        ("openai_compatible", "OpenAI compatible custom"),
+    )
+    return "".join(
+        (
+            f"<option value='{html.escape(value)}'"
+            f"{' selected' if value == selected else ''}>{html.escape(label)}</option>"
+        )
+        for value, label in providers
+    )
+
+
+def _model_options(selected: str) -> str:
+    models = (
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gpt-4o-mini",
+        "qwen-turbo-latest",
+        "kimi-latest",
+        "glm-4-flash",
+    )
+    return "".join(
+        (
+            f"<option value='{html.escape(model)}'"
+            f"{' selected' if model == selected else ''}>{html.escape(model)}</option>"
+        )
+        for model in models
+    )
+
+
+def _reasoning_options(selected: str) -> str:
+    options = (
+        ("low", "low"),
+        ("default", "default"),
+        ("minimal", "minimal"),
+        ("medium", "medium"),
+        ("high", "high"),
+    )
+    return "".join(
+        (
+            f"<option value='{html.escape(value)}'"
+            f"{' selected' if value == selected else ''}>{html.escape(label)}</option>"
+        )
+        for value, label in options
+    )
+
+
 def _status_label(status: str, *, cursor_state: dict[str, Any] | None = None) -> str:
     if status == "bookmarks" and cursor_state and cursor_state.get("finished"):
         return "<span class='running'>本文取得完了。画像保存またはDB書き込み中</span>"
@@ -721,6 +1269,11 @@ def _status_label(status: str, *, cursor_state: dict[str, Any] | None = None) ->
         "account": "<span class='running'>アカウント情報を保存中</span>",
         "auth": "<span class='running'>自動ログイン中。まだ取得は始まっていません</span>",
         "bookmarks": "<span class='running'>ブックマーク取得中</span>",
+        "labeling": "<span class='running'>既存DBをAI分類中</span>",
+        "canceling": "<span class='running'>停止要求中。現在の処理が区切れるまで待機中</span>",
+        "canceled": "<span class='bad'>停止済み</span>",
+        "quota_exhausted": "<span class='bad'>API quota上限で終了</span>",
+        "rolled_back": "<span class='ok'>開始前DBへ復元済み</span>",
         "done": "<span class='ok'>完了</span>",
         "failed": "<span class='bad'>失敗。ログ末尾に原因があります</span>",
     }
@@ -760,6 +1313,28 @@ def _progress_box(job: AppJob) -> str:
                 (
                     "estimated media remaining: "
                     f"{_duration_text(snapshot.media_estimated_remaining_seconds)}"
+                ),
+            ]
+        )
+    if snapshot.label_total is not None:
+        label_percent = _percent(snapshot.label_done, snapshot.label_total)
+        lines.extend(
+            [
+                (
+                    f"label progress: {snapshot.label_done or 0}/{snapshot.label_total or 0} "
+                    f"remaining {snapshot.label_remaining or 0} ({label_percent:.1f}%)"
+                ),
+                f"label written: {snapshot.label_written or 0}",
+                f"label status: {snapshot.label_status or 'unknown'}",
+                f"label error: {snapshot.label_error_message or ''}",
+                (
+                    f"label retry: {snapshot.label_retry_attempt or ''}/"
+                    f"{snapshot.label_retry_attempts or ''} "
+                    f"after {_duration_text(snapshot.label_retry_after_seconds)}"
+                ),
+                (
+                    "estimated label remaining: "
+                    f"{_duration_text(snapshot.label_estimated_remaining_seconds)}"
                 ),
             ]
         )
@@ -861,6 +1436,44 @@ def _safe_int(value: Any, *, default: int = 0) -> int:
 def _first(params: dict[str, list[str]], key: str) -> str:
     values = params.get(key) or [""]
     return values[-1]
+
+
+def _is_terminal_status(status: str) -> bool:
+    return status in {"done", "failed", "canceled", "quota_exhausted", "rolled_back"}
+
+
+def _rollback_available(job: AppJob) -> bool:
+    return job.db_existed_at_start is False or (
+        job.db_backup_path is not None and job.db_backup_path.exists()
+    )
+
+
+def _delete_sqlite_files(path: Path) -> None:
+    for candidate in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
+        _unlink_with_retry(candidate)
+
+
+def _delete_sqlite_sidecars(path: Path) -> None:
+    for candidate in (Path(f"{path}-wal"), Path(f"{path}-shm")):
+        _unlink_with_retry(candidate)
+
+
+def _unlink_with_retry(path: Path, *, attempts: int = 10) -> None:
+    for attempt in range(attempts):
+        if not path.exists():
+            return
+        try:
+            path.unlink()
+            return
+        except PermissionError:
+            if attempt >= attempts - 1:
+                raise
+            time.sleep(0.2)
+
+
+def _temporary_classifier_env(form: dict[str, str], api_key_env: str):
+    api_key_value = form.get("api_key_value", "").strip()
+    return _temporary_env({api_key_env: api_key_value} if api_key_value else {})
 
 
 @contextmanager
