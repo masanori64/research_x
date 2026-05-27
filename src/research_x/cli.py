@@ -10,11 +10,13 @@ from research_x.adapters import catalog_entries, known_adapter_ids
 from research_x.bookmarks import run_bookmark_job
 from research_x.config import load_config
 from research_x.contracts import OutcomeStatus
+from research_x.label_existing import LABEL_EXISTING_KINDS, label_existing_items
 from research_x.pipeline import run_pipeline
 from research_x.playwright_auth import (
     capture_playwright_storage_state,
     capture_storage_state_auto,
     capture_storage_state_from_cdp,
+    capture_storage_state_from_system_browser_profile,
     capture_storage_state_with_credentials,
     capture_storage_state_with_system_browser_credentials,
     write_storage_state_from_cookie_env,
@@ -70,6 +72,117 @@ def main(argv: list[str] | None = None) -> int:
     db_show_parser.add_argument("--limit", type=int, default=20)
     db_show_parser.add_argument("--json", action="store_true", help="emit rows as JSON")
 
+    label_existing_parser = subparsers.add_parser(
+        "label-existing",
+        help="classify stored DB rows that do not yet have AI labels",
+    )
+    label_existing_parser.add_argument(
+        "--db",
+        default="runs/x_data.sqlite3",
+        help="SQLite database path containing stored tweets/bookmarks",
+    )
+    label_existing_parser.add_argument(
+        "--account",
+        default=None,
+        help="account id filter; omit to classify all accounts",
+    )
+    label_existing_parser.add_argument(
+        "--kind",
+        choices=LABEL_EXISTING_KINDS,
+        default="bookmarks",
+        help="stored rows to classify",
+    )
+    label_existing_parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="maximum unlabeled rows to classify in this run",
+    )
+    label_existing_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="classify all currently unlabeled rows",
+    )
+    label_existing_parser.add_argument(
+        "--include-labeled",
+        action="store_true",
+        help="classify even rows that already have an AI label",
+    )
+    label_existing_parser.add_argument(
+        "--out",
+        default=None,
+        help="optional output directory for classification JSONL/report files",
+    )
+    label_existing_parser.add_argument(
+        "--model",
+        default="gpt-4o-mini",
+        help="model used for classification",
+    )
+    label_existing_parser.add_argument(
+        "--classifier-provider",
+        default="gemini",
+        help=(
+            "classifier provider: openai_responses, openai_compatible, "
+            "qwen, kimi, glm, gemini, or openai_chat"
+        ),
+    )
+    label_existing_parser.add_argument(
+        "--api-base-url",
+        default=None,
+        help="OpenAI-compatible API base URL for non-Responses classifiers",
+    )
+    label_existing_parser.add_argument(
+        "--api-key-env",
+        default="GEMINI_API_KEY",
+        help="environment variable containing the classifier API key",
+    )
+    label_existing_parser.add_argument(
+        "--categories",
+        default="examples/bookmark_categories.toml",
+        help="optional TOML taxonomy with [[categories]] entries",
+    )
+    label_existing_parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=20,
+        help="number of rows per AI classification request",
+    )
+    label_existing_parser.add_argument(
+        "--retry-attempts",
+        type=int,
+        default=3,
+        help="retry count for transient classifier API errors",
+    )
+    label_existing_parser.add_argument(
+        "--retry-base-seconds",
+        type=float,
+        default=10.0,
+        help="base wait seconds between transient classifier retries",
+    )
+    label_existing_parser.add_argument(
+        "--request-timeout-seconds",
+        type=float,
+        default=120.0,
+        help="timeout for each classifier request",
+    )
+    label_existing_parser.add_argument(
+        "--reasoning-effort",
+        default="low",
+        help="Gemini/OpenAI-compatible reasoning effort: default, minimal, low, medium, or high",
+    )
+    label_existing_parser.add_argument(
+        "--min-request-interval-seconds",
+        type=float,
+        default=0.0,
+        help="minimum wait between classifier requests",
+    )
+    label_existing_parser.add_argument(
+        "--stop-on-rate-limit",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="finish the job immediately when the classifier returns quota/rate-limit 429",
+    )
+
     app_parser = subparsers.add_parser(
         "app",
         help="start a local browser app for account auth and collection",
@@ -81,6 +194,47 @@ def main(argv: list[str] | None = None) -> int:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="open the app in the default browser",
+    )
+
+    notify_parser = subparsers.add_parser(
+        "notify",
+        help="play a local completion notification",
+    )
+    notify_parser.add_argument(
+        "--message",
+        default="作業が終了しました",
+        help="message to speak when voice output is available",
+    )
+    notify_parser.add_argument(
+        "--beep",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="play a short notification sound",
+    )
+    notify_parser.add_argument(
+        "--voice",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="speak the message when the OS supports it",
+    )
+    notify_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return non-zero if no notification method succeeds",
+    )
+
+    progress_parser = subparsers.add_parser(
+        "progress",
+        help="serve a live progress page for an output directory",
+    )
+    progress_parser.add_argument("--out", required=True, help="output directory to monitor")
+    progress_parser.add_argument("--host", default="127.0.0.1")
+    progress_parser.add_argument("--port", type=int, default=8766)
+    progress_parser.add_argument(
+        "--open-browser",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="open the progress page in the default browser",
     )
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
@@ -180,6 +334,11 @@ def main(argv: list[str] | None = None) -> int:
         help="number of bookmarks per AI classification request",
     )
     bookmarks_parser.add_argument(
+        "--reasoning-effort",
+        default=None,
+        help="Gemini/OpenAI-compatible reasoning effort: default, minimal, low, medium, or high",
+    )
+    bookmarks_parser.add_argument(
         "--min-successful-providers",
         type=int,
         default=1,
@@ -246,6 +405,7 @@ def main(argv: list[str] | None = None) -> int:
     tweets_parser.add_argument("--api-key-env", default="OPENAI_API_KEY")
     tweets_parser.add_argument("--categories", default=None)
     tweets_parser.add_argument("--batch-size", type=int, default=20)
+    tweets_parser.add_argument("--reasoning-effort", default=None)
 
     stages_parser = subparsers.add_parser(
         "tweet-stages",
@@ -278,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
         "add",
         help="register non-password account metadata for account-scoped sessions",
     )
-    accounts_add_parser.add_argument("--account", required=True, help="account id, e.g. zvuvm6")
+    accounts_add_parser.add_argument("--account", required=True, help="account id, e.g. my_account")
     accounts_add_parser.add_argument("--screen-name", default=None)
     accounts_add_parser.add_argument("--user-id", default=None)
     accounts_add_parser.add_argument("--display-name", default=None)
@@ -364,6 +524,12 @@ def main(argv: list[str] | None = None) -> int:
         default=900,
         help="maximum time to wait for a CDP browser with X auth cookies",
     )
+    cdp_auth_parser.add_argument(
+        "--no-defaults",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="avoid Playwright default context overrides when attaching to a daily browser",
+    )
     credentials_auth_parser = auth_subparsers.add_parser(
         "credentials",
         help="log in to X automatically with username/password env values",
@@ -428,6 +594,13 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
     )
     auto_auth_parser.add_argument(
+        "--try-system-browser-profile",
+        "--try-edge-profile",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="try the normal Edge/Chrome profile before password login",
+    )
+    auto_auth_parser.add_argument(
         "--system-browser-disable-extensions",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -438,7 +611,50 @@ def main(argv: list[str] | None = None) -> int:
         default="msedge",
     )
     auto_auth_parser.add_argument("--system-browser-debugging-port", type=int, default=9225)
+    auto_auth_parser.add_argument(
+        "--system-browser-profile-directory",
+        "--edge-profile-directory",
+        default=None,
+        help="normal browser profile directory name, for example Default or Profile 1",
+    )
+    auto_auth_parser.add_argument(
+        "--system-browser-profile-close-existing",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="close existing Edge/Chrome before launching the normal profile with CDP",
+    )
     auto_auth_parser.add_argument("--cdp-timeout-seconds", type=float, default=3)
+    system_profile_auth_parser = auth_subparsers.add_parser(
+        "system-profile",
+        aliases=["edge-profile"],
+        help="export X auth from the normal Edge/Chrome profile over CDP",
+    )
+    system_profile_auth_parser.add_argument(
+        "--account",
+        default=None,
+        help="account id to save under",
+    )
+    system_profile_auth_parser.add_argument("--storage-state", default=None)
+    system_profile_auth_parser.add_argument(
+        "--browser",
+        choices=["msedge", "chrome"],
+        default="msedge",
+    )
+    system_profile_auth_parser.add_argument("--executable-path", default=None)
+    system_profile_auth_parser.add_argument(
+        "--profile-directory",
+        default=None,
+        help="normal browser profile directory name, for example Default or Profile 1",
+    )
+    system_profile_auth_parser.add_argument("--debugging-port", type=int, default=9225)
+    system_profile_auth_parser.add_argument("--start-url", default="https://x.com")
+    system_profile_auth_parser.add_argument(
+        "--close-existing-browser",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="close existing Edge/Chrome before launching the normal profile with CDP",
+    )
+    system_profile_auth_parser.add_argument("--timeout-seconds", type=float, default=30)
     auto_auth_parser.add_argument(
         "--channel",
         choices=["chrome", "msedge", "chromium", "chrome-beta", "msedge-beta", "msedge-dev"],
@@ -516,10 +732,63 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(format_display_rows(rows, json_output=args.json))
         return 0
+    if args.command == "label-existing":
+        limit = None if args.all else max(1, args.limit)
+        report, classification = label_existing_items(
+            db_path=args.db,
+            account=args.account,
+            kind=args.kind,
+            limit=limit,
+            include_labeled=args.include_labeled,
+            out_dir=args.out,
+            model=args.model,
+            api_key_env=args.api_key_env,
+            categories_path=args.categories or None,
+            batch_size=args.batch_size,
+            classifier_provider=args.classifier_provider,
+            api_base_url=args.api_base_url,
+            retry_attempts=args.retry_attempts,
+            retry_base_seconds=args.retry_base_seconds,
+            request_timeout_seconds=args.request_timeout_seconds,
+            reasoning_effort=args.reasoning_effort,
+            min_request_interval_seconds=args.min_request_interval_seconds,
+            stop_on_rate_limit=args.stop_on_rate_limit,
+        )
+        print(
+            "label-existing: "
+            f"{report.status} selected={report.selected_items} "
+            f"unique={report.unique_tweets} written={report.written_labels} "
+            f"already_labeled={report.already_labeled}/{report.candidate_total} "
+            f"model={report.model} db={report.db_path}"
+        )
+        if classification.error_message:
+            print(f"{classification.error_type}: {classification.error_message}", file=sys.stderr)
+        return 0 if report.status in {"ok", "empty"} else 1
     if args.command == "app":
         from research_x.local_app import serve_collection_app
 
         serve_collection_app(
+            host=args.host,
+            port=args.port,
+            open_browser=args.open_browser,
+        )
+        return 0
+    if args.command == "notify":
+        from research_x.notify import notify_completion
+
+        result = notify_completion(
+            args.message,
+            beep=args.beep,
+            voice=args.voice,
+        )
+        if result.errors:
+            print("notification warnings: " + "; ".join(result.errors), file=sys.stderr)
+        return 0 if result.ok or not args.strict else 1
+    if args.command == "progress":
+        from research_x.progress import serve_progress_monitor
+
+        serve_progress_monitor(
+            out_dir=args.out,
             host=args.host,
             port=args.port,
             open_browser=args.open_browser,
@@ -567,6 +836,7 @@ def main(argv: list[str] | None = None) -> int:
                 storage_state=paths.storage_state,
                 endpoint_url=args.endpoint_url,
                 timeout_seconds=args.timeout_seconds,
+                no_defaults=args.no_defaults,
             )
             return 0 if ok else 1
         if args.auth_command == "credentials":
@@ -611,14 +881,32 @@ def main(argv: list[str] | None = None) -> int:
                 try_cdp=args.try_cdp,
                 cdp_timeout_seconds=args.cdp_timeout_seconds,
                 try_system_browser=args.try_system_browser,
+                try_system_browser_profile=args.try_system_browser_profile,
                 system_browser=args.system_browser,
                 system_browser_debugging_port=args.system_browser_debugging_port,
+                system_browser_profile_directory=args.system_browser_profile_directory,
+                system_browser_profile_close_existing=(
+                    args.system_browser_profile_close_existing
+                ),
                 system_browser_disable_extensions=args.system_browser_disable_extensions,
                 channel=args.channel,
                 executable_path=args.executable_path,
                 start_url=args.start_url,
                 headless=args.headless,
                 user_agent=args.user_agent,
+                timeout_seconds=args.timeout_seconds,
+            )
+            return 0 if ok else 1
+        if args.auth_command in {"system-profile", "edge-profile"}:
+            paths = resolve_account_paths(args.account, storage_state=args.storage_state)
+            ok = capture_storage_state_from_system_browser_profile(
+                storage_state=paths.storage_state,
+                browser=args.browser,
+                executable_path=args.executable_path,
+                profile_directory=args.profile_directory,
+                close_existing=args.close_existing_browser,
+                debugging_port=args.debugging_port,
+                start_url=args.start_url,
                 timeout_seconds=args.timeout_seconds,
             )
             return 0 if ok else 1
@@ -668,6 +956,7 @@ def main(argv: list[str] | None = None) -> int:
             api_base_url=args.api_base_url,
             db_path=args.db,
             exhaustive=args.all,
+            reasoning_effort=args.reasoning_effort,
         )
         providers = ",".join(result.providers_used) or "-"
         print(
@@ -699,6 +988,7 @@ def main(argv: list[str] | None = None) -> int:
             batch_size=args.batch_size,
             classifier_provider=args.classifier_provider,
             api_base_url=args.api_base_url,
+            reasoning_effort=args.reasoning_effort,
         )
         providers = ",".join(result.providers_used) or "-"
         db_text = f" db={store_summary.db_path}" if store_summary else ""

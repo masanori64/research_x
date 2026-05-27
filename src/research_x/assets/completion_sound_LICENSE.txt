@@ -1,0 +1,9 @@
+completion.wav
+
+Source: https://opengameart.org/content/alertnotification-sound
+File: https://opengameart.org/sites/default/files/alert.wav
+Author: frosty ham
+License: CC0
+Downloaded: 2026-05-26
+
+The source page lists this asset under the CC0 license.

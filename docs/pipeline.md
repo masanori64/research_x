@@ -70,20 +70,48 @@ Only non-password account metadata is stored by `accounts add`.
 
 1. existing storage state,
 2. cookie env values,
-3. username/password env login,
-4. CDP export from a running browser.
+3. saved persistent Playwright profile,
+4. CDP export from a running browser,
+5. optional normal Edge/Chrome profile export,
+6. username/password env login.
 
 ```powershell
-$env:RESEARCH_X_X_USERNAME="zvuvm6"
+$env:RESEARCH_X_X_USERNAME="my_screen_name"
 $env:RESEARCH_X_X_PASSWORD="<password>"
 $env:RESEARCH_X_X_EMAIL_OR_PHONE="<email-or-phone-if-required>"
-uv run python -m research_x auth auto --account zvuvm6 --channel msedge --no-headless
+uv run python -m research_x auth auto `
+  --account my_account `
+  --try-system-browser-profile `
+  --system-browser-profile-directory Default `
+  --system-browser-profile-close-existing `
+  --channel msedge `
+  --no-headless
+```
+
+For a PC-standard Edge profile that is already logged in to X, close all Edge windows first
+and export through CDP without passing a separate `--user-data-dir`:
+
+```powershell
+uv run python -m research_x auth system-profile `
+  --account my_account `
+  --browser msedge `
+  --profile-directory Default `
+  --close-existing-browser
+```
+
+If Edge was launched manually with `--remote-debugging-port=9222`, use the existing CDP
+route:
+
+```powershell
+uv run python -m research_x auth cdp `
+  --account my_account `
+  --endpoint-url http://127.0.0.1:9222
 ```
 
 The credential route can also be called directly:
 
 ```powershell
-uv run python -m research_x auth credentials --account zvuvm6 --channel msedge --no-headless
+uv run python -m research_x auth credentials --account my_account --channel msedge --no-headless
 ```
 
 Credentials are read only from env vars by default. CAPTCHA or hard security challenges are
@@ -154,9 +182,9 @@ bookmarks and through profile/search retrieval.
 The current AI labeling result is stored as `ai_labels`. No clustering pipeline is assumed.
 
 ```powershell
-uv run python -m research_x bookmarks --account zvuvm6 --out runs\bookmarks_zvuvm6 --all --db runs\x_data.sqlite3 --classifier-provider gemini --categories examples\bookmark_categories.toml
-uv run python -m research_x tweets --account zvuvm6 --kind profile --value @dogenzaka_pua --limit 100 --out runs\tweets_100 --db runs\x_data.sqlite3
-uv run python -m research_x tweet-stages --account zvuvm6 --kind profile --value @dogenzaka_pua --stage-limits 100,200,300,400 --out runs\tweet_stages
+uv run python -m research_x bookmarks --account my_account --out runs\bookmarks_my_account --all --db runs\x_data.sqlite3 --classifier-provider gemini --categories examples\bookmark_categories.toml
+uv run python -m research_x tweets --account my_account --kind profile --value @target_user --limit 100 --out runs\tweets_100 --db runs\x_data.sqlite3
+uv run python -m research_x tweet-stages --account my_account --kind profile --value @target_user --stage-limits 100,200,300,400 --out runs\tweet_stages
 ```
 
 ## Verified Smoke
@@ -170,7 +198,7 @@ uv run python -m research_x pipeline --config examples\x_pipeline.toml --out run
 Observed result:
 
 ```text
-profile:@dogenzaka_pua: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,crawl4ai,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
+profile:@target_user: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,crawl4ai,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
 ```
 
 Final full-chain provider states:

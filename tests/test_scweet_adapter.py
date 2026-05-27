@@ -9,7 +9,7 @@ def test_scweet_without_cookies_is_not_configured(tmp_path, monkeypatch) -> None
     monkeypatch.delenv("RESEARCH_X_X_CT0", raising=False)
     config = parse_config(
         {
-            "targets": [{"kind": "profile", "value": "@dogenzaka_pua", "limit": 1}],
+            "targets": [{"kind": "profile", "value": "@target_user", "limit": 1}],
             "adapters": [
                 {
                     "id": "scweet",
@@ -41,4 +41,4 @@ def test_scweet_record_normalization() -> None:
     assert item.source_id == "123"
     assert item.author == "example"
     assert item.created_at is not None
-    assert _screen_name("https://x.com/dogenzaka_pua") == "dogenzaka_pua"
+    assert _screen_name("https://x.com/target_user") == "target_user"

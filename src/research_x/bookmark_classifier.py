@@ -83,9 +83,10 @@ class BookmarkClassifierSettings:
     api_key_env: str = "OPENAI_API_KEY"
     batch_size: int = 20
     max_tags: int = 5
-    request_timeout_seconds: float = 60.0
+    request_timeout_seconds: float = 120.0
     provider: str = "openai_responses"
     api_base_url: str | None = None
+    reasoning_effort: str | None = None
 
 
 def default_bookmark_categories() -> tuple[BookmarkCategory, ...]:
@@ -135,6 +136,7 @@ def classify_bookmarks(
         "api_base_url": settings.api_base_url,
         "batch_size": settings.batch_size,
         "category_count": len(categories),
+        "reasoning_effort": settings.reasoning_effort,
     }
     if not item_tuple:
         return BookmarkClassificationRun(
@@ -319,6 +321,7 @@ def _resolve_classifier_settings(
         request_timeout_seconds=settings.request_timeout_seconds,
         provider="openai_compatible",
         api_base_url=settings.api_base_url or str(preset["api_base_url"]),
+        reasoning_effort=settings.reasoning_effort,
     )
 
 
@@ -408,7 +411,7 @@ def _openai_compatible_chat_payload(
         },
         ensure_ascii=False,
     )
-    return {
+    payload = {
         "model": settings.model,
         "temperature": 0,
         "messages": [
@@ -425,6 +428,23 @@ def _openai_compatible_chat_payload(
         ],
         "response_format": {"type": "json_object"},
     }
+    reasoning_effort = _openai_compatible_reasoning_effort(settings)
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
+    return payload
+
+
+def _openai_compatible_reasoning_effort(settings: BookmarkClassifierSettings) -> str | None:
+    if not settings.model.startswith("gemini-"):
+        return None
+    if settings.reasoning_effort is None:
+        return "low"
+    value = settings.reasoning_effort.strip().lower()
+    if value in {"", "default", "none"}:
+        return None
+    if value not in {"minimal", "low", "medium", "high"}:
+        raise ValueError("reasoning_effort must be one of default, minimal, low, medium, high")
+    return value
 
 
 def _classifier_url(settings: BookmarkClassifierSettings) -> str:
@@ -546,7 +566,6 @@ def _classification_schema(categories: tuple[BookmarkCategory, ...]) -> dict[str
             }
         },
     }
-
 
 def _post_json(
     url: str,
@@ -769,7 +788,6 @@ def _truncate(value: str, limit: int) -> str:
     if len(value) <= limit:
         return value
     return value[: limit - 1] + "..."
-
 
 def _normalize_category_id(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9_]+", "_", value.strip().lower())

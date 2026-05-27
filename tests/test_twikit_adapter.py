@@ -10,7 +10,7 @@ def test_twikit_without_credentials_is_not_configured(tmp_path, monkeypatch) -> 
     monkeypatch.delenv("RESEARCH_X_X_PASSWORD", raising=False)
     config = parse_config(
         {
-            "targets": [{"kind": "profile", "value": "@dogenzaka_pua", "limit": 1}],
+            "targets": [{"kind": "profile", "value": "@target_user", "limit": 1}],
             "adapters": [
                 {
                     "id": "twikit",
@@ -28,7 +28,7 @@ def test_twikit_without_credentials_is_not_configured(tmp_path, monkeypatch) -> 
 
 
 def test_target_parsers() -> None:
-    assert _screen_name("@dogenzaka_pua") == "dogenzaka_pua"
-    assert _screen_name("https://x.com/dogenzaka_pua") == "dogenzaka_pua"
+    assert _screen_name("@target_user") == "target_user"
+    assert _screen_name("https://x.com/target_user") == "target_user"
     assert _tweet_id("https://x.com/example/status/12345") == "12345"
     assert _tweet_id("12345") == "12345"
