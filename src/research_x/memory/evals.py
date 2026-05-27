@@ -228,9 +228,10 @@ def _feature_found(feature: str | None, hits: list[dict]) -> bool:
             return True
         if feature == "event_dates" and _term_matches("202", hit):
             return True
-        if feature == "recent" and (hit.get("freshness") in {"active", "recent"}):
+        if feature == "recent" and hit.get("freshness") == "recent":
             return True
-        if feature == "freshness" and hit.get("score_components", {}).get("freshness") is not None:
+        freshness_score = float((hit.get("score_components") or {}).get("freshness") or 0.0)
+        if feature == "freshness" and abs(freshness_score) > 0.0001:
             return True
     return False
 

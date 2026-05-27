@@ -253,10 +253,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_audit_parser = memory_subparsers.add_parser(
         "audit",
-        help="audit memory indexes and warn about non-production fallbacks",
+        help="audit memory indexes and fail in strict mode when production readiness is missing",
     )
     memory_audit_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_audit_parser.add_argument("--json", action="store_true")
+    memory_audit_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return a non-zero exit code when audit warnings are present",
+    )
     memory_embedding_parser = memory_subparsers.add_parser(
         "build-embeddings",
         help="build semantic embedding index over memory_documents",
@@ -295,7 +300,10 @@ def main(argv: list[str] | None = None) -> int:
     memory_relations_parser.add_argument("--json", action="store_true")
     memory_search_parser = memory_subparsers.add_parser(
         "search",
-        help="search memory_documents using local FTS with fallback matching",
+        help=(
+            "search memory_documents with lexical, metadata, relation, "
+            "and optional semantic ranking"
+        ),
     )
     memory_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_search_parser.add_argument("--query", required=True)
@@ -306,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument(
         "--semantic-provider",
         default=None,
+        choices=["auto", "local_hash", "openai", "gemini"],
         help="optional semantic provider: auto, local_hash, openai, or gemini",
     )
     memory_search_parser.add_argument("--semantic-model", default=None)
@@ -328,7 +337,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument("--limit", type=int, default=5)
     memory_evidence_parser.add_argument("--doc-type", default=None)
     memory_evidence_parser.add_argument("--account", default=None)
-    memory_evidence_parser.add_argument("--semantic-provider", default=None)
+    memory_evidence_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=["auto", "local_hash", "openai", "gemini"],
+    )
     memory_evidence_parser.add_argument("--semantic-model", default=None)
     memory_evidence_parser.add_argument("--semantic-dimensions", type=int, default=None)
     memory_evidence_parser.add_argument("--semantic-api-key-env", default=None)
@@ -365,11 +378,16 @@ def main(argv: list[str] | None = None) -> int:
     memory_export_parser.add_argument("--limit", type=int, default=None)
     memory_eval_parser = memory_subparsers.add_parser(
         "eval",
-        help="run smoke evaluation queries against the memory search layer",
+        help="run fixed evaluation queries against the memory search layer",
     )
     memory_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_eval_parser.add_argument("--limit", type=int, default=3)
     memory_eval_parser.add_argument("--json", action="store_true")
+    memory_eval_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return a non-zero exit code when any eval case is not ok",
+    )
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -929,129 +947,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     if args.command == "memory":
-        if args.memory_command == "build-corpus":
-            from research_x.memory.corpus import build_memory_corpus, summary_as_dict
-
-            summary = build_memory_corpus(args.db)
-            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
-            return 0
-        if args.memory_command == "audit":
-            from research_x.memory.audit import (
-                audit_memory_db,
-                audit_report_json,
-                format_audit_report,
-            )
-
-            report = audit_memory_db(args.db)
-            print(audit_report_json(report) if args.json else format_audit_report(report))
-            return 0
-        if args.memory_command == "build-embeddings":
-            from research_x.memory.embeddings import build_memory_embeddings, summary_as_dict
-
-            summary = build_memory_embeddings(
-                args.db,
-                provider=args.provider,
-                model=args.model,
-                dimensions=args.dimensions,
-                api_key_env=args.api_key_env,
-                base_url=args.base_url,
-                batch_size=args.batch_size,
-                limit=args.limit,
-                rebuild=args.rebuild,
-                progress_every=args.progress_every,
-            )
-            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
-            return 0
-        if args.memory_command == "embedding-specs":
-            from research_x.memory.embeddings import available_embedding_specs
-
-            specs = [spec.__dict__ for spec in available_embedding_specs(args.db)]
-            print(json.dumps(specs, ensure_ascii=False, indent=2, sort_keys=True))
-            return 0
-        if args.memory_command == "build-relations":
-            from research_x.memory.relations import build_memory_relations, summary_as_dict
-
-            summary = build_memory_relations(args.db)
-            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
-            return 0
-        if args.memory_command == "relations":
-            from research_x.memory.relations import format_relations, relations_for_doc
-
-            relations = relations_for_doc(args.db, args.doc_id, limit=args.limit)
-            print(format_relations(relations, json_output=args.json))
-            return 0
-        if args.memory_command == "search":
-            from research_x.memory.search import format_search_results, search_memory
-
-            results = search_memory(
-                args.db,
-                args.query,
-                limit=args.limit,
-                doc_type=args.doc_type,
-                account=args.account,
-                semantic_provider=args.semantic_provider,
-                semantic_model=args.semantic_model,
-                semantic_dimensions=args.semantic_dimensions,
-                semantic_api_key_env=args.semantic_api_key_env,
-                semantic_base_url=args.semantic_base_url,
-                semantic_weight=args.semantic_weight,
-                semantic_candidates=args.semantic_candidates,
-            )
-            print(format_search_results(results, json_output=args.json))
-            return 0
-        if args.memory_command == "plan":
-            from research_x.memory.query import build_query_plan, query_plan_json
-
-            print(query_plan_json(build_query_plan(args.query)))
-            return 0
-        if args.memory_command == "evidence":
-            from research_x.memory.evidence import build_evidence_bundle, evidence_bundle_json
-
-            bundle = build_evidence_bundle(
-                args.db,
-                args.query,
-                limit=args.limit,
-                doc_type=args.doc_type,
-                account=args.account,
-                semantic_provider=args.semantic_provider,
-                semantic_model=args.semantic_model,
-                semantic_dimensions=args.semantic_dimensions,
-                semantic_api_key_env=args.semantic_api_key_env,
-                semantic_base_url=args.semantic_base_url,
-                semantic_weight=args.semantic_weight,
-                semantic_candidates=args.semantic_candidates,
-            )
-            print(evidence_bundle_json(bundle))
-            return 0
-        if args.memory_command == "feedback":
-            from research_x.memory.feedback import add_feedback
-
-            feedback_id = add_feedback(
-                args.db,
-                query=args.query,
-                doc_id=args.doc_id,
-                label=args.label,
-                note=args.note,
-            )
-            print(f"feedback: {feedback_id}")
-            return 0
-        if args.memory_command == "export-corpus2skill":
-            from research_x.memory.corpus import export_corpus2skill_jsonl
-
-            count = export_corpus2skill_jsonl(args.db, args.out, limit=args.limit)
-            print(f"corpus2skill-export: rows={count} out={args.out}")
-            return 0
-        if args.memory_command == "eval":
-            from research_x.memory.evals import (
-                eval_results_json,
-                format_eval_results,
-                run_memory_eval,
-            )
-
-            results = run_memory_eval(args.db, limit=args.limit)
-            print(eval_results_json(results) if args.json else format_eval_results(results))
-            return 0
-        raise AssertionError(f"unhandled memory command {args.memory_command}")
+        try:
+            return _handle_memory_command(args)
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
     if args.command == "accounts":
         if args.accounts_command == "add":
             profile = write_account_profile(
@@ -1314,6 +1214,132 @@ def main(argv: list[str] | None = None) -> int:
             )
         return 0
     raise AssertionError(f"unhandled command {args.command}")
+
+
+def _handle_memory_command(args: argparse.Namespace) -> int:
+    if args.memory_command == "build-corpus":
+        from research_x.memory.corpus import build_memory_corpus, summary_as_dict
+
+        summary = build_memory_corpus(args.db)
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "audit":
+        from research_x.memory.audit import (
+            audit_memory_db,
+            audit_report_json,
+            format_audit_report,
+        )
+
+        report = audit_memory_db(args.db)
+        print(audit_report_json(report) if args.json else format_audit_report(report))
+        return 2 if args.strict and report.warnings else 0
+    if args.memory_command == "build-embeddings":
+        from research_x.memory.embeddings import build_memory_embeddings, summary_as_dict
+
+        summary = build_memory_embeddings(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            batch_size=args.batch_size,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            progress_every=args.progress_every,
+        )
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "embedding-specs":
+        from research_x.memory.embeddings import available_embedding_specs
+
+        specs = [spec.__dict__ for spec in available_embedding_specs(args.db)]
+        print(json.dumps(specs, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if args.memory_command == "build-relations":
+        from research_x.memory.relations import build_memory_relations, summary_as_dict
+
+        summary = build_memory_relations(args.db)
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "relations":
+        from research_x.memory.relations import format_relations, relations_for_doc
+
+        relations = relations_for_doc(args.db, args.doc_id, limit=args.limit)
+        print(format_relations(relations, json_output=args.json))
+        return 0
+    if args.memory_command == "search":
+        from research_x.memory.search import format_search_results, search_memory
+
+        results = search_memory(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+        )
+        print(format_search_results(results, json_output=args.json))
+        return 0
+    if args.memory_command == "plan":
+        from research_x.memory.query import build_query_plan, query_plan_json
+
+        print(query_plan_json(build_query_plan(args.query)))
+        return 0
+    if args.memory_command == "evidence":
+        from research_x.memory.evidence import build_evidence_bundle, evidence_bundle_json
+
+        bundle = build_evidence_bundle(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+        )
+        print(evidence_bundle_json(bundle))
+        return 0
+    if args.memory_command == "feedback":
+        from research_x.memory.feedback import add_feedback
+
+        feedback_id = add_feedback(
+            args.db,
+            query=args.query,
+            doc_id=args.doc_id,
+            label=args.label,
+            note=args.note,
+        )
+        print(f"feedback: {feedback_id}")
+        return 0
+    if args.memory_command == "export-corpus2skill":
+        from research_x.memory.corpus import export_corpus2skill_jsonl
+
+        count = export_corpus2skill_jsonl(args.db, args.out, limit=args.limit)
+        print(f"corpus2skill-export: rows={count} out={args.out}")
+        return 0
+    if args.memory_command == "eval":
+        from research_x.memory.evals import (
+            eval_results_json,
+            format_eval_results,
+            run_memory_eval,
+        )
+
+        results = run_memory_eval(args.db, limit=args.limit)
+        print(eval_results_json(results) if args.json else format_eval_results(results))
+        return 2 if args.strict and any(not result.ok for result in results) else 0
+    raise AssertionError(f"unhandled memory command {args.memory_command}")
 
 
 def _configure_stdio() -> None:

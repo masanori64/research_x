@@ -131,6 +131,59 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
     assert any(result.score_components["semantic"] > 0 for result in results)
 
 
+def test_memory_semantic_auto_rejects_diagnostic_only_index(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    try:
+        search_memory(
+            db_path,
+            "robot paper",
+            limit=3,
+            semantic_provider="auto",
+            semantic_dimensions=64,
+        )
+    except RuntimeError as exc:
+        assert "diagnostic local_hash" in str(exc)
+    else:
+        raise AssertionError("semantic auto should not silently use local_hash embeddings")
+
+
+def test_memory_semantic_explicit_provider_requires_existing_index(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    try:
+        search_memory(db_path, "robot paper", limit=3, semantic_provider="local_hash")
+    except RuntimeError as exc:
+        assert "embedding index not found" in str(exc)
+    else:
+        raise AssertionError("explicit semantic provider should require a matching index")
+
+
+def test_memory_semantic_provider_requires_complete_scope_index(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64, limit=1)
+
+    try:
+        search_memory(
+            db_path,
+            "robot paper",
+            limit=3,
+            semantic_provider="local_hash",
+            semantic_dimensions=64,
+        )
+    except RuntimeError as exc:
+        assert "semantic index is incomplete" in str(exc)
+    else:
+        raise AssertionError("semantic search should not continue with a partial index")
+
+
 def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
@@ -144,6 +197,123 @@ def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
     assert report.relation_covered_documents == 5
     assert not report.isolated_documents_by_type
     assert any("only local_hash embeddings" in warning for warning in report.warnings)
+
+
+def test_memory_commands_do_not_implicitly_rebuild_corpus(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+
+    for action in (
+        lambda: search_memory(db_path, "ロボット"),
+        lambda: build_memory_embeddings(db_path, provider="local_hash", dimensions=64),
+        lambda: build_memory_relations(db_path),
+    ):
+        try:
+            action()
+        except RuntimeError as exc:
+            assert "memory_documents is empty" in str(exc)
+        else:
+            raise AssertionError("memory command should require explicit build-corpus first")
+
+
+def test_memory_corpus_rebuild_clears_stale_indexes(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO memory_embeddings (
+                doc_id, provider, model, dimensions, embedding,
+                embedded_text_hash, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "missing-doc",
+                "local_hash",
+                "local-hash-v1",
+                64,
+                embeddings.pack_embedding([0.0] * 64),
+                "stale",
+                "2026-05-26T00:00:00+00:00",
+                "2026-05-26T00:00:00+00:00",
+            ),
+        )
+
+    build_memory_corpus(db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        relation_count = conn.execute("SELECT COUNT(*) FROM memory_relations").fetchone()[0]
+        stale_embedding_count = conn.execute(
+            "SELECT COUNT(*) FROM memory_embeddings WHERE doc_id = 'missing-doc'"
+        ).fetchone()[0]
+    assert relation_count == 0
+    assert stale_embedding_count == 0
+
+
+def test_memory_audit_reports_orphans_and_invalid_json(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO memory_relations (
+                relation_id, source_doc_id, target_doc_id, relation_type,
+                strength, status, evidence_json, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "stale-relation",
+                "tweet:tweet-1",
+                "missing-doc",
+                "stale",
+                0.1,
+                "candidate",
+                "{bad",
+                "2026-05-26T00:00:00+00:00",
+                "2026-05-26T00:00:00+00:00",
+            ),
+        )
+        conn.execute(
+            """
+            UPDATE memory_documents
+            SET metadata_json = '{bad'
+            WHERE doc_id = 'tweet:tweet-1'
+            """
+        )
+
+    report = audit_memory_db(db_path)
+
+    assert report.orphaned_relations == 1
+    assert report.invalid_json_by_field["memory_documents.metadata_json"] == 1
+    assert report.invalid_json_by_field["memory_relations.evidence_json"] == 1
+    assert any("invalid JSON" in warning for warning in report.warnings)
+
+
+def test_embedding_build_rejects_wrong_vector_dimensions(tmp_path: Path, monkeypatch) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    class WrongSizeEmbedder:
+        def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+            return [[0.1, 0.2, 0.3] for _ in texts]
+
+    monkeypatch.setattr(embeddings, "_embedder", lambda spec: WrongSizeEmbedder())
+
+    try:
+        build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    except RuntimeError as exc:
+        assert "expected 64" in str(exc)
+    else:
+        raise AssertionError("embedding build should reject provider dimension mismatches")
 
 
 def test_embedding_auto_requires_production_api_key(monkeypatch) -> None:
@@ -206,7 +376,7 @@ def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     assert "Represent this search query" in request["content"]["parts"][0]["text"]
 
 
-def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
+def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
 
@@ -224,6 +394,7 @@ def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
         ]
     ) == 0
     assert main(["memory", "audit", "--db", str(db_path)]) == 0
+    assert main(["memory", "audit", "--db", str(db_path), "--strict"]) == 2
     assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
     assert main(["memory", "build-relations", "--db", str(db_path)]) == 0
     assert main(
@@ -258,6 +429,33 @@ def test_memory_cli_smoke(tmp_path: Path, capsys) -> None:
     output = capsys.readouterr().out
     assert "tweet-1" in output
     assert "hits" in output
+
+
+def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, capsys) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    assert (
+        main(
+            [
+                "memory",
+                "search",
+                "--db",
+                str(db_path),
+                "--query",
+                "robot paper",
+                "--semantic-provider",
+                "auto",
+            ]
+        )
+        == 1
+    )
+
+    captured = capsys.readouterr()
+    assert "diagnostic local_hash" in captured.err
+    assert "Traceback" not in captured.err
 
 
 def _seed_db(db_path: Path) -> None:

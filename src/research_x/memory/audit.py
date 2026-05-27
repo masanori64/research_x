@@ -15,9 +15,12 @@ class MemoryAuditReport:
     documents: int
     fts_rows: int
     relations: int
+    orphaned_relations: int
     relation_covered_documents: int
     isolated_documents_by_type: dict[str, int]
     embedding_specs: tuple[dict[str, Any], ...]
+    orphaned_feedback: int
+    invalid_json_by_field: dict[str, int]
     warnings: tuple[str, ...]
 
 
@@ -31,25 +34,34 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         documents = _count(conn, "memory_documents")
         fts_rows = _count(conn, "memory_document_fts")
         relations = _count(conn, "memory_relations")
+        orphaned_relations = _orphaned_relations(conn)
         relation_covered = _relation_covered_documents(conn)
         isolated = _isolated_documents_by_type(conn)
         specs = _embedding_specs(conn)
+        orphaned_feedback = _orphaned_feedback(conn)
+        invalid_json = _invalid_json_counts(conn)
     warnings = _warnings(
         documents=documents,
         fts_rows=fts_rows,
         relations=relations,
+        orphaned_relations=orphaned_relations,
         relation_covered=relation_covered,
         isolated=isolated,
         specs=specs,
+        orphaned_feedback=orphaned_feedback,
+        invalid_json=invalid_json,
     )
     return MemoryAuditReport(
         db_path=str(path),
         documents=documents,
         fts_rows=fts_rows,
         relations=relations,
+        orphaned_relations=orphaned_relations,
         relation_covered_documents=relation_covered,
         isolated_documents_by_type=isolated,
         embedding_specs=tuple(specs),
+        orphaned_feedback=orphaned_feedback,
+        invalid_json_by_field=invalid_json,
         warnings=tuple(warnings),
     )
 
@@ -64,24 +76,26 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"documents: {report.documents}",
         f"fts rows: {report.fts_rows}",
         f"relations: {report.relations}",
+        f"orphaned relations: {report.orphaned_relations}",
         f"relation-covered documents: {report.relation_covered_documents}",
         f"isolated documents by type: {report.isolated_documents_by_type or {}}",
+        f"orphaned feedback: {report.orphaned_feedback}",
+        f"invalid JSON by field: {report.invalid_json_by_field or {}}",
         "embedding specs:",
     ]
     if report.embedding_specs:
         for spec in report.embedding_specs:
-            lines.append(
-                "  "
-                + " ".join(
-                    [
-                        f"{spec['provider']}/{spec['model']}",
-                        f"dims={spec['dimensions']}",
-                        f"rows={spec['rows']}",
-                    ]
-                )
-            )
+            parts = [
+                f"{spec['provider']}/{spec['model']}",
+                f"dims={spec['dimensions']}",
+                f"rows={spec['rows']}",
+            ]
+            if spec.get("orphaned_rows"):
+                parts.append(f"orphaned={spec['orphaned_rows']}")
+            lines.append("  " + " ".join(parts))
     else:
         lines.append("  none")
+    lines.append(f"production-ready: {'no' if report.warnings else 'yes'}")
     if report.warnings:
         lines.append("warnings:")
         lines.extend(f"  - {warning}" for warning in report.warnings)
@@ -91,10 +105,7 @@ def format_audit_report(report: MemoryAuditReport) -> str:
 
 
 def _count(conn: sqlite3.Connection, table: str) -> int:
-    try:
-        return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-    except sqlite3.OperationalError:
-        return 0
+    return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
 
 
 def _relation_covered_documents(conn: sqlite3.Connection) -> int:
@@ -130,12 +141,45 @@ def _isolated_documents_by_type(conn: sqlite3.Connection) -> dict[str, int]:
     return {row["doc_type"]: int(row["count"]) for row in rows}
 
 
+def _orphaned_relations(conn: sqlite3.Connection) -> int:
+    return int(
+        conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_relations r
+            LEFT JOIN memory_documents s ON s.doc_id = r.source_doc_id
+            LEFT JOIN memory_documents t ON t.doc_id = r.target_doc_id
+            WHERE s.doc_id IS NULL OR t.doc_id IS NULL
+            """
+        ).fetchone()[0]
+    )
+
+
+def _orphaned_feedback(conn: sqlite3.Connection) -> int:
+    return int(
+        conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_feedback f
+            LEFT JOIN memory_documents d ON d.doc_id = f.doc_id
+            WHERE d.doc_id IS NULL
+            """
+        ).fetchone()[0]
+    )
+
+
 def _embedding_specs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute(
         """
-        SELECT provider, model, dimensions, COUNT(*) AS rows
-        FROM memory_embeddings
-        GROUP BY provider, model, dimensions
+        SELECT
+            e.provider,
+            e.model,
+            e.dimensions,
+            COUNT(*) AS rows,
+            SUM(CASE WHEN d.doc_id IS NULL THEN 1 ELSE 0 END) AS orphaned_rows
+        FROM memory_embeddings e
+        LEFT JOIN memory_documents d ON d.doc_id = e.doc_id
+        GROUP BY e.provider, e.model, e.dimensions
         ORDER BY rows DESC, provider, model, dimensions
         """
     ).fetchall()
@@ -145,9 +189,52 @@ def _embedding_specs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "model": row["model"],
             "dimensions": int(row["dimensions"]),
             "rows": int(row["rows"]),
+            "orphaned_rows": int(row["orphaned_rows"] or 0),
         }
         for row in rows
     ]
+
+
+def _invalid_json_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    field_specs = [
+        ("memory_documents", "metadata_json"),
+        ("memory_relations", "evidence_json"),
+    ]
+    if _table_exists(conn, "ai_labels"):
+        field_specs.append(("ai_labels", "tags_json"))
+    invalid: dict[str, int] = {}
+    for table, column in field_specs:
+        count = 0
+        rows = conn.execute(
+            f"""
+            SELECT {column}
+            FROM {table}
+            WHERE {column} IS NOT NULL
+              AND TRIM({column}) != ''
+            """
+        ).fetchall()
+        for row in rows:
+            try:
+                json.loads(row[column])
+            except (TypeError, json.JSONDecodeError):
+                count += 1
+        if count:
+            invalid[f"{table}.{column}"] = count
+    return invalid
+
+
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type IN ('table', 'view')
+          AND name = ?
+        LIMIT 1
+        """,
+        (table,),
+    ).fetchone()
+    return bool(row)
 
 
 def _warnings(
@@ -155,9 +242,12 @@ def _warnings(
     documents: int,
     fts_rows: int,
     relations: int,
+    orphaned_relations: int,
     relation_covered: int,
     isolated: dict[str, int],
     specs: list[dict[str, Any]],
+    orphaned_feedback: int,
+    invalid_json: dict[str, int],
 ) -> list[str]:
     warnings: list[str] = []
     if documents == 0:
@@ -166,10 +256,22 @@ def _warnings(
         warnings.append(f"FTS row count differs from documents: fts={fts_rows} docs={documents}")
     if relations == 0 and documents:
         warnings.append("memory_relations is empty; run memory build-relations")
+    if orphaned_relations:
+        warnings.append(
+            f"{orphaned_relations} relation edges point to missing documents; "
+            "run memory build-relations"
+        )
     if relation_covered < documents:
         warnings.append(
             f"{documents - relation_covered} documents have no relation edge: {isolated}"
         )
+    if orphaned_feedback:
+        warnings.append(
+            f"{orphaned_feedback} feedback rows point to missing documents; "
+            "review or rebuild memory feedback"
+        )
+    if invalid_json:
+        warnings.append(f"invalid JSON detected: {invalid_json}")
     if not specs and documents:
         warnings.append("no embeddings found; run memory build-embeddings with openai or gemini")
     production_specs = [spec for spec in specs if spec["provider"] in {"openai", "gemini"}]
@@ -183,5 +285,10 @@ def _warnings(
             warnings.append(
                 f"embedding index incomplete for {spec['provider']}/{spec['model']}: "
                 f"{spec['rows']}/{documents}"
+            )
+        if int(spec.get("orphaned_rows") or 0):
+            warnings.append(
+                f"embedding index has stale rows for {spec['provider']}/{spec['model']}: "
+                f"orphaned={spec['orphaned_rows']}"
             )
     return warnings

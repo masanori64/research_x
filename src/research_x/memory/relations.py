@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
 
@@ -40,7 +39,7 @@ def build_memory_relations(db_path: str | Path) -> RelationBuildSummary:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
         if memory_document_count(conn) == 0:
-            build_memory_corpus(path)
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
         relations: dict[str, MemoryRelation] = {}
         _bookmark_of_tweet_relations(conn, relations)
         _media_relations(conn, relations)

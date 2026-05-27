@@ -91,7 +91,4 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
 
 
 def memory_document_count(conn: sqlite3.Connection) -> int:
-    try:
-        return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])
-    except sqlite3.OperationalError:
-        return 0
+    return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])

@@ -344,12 +344,16 @@ Do this in stages:
 7. local hybrid ranking from FTS/substring/metadata/feedback/freshness signals,
 8. embedding index and semantic reranking,
 9. relation edges for bookmarks, media, quotes, duplicate bookmarks, and stale candidates,
-10. audit checks for missing indexes and diagnostic-only fallbacks,
+10. strict audit checks for missing/stale indexes and diagnostic-only embeddings,
 11. Corpus2Skill export/navigation,
 12. richer freshness/obsolete edges.
 
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
+
+Operational rule: build the memory corpus explicitly before searching or indexing. Search,
+relations, and embeddings should not silently rebuild empty memory tables, because that hides stale
+or missing index state from audits.
 
 ## Project Layout
 

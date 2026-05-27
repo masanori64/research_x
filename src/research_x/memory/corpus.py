@@ -44,11 +44,18 @@ def build_memory_corpus(db_path: str | Path) -> CorpusBuildSummary:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
         documents = _load_documents(conn)
+        conn.execute("DELETE FROM memory_relations")
         conn.execute("DELETE FROM memory_document_fts")
         conn.execute("DELETE FROM memory_documents")
         for document in documents:
             _insert_document(conn, document)
             _insert_fts(conn, document)
+        conn.execute(
+            """
+            DELETE FROM memory_embeddings
+            WHERE doc_id NOT IN (SELECT doc_id FROM memory_documents)
+            """
+        )
         counts = _counts(documents)
     return CorpusBuildSummary(db_path=str(path), documents=len(documents), **counts)
 

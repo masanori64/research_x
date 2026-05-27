@@ -18,7 +18,6 @@ from typing import Any
 
 import numpy as np
 
-from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
 LOCAL_HASH_PROVIDER = "local_hash"
@@ -27,6 +26,7 @@ OPENAI_PROVIDER = "openai"
 OPENAI_DEFAULT_MODEL = "text-embedding-3-small"
 GEMINI_PROVIDER = "gemini"
 GEMINI_DEFAULT_MODEL = "gemini-embedding-2"
+PRODUCTION_PROVIDERS = (GEMINI_PROVIDER, OPENAI_PROVIDER)
 
 DEFAULT_DIMENSIONS = {
     LOCAL_HASH_PROVIDER: 512,
@@ -138,7 +138,7 @@ def build_memory_embeddings(
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
         if memory_document_count(conn) == 0:
-            build_memory_corpus(path)
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
         rows = _embedding_source_rows(
             conn,
             spec=spec,
@@ -216,6 +216,13 @@ def semantic_search_memory(
         )
         query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
         rows = _embedding_rows(conn, spec=spec, doc_type=doc_type, account=account)
+        expected_rows = _embedding_document_count(conn, doc_type=doc_type, account=account)
+        if expected_rows and len(rows) < expected_rows:
+            raise RuntimeError(
+                "semantic index is incomplete for the requested scope: "
+                f"{len(rows)}/{expected_rows} documents indexed for "
+                f"{spec.provider}/{spec.model} dims={spec.dimensions}"
+            )
     hits = _semantic_hits_from_rows(rows, query_vector=query_vector)
     hits.sort(key=lambda hit: hit.similarity, reverse=True)
     return tuple(hits[: max(1, limit)])
@@ -248,6 +255,12 @@ def semantic_scores_for_doc_ids(
         )
         query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
         rows = _embedding_rows_for_doc_ids(conn, spec=spec, doc_ids=doc_ids)
+        if len(rows) < len(set(doc_ids)):
+            raise RuntimeError(
+                "semantic index is incomplete for the candidate set: "
+                f"{len(rows)}/{len(set(doc_ids))} documents indexed for "
+                f"{spec.provider}/{spec.model} dims={spec.dimensions}"
+            )
     return {
         row["doc_id"]: SemanticScore(
             doc_id=row["doc_id"],
@@ -483,6 +496,25 @@ def _embedding_rows(
     ).fetchall()
 
 
+def _embedding_document_count(
+    conn: sqlite3.Connection,
+    *,
+    doc_type: str | None,
+    account: str | None,
+) -> int:
+    filters, params = [], []
+    if doc_type:
+        filters.append("doc_type = ?")
+        params.append(doc_type)
+    if account:
+        filters.append("account_id = ?")
+        params.append(account)
+    where = f"WHERE {' AND '.join(filters)}" if filters else ""
+    return int(
+        conn.execute(f"SELECT COUNT(*) FROM memory_documents {where}", params).fetchone()[0]
+    )
+
+
 def _embedding_rows_for_doc_ids(
     conn: sqlite3.Connection,
     *,
@@ -540,34 +572,85 @@ def _resolve_available_spec(
     api_key_env: str | None,
     base_url: str | None,
 ) -> EmbeddingSpec:
-    if provider:
-        return resolve_embedding_spec(
+    resolved_provider = provider.strip().lower() if provider else None
+    if resolved_provider == "auto":
+        resolved_provider = None
+    if resolved_provider:
+        spec = resolve_embedding_spec(
             provider=provider,
             model=model,
             dimensions=dimensions,
             api_key_env=api_key_env,
             base_url=base_url,
         )
+        rows = _embedding_index_count(conn, spec)
+        if rows == 0:
+            raise RuntimeError(
+                "embedding index not found for "
+                f"{spec.provider}/{spec.model} dims={spec.dimensions}; "
+                "run `research_x memory build-embeddings` for this provider first"
+            )
+        return spec
+    filters = [
+        f"provider IN ({','.join('?' for _ in PRODUCTION_PROVIDERS)})",
+    ]
+    params: list[Any] = list(PRODUCTION_PROVIDERS)
+    if model:
+        filters.append("model = ?")
+        params.append(model)
+    if dimensions:
+        filters.append("dimensions = ?")
+        params.append(dimensions)
     row = conn.execute(
-        """
+        f"""
         SELECT provider, model, dimensions
         FROM memory_embeddings
+        WHERE {' AND '.join(filters)}
         GROUP BY provider, model, dimensions
         ORDER BY MAX(updated_at) DESC, provider, model, dimensions
         LIMIT 1
+        """,
+        params,
+    ).fetchone()
+    if row:
+        return resolve_embedding_spec(
+            provider=row["provider"],
+            model=row["model"],
+            dimensions=int(row["dimensions"]),
+            api_key_env=api_key_env,
+            base_url=base_url,
+        )
+    local_hash_rows = conn.execute(
+        "SELECT COUNT(*) FROM memory_embeddings WHERE provider = ?",
+        (LOCAL_HASH_PROVIDER,),
+    ).fetchone()[0]
+    if local_hash_rows:
+        raise RuntimeError(
+            "only diagnostic local_hash embeddings are available. "
+            "Build a production embedding index with OpenAI or Gemini, "
+            "or explicitly pass --semantic-provider local_hash for diagnostic searches."
+        )
+    raise RuntimeError(
+        "no production memory embeddings found; run "
+        "`research_x memory build-embeddings --provider gemini` or "
+        "`research_x memory build-embeddings --provider openai` first"
+    )
+
+
+def _embedding_index_count(conn: sqlite3.Connection, spec: EmbeddingSpec) -> int:
+    row = conn.execute(
         """
+        SELECT COUNT(*)
+        FROM memory_embeddings
+        WHERE provider = ?
+          AND model = ?
+          AND dimensions = ?
+        """,
+        (spec.provider, spec.model, spec.dimensions),
     ).fetchone()
     if not row:
-        raise RuntimeError(
-            "no memory embeddings found; run `research_x memory build-embeddings` first"
-        )
-    return resolve_embedding_spec(
-        provider=row["provider"],
-        model=row["model"],
-        dimensions=int(row["dimensions"]),
-        api_key_env=api_key_env,
-        base_url=base_url,
-    )
+        return 0
+    return int(row[0])
 
 
 def _upsert_embedding(
@@ -579,6 +662,11 @@ def _upsert_embedding(
     text_hash: str,
     now: str,
 ) -> None:
+    if len(vector) != spec.dimensions:
+        raise RuntimeError(
+            f"embedding provider returned {len(vector)} dimensions for "
+            f"{spec.provider}/{spec.model}, expected {spec.dimensions}"
+        )
     conn.execute(
         """
         INSERT INTO memory_embeddings (

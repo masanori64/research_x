@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.embeddings import (
     SemanticHit,
     SemanticScore,
@@ -42,7 +41,6 @@ def search_memory(
     limit: int = 10,
     doc_type: str | None = None,
     account: str | None = None,
-    rebuild_if_empty: bool = True,
     semantic_provider: str | None = None,
     semantic_model: str | None = None,
     semantic_dimensions: int | None = None,
@@ -62,8 +60,8 @@ def search_memory(
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
-        if rebuild_if_empty and memory_document_count(conn) == 0:
-            build_memory_corpus(path)
+        if memory_document_count(conn) == 0:
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
 
         raw_rows: list[dict[str, Any]] = []
         raw_rows.extend(
@@ -434,7 +432,9 @@ def _result_from_candidate(
             "similarity": semantic_hit.similarity,
             "weight": semantic_weight,
         }
-    if plan.excludes_old and components["freshness"] < 0:
+    if components["freshness"] > 0 and plan.prefers_recent:
+        metadata["freshness"] = "recent"
+    elif plan.excludes_old and components["freshness"] < 0:
         metadata["freshness"] = "possibly_stale"
     else:
         metadata.setdefault("freshness", "active")

@@ -238,7 +238,7 @@ The first eval set should include:
 - 複数アカウントで重複して保存しているテーマを出して
 - DB 全体で最近増えている関心領域を出して
 
-Milestone 1 evaluation can be smoke-level:
+Milestone 1 evaluation started as a structural validity check:
 
 - command exits successfully,
 - returns JSON,
@@ -264,7 +264,7 @@ Milestone 1 evaluation can be smoke-level:
 - [x] Add evidence command
 - [x] Add feedback command
 - [x] Add Corpus2Skill JSONL export command
-- [x] Add eval smoke command
+- [x] Add initial eval command
 - [x] Add tests with an in-memory/temp SQLite DB fixture
 - [x] Run `uv run ruff check src\research_x tests`
 - [x] Run `uv run pytest`
@@ -275,7 +275,7 @@ Milestone 1 was verified against `runs/x_data.sqlite3`:
 memory build-corpus -> 54,886 memory documents
 memory search "カフェ" -> ranked local results
 memory evidence "強化学習 ロボット" -> compact evidence JSON
-memory eval --limit 1 -> 10/10 smoke queries returned structurally valid hits
+memory eval --limit 1 -> 10/10 initial queries returned structurally valid hits
 ```
 
 Important caveat: the eval pass is structural, not semantic relevance proof. The next milestone
@@ -303,7 +303,8 @@ Implementation goals:
       account signals, and feedback.
 - [x] Include `query_plan`, `matched_terms`, and `score_components` in evidence bundles so an AI
       caller can judge whether a result should be trusted.
-- [x] Make eval stricter than smoke tests: return `ok`, `needs_review`, or `fail` with notes instead
+- [x] Make eval stricter than structural checks: return `ok`, `needs_review`, or `fail`
+      with notes instead
       of pretending every structurally valid hit is semantically correct.
 
 Remaining after this milestone:
@@ -324,7 +325,8 @@ Required commands:
 uv run python -m research_x memory build-embeddings --db runs/x_data.sqlite3 --provider gemini --dimensions 768 --batch-size 100
 uv run python -m research_x memory build-embeddings --db runs/x_data.sqlite3 --provider local_hash --dimensions 256 --batch-size 512  # explicit diagnostic mode
 uv run python -m research_x memory embedding-specs --db runs/x_data.sqlite3
-uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "曖昧に覚えているロボットと学習の資料" --limit 5 --semantic-provider local_hash --semantic-dimensions 256
+uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "曖昧に覚えているロボットと学習の資料" --limit 5 --semantic-provider auto
+uv run python -m research_x memory search --db runs/x_data.sqlite3 --query "診断用に配線だけ確認" --limit 5 --semantic-provider local_hash --semantic-dimensions 256
 ```
 
 Implementation goals:
@@ -343,7 +345,8 @@ Implementation goals:
 Current limitation:
 
 - `local_hash` is a deterministic no-cost diagnostic mode, not a real semantic model. Production
-  semantic quality requires an OpenAI or Gemini embedding index.
+  semantic quality requires an OpenAI or Gemini embedding index. `--semantic-provider auto` must
+  select a production index; it must not silently use `local_hash`.
 
 ## Fourth Milestone
 
@@ -396,15 +399,27 @@ Required commands:
 ```powershell
 uv run python -m research_x memory audit --db runs/x_data.sqlite3
 uv run python -m research_x memory audit --db runs/x_data.sqlite3 --json
+uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
 ```
 
 Implementation goals:
 
 - [x] Add `memory audit` to report document count, FTS coverage, relation coverage, embedding
-      coverage, and warnings.
+      coverage, orphaned relation/embedding rows, and warnings.
 - [x] Confirm relation count can be lower than document count because relations are edges, while
       relation-covered documents should match the document count.
 - [x] Stop silently using `local_hash` when `build-embeddings` is run without a provider. `auto`
       now requires `GEMINI_API_KEY` or `OPENAI_API_KEY`; `local_hash` must be explicit.
+- [x] Stop silently using `local_hash` when semantic search is run with `--semantic-provider auto`.
+      Auto search now requires a production OpenAI/Gemini embedding index; diagnostic search must
+      explicitly choose `local_hash`.
+- [x] Stop semantic search from continuing when the requested scope has only partial embeddings.
 - [x] Require NumPy for vector scan performance.
+- [x] Validate provider vector dimensionality at embedding-build time.
 - [x] Stop hiding FTS failures as empty result sets.
+- [x] Clear stale relation edges and orphaned embedding rows when rebuilding `memory_documents`.
+- [x] Stop search/relations/embedding commands from silently rebuilding an empty corpus. Run
+      `memory build-corpus` explicitly before downstream indexes.
+- [x] Add `memory audit --strict` so production-readiness warnings can fail automation instead of
+      being ignored.
+- [x] Add `memory eval --strict` so weak retrieval behavior can fail automation.
