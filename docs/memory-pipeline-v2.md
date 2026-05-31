@@ -237,6 +237,8 @@ Implementation impact:
   X rows and derived documents unchanged.
 - Future `supports` / `contradicts` edges should be added by a reviewed extraction or judge step,
   not inferred solely from date ordering.
+- `memory build-corpus` preserves non-builder relations that still point to existing documents,
+  instead of wiping future manual or AI-generated support/contradiction edges.
 
 ### 2026-06-01: Corpus2Skill Boundary Stays Explicit
 

@@ -115,6 +115,8 @@ Implemented behavior:
   newer/older neighbors, and obsolete candidates;
 - relation rebuilds preserve non-builder relation types such as future `supports` and
   `contradicts` edges;
+- corpus rebuilds delete rebuildable builder relations and orphaned edges, but preserve manual or
+  future AI-generated relation types that still point to existing documents;
 - external URL-discovery provider contract with no-network fake provider and optional Serper
   provider;
 - normalized external discovery run/item storage in the SQLite DB;

@@ -360,6 +360,43 @@ def test_memory_corpus_rebuild_clears_stale_indexes(tmp_path: Path) -> None:
     assert stale_embedding_count == 0
 
 
+def test_memory_corpus_rebuild_preserves_manual_relations(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO memory_relations (
+                relation_id, source_doc_id, target_doc_id, relation_type,
+                strength, status, evidence_json, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "manual-support-edge",
+                "bookmark:acct:tweet-1",
+                "tweet:tweet-1",
+                "supports",
+                0.8,
+                "manual",
+                "{}",
+                "2026-05-26T00:00:00+00:00",
+                "2026-05-26T00:00:00+00:00",
+            ),
+        )
+
+    build_memory_corpus(db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        manual_count = conn.execute(
+            "SELECT COUNT(*) FROM memory_relations WHERE relation_id = ?",
+            ("manual-support-edge",),
+        ).fetchone()[0]
+
+    assert manual_count == 1
+
+
 def test_memory_audit_reports_orphans_and_invalid_json(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)

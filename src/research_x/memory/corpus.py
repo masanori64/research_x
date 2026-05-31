@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.relations import BUILDER_RELATION_TYPES
 from research_x.memory.schema import ensure_memory_schema
 
 
@@ -55,12 +56,13 @@ def build_memory_corpus(db_path: str | Path) -> CorpusBuildSummary:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
         documents = _load_documents(conn)
-        conn.execute("DELETE FROM memory_relations")
+        _delete_rebuildable_relations(conn)
         conn.execute("DELETE FROM memory_document_fts")
         conn.execute("DELETE FROM memory_documents")
         for document in documents:
             _insert_document(conn, document)
             _insert_fts(conn, document)
+        _delete_orphaned_relations(conn)
         conn.execute(
             """
             DELETE FROM memory_embeddings
@@ -155,6 +157,24 @@ def _load_documents(conn: sqlite3.Connection) -> tuple[MemoryDocument, ...]:
     documents.extend(_quote_tree_documents(conn))
     documents.extend(_media_documents(conn))
     return tuple(documents)
+
+
+def _delete_rebuildable_relations(conn: sqlite3.Connection) -> None:
+    placeholders = ",".join("?" for _ in BUILDER_RELATION_TYPES)
+    conn.execute(
+        f"DELETE FROM memory_relations WHERE relation_type IN ({placeholders})",
+        BUILDER_RELATION_TYPES,
+    )
+
+
+def _delete_orphaned_relations(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        DELETE FROM memory_relations
+        WHERE source_doc_id NOT IN (SELECT doc_id FROM memory_documents)
+           OR target_doc_id NOT IN (SELECT doc_id FROM memory_documents)
+        """
+    )
 
 
 def _corpus2skill_rows(conn: sqlite3.Connection, *, limit: int | None) -> list[sqlite3.Row]:
