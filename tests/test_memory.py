@@ -7,7 +7,11 @@ from research_x.memory import embeddings
 from research_x.memory.answer import build_memory_answer
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import build_context_bundle
-from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
+from research_x.memory.corpus import (
+    build_memory_corpus,
+    export_corpus2skill_bundle,
+    export_corpus2skill_jsonl,
+)
 from research_x.memory.derived import build_derived_documents
 from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evals import load_eval_cases, run_memory_eval
@@ -106,12 +110,23 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
         note="good result",
     )
     exported = export_corpus2skill_jsonl(db_path, out_path)
+    bundle = export_corpus2skill_bundle(db_path, tmp_path / "c2s_bundle")
 
     assert feedback_id
     assert exported == 5
     rows = [json.loads(line) for line in out_path.read_text(encoding="utf-8").splitlines()]
     assert rows[0]["id"]
     assert rows[0]["contents"]
+    assert rows[0]["metadata"]["doc_type"]
+    bundle_rows = [
+        json.loads(line)
+        for line in Path(bundle.corpus_path).read_text(encoding="utf-8").splitlines()
+    ]
+    manifest = json.loads(Path(bundle.manifest_path).read_text(encoding="utf-8"))
+    assert bundle.documents == 5
+    assert bundle_rows[0]["metadata"]["research_x_metadata"]
+    assert manifest["format"] == "corpus2skill-jsonl-bundle-v1"
+    assert manifest["compile_hint"][:3] == ["uv", "run", "python"]
 
     with sqlite3.connect(db_path) as conn:
         count = conn.execute("SELECT COUNT(*) FROM memory_feedback").fetchone()[0]
@@ -1492,6 +1507,21 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert main(["memory", "audit", "--db", str(db_path)]) == 0
     assert main(["memory", "audit", "--db", str(db_path), "--strict"]) == 2
     assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "export-corpus2skill",
+                "--db",
+                str(db_path),
+                "--bundle-dir",
+                str(tmp_path / "c2s_cli_bundle"),
+                "--limit",
+                "2",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "build-relations", "--db", str(db_path)]) == 0
     assert main(
         [

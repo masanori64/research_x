@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -34,6 +35,16 @@ class CorpusBuildSummary:
     bookmark_docs: int
     quote_tree_docs: int
     media_docs: int
+
+
+@dataclass(frozen=True)
+class Corpus2SkillBundleSummary:
+    db_path: str
+    out_dir: str
+    corpus_path: str
+    manifest_path: str
+    documents: int
+    by_doc_type: dict[str, int]
 
 
 def build_memory_corpus(db_path: str | Path) -> CorpusBuildSummary:
@@ -72,36 +83,69 @@ def export_corpus2skill_jsonl(
     with sqlite3.connect(path, timeout=60) as conn, output.open("w", encoding="utf-8") as handle:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
-        sql = """
-            SELECT doc_id, title, compact_text, body, metadata_json
-            FROM memory_documents
-            ORDER BY doc_type, observed_at DESC, doc_id
-        """
-        params: tuple[Any, ...] = ()
-        if limit is not None and limit > 0:
-            sql += " LIMIT ?"
-            params = (limit,)
-        rows = conn.execute(sql, params).fetchall()
+        rows = _corpus2skill_rows(conn, limit=limit)
         for row in rows:
-            contents = "\n".join(
-                part
-                for part in (
-                    row["title"] or "",
-                    row["compact_text"] or "",
-                    row["body"] or "",
-                    f"metadata: {row['metadata_json'] or '{}'}",
-                )
-                if part
-            )
-            handle.write(
-                json.dumps(
-                    {"id": row["doc_id"], "contents": contents},
-                    ensure_ascii=False,
-                    sort_keys=True,
-                )
-                + "\n"
-            )
+            handle.write(json.dumps(_corpus2skill_record(row), ensure_ascii=False) + "\n")
     return len(rows)
+
+
+def export_corpus2skill_bundle(
+    db_path: str | Path,
+    out_dir: str | Path,
+    *,
+    limit: int | None = None,
+) -> Corpus2SkillBundleSummary:
+    path = Path(db_path)
+    output = Path(out_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    corpus_path = output / "corpus.jsonl"
+    manifest_path = output / "manifest.json"
+    with sqlite3.connect(path, timeout=60) as conn, corpus_path.open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        rows = _corpus2skill_rows(conn, limit=limit)
+        for row in rows:
+            handle.write(json.dumps(_corpus2skill_record(row), ensure_ascii=False) + "\n")
+    by_doc_type = dict(sorted(Counter(str(row["doc_type"]) for row in rows).items()))
+    manifest = {
+        "format": "corpus2skill-jsonl-bundle-v1",
+        "db_path": str(path),
+        "corpus_path": str(corpus_path),
+        "documents": len(rows),
+        "by_doc_type": by_doc_type,
+        "compile_hint": [
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "corpus2skill",
+            "compile",
+            "--input",
+            str(corpus_path),
+            "--output",
+            str(output / "compiled"),
+        ],
+        "contract": {
+            "id": "memory_documents.doc_id",
+            "contents": "title + compact_text + body + metadata",
+            "metadata": "trace data for research_x; Corpus2Skill may ignore extra fields",
+        },
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return Corpus2SkillBundleSummary(
+        db_path=str(path),
+        out_dir=str(output),
+        corpus_path=str(corpus_path),
+        manifest_path=str(manifest_path),
+        documents=len(rows),
+        by_doc_type=by_doc_type,
+    )
 
 
 def _load_documents(conn: sqlite3.Connection) -> tuple[MemoryDocument, ...]:
@@ -111,6 +155,48 @@ def _load_documents(conn: sqlite3.Connection) -> tuple[MemoryDocument, ...]:
     documents.extend(_quote_tree_documents(conn))
     documents.extend(_media_documents(conn))
     return tuple(documents)
+
+
+def _corpus2skill_rows(conn: sqlite3.Connection, *, limit: int | None) -> list[sqlite3.Row]:
+    sql = """
+        SELECT
+            doc_id, doc_type, source_tweet_id, account_id, author_screen_name,
+            title, compact_text, body, metadata_json, created_at, observed_at, updated_at
+        FROM memory_documents
+        ORDER BY doc_type, observed_at DESC, doc_id
+    """
+    params: tuple[Any, ...] = ()
+    if limit is not None and limit > 0:
+        sql += " LIMIT ?"
+        params = (limit,)
+    return conn.execute(sql, params).fetchall()
+
+
+def _corpus2skill_record(row: sqlite3.Row) -> dict[str, Any]:
+    contents = "\n".join(
+        part
+        for part in (
+            row["title"] or "",
+            row["compact_text"] or "",
+            row["body"] or "",
+            f"metadata: {row['metadata_json'] or '{}'}",
+        )
+        if part
+    )
+    return {
+        "id": row["doc_id"],
+        "contents": contents,
+        "metadata": {
+            "doc_type": row["doc_type"],
+            "source_tweet_id": row["source_tweet_id"],
+            "account_id": row["account_id"],
+            "author_screen_name": row["author_screen_name"],
+            "created_at": row["created_at"],
+            "observed_at": row["observed_at"],
+            "updated_at": row["updated_at"],
+            "research_x_metadata": _loads_json(row["metadata_json"], default={}),
+        },
+    }
 
 
 def _tweet_documents(conn: sqlite3.Connection) -> list[MemoryDocument]:

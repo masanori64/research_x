@@ -502,6 +502,7 @@ memory llm-context        Pre-extracted Web context provider role, fake or Brave
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
 memory eval               Route-oriented memory checks.
+memory export-corpus2skill Export JSONL or a corpus.jsonl/manifest bundle for Corpus2Skill.
 ```
 
 Production memory runbook:
@@ -522,6 +523,9 @@ uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `
   --semantic-provider auto `
   --strict
+uv run python -m research_x memory export-corpus2skill `
+  --db runs/x_data.sqlite3 `
+  --bundle-dir runs/corpus2skill_x_memory
 uv run python -m research_x memory context `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店" `

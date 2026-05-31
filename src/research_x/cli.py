@@ -732,7 +732,12 @@ def main(argv: list[str] | None = None) -> int:
         help="export memory_documents to Corpus2Skill-compatible JSONL",
     )
     memory_export_parser.add_argument("--db", default="runs/x_data.sqlite3")
-    memory_export_parser.add_argument("--out", required=True)
+    memory_export_parser.add_argument("--out", default=None)
+    memory_export_parser.add_argument(
+        "--bundle-dir",
+        default=None,
+        help="write corpus.jsonl plus manifest.json for the official Corpus2Skill compiler",
+    )
     memory_export_parser.add_argument("--limit", type=int, default=None)
     memory_eval_parser = memory_subparsers.add_parser(
         "eval",
@@ -1996,8 +2001,22 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         print(f"feedback: {feedback_id}")
         return 0
     if args.memory_command == "export-corpus2skill":
-        from research_x.memory.corpus import export_corpus2skill_jsonl
+        from research_x.memory.corpus import (
+            export_corpus2skill_bundle,
+            export_corpus2skill_jsonl,
+            summary_as_dict,
+        )
 
+        if args.bundle_dir:
+            summary = export_corpus2skill_bundle(
+                args.db,
+                args.bundle_dir,
+                limit=args.limit,
+            )
+            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+            return 0
+        if not args.out:
+            raise ValueError("pass --out for JSONL export or --bundle-dir for bundle export")
         count = export_corpus2skill_jsonl(args.db, args.out, limit=args.limit)
         print(f"corpus2skill-export: rows={count} out={args.out}")
         return 0

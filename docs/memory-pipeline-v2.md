@@ -238,6 +238,22 @@ Implementation impact:
 - Future `supports` / `contradicts` edges should be added by a reviewed extraction or judge step,
   not inferred solely from date ordering.
 
+### 2026-06-01: Corpus2Skill Boundary Stays Explicit
+
+Decision:
+
+- Do not reimplement Corpus2Skill under another name inside `research_x`.
+- Export a clean Corpus2Skill-compatible corpus bundle from `memory_documents`, then run the OSS
+  compiler outside the core memory DB when needed.
+- Keep Corpus2Skill output as a navigation map. Final evidence still comes from local X documents,
+  context chunks, citations, and optional external grounding.
+
+Implementation impact:
+
+- `memory export-corpus2skill --bundle-dir` writes `corpus.jsonl` with `id` / `contents` plus
+  trace metadata and a `manifest.json` containing the compile hint.
+- The bundle is an integration boundary, not a replacement for search/context/citation tables.
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.
@@ -774,6 +790,7 @@ memory context --external-run-id -> combined local/external context bundle
 memory answer           -> Layer 6 generated answer artifact plus answer citations
 memory workflow         -> Layer 7 bounded workflow traces with optional LLM-context grounding
 memory feedback/eval    -> Layer 7 feedback/eval
+memory export-corpus2skill -> Corpus2Skill-compatible navigation-map input boundary
 memory audit            -> rebuild/index health gate
 ```
 
