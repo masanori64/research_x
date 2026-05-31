@@ -4,6 +4,7 @@ from pathlib import Path
 
 from research_x.cli import main
 from research_x.memory import embeddings
+from research_x.memory.answer import build_memory_answer
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import build_context_bundle
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
@@ -509,6 +510,91 @@ def test_memory_context_can_include_external_run_chunks(tmp_path: Path) -> None:
     assert chunk_count == len(bundle.context_chunks)
 
 
+def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    answer = build_memory_answer(
+        db_path,
+        "強化学習 ロボット",
+        limit=2,
+        doc_type="bookmark_doc",
+        answer_provider="fake",
+    )
+
+    assert answer.answer_id
+    assert answer.status == "ok"
+    assert "[1]" in answer.answer_text
+    assert answer.citation_annotations
+    citation = answer.citation_annotations[0]
+    assert citation.answer_id == answer.answer_id
+    assert citation.answer_start_index is not None
+    assert citation.support_type == "supports_answer"
+
+    with sqlite3.connect(db_path) as conn:
+        answer_rows = conn.execute("SELECT COUNT(*) FROM memory_answer_runs").fetchone()[0]
+        answer_citations = conn.execute(
+            "SELECT COUNT(*) FROM memory_citation_annotations WHERE answer_id = ?",
+            (answer.answer_id,),
+        ).fetchone()[0]
+        context_citations = conn.execute(
+            "SELECT COUNT(*) FROM memory_citation_annotations WHERE answer_id IS NULL"
+        ).fetchone()[0]
+        answer_tool_calls = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_tool_calls
+            WHERE provider_role = 'answer_engine' AND action = 'answer'
+            """
+        ).fetchone()[0]
+
+    assert answer_rows == 1
+    assert answer_citations == len(answer.citation_annotations)
+    assert context_citations == len(answer.context_bundle.citation_annotations)
+    assert answer_tool_calls == 1
+
+
+def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        captured["timeout_seconds"] = timeout_seconds
+        captured["retries"] = retries
+        return {"choices": [{"message": {"content": "根拠に基づく回答です [1]"}}]}
+
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    monkeypatch.setattr("research_x.memory.answer._post_json", fake_post_json)
+
+    answer = build_memory_answer(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="gemini",
+        answer_model="gemini-2.5-flash",
+        answer_timeout_seconds=7.0,
+    )
+
+    assert answer.model == "gemini-2.5-flash"
+    assert answer.provider == "gemini"
+    assert answer.answer_text == "根拠に基づく回答です [1]"
+    assert captured["url"].endswith("/v1beta/openai/chat/completions")
+    assert captured["payload"]["model"] == "gemini-2.5-flash"
+    assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["timeout_seconds"] == 7.0
+    assert "fake-key" not in json.dumps(answer.as_dict(), ensure_ascii=False)
+
+
 def test_reader_extract_fake_provider_stores_external_context(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
 
@@ -729,12 +815,14 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    assert main(["memory", "answer", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
     output = external_output_start + extract_output + external_output + capsys.readouterr().out
     assert "tweet-1" in output
     assert "hits" in output
     assert "context_chunks" in output
+    assert "answer_text" in output
     assert "external_web" in output
     assert "reader_extract" in output
     assert "memory://fake-external-search" in output

@@ -395,6 +395,21 @@ uv run python -m research_x memory context `
   --external-provider http
 ```
 
+To produce a generated answer artifact from the same context contract, use `memory answer`.
+The default `fake` answer engine is deterministic and no-network; switch to `gemini`,
+`openai_chat`, or `openai_compatible` only when an API key is configured:
+
+```powershell
+uv run python -m research_x memory answer `
+  --db runs/x_data.sqlite3 `
+  --query "北千住で保存したピザ店を教えて" `
+  --answer-provider fake
+```
+
+Generated answers are stored as derived artifacts in `memory_answer_runs`. Answer citations are
+stored as `memory_citation_annotations` rows with `answer_id`, text offsets, and source chunk links;
+the cited context chunks remain traceable back to local X rows or extracted external Web pages.
+
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 

@@ -664,6 +664,7 @@ memory evidence         -> legacy-compatible local hit bundle
 memory context          -> Layer 4 chunks plus Layer 5 citation metadata
 memory extract-url      -> Layer 3 reader/extract to Layer 4 external chunks
 memory context --external-run-id -> combined local/external context bundle
+memory answer           -> Layer 6 generated answer artifact plus answer citations
 memory feedback/eval    -> Layer 7 feedback/eval
 memory audit            -> rebuild/index health gate
 ```
@@ -679,6 +680,8 @@ What may need refactoring later:
   citation-ready until `reader/extract` or `llm-context` produces context chunks.
 - combined context bundles can include both `local_x_db` and `external_web` chunks, but source kind
   and provider role must remain explicit.
+- generated answers are stored in `memory_answer_runs`; answer-specific citation annotations must
+  point back to context chunks with `answer_id` and answer text offsets.
 
 What should not be deleted:
 
@@ -696,10 +699,11 @@ What should not be deleted:
 5. Add external evidence provider interface, initially with a no-network fake/test provider.
 6. Add reader/extract providers and normalize extracted URL text into context chunks.
 7. Add Brave LLM Context provider only after storage/retention/rate-limit handling is explicit.
-8. Add workflow routing and workflow traces.
-9. Expand evals to route-level cases.
-10. Add production embedding rebuild for the selected provider.
-11. Integrate Corpus2Skill OSS export/navigation as a map after evals show stable search behavior.
+8. Add answer artifacts and answer-specific citation annotations.
+9. Add workflow routing and workflow traces.
+10. Expand evals to route-level cases.
+11. Add production embedding rebuild for the selected provider.
+12. Integrate Corpus2Skill OSS export/navigation as a map after evals show stable search behavior.
 
 ## Deletion / Rewrite Policy
 

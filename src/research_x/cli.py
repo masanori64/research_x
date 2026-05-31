@@ -390,6 +390,61 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="store the search run, context chunks, and citation annotations",
     )
+    memory_answer_parser = memory_subparsers.add_parser(
+        "answer",
+        help="build context chunks and generate a cited answer artifact",
+    )
+    memory_answer_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_answer_parser.add_argument("--query", required=True)
+    memory_answer_parser.add_argument("--limit", type=int, default=5)
+    memory_answer_parser.add_argument("--doc-type", default=None)
+    memory_answer_parser.add_argument("--account", default=None)
+    memory_answer_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=["auto", "local_hash", "openai", "gemini"],
+    )
+    memory_answer_parser.add_argument("--semantic-model", default=None)
+    memory_answer_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_answer_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_answer_parser.add_argument("--semantic-base-url", default=None)
+    memory_answer_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_answer_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_answer_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="also extract URLs from this external-search run into the answer context",
+    )
+    memory_answer_parser.add_argument(
+        "--external-provider",
+        choices=["fake", "http"],
+        default="fake",
+        help="reader/extract provider for --external-run-id",
+    )
+    memory_answer_parser.add_argument("--external-limit", type=int, default=5)
+    memory_answer_parser.add_argument("--external-max-chars", type=int, default=4000)
+    memory_answer_parser.add_argument("--external-timeout-seconds", type=float, default=30.0)
+    memory_answer_parser.add_argument("--external-user-agent", default="research-x/0.1")
+    memory_answer_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
+    memory_answer_parser.add_argument(
+        "--answer-provider",
+        choices=["fake", "gemini", "openai_chat", "openai_compatible"],
+        default="fake",
+        help="answer engine; fake is deterministic and no-network",
+    )
+    memory_answer_parser.add_argument("--answer-model", default=None)
+    memory_answer_parser.add_argument("--answer-api-key-env", default=None)
+    memory_answer_parser.add_argument("--answer-base-url", default=None)
+    memory_answer_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
+    memory_answer_parser.add_argument("--prompt-version", default="memory-answer-v1")
+    memory_answer_parser.add_argument("--max-context-chunks", type=int, default=8)
+    memory_answer_parser.add_argument("--max-context-chars", type=int, default=12_000)
+    memory_answer_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store the search run, context chunks, answer, and answer citations",
+    )
     memory_external_parser = memory_subparsers.add_parser(
         "external-search",
         help="run an external URL-discovery provider and store normalized results",
@@ -1434,6 +1489,41 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             store=args.store,
         )
         print(context_bundle_json(bundle))
+        return 0
+    if args.memory_command == "answer":
+        from research_x.memory.answer import answer_json, build_memory_answer
+
+        answer = build_memory_answer(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            external_run_id=args.external_run_id,
+            external_reader_provider=args.external_provider,
+            external_limit=args.external_limit,
+            external_max_chars=args.external_max_chars,
+            external_timeout_seconds=args.external_timeout_seconds,
+            external_user_agent=args.external_user_agent,
+            external_max_bytes=args.external_max_bytes,
+            answer_provider=args.answer_provider,
+            answer_model=args.answer_model,
+            answer_api_key_env=args.answer_api_key_env,
+            answer_base_url=args.answer_base_url,
+            answer_timeout_seconds=args.answer_timeout_seconds,
+            prompt_version=args.prompt_version,
+            max_context_chunks=args.max_context_chunks,
+            max_context_chars=args.max_context_chars,
+            store=args.store,
+        )
+        print(answer_json(answer))
         return 0
     if args.memory_command == "external-search":
         from research_x.memory.external import external_evidence_json, search_external_evidence

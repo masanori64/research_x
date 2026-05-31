@@ -154,7 +154,7 @@ Implementation checklist:
 - [x] Integrate extracted external Web chunks into `memory context` bundles.
 - [ ] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
       explicit.
-- [ ] Add OpenAI-style citation annotations for generated answers.
+- [x] Add OpenAI-style citation annotations for generated answers.
 - [ ] Add bounded workflow routing with logged stop reasons.
 
 Future command candidates:
@@ -163,7 +163,6 @@ Future command candidates:
 research_x memory build-derived
 research_x memory cite
 research_x memory workflow
-research_x memory answer
 ```
 
 ## Later Milestones
