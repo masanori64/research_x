@@ -479,6 +479,69 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    memory_workflow_parser = memory_subparsers.add_parser(
+        "workflow",
+        help="run a bounded memory workflow with route, steps, and stop reason",
+    )
+    memory_workflow_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_workflow_parser.add_argument("--query", required=True)
+    memory_workflow_parser.add_argument("--route", default="auto")
+    memory_workflow_parser.add_argument("--limit", type=int, default=5)
+    memory_workflow_parser.add_argument("--doc-type", default=None)
+    memory_workflow_parser.add_argument("--account", default=None)
+    memory_workflow_parser.add_argument("--json", action="store_true")
+    memory_workflow_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=["auto", "local_hash", "openai", "gemini"],
+    )
+    memory_workflow_parser.add_argument("--semantic-model", default=None)
+    memory_workflow_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_workflow_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_workflow_parser.add_argument("--semantic-base-url", default=None)
+    memory_workflow_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_workflow_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_workflow_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="also extract URLs from this external-search run into the workflow context",
+    )
+    memory_workflow_parser.add_argument(
+        "--external-provider",
+        choices=["fake", "http"],
+        default="http",
+        help="reader/extract provider for --external-run-id",
+    )
+    memory_workflow_parser.add_argument("--external-limit", type=int, default=5)
+    memory_workflow_parser.add_argument("--external-max-chars", type=int, default=4000)
+    memory_workflow_parser.add_argument("--external-timeout-seconds", type=float, default=30.0)
+    memory_workflow_parser.add_argument("--external-user-agent", default="research-x/0.1")
+    memory_workflow_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
+    memory_workflow_parser.add_argument(
+        "--answer-provider",
+        choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
+        default="none",
+        help="optional answer engine; none only builds workflow context",
+    )
+    memory_workflow_parser.add_argument("--answer-model", default=None)
+    memory_workflow_parser.add_argument("--answer-api-key-env", default=None)
+    memory_workflow_parser.add_argument("--answer-base-url", default=None)
+    memory_workflow_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
+    memory_workflow_parser.add_argument("--prompt-version", default="memory-answer-v1")
+    memory_workflow_parser.add_argument("--max-context-chunks", type=int, default=8)
+    memory_workflow_parser.add_argument("--max-context-chars", type=int, default=12_000)
+    memory_workflow_parser.add_argument("--max-steps", type=int, default=4)
+    memory_workflow_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store workflow run, steps, context, and optional answer artifacts",
+    )
+    memory_workflow_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
     memory_external_parser = memory_subparsers.add_parser(
         "external-search",
         help="run an external URL-discovery provider and store normalized results",
@@ -1598,6 +1661,59 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         )
         print(answer_json(answer))
         return 0
+    if args.memory_command == "workflow":
+        from research_x.memory.workflow import (
+            format_workflow,
+            run_memory_workflow,
+            workflow_json,
+        )
+
+        _require_fixture_provider_opt_in(
+            provider=args.answer_provider if args.answer_provider != "none" else None,
+            role="answer",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.external_provider if args.external_run_id else None,
+            role="reader/extract",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
+        workflow = run_memory_workflow(
+            args.db,
+            args.query,
+            route=args.route,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            external_run_id=args.external_run_id,
+            external_reader_provider=args.external_provider,
+            external_limit=args.external_limit,
+            external_max_chars=args.external_max_chars,
+            external_timeout_seconds=args.external_timeout_seconds,
+            external_user_agent=args.external_user_agent,
+            external_max_bytes=args.external_max_bytes,
+            answer_provider=args.answer_provider,
+            answer_model=args.answer_model,
+            answer_api_key_env=args.answer_api_key_env,
+            answer_base_url=args.answer_base_url,
+            answer_timeout_seconds=args.answer_timeout_seconds,
+            prompt_version=args.prompt_version,
+            max_context_chunks=args.max_context_chunks,
+            max_context_chars=args.max_context_chars,
+            max_steps=args.max_steps,
+            store=args.store,
+        )
+        print(workflow_json(workflow) if args.json else format_workflow(workflow))
+        return 1 if workflow.status == "error" else 0
     if args.memory_command == "external-search":
         from research_x.memory.external import external_evidence_json, search_external_evidence
 

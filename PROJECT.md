@@ -117,6 +117,7 @@ Implemented behavior:
 - external URL extraction into tool call, context chunk, and citation annotation rows;
 - V2 search run, tool call, context chunk, citation annotation, answer run, and workflow trace
   schema;
+- bounded `memory workflow` routing with step logs and stop reasons;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
   citation-ready metadata;
 - `memory context --external-run-id` integration that combines local X chunks with extracted
@@ -169,13 +170,12 @@ Implementation checklist:
 - [ ] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
       explicit.
 - [x] Add OpenAI-style citation annotations for generated answers.
-- [ ] Add bounded workflow routing with logged stop reasons.
+- [x] Add bounded workflow routing with logged stop reasons.
 
 Future command candidates:
 
 ```text
 research_x memory cite
-research_x memory workflow
 ```
 
 ## Later Milestones

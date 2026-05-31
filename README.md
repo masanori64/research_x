@@ -344,9 +344,9 @@ Core invariant:
 raw source != searchable document != search result != context chunk != citation != answer
 ```
 
-Next implementation step: add explicit `search_runs`, `tool_calls`, `context_chunks`,
-`citation_annotations`, `answer_runs`, and workflow traces while keeping existing memory commands
-working.
+The V2 surface has explicit `search_runs`, `tool_calls`, `context_chunks`,
+`citation_annotations`, `answer_runs`, and bounded `workflow` traces while keeping existing memory
+commands working.
 
 External URL discovery has started behind an explicit provider role. The deterministic fake provider
 is useful for tests and wiring, while Serper is available as an optional Google SERP
@@ -432,6 +432,21 @@ Generated answers are stored as derived artifacts in `memory_answer_runs`. Answe
 stored as `memory_citation_annotations` rows with `answer_id`, text offsets, and source chunk links;
 the cited context chunks remain traceable back to local X rows or extracted external Web pages.
 
+For AI-callable orchestration, use `memory workflow`. It plans a route, writes bounded step logs,
+records a stop reason, builds context, and can optionally generate an answer. By default it only
+builds context so fixture answer rows are not accidentally written:
+
+```powershell
+uv run python -m research_x memory workflow `
+  --db runs/x_data.sqlite3 `
+  --query "強化学習とロボットで後から勉強に使えるもの" `
+  --semantic-provider auto
+```
+
+Add `--answer-provider gemini --answer-model gemini-2.5-flash` when a stored answer artifact is
+wanted. `workflow` stop reasons include `enough_evidence`, `no_local_evidence`,
+`external_context_needed`, `needs_user_review`, `budget_exhausted`, and `provider_error`.
+
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 
@@ -448,6 +463,7 @@ memory context            Build LLM-ready chunks and citation metadata.
 memory external-search    URL discovery provider role, fake or Serper.
 memory extract-url        Reader/extract provider role, fake or HTTP.
 memory answer             Generated answer artifact with source chunk citations.
+memory workflow           Bounded route/context/answer orchestration with stop reasons.
 memory eval               Route-oriented memory checks.
 ```
 
@@ -471,6 +487,12 @@ uv run python -m research_x memory context `
 uv run python -m research_x memory answer `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店を教えて" `
+  --semantic-provider auto `
+  --answer-provider gemini `
+  --answer-model gemini-2.5-flash
+uv run python -m research_x memory workflow `
+  --db runs/x_data.sqlite3 `
+  --query "昔保存したこの技術情報、今も正しい？" `
   --semantic-provider auto `
   --answer-provider gemini `
   --answer-model gemini-2.5-flash

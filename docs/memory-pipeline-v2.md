@@ -161,6 +161,8 @@ Decision:
   checks can use `--no-store`.
 - When answer context is truncated, create answer-specific subchunk IDs and mark missing citation
   markers as `needs_review` instead of silently treating them as supporting citations.
+- Add a bounded `memory workflow` command that logs route planning, context construction, optional
+  answer generation, and a stop reason instead of running open-ended agent loops.
 
 Rationale:
 
@@ -181,6 +183,9 @@ Implementation impact:
 - `memory audit` reports `fixture_artifacts`.
 - `memory build-relations` rebuilds known builder relation types while preserving manual or
   future AI-generated relation types such as `supports`, `contradicts`, and `obsolete_candidate`.
+- `memory workflow` writes `memory_workflow_runs` / `memory_workflow_steps`, links generated
+  answers through `answer_runs.workflow_id`, and defaults to context-only execution unless an answer
+  provider is explicitly selected.
 
 ## Non-Negotiable Invariants
 

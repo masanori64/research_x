@@ -21,6 +21,7 @@ from research_x.memory.reader import (
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.search import search_memory
+from research_x.memory.workflow import plan_workflow_route, run_memory_workflow
 
 
 def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
@@ -625,6 +626,74 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
     assert selected_chunk_rows == 1
 
 
+def test_memory_workflow_stores_route_steps_and_stop_reason(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(db_path, "カフェで読む強化学習", limit=2)
+
+    assert workflow.route == "place_recall"
+    assert workflow.status == "ok"
+    assert workflow.stop_reason == "enough_evidence"
+    assert [step.action for step in workflow.steps] == ["plan", "context"]
+    assert workflow.context_bundle is not None
+    assert workflow.context_bundle.context_chunks
+    assert workflow.answer is None
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT route, status, stop_reason FROM memory_workflow_runs WHERE workflow_id = ?",
+            (workflow.workflow_id,),
+        ).fetchone()
+        step_count = conn.execute(
+            "SELECT COUNT(*) FROM memory_workflow_steps WHERE workflow_id = ?",
+            (workflow.workflow_id,),
+        ).fetchone()[0]
+
+    assert row == ("place_recall", "ok", "enough_evidence")
+    assert step_count == 2
+
+
+def test_memory_workflow_can_attach_generated_answer_to_workflow(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=2,
+        answer_provider="fake",
+        max_context_chars=80,
+    )
+
+    assert workflow.answer is not None
+    assert workflow.answer.workflow_id == workflow.workflow_id
+    assert [step.action for step in workflow.steps] == ["plan", "context", "answer"]
+
+    with sqlite3.connect(db_path) as conn:
+        answer_workflow_id = conn.execute(
+            "SELECT workflow_id FROM memory_answer_runs WHERE answer_id = ?",
+            (workflow.answer.answer_id,),
+        ).fetchone()[0]
+
+    assert answer_workflow_id == workflow.workflow_id
+
+
+def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
+    recent_learning = plan_workflow_route(
+        build_query_plan("最近保存した強化学習とロボット系の情報を出して")
+    )
+    current_fact = plan_workflow_route(build_query_plan("昔保存したこの技術情報、今も正しい？"))
+
+    assert recent_learning.route == "learning_map"
+    assert current_fact.route == "current_fact_check"
+    assert current_fact.wants_external_context is True
+
+
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
     tmp_path: Path,
     monkeypatch,
@@ -994,6 +1063,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    assert main(["memory", "workflow", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
     output = external_output_start + extract_output + external_output + capsys.readouterr().out
@@ -1002,6 +1072,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert "hits" in output
     assert "context_chunks" in output
     assert "answer_text" in output
+    assert "workflow:" in output
     assert "external_web" in output
     assert "reader_extract" in output
     assert "memory://fake-external-search" in output
@@ -1053,6 +1124,23 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
         )
         == 0
     )
+    assert (
+        main(
+            [
+                "memory",
+                "workflow",
+                "--db",
+                str(db_path),
+                "--query",
+                "ロボット",
+                "--answer-provider",
+                "fake",
+            ]
+        )
+        == 1
+    )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
 
 
 def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, capsys) -> None:

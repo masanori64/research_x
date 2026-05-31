@@ -91,6 +91,7 @@ class AnswerCitation:
 class MemoryAnswer:
     answer_id: str
     question: str
+    workflow_id: str | None
     context_run_id: str
     provider: str
     provider_role: str
@@ -109,6 +110,7 @@ class MemoryAnswer:
         return {
             "answer_id": self.answer_id,
             "question": self.question,
+            "workflow_id": self.workflow_id,
             "context_run_id": self.context_run_id,
             "provider": self.provider,
             "provider_role": self.provider_role,
@@ -299,6 +301,7 @@ def build_memory_answer(
     prompt_version: str = DEFAULT_PROMPT_VERSION,
     max_context_chunks: int = 8,
     max_context_chars: int = 12_000,
+    workflow_id: str | None = None,
     store: bool = True,
 ) -> MemoryAnswer:
     context_bundle = build_context_bundle(
@@ -389,6 +392,7 @@ def build_memory_answer(
     answer = MemoryAnswer(
         answer_id=answer_id,
         question=query,
+        workflow_id=workflow_id,
         context_run_id=context_bundle.run_id,
         provider=provider.provider_id,
         provider_role=provider.provider_role,
@@ -432,7 +436,7 @@ def store_memory_answer(db_path: str | Path, answer: MemoryAnswer) -> None:
             (
                 answer.answer_id,
                 answer.question,
-                None,
+                answer.workflow_id,
                 answer.model,
                 answer.prompt_version,
                 json.dumps(answer.retrieval_config, ensure_ascii=False, sort_keys=True),
