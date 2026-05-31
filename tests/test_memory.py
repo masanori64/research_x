@@ -69,6 +69,9 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     finance_plan = build_query_plan("5/29のキオクシアの株価急騰")
     assert "5/29" in finance_plan.exact_terms
     assert "キオクシア" in finance_plan.exact_terms
+    current_plan = build_query_plan("昔保存した技術情報が今も正しいか確認したい")
+    assert "freshness" in current_plan.intents
+    assert current_plan.prefers_recent is True
 
 
 def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:

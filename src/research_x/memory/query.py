@@ -178,8 +178,8 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
     IntentProfile(
         intent_id="freshness",
         label="freshness",
-        triggers=("最近", "新しい", "古い", "最新", "古くなった", "除いて"),
-        expansions=("最近", "新しい", "最新", "古い", "更新", "obsolete", "freshness"),
+        triggers=("最近", "新しい", "古い", "最新", "古くなった", "昔", "今も", "正しい", "除いて"),
+        expansions=("最近", "新しい", "最新", "古い", "昔", "更新", "obsolete", "freshness"),
         doc_type_weights={"bookmark_doc": 0.4, "tweet_doc": 0.4},
     ),
 )
@@ -250,7 +250,10 @@ def build_query_plan(query: str) -> QueryPlan:
             _append(terms, stripped)
             _append(exact_terms, stripped)
 
-    prefers_recent = any(_contains(normalized, term) for term in ("最近", "新しい", "最新"))
+    prefers_recent = any(
+        _contains(normalized, term)
+        for term in ("最近", "新しい", "最新", "今も", "現在", "現時点")
+    )
     excludes_old = any(
         _contains(normalized, term)
         for term in ("古いものを除", "古いのを除", "古い情報を除", "古いデータを除", "除外")

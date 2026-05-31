@@ -523,6 +523,11 @@ uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `
   --semantic-provider auto `
   --strict
+uv run python -m research_x memory eval `
+  --db runs/x_data.sqlite3 `
+  --cases examples/memory_eval_cases.jsonl `
+  --semantic-provider auto `
+  --strict
 uv run python -m research_x memory export-corpus2skill `
   --db runs/x_data.sqlite3 `
   --bundle-dir runs/corpus2skill_x_memory
