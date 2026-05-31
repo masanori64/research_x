@@ -501,7 +501,8 @@ current store as its source of truth.
 Semantic indexes are versioned artifacts, not anonymous vectors. `memory_embeddings` tracks
 provider, model, dimensions, `embedding_profile`, `text_template_version`, `embedded_text_hash`,
 and `source_doc_hash`; the default profile/template is `general_memory` /
-`memory-doc-embedding-v1`.
+`memory-doc-embedding-v1`. Use `memory embedding-coverage` after derived-document rebuilds to see
+which document types are missing or stale before running semantic evals.
 
 Memory command surface:
 
@@ -512,6 +513,7 @@ memory build-relations    Build explicit graph/relation edges.
 memory judge-relations    Judge supports/contradicts edges from freshness candidates.
 memory build-embeddings   Build versioned semantic indexes with OpenAI/Gemini or diagnostic local_hash.
 memory audit              Check production readiness and diagnostic/fake artifacts.
+memory embedding-coverage Show embedding coverage/staleness by doc_type.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
 memory context            Build LLM-ready chunks and citation metadata.
 memory external-search    URL discovery provider role, fake or Serper.
@@ -540,6 +542,11 @@ uv run python -m research_x memory build-embeddings `
   --dimensions 768 `
   --embedding-profile general_memory `
   --text-template-version memory-doc-embedding-v1
+uv run python -m research_x memory embedding-coverage `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 768
 uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
 uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `

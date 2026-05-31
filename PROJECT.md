@@ -84,6 +84,7 @@ research_x memory build-derived
 research_x memory audit
 research_x memory build-embeddings
 research_x memory embedding-specs
+research_x memory embedding-coverage
 research_x memory build-relations
 research_x memory relations
 research_x memory judge-relations
@@ -112,6 +113,8 @@ Implemented behavior:
 - explicit diagnostic-only `local_hash` embeddings;
 - embedding indexes tracked by provider, model, dimensions, profile, text template, and source
   document hash;
+- embedding coverage reports by document type so newly added derived views cannot silently remain
+  unindexed;
 - relation edges for bookmarks, media, quotes, duplicate bookmarks, same URL, same topic,
   newer/older neighbors, and obsolete candidates;
 - relation rebuilds preserve non-builder relation types such as future `supports` and

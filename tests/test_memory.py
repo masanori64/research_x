@@ -13,7 +13,7 @@ from research_x.memory.corpus import (
     export_corpus2skill_jsonl,
 )
 from research_x.memory.derived import build_derived_documents
-from research_x.memory.embeddings import build_memory_embeddings
+from research_x.memory.embeddings import build_memory_embeddings, embedding_coverage_report
 from research_x.memory.evals import load_eval_cases, run_memory_eval
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
@@ -186,6 +186,26 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
 
     assert row[:2] == ("general_memory", "memory-doc-embedding-v1")
     assert row[2]
+
+
+def test_memory_embedding_coverage_reports_missing_doc_types(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    build_derived_documents(db_path, kinds=("topic_thread",), min_topic_docs=2)
+
+    report = embedding_coverage_report(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+    )
+    by_type = {row.doc_type: row for row in report.by_doc_type}
+
+    assert report.current == 5
+    assert report.missing == report.documents - 5
+    assert by_type["topic_thread"].missing >= 1
+    assert by_type["bookmark_doc"].current == 1
 
 
 def test_memory_embedding_schema_migrates_legacy_rows(tmp_path: Path) -> None:
@@ -1678,6 +1698,21 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert main(["memory", "audit", "--db", str(db_path)]) == 0
     assert main(["memory", "audit", "--db", str(db_path), "--strict"]) == 2
     assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "embedding-coverage",
+                "--db",
+                str(db_path),
+                "--provider",
+                "local_hash",
+                "--dimensions",
+                "64",
+            ]
+        )
+        == 0
+    )
     assert (
         main(
             [

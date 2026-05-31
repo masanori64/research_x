@@ -216,7 +216,8 @@ Implementation impact:
   template version.
 - `memory build-embeddings`, `memory search`, `memory evidence`, `memory context`,
   `memory answer`, and `memory workflow` can select a semantic profile/template explicitly.
-- `memory embedding-specs` and `memory audit` expose profile/template metadata.
+- `memory embedding-specs`, `memory embedding-coverage`, and `memory audit` expose
+  profile/template metadata and missing/stale index coverage.
 - `memory eval` can run route-level checks against a specific semantic provider/profile/template.
 - `memory audit --strict` warns when embedding rows lack source hashes, because that means the
   index predates the V2 provenance contract.

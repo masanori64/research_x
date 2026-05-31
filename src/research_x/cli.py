@@ -320,6 +320,22 @@ def main(argv: list[str] | None = None) -> int:
         help="list available embedding indexes in the DB",
     )
     memory_specs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_coverage_parser = memory_subparsers.add_parser(
+        "embedding-coverage",
+        help="show embedding coverage and staleness by memory document type",
+    )
+    memory_embedding_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_coverage_parser.add_argument(
+        "--provider",
+        default="latest",
+        choices=["latest", "auto", "local_hash", "openai", "gemini"],
+        help="embedding provider to inspect; latest uses the newest existing index",
+    )
+    memory_embedding_coverage_parser.add_argument("--model", default=None)
+    memory_embedding_coverage_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_coverage_parser.add_argument("--embedding-profile", default=None)
+    memory_embedding_coverage_parser.add_argument("--text-template-version", default=None)
+    memory_embedding_coverage_parser.add_argument("--json", action="store_true")
     memory_relations_build_parser = memory_subparsers.add_parser(
         "build-relations",
         help="build relation edges over memory_documents",
@@ -1709,6 +1725,23 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
         specs = [spec.__dict__ for spec in available_embedding_specs(args.db)]
         print(json.dumps(specs, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if args.memory_command == "embedding-coverage":
+        from research_x.memory.embeddings import (
+            embedding_coverage_json,
+            embedding_coverage_report,
+            format_embedding_coverage,
+        )
+
+        report = embedding_coverage_report(
+            args.db,
+            provider=None if args.provider == "latest" else args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+        )
+        print(embedding_coverage_json(report) if args.json else format_embedding_coverage(report))
         return 0
     if args.memory_command == "build-relations":
         from research_x.memory.relations import build_memory_relations, summary_as_dict

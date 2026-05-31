@@ -63,6 +63,32 @@ class EmbeddingBuildSummary:
 
 
 @dataclass(frozen=True)
+class EmbeddingCoverageRow:
+    doc_type: str
+    documents: int
+    current: int
+    missing: int
+    stale_text: int
+    stale_source: int
+
+
+@dataclass(frozen=True)
+class EmbeddingCoverageReport:
+    db_path: str
+    provider: str
+    model: str
+    dimensions: int
+    embedding_profile: str
+    text_template_version: str
+    documents: int
+    current: int
+    missing: int
+    stale_text: int
+    stale_source: int
+    by_doc_type: tuple[EmbeddingCoverageRow, ...]
+
+
+@dataclass(frozen=True)
 class SemanticHit:
     doc_id: str
     similarity: float
@@ -343,6 +369,115 @@ def available_embedding_specs(db_path: str | Path) -> tuple[EmbeddingSpec, ...]:
         )
         for row in rows
     )
+
+
+def embedding_coverage_report(
+    db_path: str | Path,
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+    dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
+) -> EmbeddingCoverageReport:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        if memory_document_count(conn) == 0:
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
+        spec = _coverage_spec(
+            conn,
+            provider=provider,
+            model=model,
+            dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
+        )
+        rows = conn.execute(
+            """
+            SELECT
+                d.doc_id, d.doc_type, d.title, d.compact_text, d.body, d.metadata_json,
+                e.embedded_text_hash, e.source_doc_hash
+            FROM memory_documents d
+            LEFT JOIN memory_embeddings e
+              ON e.doc_id = d.doc_id
+             AND e.provider = ?
+             AND e.model = ?
+             AND e.dimensions = ?
+             AND e.embedding_profile = ?
+             AND e.text_template_version = ?
+            ORDER BY d.doc_type, d.doc_id
+            """,
+            (
+                spec.provider,
+                spec.model,
+                spec.dimensions,
+                spec.embedding_profile,
+                spec.text_template_version,
+            ),
+        ).fetchall()
+    by_type: dict[str, dict[str, int]] = {}
+    totals = {"documents": 0, "current": 0, "missing": 0, "stale_text": 0, "stale_source": 0}
+    for row in rows:
+        bucket = by_type.setdefault(
+            str(row["doc_type"]),
+            {"documents": 0, "current": 0, "missing": 0, "stale_text": 0, "stale_source": 0},
+        )
+        status = _coverage_status(row)
+        bucket["documents"] += 1
+        totals["documents"] += 1
+        bucket[status] += 1
+        totals[status] += 1
+    by_doc_type = tuple(
+        EmbeddingCoverageRow(doc_type=doc_type, **counts)
+        for doc_type, counts in sorted(by_type.items())
+    )
+    return EmbeddingCoverageReport(
+        db_path=str(path),
+        provider=spec.provider,
+        model=spec.model,
+        dimensions=spec.dimensions,
+        embedding_profile=spec.embedding_profile,
+        text_template_version=spec.text_template_version,
+        documents=totals["documents"],
+        current=totals["current"],
+        missing=totals["missing"],
+        stale_text=totals["stale_text"],
+        stale_source=totals["stale_source"],
+        by_doc_type=by_doc_type,
+    )
+
+
+def embedding_coverage_json(report: EmbeddingCoverageReport) -> str:
+    return json.dumps(asdict(report), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_embedding_coverage(report: EmbeddingCoverageReport) -> str:
+    lines = [
+        f"db: {report.db_path}",
+        (
+            "spec: "
+            f"{report.provider}/{report.model} dims={report.dimensions} "
+            f"profile={report.embedding_profile} template={report.text_template_version}"
+        ),
+        (
+            "documents: "
+            f"{report.documents} current={report.current} missing={report.missing} "
+            f"stale_text={report.stale_text} stale_source={report.stale_source}"
+        ),
+        "by doc_type:",
+    ]
+    for row in report.by_doc_type:
+        lines.append(
+            "  "
+            f"{row.doc_type}: docs={row.documents} current={row.current} "
+            f"missing={row.missing} stale_text={row.stale_text} "
+            f"stale_source={row.stale_source}"
+        )
+    return "\n".join(lines)
 
 
 def summary_as_dict(summary: EmbeddingBuildSummary) -> dict[str, Any]:
@@ -733,6 +868,63 @@ def _resolve_available_spec(
         "`research_x memory build-embeddings --provider gemini` or "
         "`research_x memory build-embeddings --provider openai` first"
     )
+
+
+def _coverage_spec(
+    conn: sqlite3.Connection,
+    *,
+    provider: str | None,
+    model: str | None,
+    dimensions: int | None,
+    embedding_profile: str | None,
+    text_template_version: str | None,
+) -> EmbeddingSpec:
+    resolved_provider = provider.strip().lower() if provider else None
+    if resolved_provider in {None, "", "latest"}:
+        row = conn.execute(
+            """
+            SELECT
+                provider, model, dimensions,
+                embedding_profile, text_template_version
+            FROM memory_embeddings
+            GROUP BY
+                provider, model, dimensions,
+                embedding_profile, text_template_version
+            ORDER BY
+                CASE WHEN provider IN ('gemini', 'openai') THEN 0 ELSE 1 END,
+                MAX(updated_at) DESC,
+                provider, model, dimensions, embedding_profile, text_template_version
+            LIMIT 1
+            """
+        ).fetchone()
+        if row:
+            return resolve_embedding_spec(
+                provider=row["provider"],
+                model=row["model"],
+                dimensions=int(row["dimensions"]),
+                embedding_profile=row["embedding_profile"],
+                text_template_version=row["text_template_version"],
+            )
+        return resolve_embedding_spec(provider=GEMINI_PROVIDER)
+    if resolved_provider == "auto":
+        resolved_provider = _auto_embedding_provider()
+    return resolve_embedding_spec(
+        provider=resolved_provider,
+        model=model,
+        dimensions=dimensions,
+        embedding_profile=embedding_profile,
+        text_template_version=text_template_version,
+    )
+
+
+def _coverage_status(row: sqlite3.Row) -> str:
+    if row["embedded_text_hash"] is None:
+        return "missing"
+    if row["source_doc_hash"] != _source_doc_hash(row):
+        return "stale_source"
+    if row["embedded_text_hash"] != _text_hash(_embedding_text(row)):
+        return "stale_text"
+    return "current"
 
 
 def _embedding_index_count(conn: sqlite3.Connection, spec: EmbeddingSpec) -> int:
