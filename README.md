@@ -158,6 +158,8 @@ uv run python -m research_x auth cdp `
 
 Non-interactive auth attempts are routed through `auth auto`. Passwords and one-time values should
 be passed through environment variables, never committed.
+Stored browser state is treated as usable only when non-empty, non-expired X session cookies
+(`auth_token` and `ct0`) are present.
 
 ## Bookmark Acquisition
 

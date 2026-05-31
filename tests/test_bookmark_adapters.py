@@ -203,6 +203,45 @@ def test_write_netscape_cookies_from_playwright_state(tmp_path) -> None:
     assert "auth_token" in output.read_text(encoding="utf-8")
 
 
+def test_write_netscape_cookies_skips_empty_and_expired_values(tmp_path) -> None:
+    state = tmp_path / "state.json"
+    output = tmp_path / "cookies.txt"
+    state.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "auth_token",
+                        "value": "",
+                        "domain": ".x.com",
+                        "expires": 2000000000,
+                    },
+                    {
+                        "name": "ct0",
+                        "value": "expired",
+                        "domain": ".x.com",
+                        "expires": 1,
+                    },
+                    {
+                        "name": "auth_token",
+                        "value": "fresh",
+                        "domain": ".x.com",
+                        "expires": 2000000000,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _write_netscape_cookies(state, output)
+
+    content = output.read_text(encoding="utf-8")
+    assert "fresh" in content
+    assert "expired" not in content
+    assert "\t\t" not in content
+
+
 def test_x_web_graphql_bookmarks_persists_raw_pages_and_cursor_state(tmp_path) -> None:
     settings = _XWebGraphQLBookmarkSettings(
         storage_state=tmp_path / "state.json",
