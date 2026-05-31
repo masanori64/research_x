@@ -109,6 +109,8 @@ Implemented behavior:
 - feedback capture;
 - OpenAI/Gemini production embedding providers;
 - explicit diagnostic-only `local_hash` embeddings;
+- embedding indexes tracked by provider, model, dimensions, profile, text template, and source
+  document hash;
 - relation edges for bookmarks, media, quotes, duplicate bookmarks, and weak stale candidates;
 - relation rebuilds preserve non-builder relation types such as future `supports` and
   `contradicts` edges;
@@ -137,8 +139,9 @@ Implemented behavior:
   `ticker_event` documents without replacing raw X records, while preserving full source
   provenance even when card bodies are compact;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
-  semantic indexes, V2 evidence graph orphans, invalid V2 JSON/enums, stored fake/fixture artifacts,
-  weak retrieval behavior, and no-store answer/citation wiring.
+  semantic indexes, missing embedding source hashes, V2 evidence graph orphans, invalid V2
+  JSON/enums, stored fake/fixture artifacts, weak retrieval behavior, and no-store
+  answer/citation wiring.
 
 Known limitation:
 
@@ -191,9 +194,9 @@ research_x memory cite
 
 ## Later Milestones
 
-- Add production embedding rebuild/eval for the chosen provider and template.
-- Add `embedding_profile`, `text_template_version`, and source hash tracking if profile-specific
-  embeddings become necessary.
+- Add production embedding rebuild/eval for the chosen provider and template on the real DB.
+- Add profile-specific embeddings only after route evals show the broad `general_memory` index is
+  not enough.
 - Strengthen freshness relations: `same_url`, `same_topic`, `newer_than`, `supports`,
   `contradicts`, `obsolete_candidate`.
 - Integrate Corpus2Skill OSS as a navigation map, not as the source of final evidence.

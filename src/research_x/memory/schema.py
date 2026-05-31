@@ -51,11 +51,17 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             provider TEXT NOT NULL,
             model TEXT NOT NULL,
             dimensions INTEGER NOT NULL,
+            embedding_profile TEXT NOT NULL DEFAULT 'general_memory',
+            text_template_version TEXT NOT NULL DEFAULT 'memory-doc-embedding-v1',
             embedding BLOB NOT NULL,
+            source_doc_hash TEXT,
             embedded_text_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
-            PRIMARY KEY(doc_id, provider, model, dimensions)
+            PRIMARY KEY(
+                doc_id, provider, model, dimensions,
+                embedding_profile, text_template_version
+            )
         );
 
         CREATE TABLE IF NOT EXISTS memory_relations (
@@ -226,8 +232,6 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_documents(account_id);
         CREATE INDEX IF NOT EXISTS idx_memory_feedback_doc
             ON memory_feedback(doc_id);
-        CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider_model
-            ON memory_embeddings(provider, model, dimensions);
         CREATE INDEX IF NOT EXISTS idx_memory_relations_source
             ON memory_relations(source_doc_id);
         CREATE INDEX IF NOT EXISTS idx_memory_relations_target
@@ -262,7 +266,106 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_workflow_steps(workflow_id, step_index);
         """
     )
+    _migrate_memory_embeddings(conn)
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider_model
+            ON memory_embeddings(
+                provider, model, dimensions, embedding_profile, text_template_version
+            )
+        """
+    )
 
 
 def memory_document_count(conn: sqlite3.Connection) -> int:
     return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])
+
+
+def _migrate_memory_embeddings(conn: sqlite3.Connection) -> None:
+    columns = _column_names(conn, "memory_embeddings")
+    expected_pk = [
+        "doc_id",
+        "provider",
+        "model",
+        "dimensions",
+        "embedding_profile",
+        "text_template_version",
+    ]
+    if (
+        {"embedding_profile", "text_template_version", "source_doc_hash"}.issubset(columns)
+        and _primary_key_columns(conn, "memory_embeddings") == expected_pk
+    ):
+        return
+
+    embedding_profile_expr = (
+        "COALESCE(embedding_profile, 'general_memory')"
+        if "embedding_profile" in columns
+        else "'general_memory'"
+    )
+    text_template_expr = (
+        "COALESCE(text_template_version, 'memory-doc-embedding-v1')"
+        if "text_template_version" in columns
+        else "'memory-doc-embedding-v1'"
+    )
+    source_doc_hash_expr = "source_doc_hash" if "source_doc_hash" in columns else "NULL"
+
+    conn.executescript(
+        """
+        DROP INDEX IF EXISTS idx_memory_embeddings_provider_model;
+
+        ALTER TABLE memory_embeddings RENAME TO memory_embeddings_old;
+
+        CREATE TABLE memory_embeddings (
+            doc_id TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            dimensions INTEGER NOT NULL,
+            embedding_profile TEXT NOT NULL DEFAULT 'general_memory',
+            text_template_version TEXT NOT NULL DEFAULT 'memory-doc-embedding-v1',
+            embedding BLOB NOT NULL,
+            source_doc_hash TEXT,
+            embedded_text_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(
+                doc_id, provider, model, dimensions,
+                embedding_profile, text_template_version
+            )
+        );
+
+        """
+    )
+    conn.execute(
+        f"""
+        INSERT OR REPLACE INTO memory_embeddings (
+            doc_id, provider, model, dimensions, embedding_profile, text_template_version,
+            embedding, source_doc_hash, embedded_text_hash, created_at, updated_at
+        )
+        SELECT
+            doc_id, provider, model, dimensions,
+            {embedding_profile_expr}, {text_template_expr},
+            embedding, {source_doc_hash_expr}, embedded_text_hash, created_at, updated_at
+        FROM memory_embeddings_old;
+        """
+    )
+    conn.executescript(
+        """
+
+        DROP TABLE memory_embeddings_old;
+
+        CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider_model
+            ON memory_embeddings(
+                provider, model, dimensions, embedding_profile, text_template_version
+            );
+        """
+    )
+
+
+def _column_names(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _primary_key_columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    keyed = [(int(row[5]), str(row[1])) for row in rows if int(row[5]) > 0]
+    return [name for _, name in sorted(keyed)]

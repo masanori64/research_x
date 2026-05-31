@@ -473,13 +473,18 @@ transport type `external_web` is retained as metadata. Local X chunks remain `lo
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 
+Semantic indexes are versioned artifacts, not anonymous vectors. `memory_embeddings` tracks
+provider, model, dimensions, `embedding_profile`, `text_template_version`, `embedded_text_hash`,
+and `source_doc_hash`; the default profile/template is `general_memory` /
+`memory-doc-embedding-v1`.
+
 Memory command surface:
 
 ```text
 memory build-corpus       Build memory_documents and FTS from the canonical X DB.
 memory build-derived      Build place_card, author_profile, and ticker_event views.
 memory build-relations    Build explicit graph/relation edges.
-memory build-embeddings   Build semantic indexes with OpenAI/Gemini or diagnostic local_hash.
+memory build-embeddings   Build versioned semantic indexes with OpenAI/Gemini or diagnostic local_hash.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
 memory context            Build LLM-ready chunks and citation metadata.
@@ -501,7 +506,9 @@ uv run python -m research_x memory build-embeddings `
   --db runs/x_data.sqlite3 `
   --provider gemini `
   --model gemini-embedding-2 `
-  --dimensions 768
+  --dimensions 768 `
+  --embedding-profile general_memory `
+  --text-template-version memory-doc-embedding-v1
 uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
 uv run python -m research_x memory eval --db runs/x_data.sqlite3 --strict
 uv run python -m research_x memory context `
@@ -527,8 +534,8 @@ uv run python -m research_x memory workflow `
 
 `fake` providers are for deterministic wiring tests only. `memory audit --strict` flags stored
 fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
-semantic indexes, V2 orphan rows, invalid V2 JSON/enums, and other states that should not be
-treated as production evidence.
+semantic indexes, missing embedding source hashes, V2 orphan rows, invalid V2 JSON/enums, and other
+states that should not be treated as production evidence.
 
 Operational rule: build the memory corpus explicitly before searching or indexing. Search,
 relations, and embeddings should not silently rebuild empty memory tables, because that hides stale

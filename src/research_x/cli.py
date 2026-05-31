@@ -298,6 +298,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_embedding_parser.add_argument("--model", default=None)
     memory_embedding_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_parser.add_argument("--embedding-profile", default="general_memory")
+    memory_embedding_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
     memory_embedding_parser.add_argument("--api-key-env", default=None)
     memory_embedding_parser.add_argument("--base-url", default=None)
     memory_embedding_parser.add_argument("--batch-size", type=int, default=64)
@@ -343,6 +348,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_search_parser.add_argument("--semantic-model", default=None)
     memory_search_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_search_parser.add_argument("--semantic-profile", default=None)
+    memory_search_parser.add_argument("--semantic-template-version", default=None)
     memory_search_parser.add_argument("--semantic-api-key-env", default=None)
     memory_search_parser.add_argument("--semantic-base-url", default=None)
     memory_search_parser.add_argument("--semantic-weight", type=float, default=3.0)
@@ -368,6 +375,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_evidence_parser.add_argument("--semantic-model", default=None)
     memory_evidence_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_evidence_parser.add_argument("--semantic-profile", default=None)
+    memory_evidence_parser.add_argument("--semantic-template-version", default=None)
     memory_evidence_parser.add_argument("--semantic-api-key-env", default=None)
     memory_evidence_parser.add_argument("--semantic-base-url", default=None)
     memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
@@ -388,6 +397,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_context_parser.add_argument("--semantic-model", default=None)
     memory_context_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_context_parser.add_argument("--semantic-profile", default=None)
+    memory_context_parser.add_argument("--semantic-template-version", default=None)
     memory_context_parser.add_argument("--semantic-api-key-env", default=None)
     memory_context_parser.add_argument("--semantic-base-url", default=None)
     memory_context_parser.add_argument("--semantic-weight", type=float, default=3.0)
@@ -435,6 +446,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_answer_parser.add_argument("--semantic-model", default=None)
     memory_answer_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_answer_parser.add_argument("--semantic-profile", default=None)
+    memory_answer_parser.add_argument("--semantic-template-version", default=None)
     memory_answer_parser.add_argument("--semantic-api-key-env", default=None)
     memory_answer_parser.add_argument("--semantic-base-url", default=None)
     memory_answer_parser.add_argument("--semantic-weight", type=float, default=3.0)
@@ -497,6 +510,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_workflow_parser.add_argument("--semantic-model", default=None)
     memory_workflow_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_workflow_parser.add_argument("--semantic-profile", default=None)
+    memory_workflow_parser.add_argument("--semantic-template-version", default=None)
     memory_workflow_parser.add_argument("--semantic-api-key-env", default=None)
     memory_workflow_parser.add_argument("--semantic-base-url", default=None)
     memory_workflow_parser.add_argument("--semantic-weight", type=float, default=3.0)
@@ -1605,6 +1620,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             provider=args.provider,
             model=args.model,
             dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
             api_key_env=args.api_key_env,
             base_url=args.base_url,
             batch_size=args.batch_size,
@@ -1644,6 +1661,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,
             semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
             semantic_api_key_env=args.semantic_api_key_env,
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
@@ -1668,6 +1687,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,
             semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
             semantic_api_key_env=args.semantic_api_key_env,
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
@@ -1693,6 +1714,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,
             semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
             semantic_api_key_env=args.semantic_api_key_env,
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
@@ -1732,6 +1755,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,
             semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
             semantic_api_key_env=args.semantic_api_key_env,
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
@@ -1794,6 +1819,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,
             semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
             semantic_api_key_env=args.semantic_api_key_env,
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,

@@ -198,6 +198,27 @@ Implementation impact:
   invalid JSON payloads, invalid source kinds, invalid provider roles, and invalid evidence/status
   values.
 
+### 2026-06-01: Embedding Provenance Becomes First-Class
+
+Decision:
+
+- Treat an embedding row as a provider/model/dimensions/profile/template artifact, not just a
+  vector attached to a document.
+- Store `source_doc_hash` beside `embedded_text_hash` so audits can distinguish a stale source view
+  from a stale embedding text template.
+- Keep `general_memory` and `memory-doc-embedding-v1` as the default production profile/template;
+  add domain-specific profiles only when route evals show they are needed.
+
+Implementation impact:
+
+- `memory_embeddings` now keys rows by provider, model, dimensions, embedding profile, and text
+  template version.
+- `memory build-embeddings`, `memory search`, `memory evidence`, `memory context`,
+  `memory answer`, and `memory workflow` can select a semantic profile/template explicitly.
+- `memory embedding-specs` and `memory audit` expose profile/template metadata.
+- `memory audit --strict` warns when embedding rows lack source hashes, because that means the
+  index predates the V2 provenance contract.
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.
@@ -585,7 +606,7 @@ Initial production policy:
 3. Improve document views and chunk text before adding many vector spaces.
 4. Add profile-specific embeddings only after evals show the broad index is failing.
 
-Future embedding spec should include:
+The embedding spec includes:
 
 ```text
 provider
@@ -593,9 +614,11 @@ model
 dimensions
 embedding_profile
 text_template_version
-task_prompt_version
 source_doc_hash
 ```
+
+`task_prompt_version` is still a future extension for providers that expose prompt/task variants
+that need versioned routing beyond the current document/query task type.
 
 Candidate profiles:
 
@@ -709,7 +732,7 @@ Current implementation maps into V2 like this:
 ```text
 memory_documents        -> Layer 1 searchable documents
 memory_document_fts     -> Layer 2 lexical retrieval
-memory_embeddings       -> Layer 2 semantic retrieval
+memory_embeddings       -> Layer 2 semantic retrieval with profile/template/source-hash provenance
 memory_relations        -> Layer 2 relation expansion / future graph base
 memory_external_runs    -> Layer 3 external provider run metadata
 memory_external_items   -> Layer 3 normalized external URL discovery results
@@ -733,7 +756,7 @@ memory audit            -> rebuild/index health gate
 
 What may need refactoring later:
 
-- `memory_embeddings` primary key may need `embedding_profile` and `text_template_version`.
+- production embedding quality still needs real provider indexes and route evals over the real DB.
 - `memory_documents` now includes derived cards from `memory build-derived`; future derived types
   should keep the same provenance and rebuild behavior.
 - `memory evidence` remains a legacy-compatible hit bundle; new AI callers should prefer
@@ -765,7 +788,7 @@ What should not be deleted:
 8. Add answer artifacts and answer-specific citation annotations.
 9. Add workflow routing and workflow traces.
 10. Expand evals to route-level cases.
-11. Add production embedding rebuild for the selected provider.
+11. Add and evaluate production embedding rebuilds for the selected provider/profile/template.
 12. Integrate Corpus2Skill OSS export/navigation as a map after evals show stable search behavior.
 
 ## Deletion / Rewrite Policy

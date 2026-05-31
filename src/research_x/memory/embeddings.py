@@ -27,6 +27,8 @@ OPENAI_DEFAULT_MODEL = "text-embedding-3-small"
 GEMINI_PROVIDER = "gemini"
 GEMINI_DEFAULT_MODEL = "gemini-embedding-2"
 PRODUCTION_PROVIDERS = (GEMINI_PROVIDER, OPENAI_PROVIDER)
+DEFAULT_EMBEDDING_PROFILE = "general_memory"
+DEFAULT_TEXT_TEMPLATE_VERSION = "memory-doc-embedding-v1"
 
 DEFAULT_DIMENSIONS = {
     LOCAL_HASH_PROVIDER: 512,
@@ -40,6 +42,8 @@ class EmbeddingSpec:
     provider: str
     model: str
     dimensions: int
+    embedding_profile: str = DEFAULT_EMBEDDING_PROFILE
+    text_template_version: str = DEFAULT_TEXT_TEMPLATE_VERSION
     api_key_env: str | None = None
     base_url: str | None = None
     timeout_seconds: float = 60.0
@@ -51,6 +55,8 @@ class EmbeddingBuildSummary:
     provider: str
     model: str
     dimensions: int
+    embedding_profile: str
+    text_template_version: str
     selected: int
     embedded: int
     skipped: int
@@ -63,6 +69,8 @@ class SemanticHit:
     provider: str
     model: str
     dimensions: int
+    embedding_profile: str
+    text_template_version: str
 
 
 @dataclass(frozen=True)
@@ -72,6 +80,8 @@ class SemanticScore:
     provider: str
     model: str
     dimensions: int
+    embedding_profile: str
+    text_template_version: str
 
 
 def resolve_embedding_spec(
@@ -79,6 +89,8 @@ def resolve_embedding_spec(
     provider: str | None = None,
     model: str | None = None,
     dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
     api_key_env: str | None = None,
     base_url: str | None = None,
     timeout_seconds: float = 60.0,
@@ -101,6 +113,9 @@ def resolve_embedding_spec(
         provider=resolved_provider,
         model=resolved_model,
         dimensions=resolved_dimensions,
+        embedding_profile=_clean_id(embedding_profile) or DEFAULT_EMBEDDING_PROFILE,
+        text_template_version=_clean_id(text_template_version)
+        or DEFAULT_TEXT_TEMPLATE_VERSION,
         api_key_env=api_key_env,
         base_url=base_url,
         timeout_seconds=timeout_seconds,
@@ -113,6 +128,8 @@ def build_memory_embeddings(
     provider: str | None = None,
     model: str | None = None,
     dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
     api_key_env: str | None = None,
     base_url: str | None = None,
     batch_size: int = 64,
@@ -127,6 +144,8 @@ def build_memory_embeddings(
         provider=provider,
         model=model,
         dimensions=dimensions,
+        embedding_profile=embedding_profile,
+        text_template_version=text_template_version,
         api_key_env=api_key_env,
         base_url=base_url,
     )
@@ -157,8 +176,14 @@ def build_memory_embeddings(
             now = _utc_now()
             for row, text, vector in zip(batch, texts, vectors, strict=True):
                 text_hash = _text_hash(text)
+                source_hash = _source_doc_hash(row)
                 existing_hash = row["embedded_text_hash"]
-                if not rebuild and existing_hash == text_hash:
+                existing_source_hash = row["source_doc_hash"]
+                if (
+                    not rebuild
+                    and existing_hash == text_hash
+                    and existing_source_hash == source_hash
+                ):
                     skipped += 1
                     continue
                 _upsert_embedding(
@@ -167,6 +192,7 @@ def build_memory_embeddings(
                     doc_id=row["doc_id"],
                     vector=vector,
                     text_hash=text_hash,
+                    source_doc_hash=source_hash,
                     now=now,
                 )
                 embedded += 1
@@ -183,6 +209,8 @@ def build_memory_embeddings(
         provider=spec.provider,
         model=spec.model,
         dimensions=spec.dimensions,
+        embedding_profile=spec.embedding_profile,
+        text_template_version=spec.text_template_version,
         selected=selected,
         embedded=embedded,
         skipped=skipped,
@@ -196,6 +224,8 @@ def semantic_search_memory(
     provider: str | None = None,
     model: str | None = None,
     dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
     api_key_env: str | None = None,
     base_url: str | None = None,
     limit: int = 50,
@@ -211,6 +241,8 @@ def semantic_search_memory(
             provider=provider,
             model=model,
             dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
             api_key_env=api_key_env,
             base_url=base_url,
         )
@@ -236,6 +268,8 @@ def semantic_scores_for_doc_ids(
     provider: str | None = None,
     model: str | None = None,
     dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
     api_key_env: str | None = None,
     base_url: str | None = None,
 ) -> dict[str, SemanticScore]:
@@ -250,6 +284,8 @@ def semantic_scores_for_doc_ids(
             provider=provider,
             model=model,
             dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
             api_key_env=api_key_env,
             base_url=base_url,
         )
@@ -271,6 +307,8 @@ def semantic_scores_for_doc_ids(
             provider=row["provider"],
             model=row["model"],
             dimensions=int(row["dimensions"]),
+            embedding_profile=row["embedding_profile"],
+            text_template_version=row["text_template_version"],
         )
         for row in rows
     }
@@ -283,10 +321,16 @@ def available_embedding_specs(db_path: str | Path) -> tuple[EmbeddingSpec, ...]:
         ensure_memory_schema(conn)
         rows = conn.execute(
             """
-            SELECT provider, model, dimensions
+            SELECT
+                provider, model, dimensions,
+                embedding_profile, text_template_version
             FROM memory_embeddings
-            GROUP BY provider, model, dimensions
-            ORDER BY MAX(updated_at) DESC, provider, model, dimensions
+            GROUP BY
+                provider, model, dimensions,
+                embedding_profile, text_template_version
+            ORDER BY
+                MAX(updated_at) DESC, provider, model, dimensions,
+                embedding_profile, text_template_version
             """
         ).fetchall()
     return tuple(
@@ -294,6 +338,8 @@ def available_embedding_specs(db_path: str | Path) -> tuple[EmbeddingSpec, ...]:
             provider=row["provider"],
             model=row["model"],
             dimensions=int(row["dimensions"]),
+            embedding_profile=row["embedding_profile"],
+            text_template_version=row["text_template_version"],
         )
         for row in rows
     )
@@ -444,16 +490,24 @@ def _embedding_source_rows(
     sql = """
         SELECT
             d.doc_id, d.title, d.compact_text, d.body, d.metadata_json,
-            e.embedded_text_hash
+            e.embedded_text_hash, e.source_doc_hash
         FROM memory_documents d
         LEFT JOIN memory_embeddings e
           ON e.doc_id = d.doc_id
          AND e.provider = ?
          AND e.model = ?
          AND e.dimensions = ?
+         AND e.embedding_profile = ?
+         AND e.text_template_version = ?
         ORDER BY d.observed_at DESC, d.doc_id
     """
-    params: list[Any] = [spec.provider, spec.model, spec.dimensions]
+    params: list[Any] = [
+        spec.provider,
+        spec.model,
+        spec.dimensions,
+        spec.embedding_profile,
+        spec.text_template_version,
+    ]
     if limit is not None and limit > 0:
         sql += " LIMIT ?"
         params.append(limit)
@@ -463,7 +517,10 @@ def _embedding_source_rows(
     return [
         row
         for row in rows
-        if row["embedded_text_hash"] != _text_hash(_embedding_text(row))
+        if (
+            row["embedded_text_hash"] != _text_hash(_embedding_text(row))
+            or row["source_doc_hash"] != _source_doc_hash(row)
+        )
     ]
 
 
@@ -475,7 +532,13 @@ def _embedding_rows(
     account: str | None,
 ) -> list[sqlite3.Row]:
     filters = []
-    params: list[Any] = [spec.provider, spec.model, spec.dimensions]
+    params: list[Any] = [
+        spec.provider,
+        spec.model,
+        spec.dimensions,
+        spec.embedding_profile,
+        spec.text_template_version,
+    ]
     if doc_type:
         filters.append("AND d.doc_type = ?")
         params.append(doc_type)
@@ -484,12 +547,16 @@ def _embedding_rows(
         params.append(account)
     return conn.execute(
         f"""
-        SELECT e.doc_id, e.provider, e.model, e.dimensions, e.embedding
+        SELECT
+            e.doc_id, e.provider, e.model, e.dimensions,
+            e.embedding_profile, e.text_template_version, e.embedding
         FROM memory_embeddings e
         JOIN memory_documents d ON d.doc_id = e.doc_id
         WHERE e.provider = ?
           AND e.model = ?
           AND e.dimensions = ?
+          AND e.embedding_profile = ?
+          AND e.text_template_version = ?
         {' '.join(filters)}
         """,
         params,
@@ -524,14 +591,25 @@ def _embedding_rows_for_doc_ids(
     placeholders = ",".join("?" for _ in doc_ids)
     return conn.execute(
         f"""
-        SELECT e.doc_id, e.provider, e.model, e.dimensions, e.embedding
+        SELECT
+            e.doc_id, e.provider, e.model, e.dimensions,
+            e.embedding_profile, e.text_template_version, e.embedding
         FROM memory_embeddings e
         WHERE e.provider = ?
           AND e.model = ?
           AND e.dimensions = ?
+          AND e.embedding_profile = ?
+          AND e.text_template_version = ?
           AND e.doc_id IN ({placeholders})
         """,
-        (spec.provider, spec.model, spec.dimensions, *doc_ids),
+        (
+            spec.provider,
+            spec.model,
+            spec.dimensions,
+            spec.embedding_profile,
+            spec.text_template_version,
+            *doc_ids,
+        ),
     ).fetchall()
 
 
@@ -558,6 +636,8 @@ def _semantic_hits_from_rows(
                     provider=row["provider"],
                     model=row["model"],
                     dimensions=dimensions,
+                    embedding_profile=row["embedding_profile"],
+                    text_template_version=row["text_template_version"],
                 )
             )
     return hits
@@ -569,6 +649,8 @@ def _resolve_available_spec(
     provider: str | None,
     model: str | None,
     dimensions: int | None,
+    embedding_profile: str | None,
+    text_template_version: str | None,
     api_key_env: str | None,
     base_url: str | None,
 ) -> EmbeddingSpec:
@@ -580,6 +662,8 @@ def _resolve_available_spec(
             provider=provider,
             model=model,
             dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
             api_key_env=api_key_env,
             base_url=base_url,
         )
@@ -601,13 +685,25 @@ def _resolve_available_spec(
     if dimensions:
         filters.append("dimensions = ?")
         params.append(dimensions)
+    if embedding_profile:
+        filters.append("embedding_profile = ?")
+        params.append(embedding_profile)
+    if text_template_version:
+        filters.append("text_template_version = ?")
+        params.append(text_template_version)
     row = conn.execute(
         f"""
-        SELECT provider, model, dimensions
+        SELECT
+            provider, model, dimensions,
+            embedding_profile, text_template_version
         FROM memory_embeddings
         WHERE {' AND '.join(filters)}
-        GROUP BY provider, model, dimensions
-        ORDER BY MAX(updated_at) DESC, provider, model, dimensions
+        GROUP BY
+            provider, model, dimensions,
+            embedding_profile, text_template_version
+        ORDER BY
+            MAX(updated_at) DESC, provider, model, dimensions,
+            embedding_profile, text_template_version
         LIMIT 1
         """,
         params,
@@ -617,6 +713,8 @@ def _resolve_available_spec(
             provider=row["provider"],
             model=row["model"],
             dimensions=int(row["dimensions"]),
+            embedding_profile=row["embedding_profile"],
+            text_template_version=row["text_template_version"],
             api_key_env=api_key_env,
             base_url=base_url,
         )
@@ -645,8 +743,16 @@ def _embedding_index_count(conn: sqlite3.Connection, spec: EmbeddingSpec) -> int
         WHERE provider = ?
           AND model = ?
           AND dimensions = ?
+          AND embedding_profile = ?
+          AND text_template_version = ?
         """,
-        (spec.provider, spec.model, spec.dimensions),
+        (
+            spec.provider,
+            spec.model,
+            spec.dimensions,
+            spec.embedding_profile,
+            spec.text_template_version,
+        ),
     ).fetchone()
     if not row:
         return 0
@@ -660,6 +766,7 @@ def _upsert_embedding(
     doc_id: str,
     vector: list[float],
     text_hash: str,
+    source_doc_hash: str,
     now: str,
 ) -> None:
     if len(vector) != spec.dimensions:
@@ -670,12 +777,17 @@ def _upsert_embedding(
     conn.execute(
         """
         INSERT INTO memory_embeddings (
-            doc_id, provider, model, dimensions, embedding,
-            embedded_text_hash, created_at, updated_at
+            doc_id, provider, model, dimensions,
+            embedding_profile, text_template_version,
+            embedding, source_doc_hash, embedded_text_hash, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(doc_id, provider, model, dimensions) DO UPDATE SET
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(
+            doc_id, provider, model, dimensions,
+            embedding_profile, text_template_version
+        ) DO UPDATE SET
             embedding=excluded.embedding,
+            source_doc_hash=excluded.source_doc_hash,
             embedded_text_hash=excluded.embedded_text_hash,
             updated_at=excluded.updated_at
         """,
@@ -684,7 +796,10 @@ def _upsert_embedding(
             spec.provider,
             spec.model,
             spec.dimensions,
+            spec.embedding_profile,
+            spec.text_template_version,
             pack_embedding(_normalize_vector(vector)),
+            source_doc_hash,
             text_hash,
             now,
             now,
@@ -710,6 +825,17 @@ def _embedding_text(row: sqlite3.Row) -> str:
     return text[:2400]
 
 
+def _source_doc_hash(row: sqlite3.Row) -> str:
+    payload = {
+        "doc_id": row["doc_id"],
+        "title": row["title"],
+        "compact_text": row["compact_text"],
+        "body": row["body"],
+        "metadata_json": row["metadata_json"],
+    }
+    return _text_hash(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
 def _compact_metadata(value: str | None) -> str:
     if not value:
         return ""
@@ -729,6 +855,20 @@ def _compact_metadata(value: str | None) -> str:
 
 def _text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _clean_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", text):
+        raise ValueError(
+            "embedding profile/template values may only contain letters, numbers, "
+            "underscore, dot, colon, or dash"
+        )
+    return text
 
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u3040-\u30ff\u3400-\u9fff]+")

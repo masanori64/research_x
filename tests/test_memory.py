@@ -22,6 +22,7 @@ from research_x.memory.reader import (
     extract_url_to_context,
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
+from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.search import search_memory
 from research_x.memory.source_kinds import classify_external_source_kind
 from research_x.memory.workflow import plan_workflow_route, run_memory_workflow
@@ -143,10 +144,82 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
     )
 
     assert summary.embedded == 5
+    assert summary.embedding_profile == "general_memory"
+    assert summary.text_template_version == "memory-doc-embedding-v1"
     assert rerun.embedded == 0
     assert rerun.selected == 0
     assert results
     assert any(result.score_components["semantic"] > 0 for result in results)
+    assert any(
+        result.metadata["semantic"]["embedding_profile"] == "general_memory"
+        for result in results
+        if "semantic" in result.metadata
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT embedding_profile, text_template_version, source_doc_hash
+            FROM memory_embeddings
+            LIMIT 1
+            """
+        ).fetchone()
+
+    assert row[:2] == ("general_memory", "memory-doc-embedding-v1")
+    assert row[2]
+
+
+def test_memory_embedding_schema_migrates_legacy_rows(tmp_path: Path) -> None:
+    db_path = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE memory_embeddings (
+                doc_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                embedding BLOB NOT NULL,
+                embedded_text_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(doc_id, provider, model, dimensions)
+            );
+            INSERT INTO memory_embeddings (
+                doc_id, provider, model, dimensions, embedding,
+                embedded_text_hash, created_at, updated_at
+            )
+            VALUES (
+                'doc-1', 'local_hash', 'local-hash-v1', 4, zeroblob(16),
+                'old-hash', '2026-05-26T00:00:00+00:00',
+                '2026-05-26T00:00:00+00:00'
+            );
+            """
+        )
+        ensure_memory_schema(conn)
+        columns = {
+            row[1]: row[5]
+            for row in conn.execute("PRAGMA table_info(memory_embeddings)").fetchall()
+        }
+        migrated = conn.execute(
+            """
+            SELECT
+                embedding_profile,
+                text_template_version,
+                source_doc_hash,
+                embedded_text_hash
+            FROM memory_embeddings
+            """
+        ).fetchone()
+
+    assert columns["embedding_profile"] == 5
+    assert columns["text_template_version"] == 6
+    assert migrated == (
+        "general_memory",
+        "memory-doc-embedding-v1",
+        None,
+        "old-hash",
+    )
 
 
 def test_memory_semantic_auto_rejects_diagnostic_only_index(tmp_path: Path) -> None:

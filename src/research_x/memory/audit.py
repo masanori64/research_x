@@ -103,10 +103,14 @@ def format_audit_report(report: MemoryAuditReport) -> str:
             parts = [
                 f"{spec['provider']}/{spec['model']}",
                 f"dims={spec['dimensions']}",
+                f"profile={spec['embedding_profile']}",
+                f"template={spec['text_template_version']}",
                 f"rows={spec['rows']}",
             ]
             if spec.get("orphaned_rows"):
                 parts.append(f"orphaned={spec['orphaned_rows']}")
+            if spec.get("source_hash_missing"):
+                parts.append(f"source_hash_missing={spec['source_hash_missing']}")
             lines.append("  " + " ".join(parts))
     else:
         lines.append("  none")
@@ -190,12 +194,26 @@ def _embedding_specs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             e.provider,
             e.model,
             e.dimensions,
+            e.embedding_profile,
+            e.text_template_version,
             COUNT(*) AS rows,
-            SUM(CASE WHEN d.doc_id IS NULL THEN 1 ELSE 0 END) AS orphaned_rows
+            SUM(CASE WHEN d.doc_id IS NULL THEN 1 ELSE 0 END) AS orphaned_rows,
+            SUM(
+                CASE
+                    WHEN e.source_doc_hash IS NULL OR TRIM(e.source_doc_hash) = ''
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS source_hash_missing
         FROM memory_embeddings e
         LEFT JOIN memory_documents d ON d.doc_id = e.doc_id
-        GROUP BY e.provider, e.model, e.dimensions
-        ORDER BY rows DESC, provider, model, dimensions
+        GROUP BY
+            e.provider,
+            e.model,
+            e.dimensions,
+            e.embedding_profile,
+            e.text_template_version
+        ORDER BY rows DESC, provider, model, dimensions, embedding_profile, text_template_version
         """
     ).fetchall()
     return [
@@ -203,8 +221,11 @@ def _embedding_specs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "provider": row["provider"],
             "model": row["model"],
             "dimensions": int(row["dimensions"]),
+            "embedding_profile": row["embedding_profile"],
+            "text_template_version": row["text_template_version"],
             "rows": int(row["rows"]),
             "orphaned_rows": int(row["orphaned_rows"] or 0),
+            "source_hash_missing": int(row["source_hash_missing"] or 0),
         }
         for row in rows
     ]
@@ -587,5 +608,12 @@ def _warnings(
             warnings.append(
                 f"embedding index has stale rows for {spec['provider']}/{spec['model']}: "
                 f"orphaned={spec['orphaned_rows']}"
+            )
+        if int(spec.get("source_hash_missing") or 0):
+            warnings.append(
+                f"embedding index lacks source hashes for {spec['provider']}/{spec['model']} "
+                f"profile={spec['embedding_profile']} "
+                f"template={spec['text_template_version']}: "
+                f"missing={spec['source_hash_missing']}; rebuild memory embeddings"
             )
     return warnings
