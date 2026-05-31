@@ -12,6 +12,11 @@ from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
 from research_x.memory.query import build_query_plan
+from research_x.memory.reader import (
+    HttpResponse,
+    extract_external_run_to_context,
+    extract_url_to_context,
+)
 from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.search import search_memory
 
@@ -462,6 +467,93 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
     assert workflows == 0
 
 
+def test_reader_extract_fake_provider_stores_external_context(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+
+    bundle = extract_url_to_context(
+        db_path,
+        "https://example.com/pizza",
+        provider="fake",
+        query="北千住 ピザ",
+    )
+
+    assert bundle.provider == "fake"
+    assert bundle.provider_role == "fetch_agent"
+    assert bundle.context_chunk["source_kind"] == "external_web"
+    assert bundle.context_chunk["source_url"] == "https://example.com/pizza"
+    assert "Fake extracted page" in bundle.context_chunk["chunk_text"]
+    assert bundle.citation_annotation["evidence_status"] == "unconfirmed"
+
+    with sqlite3.connect(db_path) as conn:
+        tool_calls = conn.execute("SELECT COUNT(*) FROM memory_tool_calls").fetchone()[0]
+        chunks = conn.execute("SELECT COUNT(*) FROM memory_context_chunks").fetchone()[0]
+        citations = conn.execute(
+            "SELECT COUNT(*) FROM memory_citation_annotations"
+        ).fetchone()[0]
+
+    assert tool_calls == 1
+    assert chunks == 1
+    assert citations == 1
+
+
+def test_reader_extract_http_provider_normalizes_html(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+
+    def fake_read_url(url, *, timeout_seconds, user_agent, max_bytes):
+        assert timeout_seconds == 5.0
+        assert user_agent == "test-agent"
+        assert max_bytes == 1024
+        return HttpResponse(
+            final_url=url,
+            status_code=200,
+            content_type="text/html; charset=utf-8",
+            body=(
+                b"<html><head><title>Pizza Place</title><script>ignore()</script></head>"
+                b"<body><h1>North Senju</h1><p>Wood fired pizza.</p></body></html>"
+            ),
+        )
+
+    monkeypatch.setattr("research_x.memory.reader._read_url", fake_read_url)
+
+    bundle = extract_url_to_context(
+        db_path,
+        "https://example.com/pizza",
+        provider="http",
+        timeout_seconds=5.0,
+        user_agent="test-agent",
+        max_bytes=1000,
+    )
+
+    assert bundle.page.title == "Pizza Place"
+    assert "North Senju" in bundle.page.text
+    assert "ignore" not in bundle.page.text
+    assert bundle.context_chunk["provider"] == "http"
+
+
+def test_reader_extract_external_run_uses_stored_urls(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    external = search_external_evidence(
+        db_path,
+        "北千住 ピザ",
+        provider="fake",
+        limit=2,
+    )
+
+    bundles = extract_external_run_to_context(
+        db_path,
+        external.run_id,
+        provider="fake",
+        limit=1,
+        query="北千住 ピザ",
+    )
+
+    assert len(bundles) == 1
+    assert bundles[0].context_chunk["metadata"]["external_run_id"] == external.run_id
+
+
 def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     captured = {}
 
@@ -544,6 +636,21 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         main(
             [
                 "memory",
+                "extract-url",
+                "--db",
+                str(db_path),
+                "--url",
+                "https://example.com/pizza",
+                "--provider",
+                "fake",
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "memory",
                 "external-search",
                 "--db",
                 str(db_path),
@@ -563,6 +670,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert "tweet-1" in output
     assert "hits" in output
     assert "context_chunks" in output
+    assert "reader_extract" in output
     assert "memory://fake-external-search" in output
 
 

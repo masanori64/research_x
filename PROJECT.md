@@ -63,6 +63,7 @@ src/research_x/memory/
   context.py
   evidence.py
   external.py
+  reader.py
   feedback.py
   embeddings.py
   relations.py
@@ -85,6 +86,7 @@ research_x memory search
 research_x memory evidence
 research_x memory context
 research_x memory external-search
+research_x memory extract-url
 research_x memory export-corpus2skill
 research_x memory feedback
 research_x memory eval
@@ -102,6 +104,8 @@ Implemented behavior:
 - external URL-discovery provider contract with no-network fake provider and optional Serper
   provider;
 - normalized external discovery run/item storage in the SQLite DB;
+- reader/extract provider contract with no-network fake provider and basic HTTP reader;
+- external URL extraction into tool call, context chunk, and citation annotation rows;
 - V2 search run, tool call, context chunk, citation annotation, answer run, and workflow trace
   schema;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
@@ -111,8 +115,8 @@ Implemented behavior:
 
 Known limitation:
 
-- current evidence output still mixes retrieved hit data and citation-ready context more than the
-  V2 architecture allows;
+- `memory evidence` remains legacy-compatible; use `memory context` and `memory extract-url` for
+  chunk/citation objects;
 - `older_same_author_label` is only a weak stale candidate, not proof of obsolescence;
 - production semantic quality requires a real OpenAI/Gemini embedding index, not `local_hash`.
 
@@ -143,6 +147,8 @@ Implementation checklist:
 - [ ] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.
 - [x] Add an external evidence provider interface with a no-network fake provider first.
 - [x] Add Serper as an optional Google SERP `web-search` / `index_provider`.
+- [x] Add reader/extract provider interface with no-network fake provider first.
+- [x] Add basic HTTP reader that extracts readable text into external context chunks.
 - [ ] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
       explicit.
 - [ ] Add OpenAI-style citation annotations for generated answers.
@@ -152,9 +158,7 @@ Future command candidates:
 
 ```text
 research_x memory build-derived
-research_x memory context
 research_x memory cite
-research_x memory external-search
 research_x memory workflow
 research_x memory answer
 ```

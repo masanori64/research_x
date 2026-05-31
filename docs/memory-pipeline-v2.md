@@ -653,6 +653,7 @@ memory_embeddings       -> Layer 2 semantic retrieval
 memory_relations        -> Layer 2 relation expansion / future graph base
 memory_external_runs    -> Layer 3 external provider run metadata
 memory_external_items   -> Layer 3 normalized external URL discovery results
+memory_tool_calls       -> Layer 3/7 provider calls, including reader/extract
 memory_search_runs      -> Layer 2/4 local query execution records
 memory_context_chunks   -> Layer 4 LLM-ready context chunks
 memory_citation_annotations -> Layer 5 citation-ready source metadata
@@ -661,6 +662,7 @@ memory_workflow_runs    -> Layer 7 bounded workflow traces
 memory_workflow_steps   -> Layer 7 bounded workflow step logs
 memory evidence         -> legacy-compatible local hit bundle
 memory context          -> Layer 4 chunks plus Layer 5 citation metadata
+memory extract-url      -> Layer 3 reader/extract to Layer 4 external chunks
 memory feedback/eval    -> Layer 7 feedback/eval
 memory audit            -> rebuild/index health gate
 ```
@@ -672,7 +674,8 @@ What may need refactoring later:
 - `memory evidence` remains a legacy-compatible hit bundle; new AI callers should prefer
   `memory context` for chunks and citation metadata.
 - feedback scoring should eventually become query/route-aware.
-- external Web evidence should be stored separately from local X evidence.
+- external Web evidence is stored separately from local X evidence; URL discovery rows are not
+  citation-ready until `reader/extract` or `llm-context` produces context chunks.
 
 What should not be deleted:
 
@@ -688,11 +691,12 @@ What should not be deleted:
 3. Refactor evidence output so local hits and citations are explicit.
 4. Add derived view builders for `place_card`, `author_profile`, and `ticker_event`.
 5. Add external evidence provider interface, initially with a no-network fake/test provider.
-6. Add Brave LLM Context provider only after storage/retention/rate-limit handling is explicit.
-7. Add workflow routing and workflow traces.
-8. Expand evals to route-level cases.
-9. Add production embedding rebuild for the selected provider.
-10. Integrate Corpus2Skill OSS export/navigation as a map after evals show stable search behavior.
+6. Add reader/extract providers and normalize extracted URL text into context chunks.
+7. Add Brave LLM Context provider only after storage/retention/rate-limit handling is explicit.
+8. Add workflow routing and workflow traces.
+9. Expand evals to route-level cases.
+10. Add production embedding rebuild for the selected provider.
+11. Integrate Corpus2Skill OSS export/navigation as a map after evals show stable search behavior.
 
 ## Deletion / Rewrite Policy
 

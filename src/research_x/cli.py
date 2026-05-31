@@ -399,6 +399,36 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="store the normalized external run/items in the memory DB",
     )
+    memory_extract_parser = memory_subparsers.add_parser(
+        "extract-url",
+        help="extract readable text from a URL or external-search run into context chunks",
+    )
+    memory_extract_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_extract_parser.add_argument("--url", default=None, help="single URL to extract")
+    memory_extract_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="extract URLs from a stored memory external-search run",
+    )
+    memory_extract_parser.add_argument(
+        "--provider",
+        choices=["fake", "http"],
+        default="fake",
+        help="reader/extract provider; fake is deterministic and no-network",
+    )
+    memory_extract_parser.add_argument("--query", default=None)
+    memory_extract_parser.add_argument("--title", default=None)
+    memory_extract_parser.add_argument("--limit", type=int, default=5)
+    memory_extract_parser.add_argument("--max-chars", type=int, default=4000)
+    memory_extract_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    memory_extract_parser.add_argument("--user-agent", default="research-x/0.1")
+    memory_extract_parser.add_argument("--max-bytes", type=int, default=2_000_000)
+    memory_extract_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store tool call, context chunk, and citation annotation rows",
+    )
     memory_feedback_parser = memory_subparsers.add_parser(
         "feedback",
         help="record search-result feedback for later ranking improvements",
@@ -1399,6 +1429,46 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             store=args.store,
         )
         print(external_evidence_json(bundle))
+        return 0
+    if args.memory_command == "extract-url":
+        from research_x.memory.reader import (
+            extract_external_run_to_context,
+            extract_url_to_context,
+            reader_context_json,
+        )
+
+        if not args.url and not args.external_run_id:
+            raise ValueError("pass --url or --external-run-id")
+        if args.url and args.external_run_id:
+            raise ValueError("pass only one of --url or --external-run-id")
+        if args.external_run_id:
+            bundles = extract_external_run_to_context(
+                args.db,
+                args.external_run_id,
+                provider=args.provider,
+                limit=args.limit,
+                query=args.query,
+                max_chars=args.max_chars,
+                timeout_seconds=args.timeout_seconds,
+                user_agent=args.user_agent,
+                max_bytes=args.max_bytes,
+                store=args.store,
+            )
+            print(reader_context_json(bundles))
+            return 0
+        bundle = extract_url_to_context(
+            args.db,
+            args.url,
+            provider=args.provider,
+            query=args.query,
+            title=args.title,
+            max_chars=args.max_chars,
+            timeout_seconds=args.timeout_seconds,
+            user_agent=args.user_agent,
+            max_bytes=args.max_bytes,
+            store=args.store,
+        )
+        print(reader_context_json(bundle))
         return 0
     if args.memory_command == "feedback":
         from research_x.memory.feedback import add_feedback

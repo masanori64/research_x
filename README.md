@@ -371,6 +371,19 @@ uv run python -m research_x memory context `
 This stores a search run, context chunks, and citation annotations without turning generated labels
 or answers into evidence.
 
+Reader/extract is separate from URL discovery. Use `memory extract-url` to turn a known URL, or URLs
+from an external-search run, into external context chunks:
+
+```powershell
+uv run python -m research_x memory extract-url `
+  --db runs/x_data.sqlite3 `
+  --url "https://example.com/article" `
+  --provider http
+```
+
+Use `--provider fake` for deterministic no-network tests. The HTTP reader stores extracted text as
+external context, while raw HTML is not stored in the DB.
+
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 
