@@ -360,7 +360,7 @@ Recommended future table shape:
 ```text
 context_chunks
   chunk_id TEXT PRIMARY KEY
-  source_kind TEXT              -- local_x_db, external_web, official, secondary, user_generated
+  source_kind TEXT              -- local_x_db, official, secondary, user_generated
   source_id TEXT
   source_url TEXT
   provider TEXT
@@ -732,8 +732,8 @@ What may need refactoring later:
 - feedback scoring should eventually become query/route-aware.
 - external Web evidence is stored separately from local X evidence; URL discovery rows are not
   citation-ready until `reader/extract` or `llm-context` produces context chunks.
-- combined context bundles can include both `local_x_db` and `external_web` chunks, but source kind
-  and provider role must remain explicit.
+- combined context bundles can include `local_x_db`, `official`, `secondary`, and
+  `user_generated` chunks; `external_web` is retained as `source_medium` metadata when useful.
 - generated answers are stored in `memory_answer_runs`; answer-specific citation annotations must
   point back to context chunks with `answer_id` and answer text offsets.
 

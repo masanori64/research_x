@@ -23,6 +23,7 @@ from research_x.memory.reader import (
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.search import search_memory
+from research_x.memory.source_kinds import classify_external_source_kind
 from research_x.memory.workflow import plan_workflow_route, run_memory_workflow
 
 
@@ -550,9 +551,11 @@ def test_memory_context_can_include_external_run_chunks(tmp_path: Path) -> None:
 
     source_kinds = {chunk.source_kind for chunk in bundle.context_chunks}
     assert "local_x_db" in source_kinds
-    assert "external_web" in source_kinds
+    assert "secondary" in source_kinds
     external_chunk = next(
-        chunk for chunk in bundle.context_chunks if chunk.source_kind == "external_web"
+        chunk
+        for chunk in bundle.context_chunks
+        if chunk.metadata.get("source_medium") == "external_web"
     )
     assert external_chunk.run_id == bundle.run_id
     assert external_chunk.metadata["external_run_id"] == external.run_id
@@ -859,7 +862,8 @@ def test_reader_extract_fake_provider_stores_external_context(tmp_path: Path) ->
 
     assert bundle.provider == "fake"
     assert bundle.provider_role == "fetch_agent"
-    assert bundle.context_chunk["source_kind"] == "external_web"
+    assert bundle.context_chunk["source_kind"] == "secondary"
+    assert bundle.context_chunk["metadata"]["source_medium"] == "external_web"
     assert bundle.context_chunk["source_url"] == "https://example.com/pizza"
     assert "Fake extracted page" in bundle.context_chunk["chunk_text"]
     assert bundle.citation_annotation["evidence_status"] == "unconfirmed"
@@ -911,6 +915,8 @@ def test_reader_extract_http_provider_normalizes_html(
     assert "North Senju" in bundle.page.text
     assert "ignore" not in bundle.page.text
     assert bundle.context_chunk["provider"] == "http"
+    assert bundle.context_chunk["source_kind"] == "secondary"
+    assert bundle.citation_annotation["evidence_status"] == "fact"
 
 
 def test_reader_extract_external_run_uses_stored_urls(tmp_path: Path) -> None:
@@ -947,6 +953,9 @@ def test_llm_context_fake_provider_stores_chunks_and_citations(tmp_path: Path) -
     assert bundle.context_chunks
     assert bundle.citation_annotations
     assert bundle.context_chunks[0]["provider_role"] == "llm_context_provider"
+    assert bundle.context_chunks[0]["source_kind"] == "secondary"
+    assert bundle.context_chunks[0]["metadata"]["source_medium"] == "external_web"
+    assert bundle.citation_annotations[0]["evidence_status"] == "unconfirmed"
     assert bundle.retention_policy == "extracted_context_with_source_urls"
 
     with sqlite3.connect(db_path) as conn:
@@ -960,7 +969,7 @@ def test_llm_context_fake_provider_stores_chunks_and_citations(tmp_path: Path) -
             """
             SELECT COUNT(*)
             FROM memory_citation_annotations
-            WHERE source_kind = 'external_web'
+            WHERE json_extract(metadata_json, '$.source_medium') = 'external_web'
             """
         ).fetchone()[0]
 
@@ -1021,8 +1030,15 @@ def test_llm_context_brave_provider_parses_generic_grounding(
     assert captured["payload"]["maximum_number_of_tokens"] == 32768
     assert captured["payload"]["maximum_number_of_snippets"] == 256
     assert bundle.sources[0].url == "https://example.com/pizza"
+    assert bundle.context_chunks[0]["source_kind"] == "secondary"
     assert "北千住" in bundle.context_chunks[0]["chunk_text"]
     assert "brave-key" not in json.dumps(bundle.as_dict(), ensure_ascii=False)
+
+
+def test_external_source_kind_classification() -> None:
+    assert classify_external_source_kind("https://x.com/alice/status/1") == "user_generated"
+    assert classify_external_source_kind("https://www.sec.gov/filing") == "official"
+    assert classify_external_source_kind("https://example.com/article") == "secondary"
 
 
 def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:

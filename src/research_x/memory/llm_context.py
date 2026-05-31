@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.source_kinds import (
+    EXTERNAL_WEB_MEDIUM,
+    classify_external_source_kind,
+    evidence_status_for_source,
+)
 
 LLM_CONTEXT_ROLE = "llm_context_provider"
 LLM_CONTEXT_EXTRACTOR_VERSION = "llm-context-v1"
@@ -385,11 +390,12 @@ def _context_chunk(
     query: str,
 ) -> dict[str, Any]:
     chunk_text = _chunk_text(query=query, source=source)
+    source_kind = classify_external_source_kind(source.url, metadata=source.metadata)
     chunk_id = _hash_id("llm-context-chunk", tool_call_id, source.source_id, _text_hash(chunk_text))
     return {
         "chunk_id": chunk_id,
         "run_id": run_id,
-        "source_kind": "external_web",
+        "source_kind": source_kind,
         "source_id": source.source_id,
         "source_url": source.url,
         "provider": provider,
@@ -403,6 +409,8 @@ def _context_chunk(
         "metadata": {
             "title": source.title,
             "content_type": source.content_type,
+            "source_medium": EXTERNAL_WEB_MEDIUM,
+            "evidence_source_kind": source_kind,
             "source_metadata": source.metadata,
             "retention_policy": "extracted_context_with_source_urls",
         },
@@ -416,23 +424,26 @@ def _citation_annotation(
     source: LLMContextSource,
 ) -> dict[str, Any]:
     citation_id = _hash_id("llm-context-citation", tool_call_id, chunk["chunk_id"])
+    evidence_status = evidence_status_for_source(source.url, provider=str(chunk["provider"]))
     return {
         "citation_id": citation_id,
         "answer_id": None,
         "chunk_id": chunk["chunk_id"],
-        "source_kind": "external_web",
+        "source_kind": chunk["source_kind"],
         "source_id": source.source_id,
         "source_url": source.url,
         "title": source.title,
         "field_path": "context_chunks[llm_context]",
         "support_type": "background",
-        "evidence_status": "fact" if source.url else "unconfirmed",
-        "confidence": 0.8 if source.url else 0.4,
+        "evidence_status": evidence_status,
+        "confidence": 0.8 if evidence_status == "fact" else 0.4,
         "created_at": _utc_now(),
         "metadata": {
             "provider_role": LLM_CONTEXT_ROLE,
             "tool_call_id": tool_call_id,
             "content_type": source.content_type,
+            "source_medium": EXTERNAL_WEB_MEDIUM,
+            "evidence_source_kind": chunk["source_kind"],
         },
     }
 

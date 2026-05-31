@@ -323,5 +323,10 @@ def _retrieval_engines(hits: list[dict]) -> tuple[str, ...]:
 def _source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
     if workflow.context_bundle is None:
         return ()
-    kinds = sorted({chunk.source_kind for chunk in workflow.context_bundle.context_chunks})
+    kinds = sorted(
+        {
+            str(chunk.metadata.get("evidence_source_kind") or chunk.source_kind)
+            for chunk in workflow.context_bundle.context_chunks
+        }
+    )
     return tuple(kinds)

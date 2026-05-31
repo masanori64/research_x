@@ -15,6 +15,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.source_kinds import (
+    EXTERNAL_WEB_MEDIUM,
+    classify_external_source_kind,
+    evidence_status_for_source,
+)
 
 FETCH_AGENT_ROLE = "fetch_agent"
 READER_EXTRACTOR_VERSION = "reader-extract-v1"
@@ -446,12 +451,13 @@ def _context_chunk(
     metadata: dict[str, Any],
 ) -> dict[str, Any]:
     source_id = _hash_id("external-web", page.url)[:24]
+    source_kind = classify_external_source_kind(page.url, metadata=metadata)
     chunk_text = _reader_chunk_text(page=page, query=query)
     chunk_id = _hash_id("external-chunk", tool_call_id, page.url, _text_hash(chunk_text))
     return {
         "chunk_id": chunk_id,
         "run_id": run_id,
-        "source_kind": "external_web",
+        "source_kind": source_kind,
         "source_id": source_id,
         "source_url": page.url,
         "provider": provider,
@@ -466,6 +472,8 @@ def _context_chunk(
             "title": page.title,
             "status_code": page.status_code,
             "content_type": page.content_type,
+            "source_medium": EXTERNAL_WEB_MEDIUM,
+            "evidence_source_kind": source_kind,
             "page_metadata": page.metadata,
             **metadata,
         },
@@ -480,22 +488,25 @@ def _citation_annotation(
     metadata: dict[str, Any],
 ) -> dict[str, Any]:
     citation_id = _hash_id("external-citation", tool_call_id, chunk["chunk_id"], page.url)
+    evidence_status = evidence_status_for_source(page.url, provider=str(chunk["provider"]))
     return {
         "citation_id": citation_id,
         "answer_id": None,
         "chunk_id": chunk["chunk_id"],
-        "source_kind": "external_web",
+        "source_kind": chunk["source_kind"],
         "source_id": chunk["source_id"],
         "source_url": page.url,
         "title": page.title,
         "field_path": "context_chunks[external]",
         "support_type": "background",
-        "evidence_status": "unconfirmed",
-        "confidence": 0.7,
+        "evidence_status": evidence_status,
+        "confidence": 0.8 if evidence_status == "fact" else 0.4,
         "created_at": page.retrieved_at,
         "metadata": {
             "provider_role": chunk["provider_role"],
             "tool_call_id": tool_call_id,
+            "source_medium": EXTERNAL_WEB_MEDIUM,
+            "evidence_source_kind": chunk["source_kind"],
             **metadata,
         },
     }

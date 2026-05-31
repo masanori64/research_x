@@ -519,7 +519,12 @@ def _context_summary(bundle: ContextBundle) -> dict[str, Any]:
         "hit_count": len(bundle.retrieved_hits),
         "chunk_count": len(bundle.context_chunks),
         "citation_count": len(bundle.citation_annotations),
-        "source_kinds": sorted({chunk.source_kind for chunk in bundle.context_chunks}),
+        "source_kinds": sorted(
+            {
+                str(chunk.metadata.get("evidence_source_kind") or chunk.source_kind)
+                for chunk in bundle.context_chunks
+            }
+        ),
         "top_doc_ids": [str(hit.get("doc_id")) for hit in bundle.retrieved_hits[:5]],
     }
 
