@@ -467,6 +467,48 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
     assert workflows == 0
 
 
+def test_memory_context_can_include_external_run_chunks(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    external = search_external_evidence(
+        db_path,
+        "北千住 ピザ",
+        provider="fake",
+        limit=2,
+    )
+
+    bundle = build_context_bundle(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        external_run_id=external.run_id,
+        external_reader_provider="fake",
+        external_limit=1,
+    )
+
+    source_kinds = {chunk.source_kind for chunk in bundle.context_chunks}
+    assert "local_x_db" in source_kinds
+    assert "external_web" in source_kinds
+    external_chunk = next(
+        chunk for chunk in bundle.context_chunks if chunk.source_kind == "external_web"
+    )
+    assert external_chunk.run_id == bundle.run_id
+    assert external_chunk.metadata["external_run_id"] == external.run_id
+
+    with sqlite3.connect(db_path) as conn:
+        tool_run_id = conn.execute(
+            "SELECT run_id FROM memory_tool_calls WHERE provider_role = 'fetch_agent'"
+        ).fetchone()[0]
+        chunk_count = conn.execute(
+            "SELECT COUNT(*) FROM memory_context_chunks WHERE run_id = ?",
+            (bundle.run_id,),
+        ).fetchone()[0]
+
+    assert tool_run_id == bundle.run_id
+    assert chunk_count == len(bundle.context_chunks)
+
+
 def test_reader_extract_fake_provider_stores_external_context(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
 
@@ -632,6 +674,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert main(["memory", "plan", "--query", "引用元を見たい"]) == 0
     assert main(["memory", "evidence", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(["memory", "context", "--db", str(db_path), "--query", "ロボット"]) == 0
+    external_output_start = capsys.readouterr().out
     assert (
         main(
             [
@@ -647,6 +690,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    extract_output = capsys.readouterr().out
     assert (
         main(
             [
@@ -664,12 +708,34 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    external_output = capsys.readouterr().out
+    external_payload = json.loads(external_output)
+    assert (
+        main(
+            [
+                "memory",
+                "context",
+                "--db",
+                str(db_path),
+                "--query",
+                "北千住 ピザ",
+                "--external-run-id",
+                external_payload["run_id"],
+                "--external-provider",
+                "fake",
+                "--external-limit",
+                "1",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
-    output = capsys.readouterr().out
+    output = external_output_start + extract_output + external_output + capsys.readouterr().out
     assert "tweet-1" in output
     assert "hits" in output
     assert "context_chunks" in output
+    assert "external_web" in output
     assert "reader_extract" in output
     assert "memory://fake-external-search" in output
 

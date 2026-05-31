@@ -369,6 +369,22 @@ def main(argv: list[str] | None = None) -> int:
     memory_context_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_context_parser.add_argument("--semantic-candidates", type=int, default=80)
     memory_context_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="also extract URLs from this external-search run into the same context bundle",
+    )
+    memory_context_parser.add_argument(
+        "--external-provider",
+        choices=["fake", "http"],
+        default="fake",
+        help="reader/extract provider for --external-run-id",
+    )
+    memory_context_parser.add_argument("--external-limit", type=int, default=5)
+    memory_context_parser.add_argument("--external-max-chars", type=int, default=4000)
+    memory_context_parser.add_argument("--external-timeout-seconds", type=float, default=30.0)
+    memory_context_parser.add_argument("--external-user-agent", default="research-x/0.1")
+    memory_context_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
+    memory_context_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -1408,6 +1424,13 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            external_run_id=args.external_run_id,
+            external_reader_provider=args.external_provider,
+            external_limit=args.external_limit,
+            external_max_chars=args.external_max_chars,
+            external_timeout_seconds=args.external_timeout_seconds,
+            external_user_agent=args.external_user_agent,
+            external_max_bytes=args.external_max_bytes,
             store=args.store,
         )
         print(context_bundle_json(bundle))

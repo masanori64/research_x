@@ -110,6 +110,8 @@ Implemented behavior:
   schema;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
   citation-ready metadata;
+- `memory context --external-run-id` integration that combines local X chunks with extracted
+  external Web chunks under one context bundle/run id;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
   semantic indexes, and weak retrieval behavior.
 
@@ -149,6 +151,7 @@ Implementation checklist:
 - [x] Add Serper as an optional Google SERP `web-search` / `index_provider`.
 - [x] Add reader/extract provider interface with no-network fake provider first.
 - [x] Add basic HTTP reader that extracts readable text into external context chunks.
+- [x] Integrate extracted external Web chunks into `memory context` bundles.
 - [ ] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
       explicit.
 - [ ] Add OpenAI-style citation annotations for generated answers.

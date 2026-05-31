@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from research_x.memory.evidence import build_evidence_bundle
+from research_x.memory.reader import (
+    ReaderContextBundle,
+    extract_external_run_to_context,
+)
 from research_x.memory.schema import ensure_memory_schema
 
 EXTRACTOR_VERSION = "local-evidence-context-v1"
@@ -122,6 +126,13 @@ def build_context_bundle(
     semantic_base_url: str | None = None,
     semantic_weight: float = 3.0,
     semantic_candidates: int = 80,
+    external_run_id: str | None = None,
+    external_reader_provider: str = "fake",
+    external_limit: int = 5,
+    external_max_chars: int = 4000,
+    external_timeout_seconds: float = 30.0,
+    external_user_agent: str = "research-x/0.1",
+    external_max_bytes: int = 2_000_000,
     store: bool = True,
 ) -> ContextBundle:
     parameters = {
@@ -135,6 +146,13 @@ def build_context_bundle(
         "semantic_base_url": semantic_base_url,
         "semantic_weight": semantic_weight,
         "semantic_candidates": semantic_candidates,
+        "external_run_id": external_run_id,
+        "external_reader_provider": external_reader_provider,
+        "external_limit": external_limit,
+        "external_max_chars": external_max_chars,
+        "external_timeout_seconds": external_timeout_seconds,
+        "external_user_agent": external_user_agent,
+        "external_max_bytes": external_max_bytes,
     }
     started_at = _utc_now()
     evidence = build_evidence_bundle(
@@ -168,14 +186,43 @@ def build_context_bundle(
         _citation(chunk=chunk, hit=hit, index=index, created_at=finished_at)
         for index, (chunk, hit) in enumerate(zip(chunks, hits, strict=True))
     )
+    external_bundles: list[ReaderContextBundle] = []
+    if external_run_id:
+        external_bundles = extract_external_run_to_context(
+            db_path,
+            external_run_id,
+            run_id=run_id,
+            provider=external_reader_provider,
+            limit=external_limit,
+            query=query,
+            max_chars=external_max_chars,
+            timeout_seconds=external_timeout_seconds,
+            user_agent=external_user_agent,
+            max_bytes=external_max_bytes,
+            store=store,
+        )
+    external_chunks = tuple(
+        _chunk_from_reader_bundle(bundle, run_id=run_id, index=len(chunks) + index)
+        for index, bundle in enumerate(external_bundles)
+    )
+    external_citations = tuple(
+        _citation_from_reader_bundle(
+            bundle,
+            chunk=chunk,
+            index=len(citations) + index,
+        )
+        for index, (bundle, chunk) in enumerate(
+            zip(external_bundles, external_chunks, strict=True)
+        )
+    )
     bundle = ContextBundle(
         run_id=run_id,
         query=query,
         query_plan=evidence["query_plan"],
         parameters=parameters,
         retrieved_hits=hits,
-        context_chunks=chunks,
-        citation_annotations=citations,
+        context_chunks=chunks + external_chunks,
+        citation_annotations=citations + external_citations,
     )
     if store:
         _store_context_bundle(
@@ -265,6 +312,60 @@ def _citation(
             "tweet_id": hit.get("tweet_id"),
             "author": (hit.get("evidence") or {}).get("author"),
         },
+    )
+
+
+def _chunk_from_reader_bundle(
+    bundle: ReaderContextBundle,
+    *,
+    run_id: str,
+    index: int,
+) -> ContextChunk:
+    raw = dict(bundle.context_chunk)
+    metadata = dict(raw.get("metadata") or {})
+    metadata["tool_call_id"] = bundle.tool_call_id
+    metadata["external_reader_action"] = bundle.action
+    return ContextChunk(
+        chunk_id=str(raw["chunk_id"]),
+        run_id=run_id,
+        source_kind=str(raw["source_kind"]),
+        source_id=str(raw["source_id"]),
+        source_url=_string_or_none(raw.get("source_url")),
+        provider=str(raw.get("provider") or bundle.provider),
+        provider_role=str(raw.get("provider_role") or bundle.provider_role),
+        chunk_text=str(raw["chunk_text"]),
+        chunk_index=index,
+        token_count=int(raw.get("token_count") or _estimate_tokens(str(raw["chunk_text"]))),
+        relevance_score=float(raw.get("relevance_score") or 0.0),
+        extractor_version=str(raw.get("extractor_version") or "reader-extract-v1"),
+        created_at=str(raw.get("created_at") or bundle.page.retrieved_at),
+        metadata=metadata,
+    )
+
+
+def _citation_from_reader_bundle(
+    bundle: ReaderContextBundle,
+    *,
+    chunk: ContextChunk,
+    index: int,
+) -> CitationAnnotation:
+    raw = dict(bundle.citation_annotation)
+    metadata = dict(raw.get("metadata") or {})
+    metadata["tool_call_id"] = bundle.tool_call_id
+    return CitationAnnotation(
+        citation_id=str(raw["citation_id"]),
+        answer_id=None,
+        chunk_id=chunk.chunk_id,
+        source_kind=str(raw.get("source_kind") or chunk.source_kind),
+        source_id=str(raw.get("source_id") or chunk.source_id),
+        source_url=_string_or_none(raw.get("source_url")),
+        title=str(raw.get("title") or bundle.page.title),
+        field_path=f"context_chunks[{index}]",
+        support_type=str(raw.get("support_type") or "background"),
+        evidence_status=str(raw.get("evidence_status") or "unconfirmed"),
+        confidence=float(raw.get("confidence") or 0.7),
+        created_at=str(raw.get("created_at") or bundle.page.retrieved_at),
+        metadata=metadata,
     )
 
 

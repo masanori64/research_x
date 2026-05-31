@@ -173,6 +173,7 @@ def extract_url_to_context(
     db_path: str | Path,
     url: str,
     *,
+    run_id: str | None = None,
     provider: str = "fake",
     query: str | None = None,
     title: str | None = None,
@@ -210,6 +211,7 @@ def extract_url_to_context(
         provider=provider_impl.provider_id,
         provider_role=provider_impl.provider_role,
         page=page,
+        run_id=run_id,
         query=query,
         metadata=metadata or {},
     )
@@ -245,6 +247,7 @@ def extract_external_run_to_context(
     db_path: str | Path,
     external_run_id: str,
     *,
+    run_id: str | None = None,
     provider: str = "fake",
     limit: int = 5,
     query: str | None = None,
@@ -274,6 +277,7 @@ def extract_external_run_to_context(
             extract_url_to_context(
                 path,
                 row["url"],
+                run_id=run_id,
                 provider=provider,
                 query=query,
                 title=row["title"],
@@ -329,7 +333,7 @@ def _store_reader_bundle(
             """,
             (
                 bundle.tool_call_id,
-                None,
+                bundle.context_chunk["run_id"],
                 bundle.provider,
                 bundle.provider_role,
                 bundle.action,
@@ -375,11 +379,11 @@ def _store_reader_bundle(
                 token_count=excluded.token_count,
                 metadata_json=excluded.metadata_json
             """,
-            (
-                chunk["chunk_id"],
-                None,
-                chunk["source_kind"],
-                chunk["source_id"],
+                (
+                    chunk["chunk_id"],
+                    chunk["run_id"],
+                    chunk["source_kind"],
+                    chunk["source_id"],
                 chunk["source_url"],
                 chunk["provider"],
                 chunk["provider_role"],
@@ -437,6 +441,7 @@ def _context_chunk(
     provider: str,
     provider_role: str,
     page: ReaderPage,
+    run_id: str | None,
     query: str | None,
     metadata: dict[str, Any],
 ) -> dict[str, Any]:
@@ -445,7 +450,7 @@ def _context_chunk(
     chunk_id = _hash_id("external-chunk", tool_call_id, page.url, _text_hash(chunk_text))
     return {
         "chunk_id": chunk_id,
-        "run_id": None,
+        "run_id": run_id,
         "source_kind": "external_web",
         "source_id": source_id,
         "source_url": page.url,

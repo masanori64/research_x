@@ -663,6 +663,7 @@ memory_workflow_steps   -> Layer 7 bounded workflow step logs
 memory evidence         -> legacy-compatible local hit bundle
 memory context          -> Layer 4 chunks plus Layer 5 citation metadata
 memory extract-url      -> Layer 3 reader/extract to Layer 4 external chunks
+memory context --external-run-id -> combined local/external context bundle
 memory feedback/eval    -> Layer 7 feedback/eval
 memory audit            -> rebuild/index health gate
 ```
@@ -676,6 +677,8 @@ What may need refactoring later:
 - feedback scoring should eventually become query/route-aware.
 - external Web evidence is stored separately from local X evidence; URL discovery rows are not
   citation-ready until `reader/extract` or `llm-context` produces context chunks.
+- combined context bundles can include both `local_x_db` and `external_web` chunks, but source kind
+  and provider role must remain explicit.
 
 What should not be deleted:
 

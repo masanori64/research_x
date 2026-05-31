@@ -384,6 +384,17 @@ uv run python -m research_x memory extract-url `
 Use `--provider fake` for deterministic no-network tests. The HTTP reader stores extracted text as
 external context, while raw HTML is not stored in the DB.
 
+To combine local X evidence and extracted external context in one bundle, pass a stored
+external-search run to `memory context`:
+
+```powershell
+uv run python -m research_x memory context `
+  --db runs/x_data.sqlite3 `
+  --query "キオクシア 急騰 分析" `
+  --external-run-id "<run_id>" `
+  --external-provider http
+```
+
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 
