@@ -117,6 +117,7 @@ Implemented behavior:
 - external URL extraction into tool call, context chunk, and citation annotation rows;
 - V2 search run, tool call, context chunk, citation annotation, answer run, and workflow trace
   schema;
+- ranked local search candidate rows in `memory_search_results`, separate from LLM-ready chunks;
 - bounded `memory workflow` routing with step logs and stop reasons;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
   citation-ready metadata;

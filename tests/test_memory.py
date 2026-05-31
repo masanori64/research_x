@@ -515,6 +515,17 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
 
     with sqlite3.connect(db_path) as conn:
         search_runs = conn.execute("SELECT COUNT(*) FROM memory_search_runs").fetchone()[0]
+        search_results = conn.execute("SELECT COUNT(*) FROM memory_search_results").fetchone()[0]
+        first_result = conn.execute(
+            """
+            SELECT rank, doc_id, source_kind, provider_role, evidence_status
+            FROM memory_search_results
+            WHERE run_id = ?
+            ORDER BY rank
+            LIMIT 1
+            """,
+            (bundle.run_id,),
+        ).fetchone()
         chunks = conn.execute("SELECT COUNT(*) FROM memory_context_chunks").fetchone()[0]
         citations = conn.execute(
             "SELECT COUNT(*) FROM memory_citation_annotations"
@@ -523,6 +534,14 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
         workflows = conn.execute("SELECT COUNT(*) FROM memory_workflow_runs").fetchone()[0]
 
     assert search_runs == 1
+    assert search_results == len(bundle.retrieved_hits)
+    assert first_result == (
+        1,
+        bundle.retrieved_hits[0]["doc_id"],
+        "local_x_db",
+        "index_provider",
+        "fact",
+    )
     assert chunks == len(bundle.context_chunks)
     assert citations == len(bundle.citation_annotations)
     assert answers == 0

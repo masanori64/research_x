@@ -189,6 +189,8 @@ Implementation impact:
 - `memory llm-context` adds a pre-extracted external Web context role. The Brave provider calls
   Brave Search LLM Context with explicit token/URL/snippet limits, stores source URLs and extracted
   snippets as context chunks, and records `extracted_context_with_source_urls` retention metadata.
+- `memory_search_results` stores the ranked local candidate list separately from context chunks, so
+  a search run can be audited without treating LLM-ready snippets as the original ranking output.
 
 ## Non-Negotiable Invariants
 

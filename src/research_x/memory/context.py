@@ -14,6 +14,7 @@ from research_x.memory.reader import (
     extract_external_run_to_context,
 )
 from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.source_kinds import LOCAL_X_DB
 
 EXTRACTOR_VERSION = "local-evidence-context-v1"
 
@@ -482,6 +483,8 @@ def _store_context_bundle(
                 None,
             ),
         )
+        for rank, hit in enumerate(bundle.retrieved_hits, start=1):
+            _store_search_result(conn, bundle=bundle, hit=hit, rank=rank, created_at=finished_at)
         for chunk in bundle.context_chunks:
             conn.execute(
                 """
@@ -555,6 +558,64 @@ def _store_context_bundle(
             )
 
 
+def _store_search_result(
+    conn: sqlite3.Connection,
+    *,
+    bundle: ContextBundle,
+    hit: dict[str, Any],
+    rank: int,
+    created_at: str,
+) -> None:
+    evidence = hit.get("evidence") if isinstance(hit.get("evidence"), dict) else {}
+    source_url = _string_or_none(evidence.get("url"))
+    tweet_id = _string_or_none(hit.get("tweet_id"))
+    evidence_status = "fact" if source_url or tweet_id else "unconfirmed"
+    metadata = {
+        "title": hit.get("title"),
+        "matched_terms": hit.get("matched_terms") or [],
+        "score_components": hit.get("score_components") or {},
+        "why_relevant": hit.get("why_relevant"),
+        "freshness": hit.get("freshness"),
+        "bookmark_account_count": hit.get("bookmark_account_count"),
+        "evidence": evidence,
+    }
+    conn.execute(
+        """
+        INSERT INTO memory_search_results (
+            result_id, run_id, rank, doc_id, doc_type, source_kind, source_id,
+            source_url, score, snippet, provider, provider_role, match_method,
+            evidence_status, metadata_json, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(result_id) DO UPDATE SET
+            rank=excluded.rank,
+            score=excluded.score,
+            snippet=excluded.snippet,
+            match_method=excluded.match_method,
+            evidence_status=excluded.evidence_status,
+            metadata_json=excluded.metadata_json
+        """,
+        (
+            _hash_id("search-result", bundle.run_id, str(rank), str(hit.get("doc_id") or "")),
+            bundle.run_id,
+            rank,
+            str(hit.get("doc_id") or ""),
+            _string_or_none(hit.get("doc_type")),
+            LOCAL_X_DB,
+            tweet_id or str(hit.get("doc_id") or ""),
+            source_url,
+            float(hit.get("score") or 0.0),
+            str(hit.get("compact_text") or ""),
+            "local_memory",
+            "index_provider",
+            _match_method(hit),
+            evidence_status,
+            json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+            created_at,
+        ),
+    )
+
+
 def _run_id(
     query: str,
     query_plan: dict[str, Any],
@@ -583,6 +644,13 @@ def _string_or_none(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _match_method(hit: dict[str, Any]) -> str | None:
+    why = str(hit.get("why_relevant") or "")
+    if " match:" in why:
+        return why.split(" match:", 1)[0].strip() or None
+    return None
 
 
 def _estimate_tokens(text: str) -> int:

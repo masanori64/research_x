@@ -344,7 +344,7 @@ Core invariant:
 raw source != searchable document != search result != context chunk != citation != answer
 ```
 
-The V2 surface has explicit `search_runs`, `tool_calls`, `context_chunks`,
+The V2 surface has explicit `search_runs`, `search_results`, `tool_calls`, `context_chunks`,
 `citation_annotations`, `answer_runs`, and bounded `workflow` traces while keeping existing memory
 commands working.
 

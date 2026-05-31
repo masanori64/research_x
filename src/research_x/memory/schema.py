@@ -108,6 +108,26 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             error TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS memory_search_results (
+            result_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            rank INTEGER NOT NULL,
+            doc_id TEXT NOT NULL,
+            doc_type TEXT,
+            source_kind TEXT NOT NULL,
+            source_id TEXT,
+            source_url TEXT,
+            score REAL NOT NULL,
+            snippet TEXT,
+            provider TEXT NOT NULL,
+            provider_role TEXT NOT NULL,
+            match_method TEXT,
+            evidence_status TEXT NOT NULL,
+            metadata_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(run_id) REFERENCES memory_search_runs(run_id)
+        );
+
         CREATE TABLE IF NOT EXISTS memory_tool_calls (
             tool_call_id TEXT PRIMARY KEY,
             run_id TEXT,
@@ -222,6 +242,10 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_external_items(url);
         CREATE INDEX IF NOT EXISTS idx_memory_search_runs_query
             ON memory_search_runs(query, started_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_search_results_run
+            ON memory_search_results(run_id, rank);
+        CREATE INDEX IF NOT EXISTS idx_memory_search_results_doc
+            ON memory_search_results(doc_id);
         CREATE INDEX IF NOT EXISTS idx_memory_tool_calls_run
             ON memory_tool_calls(run_id);
         CREATE INDEX IF NOT EXISTS idx_memory_context_chunks_run
