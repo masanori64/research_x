@@ -348,6 +348,31 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument("--semantic-base-url", default=None)
     memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_evidence_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_external_parser = memory_subparsers.add_parser(
+        "external-search",
+        help="run an external URL-discovery provider and store normalized results",
+    )
+    memory_external_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_external_parser.add_argument("--query", required=True)
+    memory_external_parser.add_argument(
+        "--provider",
+        choices=["fake", "serper"],
+        default="fake",
+        help="external discovery provider; fake is deterministic and no-network",
+    )
+    memory_external_parser.add_argument("--limit", type=int, default=5)
+    memory_external_parser.add_argument("--api-key-env", default="SERPER_API_KEY")
+    memory_external_parser.add_argument("--endpoint", default=None)
+    memory_external_parser.add_argument("--country", default=None)
+    memory_external_parser.add_argument("--language", default=None)
+    memory_external_parser.add_argument("--location", default=None)
+    memory_external_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    memory_external_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store the normalized external run/items in the memory DB",
+    )
     memory_feedback_parser = memory_subparsers.add_parser(
         "feedback",
         help="record search-result feedback for later ranking improvements",
@@ -1310,6 +1335,24 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_candidates=args.semantic_candidates,
         )
         print(evidence_bundle_json(bundle))
+        return 0
+    if args.memory_command == "external-search":
+        from research_x.memory.external import external_evidence_json, search_external_evidence
+
+        bundle = search_external_evidence(
+            args.db,
+            args.query,
+            provider=args.provider,
+            limit=args.limit,
+            api_key_env=args.api_key_env,
+            endpoint=args.endpoint,
+            country=args.country,
+            language=args.language,
+            location=args.location,
+            timeout_seconds=args.timeout_seconds,
+            store=args.store,
+        )
+        print(external_evidence_json(bundle))
         return 0
     if args.memory_command == "feedback":
         from research_x.memory.feedback import add_feedback

@@ -100,6 +100,52 @@ Corpus2Skill / Agentic RAG / GraphRAG:
 - Graph-like relations are valuable, but start with explicit relation tables and provenance before
   introducing a graph framework.
 
+## Decision Notes
+
+### 2026-05-31: External Search And Codex-Customization Candidates
+
+Decision:
+
+- Add an external evidence provider interface before binding to any real network API.
+- Treat Serper.dev as an optional `web-search` / `index_provider` candidate, not as
+  `reader/extract`, `llm-context`, or `answers`.
+- Prefer Brave Search API for first-class agent/RAG web grounding when an external provider needs
+  LLM-context-style output. Use Serper only when Google SERP coverage is specifically needed.
+- Keep SearXNG as an optional private/self-hosted experiment, not the default. It requires JSON
+  output to be enabled in `settings.yml`, and public instances often disable API formats.
+- Do not use Webshare or rotating residential proxies as the standard way to avoid search-engine
+  blocking. The operational, ToS, and safety costs are too high for the main pipeline.
+- Keep browser history outside the V2 core for now. If added, it is a local opt-in weak memory
+  signal: it proves that a URL was visited, not that the page content is evidence.
+- Do not bulk-install `majiayu000/spellbook`. Its `codex-retrospective` and `codex-fluent` skills
+  are useful patterns, but this repo should use small project-specific adaptations only.
+- Do not adopt Tencent/WeKnora as the `research_x` RAG backend. Extract only design ideas:
+  parent-child context, provider registry, sync logs, stable CLI contracts, and retrieval/debug
+  traces.
+
+Implementation impact:
+
+- First implement a no-network fake provider and stable storage/JSON contract.
+- Store external search payloads separately from local X evidence, with provider role, query,
+  parameters, source URLs, retrieved time, raw hash, and retention policy.
+- URL discovery is not citation-ready evidence until a reader/extract or LLM-context provider
+  produces grounded chunks.
+- Browser history, if implemented later, should default to query-string stripping, local-only
+  storage, explicit opt-in, and separate `source_kind=local_browser_history`.
+- Codex operation notes belong in `AGENTS.md`; memory architecture decisions stay in this file.
+
+Primary sources checked:
+
+- Serper.dev: https://serper.dev/
+- Serper terms/privacy: https://serper.dev/terms and https://serper.dev/privacy
+- Brave Search API: https://brave.com/search/api/
+- SearXNG Search API: https://docs.searxng.org/dev/search_api.html
+- SearXNG outgoing proxy settings: https://docs.searxng.org/admin/settings/settings_outgoing.html
+- Chrome history API: https://developer.chrome.com/docs/extensions/reference/api/history
+- SQLite backup/WAL: https://www.sqlite.org/backup.html and https://www.sqlite.org/wal.html
+- Spellbook: https://github.com/majiayu000/spellbook
+- Tencent/WeKnora: https://github.com/Tencent/WeKnora
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.
@@ -605,6 +651,8 @@ memory_documents        -> Layer 1 searchable documents
 memory_document_fts     -> Layer 2 lexical retrieval
 memory_embeddings       -> Layer 2 semantic retrieval
 memory_relations        -> Layer 2 relation expansion / future graph base
+memory_external_runs    -> Layer 3 external provider run metadata
+memory_external_items   -> Layer 3 normalized external URL discovery results
 memory evidence         -> Layer 4 local context bundle, partial Layer 5 citations
 memory feedback/eval    -> Layer 7 feedback/eval
 memory audit            -> rebuild/index health gate

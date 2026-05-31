@@ -70,6 +70,32 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS memory_external_runs (
+            run_id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL,
+            provider_role TEXT NOT NULL,
+            query TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            parameters_json TEXT NOT NULL,
+            status TEXT NOT NULL,
+            retrieved_at TEXT NOT NULL,
+            raw_response_hash TEXT,
+            retention_policy TEXT NOT NULL,
+            error TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_external_items (
+            item_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            title TEXT,
+            url TEXT NOT NULL,
+            snippet TEXT,
+            source TEXT,
+            metadata_json TEXT,
+            FOREIGN KEY(run_id) REFERENCES memory_external_runs(run_id)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_memory_documents_doc_type
             ON memory_documents(doc_type);
         CREATE INDEX IF NOT EXISTS idx_memory_documents_source_tweet
@@ -86,6 +112,12 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_relations(target_doc_id);
         CREATE INDEX IF NOT EXISTS idx_memory_relations_type
             ON memory_relations(relation_type);
+        CREATE INDEX IF NOT EXISTS idx_memory_external_runs_query_provider
+            ON memory_external_runs(query, provider, provider_role);
+        CREATE INDEX IF NOT EXISTS idx_memory_external_items_run
+            ON memory_external_items(run_id, position);
+        CREATE INDEX IF NOT EXISTS idx_memory_external_items_url
+            ON memory_external_items(url);
         """
     )
 

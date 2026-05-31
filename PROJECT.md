@@ -61,6 +61,7 @@ src/research_x/memory/
   schema.py
   search.py
   evidence.py
+  external.py
   feedback.py
   embeddings.py
   relations.py
@@ -81,6 +82,7 @@ research_x memory relations
 research_x memory plan
 research_x memory search
 research_x memory evidence
+research_x memory external-search
 research_x memory export-corpus2skill
 research_x memory feedback
 research_x memory eval
@@ -95,6 +97,9 @@ Implemented behavior:
 - OpenAI/Gemini production embedding providers;
 - explicit diagnostic-only `local_hash` embeddings;
 - relation edges for bookmarks, media, quotes, duplicate bookmarks, and weak stale candidates;
+- external URL-discovery provider contract with no-network fake provider and optional Serper
+  provider;
+- normalized external discovery run/item storage in the SQLite DB;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
   semantic indexes, and weak retrieval behavior.
 
@@ -131,7 +136,8 @@ Implementation checklist:
 - [ ] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
 - [ ] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.
-- [ ] Add an external evidence provider interface with a no-network fake provider first.
+- [x] Add an external evidence provider interface with a no-network fake provider first.
+- [x] Add Serper as an optional Google SERP `web-search` / `index_provider`.
 - [ ] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
       explicit.
 - [ ] Add OpenAI-style citation annotations for generated answers.

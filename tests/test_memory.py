@@ -8,6 +8,7 @@ from research_x.memory.audit import audit_memory_db
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
 from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evidence import build_evidence_bundle
+from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
 from research_x.memory.query import build_query_plan
 from research_x.memory.relations import build_memory_relations, relations_for_doc
@@ -347,6 +348,77 @@ def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
     assert bundle["hits"][0]["evidence"]["relations"]
 
 
+def test_external_evidence_fake_provider_is_stored(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+
+    bundle = search_external_evidence(
+        db_path,
+        "北千住 ピザ",
+        provider="fake",
+        limit=2,
+    )
+
+    assert bundle.provider == "fake"
+    assert bundle.provider_role == "index_provider"
+    assert bundle.status == "ok"
+    assert bundle.raw_response_hash
+    assert len(bundle.items) == 2
+    assert bundle.items[0].url.startswith("https://example.invalid/")
+
+    with sqlite3.connect(db_path) as conn:
+        run_count = conn.execute("SELECT COUNT(*) FROM memory_external_runs").fetchone()[0]
+        item_count = conn.execute("SELECT COUNT(*) FROM memory_external_items").fetchone()[0]
+        role = conn.execute("SELECT provider_role FROM memory_external_runs").fetchone()[0]
+
+    assert run_count == 1
+    assert item_count == 2
+    assert role == "index_provider"
+
+
+def test_external_evidence_serper_provider_uses_key_and_normalizes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        captured["timeout_seconds"] = timeout_seconds
+        return {
+            "organic": [
+                {
+                    "title": "Kitaseju Pizza",
+                    "link": "https://example.com/pizza",
+                    "snippet": "A saved-looking pizza place.",
+                    "position": 1,
+                }
+            ]
+        }
+
+    monkeypatch.setenv("SERPER_API_KEY", "secret-key")
+    monkeypatch.setattr("research_x.memory.external._post_json", fake_post_json)
+
+    bundle = search_external_evidence(
+        db_path,
+        "北千住 ピザ",
+        provider="serper",
+        limit=1,
+        country="jp",
+        language="ja",
+        timeout_seconds=12.0,
+    )
+
+    assert captured["url"] == "https://google.serper.dev/search"
+    assert captured["payload"] == {"q": "北千住 ピザ", "num": 1, "gl": "jp", "hl": "ja"}
+    assert captured["headers"]["X-API-KEY"] == "secret-key"
+    assert bundle.parameters["api_key_env"] == "SERPER_API_KEY"
+    assert "secret-key" not in json.dumps(bundle.as_dict(), ensure_ascii=False)
+    assert bundle.items[0].source == "example.com"
+
+
 def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     captured = {}
 
@@ -424,11 +496,29 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     ) == 0
     assert main(["memory", "plan", "--query", "引用元を見たい"]) == 0
     assert main(["memory", "evidence", "--db", str(db_path), "--query", "ロボット"]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "external-search",
+                "--db",
+                str(db_path),
+                "--query",
+                "北千住 ピザ",
+                "--provider",
+                "fake",
+                "--limit",
+                "1",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
     output = capsys.readouterr().out
     assert "tweet-1" in output
     assert "hits" in output
+    assert "memory://fake-external-search" in output
 
 
 def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, capsys) -> None:

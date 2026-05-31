@@ -343,6 +343,21 @@ Next implementation step: add explicit `search_runs`, `tool_calls`, `context_chu
 `citation_annotations`, `answer_runs`, and workflow traces while keeping existing memory commands
 working.
 
+External URL discovery has started behind an explicit provider role. The deterministic fake provider
+is useful for tests and wiring, while Serper is available as an optional Google SERP
+`web-search` / `index_provider`:
+
+```powershell
+uv run python -m research_x memory external-search `
+  --db runs/x_data.sqlite3 `
+  --query "北千住 ピザ" `
+  --provider fake
+```
+
+For Serper, set `SERPER_API_KEY` and switch `--provider serper`. Serper results are URL discovery
+signals, not citation-ready evidence; reader/extract or LLM-context providers must produce grounded
+chunks before answers cite them.
+
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 

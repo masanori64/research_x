@@ -28,6 +28,26 @@ implementation milestones, and `README.md` is the high-level repository referenc
 Do not create additional memory-architecture Markdown files unless the user explicitly asks. Update
 the existing source-of-truth file instead, so Codex does not have to scan a spreading design surface.
 
+## Markdown Governance
+
+Keep Markdown stable and sparse:
+
+- `AGENTS.md`: durable agent rules and repository working policy.
+- `README.md`: high-level human/repository reference and implemented CLI surface.
+- `PROJECT.md`: short milestone tracker only.
+- `docs/memory-pipeline-v2.md`: detailed memory/search architecture and decision notes.
+- `docs/pipeline.md`: acquisition/auth/provider pipeline details.
+
+When research changes a design decision, add a short dated decision note to the existing source file
+instead of creating a new Markdown file. A good decision note states: decision, rationale, rejected
+alternatives, implementation impact, and source links. Avoid duplicating the same design text across
+multiple files.
+
+## Git Publish Policy
+
+When the user asks for implementation work in this repository, commit and push the completed scoped
+changes unless the worktree contains unrelated edits that need separation.
+
 ## Completion Notification
 
 At the end of every work session, run:
