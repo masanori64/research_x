@@ -883,12 +883,16 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     assert by_route["place_recall"].expected_route == "place_recall"
     assert by_route["place_recall"].context_chunks > 0
     assert "local_x_db" in by_route["place_recall"].source_kinds
+    assert by_route["place_recall"].answer_status == "ok"
+    assert by_route["place_recall"].answer_citations > 0
     assert by_route["learning_map"].expected_route == "learning_map"
     assert by_route["company_event"].expected_route == "company_event"
     assert by_route["current_fact_check"].stop_reason in {
         "external_context_needed",
         "no_local_evidence",
     }
+    no_answer_results = run_memory_eval(db_path, limit=1, answer_provider="none")
+    assert all(result.answer_status is None for result in no_answer_results)
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(

@@ -725,6 +725,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_eval_parser.add_argument("--limit", type=int, default=3)
+    memory_eval_parser.add_argument(
+        "--answer-provider",
+        choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
+        default="fake",
+        help="no-store answer wiring check for eval cases",
+    )
+    memory_eval_parser.add_argument("--answer-model", default=None)
+    memory_eval_parser.add_argument("--answer-api-key-env", default=None)
+    memory_eval_parser.add_argument("--answer-base-url", default=None)
+    memory_eval_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
     memory_eval_parser.add_argument("--json", action="store_true")
     memory_eval_parser.add_argument(
         "--strict",
@@ -1953,7 +1963,15 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             run_memory_eval,
         )
 
-        results = run_memory_eval(args.db, limit=args.limit)
+        results = run_memory_eval(
+            args.db,
+            limit=args.limit,
+            answer_provider=args.answer_provider,
+            answer_model=args.answer_model,
+            answer_api_key_env=args.answer_api_key_env,
+            answer_base_url=args.answer_base_url,
+            answer_timeout_seconds=args.answer_timeout_seconds,
+        )
         print(eval_results_json(results) if args.json else format_eval_results(results))
         return 2 if args.strict and any(not result.ok for result in results) else 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")

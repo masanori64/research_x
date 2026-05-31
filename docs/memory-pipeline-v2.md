@@ -696,7 +696,7 @@ Current implementation:
 
 - `memory eval` runs the same bounded route planner as `memory workflow` in no-store mode.
 - Eval output records route, expected route, stop reason, context chunk count, retrieval engines,
-  and source kinds.
+  source kinds, answer status, and answer citation count.
 - Route mismatches and missing compact evidence fail; weak or absent evidence remains visible as
   `needs_review` / `fail` instead of being hidden behind a successful command exit.
 

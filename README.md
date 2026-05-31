@@ -465,7 +465,8 @@ under the same context run and cited like other chunks; they do not replace loca
 `workflow` stop reasons include `enough_evidence`, `no_local_evidence`,
 `external_context_needed`, `needs_user_review`, `budget_exhausted`, and `provider_error`.
 `memory eval` uses the same route planner, so eval output includes route, stop reason, context
-chunk count, source kinds, and top evidence health rather than only raw hit shape.
+chunk count, source kinds, no-store answer status, answer citation count, and top evidence health
+rather than only raw hit shape.
 External chunks classify `source_kind` as `official`, `secondary`, or `user_generated`; the broader
 transport type `external_web` is retained as metadata. Local X chunks remain `local_x_db`.
 

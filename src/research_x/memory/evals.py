@@ -117,6 +117,8 @@ class MemoryEvalResult:
     matched_terms: tuple[str, ...]
     retrieval_engines: tuple[str, ...]
     source_kinds: tuple[str, ...]
+    answer_status: str | None
+    answer_citations: int
     notes: tuple[str, ...]
 
     @property
@@ -128,6 +130,11 @@ def run_memory_eval(
     db_path: str | Path,
     *,
     limit: int = 3,
+    answer_provider: str = "fake",
+    answer_model: str | None = None,
+    answer_api_key_env: str | None = None,
+    answer_base_url: str | None = None,
+    answer_timeout_seconds: float = 90.0,
 ) -> tuple[MemoryEvalResult, ...]:
     results = []
     for case in DEFAULT_EVAL_CASES:
@@ -135,7 +142,11 @@ def run_memory_eval(
             db_path,
             case.query,
             limit=limit,
-            answer_provider="none",
+            answer_provider=answer_provider,
+            answer_model=answer_model,
+            answer_api_key_env=answer_api_key_env,
+            answer_base_url=answer_base_url,
+            answer_timeout_seconds=answer_timeout_seconds,
             store=False,
         )
         hits = workflow.context_bundle.retrieved_hits if workflow.context_bundle else []
@@ -160,6 +171,7 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
         lines.append(
             f"{result.status}: route={result.route} stop={result.stop_reason} "
             f"hits={result.hits} chunks={result.context_chunks} best={result.best_score:.2f} "
+            f"answer={result.answer_status or '-'} citations={result.answer_citations} "
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
@@ -195,6 +207,10 @@ def _evaluate_case(
             matched_terms=(),
             retrieval_engines=(),
             source_kinds=source_kinds,
+            answer_status=workflow.answer.status if workflow.answer else None,
+            answer_citations=(
+                len(workflow.answer.citation_annotations) if workflow.answer else 0
+            ),
             notes=tuple(notes),
         )
 
@@ -221,6 +237,11 @@ def _evaluate_case(
         notes.append(f"required feature missing: {case.required_feature}")
     if workflow.status == "error":
         notes.append(f"workflow error stop reason: {workflow.stop_reason}")
+    if workflow.answer is not None:
+        if workflow.answer.status != "ok":
+            notes.append(f"answer status is {workflow.answer.status}")
+        if hits and not workflow.answer.citation_annotations:
+            notes.append("answer has no citations")
 
     status = "ok" if not notes else "needs_review"
     if (
@@ -243,6 +264,8 @@ def _evaluate_case(
         matched_terms=matched_terms,
         retrieval_engines=_retrieval_engines(hits),
         source_kinds=source_kinds,
+        answer_status=workflow.answer.status if workflow.answer else None,
+        answer_citations=len(workflow.answer.citation_annotations) if workflow.answer else 0,
         notes=tuple(notes),
     )
 

@@ -138,7 +138,7 @@ Implemented behavior:
   provenance even when card bodies are compact;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
   semantic indexes, V2 evidence graph orphans, invalid V2 JSON/enums, stored fake/fixture artifacts,
-  and weak retrieval behavior.
+  weak retrieval behavior, and no-store answer/citation wiring.
 
 Known limitation:
 
