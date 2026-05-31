@@ -1236,6 +1236,9 @@ def test_memory_answer_marks_uncited_generated_text_for_review(
     assert answer.status == "needs_review"
     assert answer.structured["missing_citation_markers"] == ["[1]"]
     assert answer.citation_annotations[0].support_type == "uncited_context"
+    report = audit_memory_db(db_path)
+    assert report.answer_status_counts["needs_review"] == 1
+    assert any("stored answer artifacts need review" in warning for warning in report.warnings)
 
 
 def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path) -> None:

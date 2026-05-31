@@ -180,7 +180,7 @@ Implementation impact:
 - `memory answer` records context selection metadata, omitted chunk IDs, truncated chunk IDs, and
   missing citation markers. Answer-specific truncated subchunks are persisted as context chunks so
   citation rows never point to a non-existent chunk.
-- `memory audit` reports `fixture_artifacts`.
+- `memory audit` reports `fixture_artifacts` and answer artifact status counts.
 - `memory build-relations` rebuilds known builder relation types while preserving manual or
   future AI-generated relation types such as `supports`, `contradicts`, and `obsolete_candidate`.
 - `memory workflow` writes `memory_workflow_runs` / `memory_workflow_steps`, links generated
@@ -197,6 +197,7 @@ Implementation impact:
 - `memory audit` checks V2 search/context/citation/answer/workflow rows for orphaned references,
   invalid JSON payloads, invalid source kinds, invalid provider roles, and invalid evidence/status
   values.
+- Strict audit warns when stored answer artifacts are still `needs_review` or `error`.
 
 ### 2026-06-01: Embedding Provenance Becomes First-Class
 

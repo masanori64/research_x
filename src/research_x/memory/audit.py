@@ -24,6 +24,7 @@ class MemoryAuditReport:
     invalid_json_by_field: dict[str, int]
     invalid_enums_by_field: dict[str, int]
     fixture_artifacts: dict[str, int]
+    answer_status_counts: dict[str, int]
     warnings: tuple[str, ...]
 
 
@@ -46,6 +47,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_json = _invalid_json_counts(conn)
         invalid_enums = _invalid_enum_counts(conn)
         fixture_artifacts = _fixture_artifact_counts(conn)
+        answer_status_counts = _answer_status_counts(conn)
     warnings = _warnings(
         documents=documents,
         fts_rows=fts_rows,
@@ -59,6 +61,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_json=invalid_json,
         invalid_enums=invalid_enums,
         fixture_artifacts=fixture_artifacts,
+        answer_status_counts=answer_status_counts,
     )
     return MemoryAuditReport(
         db_path=str(path),
@@ -74,6 +77,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_json_by_field=invalid_json,
         invalid_enums_by_field=invalid_enums,
         fixture_artifacts=fixture_artifacts,
+        answer_status_counts=answer_status_counts,
         warnings=tuple(warnings),
     )
 
@@ -96,6 +100,7 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"invalid JSON by field: {report.invalid_json_by_field or {}}",
         f"invalid enum values by field: {report.invalid_enums_by_field or {}}",
         f"fixture artifacts: {report.fixture_artifacts or {}}",
+        f"answer statuses: {report.answer_status_counts or {}}",
         "embedding specs:",
     ]
     if report.embedding_specs:
@@ -529,6 +534,18 @@ def _fixture_artifact_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return counts
 
 
+def _answer_status_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    rows = conn.execute(
+        """
+        SELECT status, COUNT(*) AS count
+        FROM memory_answer_runs
+        GROUP BY status
+        ORDER BY status
+        """
+    ).fetchall()
+    return {str(row["status"]): int(row["count"]) for row in rows}
+
+
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
     row = conn.execute(
         """
@@ -557,6 +574,7 @@ def _warnings(
     invalid_json: dict[str, int],
     invalid_enums: dict[str, int],
     fixture_artifacts: dict[str, int],
+    answer_status_counts: dict[str, int],
 ) -> list[str]:
     warnings: list[str] = []
     if documents == 0:
@@ -589,6 +607,16 @@ def _warnings(
         warnings.append(
             "fixture/fake memory artifacts are present; "
             f"do not use them as production evidence: {fixture_artifacts}"
+        )
+    review_answers = {
+        status: count
+        for status, count in answer_status_counts.items()
+        if status in {"needs_review", "error"} and count
+    }
+    if review_answers:
+        warnings.append(
+            "stored answer artifacts need review or regeneration: "
+            f"{review_answers}"
         )
     if not specs and documents:
         warnings.append("no embeddings found; run memory build-embeddings with openai or gemini")
