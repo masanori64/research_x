@@ -526,7 +526,8 @@ uv run python -m research_x memory workflow `
 
 `fake` providers are for deterministic wiring tests only. `memory audit --strict` flags stored
 fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
-semantic indexes, and other states that should not be treated as production evidence.
+semantic indexes, V2 orphan rows, invalid V2 JSON/enums, and other states that should not be
+treated as production evidence.
 
 Operational rule: build the memory corpus explicitly before searching or indexing. Search,
 relations, and embeddings should not silently rebuild empty memory tables, because that hides stale

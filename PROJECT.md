@@ -137,7 +137,8 @@ Implemented behavior:
   `ticker_event` documents without replacing raw X records, while preserving full source
   provenance even when card bodies are compact;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
-  semantic indexes, stored fake/fixture artifacts, and weak retrieval behavior.
+  semantic indexes, V2 evidence graph orphans, invalid V2 JSON/enums, stored fake/fixture artifacts,
+  and weak retrieval behavior.
 
 Known limitation:
 

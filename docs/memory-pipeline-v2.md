@@ -194,6 +194,9 @@ Implementation impact:
 - `memory workflow --llm-context-provider` attaches LLM-context chunks to the same local context run
   before optional answer generation. Current fact-check routes still require local X evidence;
   external Web context is auxiliary grounding, not a replacement for the user's saved source.
+- `memory audit` checks V2 search/context/citation/answer/workflow rows for orphaned references,
+  invalid JSON payloads, invalid source kinds, invalid provider roles, and invalid evidence/status
+  values.
 
 ## Non-Negotiable Invariants
 

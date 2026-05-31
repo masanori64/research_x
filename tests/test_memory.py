@@ -306,13 +306,96 @@ def test_memory_audit_reports_orphans_and_invalid_json(tmp_path: Path) -> None:
             WHERE doc_id = 'tweet:tweet-1'
             """
         )
+        conn.execute(
+            """
+            INSERT INTO memory_search_runs (
+                run_id, query, query_plan_json, parameters_json, status,
+                result_count, started_at, finished_at, error
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "bad-search-run",
+                "bad query",
+                '{"ok": true}',
+                "{bad",
+                "ok",
+                0,
+                "2026-05-26T00:00:00+00:00",
+                "2026-05-26T00:00:00+00:00",
+                None,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO memory_search_results (
+                result_id, run_id, rank, doc_id, doc_type, source_kind, source_id,
+                source_url, score, snippet, provider, provider_role, match_method,
+                evidence_status, metadata_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "bad-search-result",
+                "missing-run",
+                1,
+                "missing-doc",
+                "tweet_doc",
+                "external_web",
+                "missing-doc",
+                None,
+                0.0,
+                "bad result",
+                "local_memory",
+                "index_provider",
+                "test",
+                "fact",
+                '{"ok": true}',
+                "2026-05-26T00:00:00+00:00",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO memory_citation_annotations (
+                citation_id, answer_id, chunk_id, source_kind, source_id,
+                source_url, title, answer_start_index, answer_end_index,
+                field_path, support_type, evidence_status, confidence,
+                created_at, metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "bad-citation",
+                None,
+                "missing-chunk",
+                "local_x_db",
+                "tweet:tweet-1",
+                None,
+                "Bad Citation",
+                None,
+                None,
+                "context_chunks[0]",
+                "background",
+                "fact",
+                0.5,
+                "2026-05-26T00:00:00+00:00",
+                '{"ok": true}',
+            ),
+        )
 
     report = audit_memory_db(db_path)
 
     assert report.orphaned_relations == 1
     assert report.invalid_json_by_field["memory_documents.metadata_json"] == 1
     assert report.invalid_json_by_field["memory_relations.evidence_json"] == 1
+    assert report.invalid_json_by_field["memory_search_runs.parameters_json"] == 1
+    assert report.v2_orphans["memory_search_results.run_id"] == 1
+    assert report.v2_orphans["memory_search_results.doc_id"] == 1
+    assert report.v2_orphans["memory_citation_annotations.chunk_id"] == 1
+    assert report.invalid_enums_by_field["memory_search_results.source_kind"] == 1
     assert any("invalid JSON" in warning for warning in report.warnings)
+    assert any("V2 evidence graph has orphan rows" in warning for warning in report.warnings)
+    assert any("invalid enum values" in warning for warning in report.warnings)
 
 
 def test_embedding_build_rejects_wrong_vector_dimensions(tmp_path: Path, monkeypatch) -> None:

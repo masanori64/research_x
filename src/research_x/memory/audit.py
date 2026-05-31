@@ -20,7 +20,9 @@ class MemoryAuditReport:
     isolated_documents_by_type: dict[str, int]
     embedding_specs: tuple[dict[str, Any], ...]
     orphaned_feedback: int
+    v2_orphans: dict[str, int]
     invalid_json_by_field: dict[str, int]
+    invalid_enums_by_field: dict[str, int]
     fixture_artifacts: dict[str, int]
     warnings: tuple[str, ...]
 
@@ -40,7 +42,9 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         isolated = _isolated_documents_by_type(conn)
         specs = _embedding_specs(conn)
         orphaned_feedback = _orphaned_feedback(conn)
+        v2_orphans = _v2_orphan_counts(conn)
         invalid_json = _invalid_json_counts(conn)
+        invalid_enums = _invalid_enum_counts(conn)
         fixture_artifacts = _fixture_artifact_counts(conn)
     warnings = _warnings(
         documents=documents,
@@ -51,7 +55,9 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         isolated=isolated,
         specs=specs,
         orphaned_feedback=orphaned_feedback,
+        v2_orphans=v2_orphans,
         invalid_json=invalid_json,
+        invalid_enums=invalid_enums,
         fixture_artifacts=fixture_artifacts,
     )
     return MemoryAuditReport(
@@ -64,7 +70,9 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         isolated_documents_by_type=isolated,
         embedding_specs=tuple(specs),
         orphaned_feedback=orphaned_feedback,
+        v2_orphans=v2_orphans,
         invalid_json_by_field=invalid_json,
+        invalid_enums_by_field=invalid_enums,
         fixture_artifacts=fixture_artifacts,
         warnings=tuple(warnings),
     )
@@ -84,7 +92,9 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"relation-covered documents: {report.relation_covered_documents}",
         f"isolated documents by type: {report.isolated_documents_by_type or {}}",
         f"orphaned feedback: {report.orphaned_feedback}",
+        f"V2 orphan rows: {report.v2_orphans or {}}",
         f"invalid JSON by field: {report.invalid_json_by_field or {}}",
+        f"invalid enum values by field: {report.invalid_enums_by_field or {}}",
         f"fixture artifacts: {report.fixture_artifacts or {}}",
         "embedding specs:",
     ]
@@ -204,6 +214,20 @@ def _invalid_json_counts(conn: sqlite3.Connection) -> dict[str, int]:
     field_specs = [
         ("memory_documents", "metadata_json"),
         ("memory_relations", "evidence_json"),
+        ("memory_external_runs", "parameters_json"),
+        ("memory_external_items", "metadata_json"),
+        ("memory_search_runs", "query_plan_json"),
+        ("memory_search_runs", "parameters_json"),
+        ("memory_search_results", "metadata_json"),
+        ("memory_tool_calls", "input_json"),
+        ("memory_tool_calls", "output_json"),
+        ("memory_context_chunks", "metadata_json"),
+        ("memory_citation_annotations", "metadata_json"),
+        ("memory_answer_runs", "retrieval_config_json"),
+        ("memory_answer_runs", "structured_json"),
+        ("memory_workflow_runs", "metadata_json"),
+        ("memory_workflow_steps", "input_json"),
+        ("memory_workflow_steps", "output_json"),
     ]
     if _table_exists(conn, "ai_labels"):
         field_specs.append(("ai_labels", "tags_json"))
@@ -226,6 +250,207 @@ def _invalid_json_counts(conn: sqlite3.Connection) -> dict[str, int]:
         if count:
             invalid[f"{table}.{column}"] = count
     return invalid
+
+
+def _v2_orphan_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    specs = [
+        (
+            "memory_external_items.run_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_external_items i
+            LEFT JOIN memory_external_runs r ON r.run_id = i.run_id
+            WHERE r.run_id IS NULL
+            """,
+        ),
+        (
+            "memory_search_results.run_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_search_results sr
+            LEFT JOIN memory_search_runs r ON r.run_id = sr.run_id
+            WHERE r.run_id IS NULL
+            """,
+        ),
+        (
+            "memory_search_results.doc_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_search_results sr
+            LEFT JOIN memory_documents d ON d.doc_id = sr.doc_id
+            WHERE d.doc_id IS NULL
+            """,
+        ),
+        (
+            "memory_tool_calls.run_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_tool_calls tc
+            LEFT JOIN memory_search_runs r ON r.run_id = tc.run_id
+            WHERE tc.run_id IS NOT NULL
+              AND r.run_id IS NULL
+            """,
+        ),
+        (
+            "memory_context_chunks.run_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_context_chunks c
+            LEFT JOIN memory_search_runs r ON r.run_id = c.run_id
+            WHERE c.run_id IS NOT NULL
+              AND r.run_id IS NULL
+            """,
+        ),
+        (
+            "memory_citation_annotations.chunk_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_citation_annotations ca
+            LEFT JOIN memory_context_chunks c ON c.chunk_id = ca.chunk_id
+            WHERE c.chunk_id IS NULL
+            """,
+        ),
+        (
+            "memory_citation_annotations.answer_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_citation_annotations ca
+            LEFT JOIN memory_answer_runs a ON a.answer_id = ca.answer_id
+            WHERE ca.answer_id IS NOT NULL
+              AND a.answer_id IS NULL
+            """,
+        ),
+        (
+            "memory_answer_runs.workflow_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_answer_runs a
+            LEFT JOIN memory_workflow_runs w ON w.workflow_id = a.workflow_id
+            WHERE a.workflow_id IS NOT NULL
+              AND w.workflow_id IS NULL
+            """,
+        ),
+        (
+            "memory_workflow_steps.workflow_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_workflow_steps s
+            LEFT JOIN memory_workflow_runs w ON w.workflow_id = s.workflow_id
+            WHERE w.workflow_id IS NULL
+            """,
+        ),
+    ]
+    counts: dict[str, int] = {}
+    for key, sql in specs:
+        count = int(conn.execute(sql).fetchone()[0])
+        if count:
+            counts[key] = count
+    return counts
+
+
+def _invalid_enum_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    specs = [
+        (
+            "memory_external_runs.provider_role",
+            "memory_external_runs",
+            "provider_role",
+            {"index_provider", "fetch_agent", "llm_context_provider", "answer_engine"},
+        ),
+        (
+            "memory_search_results.source_kind",
+            "memory_search_results",
+            "source_kind",
+            {"local_x_db", "official", "secondary", "user_generated"},
+        ),
+        (
+            "memory_search_results.provider_role",
+            "memory_search_results",
+            "provider_role",
+            {"index_provider"},
+        ),
+        (
+            "memory_search_results.evidence_status",
+            "memory_search_results",
+            "evidence_status",
+            {"fact", "inference", "unconfirmed"},
+        ),
+        (
+            "memory_tool_calls.provider_role",
+            "memory_tool_calls",
+            "provider_role",
+            {"index_provider", "fetch_agent", "llm_context_provider", "answer_engine"},
+        ),
+        (
+            "memory_context_chunks.source_kind",
+            "memory_context_chunks",
+            "source_kind",
+            {"local_x_db", "official", "secondary", "user_generated"},
+        ),
+        (
+            "memory_context_chunks.provider_role",
+            "memory_context_chunks",
+            "provider_role",
+            {"context_builder", "fetch_agent", "llm_context_provider", "answer_engine"},
+        ),
+        (
+            "memory_citation_annotations.source_kind",
+            "memory_citation_annotations",
+            "source_kind",
+            {"local_x_db", "official", "secondary", "user_generated"},
+        ),
+        (
+            "memory_citation_annotations.evidence_status",
+            "memory_citation_annotations",
+            "evidence_status",
+            {"fact", "inference", "unconfirmed"},
+        ),
+        (
+            "memory_answer_runs.status",
+            "memory_answer_runs",
+            "status",
+            {"ok", "needs_review", "error"},
+        ),
+        (
+            "memory_workflow_runs.status",
+            "memory_workflow_runs",
+            "status",
+            {"running", "ok", "needs_review", "error"},
+        ),
+        (
+            "memory_workflow_runs.stop_reason",
+            "memory_workflow_runs",
+            "stop_reason",
+            {
+                "enough_evidence",
+                "no_local_evidence",
+                "external_context_needed",
+                "stale_or_conflicting_evidence",
+                "rate_limited",
+                "provider_error",
+                "needs_user_review",
+                "budget_exhausted",
+            },
+        ),
+        (
+            "memory_workflow_steps.status",
+            "memory_workflow_steps",
+            "status",
+            {"ok", "needs_review", "error"},
+        ),
+    ]
+    counts: dict[str, int] = {}
+    for key, table, column, allowed in specs:
+        placeholders = ", ".join("?" for _ in allowed)
+        sql = f"""
+            SELECT COUNT(*)
+            FROM {table}
+            WHERE {column} IS NOT NULL
+              AND {column} NOT IN ({placeholders})
+        """
+        count = int(conn.execute(sql, tuple(sorted(allowed))).fetchone()[0])
+        if count:
+            counts[key] = count
+    return counts
 
 
 def _fixture_artifact_counts(conn: sqlite3.Connection) -> dict[str, int]:
@@ -307,7 +532,9 @@ def _warnings(
     isolated: dict[str, int],
     specs: list[dict[str, Any]],
     orphaned_feedback: int,
+    v2_orphans: dict[str, int],
     invalid_json: dict[str, int],
+    invalid_enums: dict[str, int],
     fixture_artifacts: dict[str, int],
 ) -> list[str]:
     warnings: list[str] = []
@@ -331,8 +558,12 @@ def _warnings(
             f"{orphaned_feedback} feedback rows point to missing documents; "
             "review or rebuild memory feedback"
         )
+    if v2_orphans:
+        warnings.append(f"V2 evidence graph has orphan rows: {v2_orphans}")
     if invalid_json:
         warnings.append(f"invalid JSON detected: {invalid_json}")
+    if invalid_enums:
+        warnings.append(f"invalid enum values detected: {invalid_enums}")
     if fixture_artifacts:
         warnings.append(
             "fixture/fake memory artifacts are present; "
