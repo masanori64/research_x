@@ -103,6 +103,7 @@ class MemoryAnswer:
     created_at: str
     citation_annotations: tuple[AnswerCitation, ...]
     context_bundle: ContextBundle
+    selected_context_chunks: tuple[ContextChunk, ...]
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -118,6 +119,9 @@ class MemoryAnswer:
             "structured": self.structured,
             "status": self.status,
             "created_at": self.created_at,
+            "selected_context_chunks": [
+                chunk.as_dict() for chunk in self.selected_context_chunks
+            ],
             "citation_annotations": [
                 citation.as_dict() for citation in self.citation_annotations
             ],
@@ -397,6 +401,7 @@ def build_memory_answer(
         created_at=created_at,
         citation_annotations=answer_citations,
         context_bundle=context_bundle,
+        selected_context_chunks=chunks,
     )
     if store:
         store_memory_answer(db_path, answer)
@@ -483,6 +488,7 @@ def store_memory_answer(db_path: str | Path, answer: MemoryAnswer) -> None:
                 answer.created_at,
             ),
         )
+        _store_selected_context_chunks(conn, answer)
         for citation in answer.citation_annotations:
             conn.execute(
                 """
@@ -565,6 +571,7 @@ def _select_chunks(
     used_chars = 0
     limit_chars = max(1, max_chars)
     truncated: list[str] = []
+    truncated_omitted_chars = 0
     for chunk in chunks[: max(1, max_chunks)]:
         next_chars = len(chunk.chunk_text)
         if selected and used_chars + next_chars > limit_chars:
@@ -601,6 +608,7 @@ def _select_chunks(
                 )
             )
             truncated.append(chunk.chunk_id)
+            truncated_omitted_chars += max(0, len(chunk.chunk_text) - len(text))
             break
         selected.append(chunk)
         used_chars += next_chars
@@ -608,7 +616,7 @@ def _select_chunks(
         str(chunk.metadata.get("original_chunk_id") or chunk.chunk_id) for chunk in selected
     }
     omitted = tuple(chunk.chunk_id for chunk in chunks if chunk.chunk_id not in selected_ids)
-    omitted_chars = sum(
+    omitted_chars = truncated_omitted_chars + sum(
         len(chunk.chunk_text)
         for chunk in chunks
         if chunk.chunk_id not in selected_ids
@@ -661,6 +669,44 @@ def _citations_for_chunks(
             )
         )
     return tuple(result)
+
+
+def _store_selected_context_chunks(conn: sqlite3.Connection, answer: MemoryAnswer) -> None:
+    for chunk in answer.selected_context_chunks:
+        conn.execute(
+            """
+            INSERT INTO memory_context_chunks (
+                chunk_id, run_id, source_kind, source_id, source_url,
+                provider, provider_role, chunk_text, chunk_index,
+                offset_start, offset_end, token_count, relevance_score,
+                extractor_version, created_at, metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(chunk_id) DO UPDATE SET
+                chunk_text=excluded.chunk_text,
+                token_count=excluded.token_count,
+                relevance_score=excluded.relevance_score,
+                metadata_json=excluded.metadata_json
+            """,
+            (
+                chunk.chunk_id,
+                chunk.run_id,
+                chunk.source_kind,
+                chunk.source_id,
+                chunk.source_url,
+                chunk.provider,
+                chunk.provider_role,
+                chunk.chunk_text,
+                chunk.chunk_index,
+                None,
+                None,
+                chunk.token_count,
+                chunk.relevance_score,
+                chunk.extractor_version,
+                chunk.created_at,
+                json.dumps(chunk.metadata, ensure_ascii=False, sort_keys=True),
+            ),
+        )
 
 
 def _answer_citations(

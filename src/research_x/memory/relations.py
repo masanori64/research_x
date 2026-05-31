@@ -11,6 +11,17 @@ from typing import Any
 
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
+BUILDER_RELATION_TYPES = (
+    "bookmark_of_tweet",
+    "has_media",
+    "quotes",
+    "quote_tree_includes",
+    "has_quote_tree",
+    "same_bookmarked_tweet",
+    "older_same_author_label",
+    "derived_from_source",
+)
+
 
 @dataclass(frozen=True)
 class RelationBuildSummary:
@@ -48,7 +59,7 @@ def build_memory_relations(db_path: str | Path) -> RelationBuildSummary:
         _older_same_author_label_relations(conn, relations)
         _derived_document_relations(conn, relations)
 
-        conn.execute("DELETE FROM memory_relations")
+        _delete_builder_relations(conn)
         for relation in relations.values():
             _insert_relation(conn, relation, now=now)
         by_type = Counter(relation.relation_type for relation in relations.values())
@@ -398,6 +409,14 @@ def _insert_relation(conn: sqlite3.Connection, relation: MemoryRelation, *, now:
             now,
             now,
         ),
+    )
+
+
+def _delete_builder_relations(conn: sqlite3.Connection) -> None:
+    placeholders = ",".join("?" for _ in BUILDER_RELATION_TYPES)
+    conn.execute(
+        f"DELETE FROM memory_relations WHERE relation_type IN ({placeholders})",
+        BUILDER_RELATION_TYPES,
     )
 
 

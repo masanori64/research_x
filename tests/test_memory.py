@@ -371,6 +371,44 @@ def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
     assert bundle["hits"][0]["evidence"]["relations"]
 
 
+def test_memory_relation_rebuild_preserves_manual_edges(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO memory_relations (
+                relation_id, source_doc_id, target_doc_id, relation_type,
+                strength, status, evidence_json, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "manual-support-edge",
+                "tweet:tweet-1",
+                "tweet:tweet-2",
+                "supports",
+                0.8,
+                "manual",
+                "{}",
+                "2026-05-26T00:00:00+00:00",
+                "2026-05-26T00:00:00+00:00",
+            ),
+        )
+
+    build_memory_relations(db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        manual_count = conn.execute(
+            "SELECT COUNT(*) FROM memory_relations WHERE relation_id = ?",
+            ("manual-support-edge",),
+        ).fetchone()[0]
+
+    assert manual_count == 1
+
+
 def test_external_evidence_fake_provider_is_stored(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
 
@@ -553,6 +591,7 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
     assert citation.answer_start_index is not None
     assert citation.support_type == "supports_answer"
     assert answer.structured["context_selection"]["truncated_chunk_ids"]
+    assert answer.selected_context_chunks[0].metadata["truncated_for_answer"] is True
 
     with sqlite3.connect(db_path) as conn:
         answer_rows = conn.execute("SELECT COUNT(*) FROM memory_answer_runs").fetchone()[0]
@@ -570,11 +609,20 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
             WHERE provider_role = 'answer_engine' AND action = 'answer'
             """
         ).fetchone()[0]
+        selected_chunk_rows = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_context_chunks
+            WHERE chunk_id = ?
+            """,
+            (answer.selected_context_chunks[0].chunk_id,),
+        ).fetchone()[0]
 
     assert answer_rows == 1
     assert answer_citations == len(answer.citation_annotations)
     assert context_citations == len(answer.context_bundle.citation_annotations)
     assert answer_tool_calls == 1
+    assert selected_chunk_rows == 1
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(

@@ -104,6 +104,8 @@ Implemented behavior:
 - OpenAI/Gemini production embedding providers;
 - explicit diagnostic-only `local_hash` embeddings;
 - relation edges for bookmarks, media, quotes, duplicate bookmarks, and weak stale candidates;
+- relation rebuilds preserve non-builder relation types such as future `supports` and
+  `contradicts` edges;
 - external URL-discovery provider contract with no-network fake provider and optional Serper
   provider;
 - normalized external discovery run/item storage in the SQLite DB;
@@ -115,6 +117,8 @@ Implemented behavior:
   citation-ready metadata;
 - `memory context --external-run-id` integration that combines local X chunks with extracted
   external Web chunks under one context bundle/run id;
+- generated answer citations point to stored context chunks, including answer-specific truncated
+  subchunks when the answer context budget is smaller than the original chunk;
 - `memory build-derived` command that adds rebuildable `place_card`, `author_profile`, and
   `ticker_event` documents without replacing raw X records, while preserving full source
   provenance even when card bodies are compact;

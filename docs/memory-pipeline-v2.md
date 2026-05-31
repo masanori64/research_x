@@ -174,8 +174,11 @@ Implementation impact:
 - `memory search` now includes relation-expanded candidates in the returned result set.
 - `memory context` carries derived provenance and omitted relation/media/quote counts.
 - `memory answer` records context selection metadata, omitted chunk IDs, truncated chunk IDs, and
-  missing citation markers.
+  missing citation markers. Answer-specific truncated subchunks are persisted as context chunks so
+  citation rows never point to a non-existent chunk.
 - `memory audit` reports `fixture_artifacts`.
+- `memory build-relations` rebuilds known builder relation types while preserving manual or
+  future AI-generated relation types such as `supports`, `contradicts`, and `obsolete_candidate`.
 
 ## Non-Negotiable Invariants
 
