@@ -658,6 +658,11 @@ def _relation_score(
         score += min(1.0, 0.4 * relation_counts.get("incoming:older_same_author_label", 0))
         score += min(1.4, 0.45 * relation_counts.get("newer_than", 0))
         score += min(1.0, 0.35 * relation_counts.get("incoming:older_than", 0))
+    if "freshness" in plan.intents:
+        score += min(1.0, 0.45 * relation_counts.get("supports", 0))
+        score += min(1.2, 0.55 * relation_counts.get("contradicts", 0))
+        score += min(0.7, 0.3 * relation_counts.get("incoming:supports", 0))
+        score += min(0.9, 0.4 * relation_counts.get("incoming:contradicts", 0))
     return score
 
 

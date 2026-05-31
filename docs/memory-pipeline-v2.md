@@ -229,6 +229,8 @@ Decision:
   `obsolete_candidate` edges before adding AI-generated support/contradiction judgments.
 - Treat `obsolete_candidate` as a candidate relation only. It marks an older same-author/same-topic
   neighbor separated by a large time gap, not proof that the older content is false.
+- Add support/contradiction judging as a separate pass over candidate freshness edges, not as part
+  of the deterministic relation rebuild.
 
 Implementation impact:
 
@@ -236,8 +238,11 @@ Implementation impact:
   `memory_documents` metadata.
 - `memory search` uses these relation counts for freshness-aware ranking while keeping the raw
   X rows and derived documents unchanged.
-- Future `supports` / `contradicts` edges should be added by a reviewed extraction or judge step,
-  not inferred solely from date ordering.
+- `memory judge-relations` can add `supports` / `contradicts` edges from evidence documents to
+  assessed documents. It stores judge/provider/prompt metadata in `memory_relations.evidence_json`
+  and writes a tool-call audit row when stored.
+- `supports` / `contradicts` edges are reviewed derived artifacts; they are not inferred solely
+  from date ordering and they do not replace raw X evidence.
 - `memory build-corpus` preserves non-builder relations that still point to existing documents,
   instead of wiping future manual or AI-generated support/contradiction edges.
 
@@ -762,6 +767,9 @@ Current implementation:
   embedding quality can be compared against lexical/relation-only routing.
 - Eval input can also come from a JSON/JSONL cases file, allowing the user's real recurring
   questions to become route-level regression tests.
+- Freshness routes can use deterministic freshness edges and optional judged `supports` /
+  `contradicts` edges, but generated relation judgments remain inference metadata until cited
+  through context chunks and answer annotations.
 - Route mismatches and missing compact evidence fail; weak or absent evidence remains visible as
   `needs_review` / `fail` instead of being hidden behind a successful command exit.
 
@@ -776,6 +784,7 @@ memory_documents        -> Layer 1 searchable documents
 memory_document_fts     -> Layer 2 lexical retrieval
 memory_embeddings       -> Layer 2 semantic retrieval with profile/template/source-hash provenance
 memory_relations        -> Layer 2 relation expansion / future graph base
+memory judge-relations  -> optional support/contradiction relation judge over freshness candidates
 memory_external_runs    -> Layer 3 external provider run metadata
 memory_external_items   -> Layer 3 normalized external URL discovery results
 memory_tool_calls       -> Layer 3/7 provider calls, including reader/extract

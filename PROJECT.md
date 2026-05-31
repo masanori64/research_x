@@ -86,6 +86,7 @@ research_x memory build-embeddings
 research_x memory embedding-specs
 research_x memory build-relations
 research_x memory relations
+research_x memory judge-relations
 research_x memory plan
 research_x memory search
 research_x memory evidence
@@ -115,6 +116,8 @@ Implemented behavior:
   newer/older neighbors, and obsolete candidates;
 - relation rebuilds preserve non-builder relation types such as future `supports` and
   `contradicts` edges;
+- optional relation-judge runs can derive `supports` / `contradicts` edges from freshness
+  candidates with fake, Gemini, OpenAI chat, or OpenAI-compatible providers;
 - corpus rebuilds delete rebuildable builder relations and orphaned edges, but preserve manual or
   future AI-generated relation types that still point to existing documents;
 - external URL-discovery provider contract with no-network fake provider and optional Serper
@@ -205,8 +208,8 @@ research_x memory cite
 - Run production embedding rebuild/eval for the chosen provider and template on the real DB.
 - Add profile-specific embeddings only after route evals show the broad `general_memory` index is
   not enough.
-- Add AI/judge-assisted `supports` and `contradicts` relations after the deterministic freshness
-  graph is stable.
+- Run AI/judge-assisted `supports` and `contradicts` relation passes on the real DB, then evaluate
+  whether the extra edges improve currentness/fact-check routes.
 - Run the exported Corpus2Skill bundle through the OSS compiler and evaluate it as a navigation map,
   not as the source of final evidence.
 - Add external Web evidence providers only behind explicit provider roles and audit logs.

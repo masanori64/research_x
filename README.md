@@ -395,6 +395,22 @@ duplicate bookmarks, shared URLs, shared topics, newer/older same-author topic n
 `obsolete_candidate` freshness hints. Those freshness hints are ranking signals, not proof that old
 content is wrong.
 
+Use `memory judge-relations` after deterministic freshness edges exist when you want reviewed
+`supports` / `contradicts` edges for stale-information checks. The fake provider is deterministic
+and no-network; real runs can use `gemini`, `openai_chat`, or `openai_compatible`:
+
+```powershell
+uv run python -m research_x memory judge-relations `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-2.5-flash `
+  --candidate-relation-type obsolete_candidate
+```
+
+Judged relation edges are still derived artifacts. They link evidence documents to assessed
+documents and store judge/provider metadata in `evidence_json`; they do not overwrite raw X rows or
+turn old/new date ordering into proof by itself.
+
 Reader/extract is separate from URL discovery. Use `memory extract-url` to turn a known URL, or URLs
 from an external-search run, into external context chunks:
 
@@ -492,6 +508,7 @@ Memory command surface:
 memory build-corpus       Build memory_documents and FTS from the canonical X DB.
 memory build-derived      Build place_card, author_profile, and ticker_event views.
 memory build-relations    Build explicit graph/relation edges.
+memory judge-relations    Judge supports/contradicts edges from freshness candidates.
 memory build-embeddings   Build versioned semantic indexes with OpenAI/Gemini or diagnostic local_hash.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
@@ -511,6 +528,10 @@ Production memory runbook:
 uv run python -m research_x memory build-corpus --db runs/x_data.sqlite3
 uv run python -m research_x memory build-derived --db runs/x_data.sqlite3
 uv run python -m research_x memory build-relations --db runs/x_data.sqlite3
+uv run python -m research_x memory judge-relations `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-2.5-flash
 uv run python -m research_x memory build-embeddings `
   --db runs/x_data.sqlite3 `
   --provider gemini `

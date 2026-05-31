@@ -327,6 +327,49 @@ def main(argv: list[str] | None = None) -> int:
     memory_relations_parser.add_argument("--doc-id", required=True)
     memory_relations_parser.add_argument("--limit", type=int, default=20)
     memory_relations_parser.add_argument("--json", action="store_true")
+    memory_judge_relations_parser = memory_subparsers.add_parser(
+        "judge-relations",
+        help="judge supports/contradicts relation edges from freshness candidates",
+    )
+    memory_judge_relations_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_judge_relations_parser.add_argument(
+        "--provider",
+        choices=["fake", "gemini", "openai_chat", "openai_compatible"],
+        default="fake",
+        help="relation judge; fake is deterministic and no-network",
+    )
+    memory_judge_relations_parser.add_argument("--model", default=None)
+    memory_judge_relations_parser.add_argument("--api-key-env", default=None)
+    memory_judge_relations_parser.add_argument("--base-url", default=None)
+    memory_judge_relations_parser.add_argument(
+        "--candidate-relation-type",
+        action="append",
+        default=None,
+        help=(
+            "candidate relation type to judge, e.g. obsolete_candidate; "
+            "repeat to select multiple"
+        ),
+    )
+    memory_judge_relations_parser.add_argument("--limit", type=int, default=50)
+    memory_judge_relations_parser.add_argument("--batch-size", type=int, default=10)
+    memory_judge_relations_parser.add_argument("--min-confidence", type=float, default=0.55)
+    memory_judge_relations_parser.add_argument(
+        "--prompt-version",
+        default="memory-relation-judge-v1",
+    )
+    memory_judge_relations_parser.add_argument("--timeout-seconds", type=float, default=90.0)
+    memory_judge_relations_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store judged supports/contradicts edges and tool-call audit rows",
+    )
+    memory_judge_relations_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    memory_judge_relations_parser.add_argument("--json", action="store_true")
     memory_search_parser = memory_subparsers.add_parser(
         "search",
         help=(
@@ -1671,6 +1714,41 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
         relations = relations_for_doc(args.db, args.doc_id, limit=args.limit)
         print(format_relations(relations, json_output=args.json))
+        return 0
+    if args.memory_command == "judge-relations":
+        from research_x.memory.judge_relations import (
+            format_relation_judge_summary,
+            judge_memory_relations,
+            relation_judge_summary_json,
+        )
+
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="relation judge",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
+        summary = judge_memory_relations(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            candidate_relation_types=(
+                tuple(args.candidate_relation_type) if args.candidate_relation_type else None
+            ),
+            limit=args.limit,
+            batch_size=args.batch_size,
+            min_confidence=args.min_confidence,
+            prompt_version=args.prompt_version,
+            timeout_seconds=args.timeout_seconds,
+            store=args.store,
+        )
+        print(
+            relation_judge_summary_json(summary)
+            if args.json
+            else format_relation_judge_summary(summary)
+        )
         return 0
     if args.memory_command == "search":
         from research_x.memory.search import format_search_results, search_memory

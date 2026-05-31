@@ -18,6 +18,7 @@ from research_x.memory.evals import load_eval_cases, run_memory_eval
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
+from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.query import build_query_plan
 from research_x.memory.reader import (
@@ -735,6 +736,112 @@ def test_memory_relation_rebuild_preserves_manual_edges(tmp_path: Path) -> None:
         ).fetchone()[0]
 
     assert manual_count == 1
+
+
+def test_memory_relation_judge_adds_support_or_contradict_edges(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            """
+            INSERT INTO tweets (
+                tweet_id, url, author_screen_name, text, created_at,
+                first_observed_at, last_observed_at, role, collection_kind,
+                providers_json, raw_json, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "tweet-stale-old",
+                    "https://x.com/a/status/tweet-stale-old",
+                    "staleauthor",
+                    "強化学習とロボットの古い実装メモ。",
+                    "2025-01-01T00:00:00+00:00",
+                    "2025-01-01T00:00:00+00:00",
+                    "2025-01-01T00:00:00+00:00",
+                    "profile",
+                    "profile",
+                    "[]",
+                    "{}",
+                    "2025-01-01T00:00:00+00:00",
+                ),
+                (
+                    "tweet-stale-new",
+                    "https://x.com/a/status/tweet-stale-new",
+                    "staleauthor",
+                    "強化学習とロボットの古い実装は非推奨。新しい方法に更新。",
+                    "2026-06-01T00:00:00+00:00",
+                    "2026-06-01T00:00:00+00:00",
+                    "2026-06-01T00:00:00+00:00",
+                    "profile",
+                    "profile",
+                    "[]",
+                    "{}",
+                    "2026-06-01T00:00:00+00:00",
+                ),
+            ],
+        )
+        conn.executemany(
+            """
+            INSERT INTO ai_labels (
+                label_id, account_id, tweet_id, label_scope, category_id,
+                category_label, confidence, tags_json, summary, rationale,
+                model, run_id, generated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "label-stale-old",
+                    None,
+                    "tweet-stale-old",
+                    "tweets",
+                    "tech",
+                    "Technology",
+                    0.9,
+                    '["強化学習", "ロボット"]',
+                    "old summary",
+                    "rationale",
+                    "fake-model",
+                    "run",
+                    "2026-05-26T00:00:00+00:00",
+                ),
+                (
+                    "label-stale-new",
+                    None,
+                    "tweet-stale-new",
+                    "tweets",
+                    "tech",
+                    "Technology",
+                    0.9,
+                    '["強化学習", "ロボット"]',
+                    "new summary",
+                    "rationale",
+                    "fake-model",
+                    "run",
+                    "2026-05-26T00:00:00+00:00",
+                ),
+            ],
+        )
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    summary = judge_memory_relations(db_path, provider="fake", limit=10)
+    old_relations = relations_for_doc(db_path, "tweet:tweet-stale-old", limit=20)
+    fresh_results = search_memory(
+        db_path,
+        "昔保存した強化学習とロボットの技術情報が今も正しいか",
+        limit=5,
+    )
+
+    assert summary.inserted >= 1
+    assert summary.by_type["contradicts"] >= 1
+    assert any(relation.relation_type == "contradicts" for relation in old_relations)
+    assert any(
+        (result.metadata.get("relation_counts") or {}).get("contradicts")
+        for result in fresh_results
+    )
 
 
 def test_external_evidence_fake_provider_is_stored(tmp_path: Path) -> None:
@@ -1576,6 +1683,20 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
             "tweet:tweet-1",
         ]
     ) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "judge-relations",
+                "--db",
+                str(db_path),
+                "--provider",
+                "fake",
+                "--no-store",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "search", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(
         [
@@ -1843,6 +1964,21 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "--query",
                 "ロボット 今も正しい？",
                 "--llm-context-provider",
+                "fake",
+            ]
+        )
+        == 1
+    )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
+    assert (
+        main(
+            [
+                "memory",
+                "judge-relations",
+                "--db",
+                str(db_path),
+                "--provider",
                 "fake",
             ]
         )
