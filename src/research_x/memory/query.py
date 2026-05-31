@@ -99,6 +99,9 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
             "ネットワーク",
             "論文",
             "資料",
+            "勉強",
+            "整理",
+            "学習",
         ),
         expansions=(
             "技術",
@@ -111,8 +114,15 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
             "論文",
             "資料",
             "実装",
+            "勉強",
+            "整理",
         ),
-        doc_type_weights={"bookmark_doc": 0.9, "tweet_doc": 0.5, "media_doc": 0.5},
+        doc_type_weights={
+            "topic_thread": 2.0,
+            "bookmark_doc": 0.9,
+            "tweet_doc": 0.5,
+            "media_doc": 0.5,
+        },
     ),
     IntentProfile(
         intent_id="author",
@@ -126,7 +136,12 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
         label="science",
         triggers=("物理", "宇宙", "数学", "科学", "ロケット"),
         expansions=("物理", "宇宙", "数学", "科学", "ロケット", "研究", "論文"),
-        doc_type_weights={"tweet_doc": 0.5, "bookmark_doc": 0.7, "media_doc": 0.3},
+        doc_type_weights={
+            "topic_thread": 1.6,
+            "tweet_doc": 0.5,
+            "bookmark_doc": 0.7,
+            "media_doc": 0.3,
+        },
     ),
     IntentProfile(
         intent_id="adult_comic",

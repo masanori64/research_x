@@ -319,7 +319,8 @@ Add future document types only when they improve real workflows:
 - `place_card`: restaurants, cafes, venues, local spots, map hints, related saved tweets.
 - `author_profile`: author stance, recurring interests, saved-history summary, topic links.
 - `ticker_event`: ticker/company/date event, saved posts, author opinions, stale/newer links.
-- `topic_thread`: multi-post learning/research thread for a technical or academic area.
+- `topic_thread`: multi-post learning/research thread for a technical, academic, finance, media, or
+  recurring interest area.
 - `url_context_doc`: external URL title, source, extracted snippets, and source metadata.
 - `claim_card`: a compact claim with supporting/contradicting sources and freshness status.
 
@@ -418,7 +419,7 @@ Local context chunk sources:
 
 - `memory_documents.compact_text`;
 - selected quote/media/URL relation expansion;
-- derived cards such as `place_card`, `author_profile`, and `ticker_event`;
+- derived cards such as `place_card`, `author_profile`, `ticker_event`, and `topic_thread`;
 - Corpus2Skill route hints.
 
 External context chunk sources:
@@ -794,7 +795,7 @@ memory_citation_annotations -> Layer 5 citation-ready source metadata
 memory_answer_runs      -> Layer 6 answer artifacts
 memory_workflow_runs    -> Layer 7 bounded workflow traces
 memory_workflow_steps   -> Layer 7 bounded workflow step logs
-memory build-derived    -> Layer 1 derived cards for places/authors/ticker events
+memory build-derived    -> Layer 1 derived cards for places/authors/ticker events/topic threads
 memory evidence         -> legacy-compatible local hit bundle
 memory context          -> Layer 4 chunks plus Layer 5 citation metadata
 memory extract-url      -> Layer 3 reader/extract to Layer 4 external chunks
@@ -833,7 +834,8 @@ What should not be deleted:
 1. Document this V2 design and keep existing code stable.
 2. Add schema for tool/search runs, context chunks, citations, and answer runs.
 3. Refactor evidence output so local hits and citations are explicit.
-4. Add derived view builders for `place_card`, `author_profile`, and `ticker_event`.
+4. Add derived view builders for `place_card`, `author_profile`, `ticker_event`, and
+   `topic_thread`.
 5. Add external evidence provider interface, initially with a no-network fake/test provider.
 6. Add reader/extract providers and normalize extracted URL text into context chunks.
 7. Add Brave LLM Context provider only after storage/retention/rate-limit handling is explicit.

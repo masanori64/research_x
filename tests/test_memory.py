@@ -1416,6 +1416,27 @@ def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path)
     assert "キオクシア" in ticker_metadata
 
 
+def test_memory_build_topic_thread_documents(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    summary = build_derived_documents(
+        db_path,
+        kinds=("topic_thread",),
+        min_topic_docs=2,
+    )
+    results = search_memory(
+        db_path,
+        "強化学習とロボットで後から勉強に使える情報を整理して",
+        limit=5,
+    )
+
+    assert summary.topic_threads >= 1
+    assert summary.by_type["topic_thread"] == summary.topic_threads
+    assert any(result.doc_type == "topic_thread" for result in results)
+
+
 def test_reader_extract_fake_provider_stores_external_context(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
 

@@ -459,7 +459,7 @@ def _derived_document_relations(
         """
         SELECT doc_id, doc_type, metadata_json
         FROM memory_documents
-        WHERE doc_type IN ('place_card', 'author_profile', 'ticker_event')
+        WHERE doc_type IN ('place_card', 'author_profile', 'ticker_event', 'topic_thread')
         ORDER BY doc_type, doc_id
         """
     ).fetchall()
@@ -545,7 +545,7 @@ def _topic_terms(row: sqlite3.Row) -> tuple[str, ...]:
         values = metadata.get(key)
         if isinstance(values, list | tuple):
             terms.extend(str(value) for value in values)
-    for key in ("company_or_ticker", "place_key"):
+    for key in ("company_or_ticker", "place_key", "topic", "topic_key"):
         value = metadata.get(key)
         if isinstance(value, str):
             terms.append(value)

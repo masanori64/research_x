@@ -146,8 +146,8 @@ Implemented behavior:
   external Web chunks under one context bundle/run id;
 - generated answer citations point to stored context chunks, including answer-specific truncated
   subchunks when the answer context budget is smaller than the original chunk;
-- `memory build-derived` command that adds rebuildable `place_card`, `author_profile`, and
-  `ticker_event` documents without replacing raw X records, while preserving full source
+- `memory build-derived` command that adds rebuildable `place_card`, `author_profile`,
+  `ticker_event`, and `topic_thread` documents without replacing raw X records, while preserving full source
   provenance even when card bodies are compact;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
   semantic indexes, missing embedding source hashes, V2 evidence graph orphans, invalid V2
@@ -185,7 +185,8 @@ Implementation checklist:
 - [x] Split local retrieved hits into `memory context` chunks and citation-ready source metadata.
 - [x] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
-- [x] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.
+- [x] Add derived document builders for `place_card`, `author_profile`, `ticker_event`, and
+      `topic_thread`.
 - [x] Add an external evidence provider interface with a no-network fake provider first.
 - [x] Add Serper as an optional Google SERP `web-search` / `index_provider`.
 - [x] Add reader/extract provider interface with no-network fake provider first.

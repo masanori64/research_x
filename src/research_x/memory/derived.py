@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
-DERIVED_DOC_TYPES = ("place_card", "author_profile", "ticker_event")
+DERIVED_DOC_TYPES = ("place_card", "author_profile", "ticker_event", "topic_thread")
 SOURCE_DOC_TYPES = ("tweet_doc", "bookmark_doc", "quote_tree_doc", "media_doc")
 
 FOOD_TERMS = (
@@ -126,6 +126,43 @@ FINANCE_TERMS = (
     "決算説明",
 )
 
+TOPIC_THREAD_TERMS = (
+    "AI",
+    "LLM",
+    "RAG",
+    "機械学習",
+    "強化学習",
+    "深層学習",
+    "ロボット",
+    "ネットワーク",
+    "セキュリティ",
+    "プログラミング",
+    "Python",
+    "論文",
+    "資料",
+    "実装",
+    "物理",
+    "宇宙",
+    "数学",
+    "金融",
+    "投資",
+    "漫画",
+    "イラスト",
+    "イベント",
+)
+
+TOPIC_THREAD_HINTS = (
+    "勉強",
+    "整理",
+    "学習",
+    "資料",
+    "論文",
+    "解説",
+    "入門",
+    "まとめ",
+    "メモ",
+)
+
 KNOWN_COMPANY_TERMS = (
     "キオクシア",
     "ソニー",
@@ -159,6 +196,7 @@ class DerivedBuildSummary:
     place_cards: int
     author_profiles: int
     ticker_events: int
+    topic_threads: int
     by_type: dict[str, int]
 
 
@@ -184,6 +222,7 @@ def build_derived_documents(
     kinds: tuple[str, ...] | None = None,
     max_source_docs_per_card: int = 8,
     min_author_docs: int = 1,
+    min_topic_docs: int = 2,
 ) -> DerivedBuildSummary:
     path = Path(db_path)
     if not path.exists():
@@ -222,6 +261,15 @@ def build_derived_documents(
                     now=now,
                 )
             )
+        if "topic_thread" in selected_kinds:
+            documents.extend(
+                _topic_threads(
+                    source_rows,
+                    max_source_docs_per_card=max_source_docs_per_card,
+                    min_topic_docs=min_topic_docs,
+                    now=now,
+                )
+            )
         old_doc_ids = _derived_doc_ids(conn, selected_kinds)
         new_doc_ids = tuple(document.doc_id for document in documents)
         _delete_documents(conn, old_doc_ids, selected_kinds)
@@ -238,6 +286,7 @@ def build_derived_documents(
         place_cards=by_type.get("place_card", 0),
         author_profiles=by_type.get("author_profile", 0),
         ticker_events=by_type.get("ticker_event", 0),
+        topic_threads=by_type.get("topic_thread", 0),
         by_type=dict(sorted(by_type.items())),
     )
 
@@ -458,6 +507,63 @@ def _ticker_events(
             _document(
                 doc_id=f"ticker_event:{_stable_key(key)}",
                 doc_type="ticker_event",
+                title=title,
+                body=body,
+                metadata=metadata,
+                source_rows=all_source_rows,
+                now=now,
+            )
+        )
+    return documents
+
+
+def _topic_threads(
+    rows: tuple[sqlite3.Row, ...],
+    *,
+    max_source_docs_per_card: int,
+    min_topic_docs: int,
+    now: str,
+) -> list[DerivedDocument]:
+    grouped: dict[str, list[sqlite3.Row]] = defaultdict(list)
+    for row in rows:
+        text = _row_text(row)
+        for topic in _topic_thread_terms(row, text):
+            grouped[topic].append(row)
+
+    documents: list[DerivedDocument] = []
+    for topic, group in sorted(grouped.items()):
+        unique_rows = _unique_source_rows(group)
+        if len(unique_rows) < max(1, min_topic_docs):
+            continue
+        all_source_rows = tuple(unique_rows)
+        display_rows = _dedupe_sources(unique_rows, limit=max_source_docs_per_card)
+        top_labels = _top_labels(all_source_rows)
+        title = f"topic_thread {topic}"
+        body = _derived_body(
+            "topic_thread",
+            title=title,
+            source_rows=display_rows,
+            extra_lines=(
+                f"topic: {topic}",
+                f"top_labels: {', '.join(top_labels)}" if top_labels else None,
+                f"source_doc_count: {len(all_source_rows)}",
+            ),
+        )
+        metadata = _source_metadata(
+            "topic_thread",
+            all_source_rows,
+            extra={
+                "topic_key": topic.casefold(),
+                "topic": topic,
+                "top_labels": top_labels,
+                "display_source_doc_ids": [str(row["doc_id"]) for row in display_rows],
+                "grouping_version": "topic-thread-v1",
+            },
+        )
+        documents.append(
+            _document(
+                doc_id=f"topic_thread:{_stable_key(topic)}",
+                doc_type="topic_thread",
                 title=title,
                 body=body,
                 metadata=metadata,
@@ -805,6 +911,33 @@ def _top_labels(rows: tuple[sqlite3.Row, ...]) -> tuple[str, ...]:
     return tuple(label for label, _count in counter.most_common(8))
 
 
+def _topic_thread_terms(row: sqlite3.Row, text: str) -> tuple[str, ...]:
+    metadata = _loads_json(row["metadata_json"])
+    labels = tuple(str(label) for label in metadata.get("labels") or () if label)
+    terms = list(_terms_in_text(TOPIC_THREAD_TERMS, text))
+    if labels and any(hint.casefold() in text.casefold() for hint in TOPIC_THREAD_HINTS):
+        terms.extend(labels[:8])
+    for label in labels:
+        cleaned = _clean_topic_label(label)
+        if cleaned and _topic_label_allowed(cleaned):
+            terms.append(cleaned)
+    return _unique(terms)[:8]
+
+
+def _clean_topic_label(value: str) -> str:
+    cleaned = _clean_candidate(value)
+    if not cleaned:
+        return ""
+    return cleaned[:60]
+
+
+def _topic_label_allowed(value: str) -> bool:
+    lowered = value.casefold()
+    if lowered in {"other", "その他", "unknown", "misc"}:
+        return False
+    return len(value) >= 2
+
+
 def _source_urls(rows: tuple[sqlite3.Row, ...]) -> list[str]:
     urls: list[str] = []
     for row in rows:
@@ -860,6 +993,18 @@ def _unique(values: Any) -> tuple[str, ...]:
         if text and text.casefold() not in {existing.casefold() for existing in result}:
             result.append(text)
     return tuple(result)
+
+
+def _unique_source_rows(rows: list[sqlite3.Row]) -> list[sqlite3.Row]:
+    seen: set[str] = set()
+    result: list[sqlite3.Row] = []
+    for row in rows:
+        doc_id = str(row["doc_id"])
+        if doc_id in seen:
+            continue
+        seen.add(doc_id)
+        result.append(row)
+    return result
 
 
 def _min_datetime(values: Any) -> str | None:

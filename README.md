@@ -378,17 +378,18 @@ This stores a search run, context chunks, and citation annotations without turni
 or answers into evidence.
 
 Derived memory documents are optional but recommended before embedding or workflow evaluation. They
-preserve raw X rows while adding higher-level searchable cards for places, authors, and finance
-events:
+preserve raw X rows while adding higher-level searchable cards for places, authors, finance events,
+and recurring topic threads:
 
 ```powershell
 uv run python -m research_x memory build-derived `
   --db runs/x_data.sqlite3
 ```
 
-This currently creates `place_card`, `author_profile`, and `ticker_event` rows in
+This currently creates `place_card`, `author_profile`, `ticker_event`, and `topic_thread` rows in
 `memory_documents`, keeps source row provenance in metadata, and links each derived row back to its
-source documents with `derived_from_source` relations.
+source documents with `derived_from_source` relations. `topic_thread` is the lightweight map for
+learning/research questions such as saved AI, robotics, network, paper, or implementation material.
 
 `memory build-relations` also builds deterministic graph edges for quote/media/bookmark context,
 duplicate bookmarks, shared URLs, shared topics, newer/older same-author topic neighbors, and
@@ -506,7 +507,7 @@ Memory command surface:
 
 ```text
 memory build-corpus       Build memory_documents and FTS from the canonical X DB.
-memory build-derived      Build place_card, author_profile, and ticker_event views.
+memory build-derived      Build place_card, author_profile, ticker_event, and topic_thread views.
 memory build-relations    Build explicit graph/relation edges.
 memory judge-relations    Judge supports/contradicts edges from freshness candidates.
 memory build-embeddings   Build versioned semantic indexes with OpenAI/Gemini or diagnostic local_hash.

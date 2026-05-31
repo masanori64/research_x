@@ -253,13 +253,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_derived_parser = memory_subparsers.add_parser(
         "build-derived",
-        help="build derived place, author, and ticker-event memory documents",
+        help="build derived place, author, ticker-event, and topic-thread documents",
     )
     memory_derived_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_derived_parser.add_argument(
         "--kind",
         action="append",
-        choices=["place_card", "author_profile", "ticker_event"],
+        choices=["place_card", "author_profile", "ticker_event", "topic_thread"],
         default=None,
         help="derived document kind to rebuild; repeat to select multiple",
     )
@@ -274,6 +274,12 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=1,
         help="minimum source documents required for an author_profile",
+    )
+    memory_derived_parser.add_argument(
+        "--min-topic-docs",
+        type=int,
+        default=2,
+        help="minimum source documents required for a topic_thread",
     )
     memory_audit_parser = memory_subparsers.add_parser(
         "audit",
@@ -1665,6 +1671,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             kinds=tuple(args.kind) if args.kind else None,
             max_source_docs_per_card=args.max_source_docs_per_card,
             min_author_docs=args.min_author_docs,
+            min_topic_docs=args.min_topic_docs,
         )
         print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
         return 0
