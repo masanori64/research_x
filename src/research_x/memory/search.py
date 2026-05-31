@@ -13,6 +13,7 @@ from research_x.memory.embeddings import (
     semantic_scores_for_doc_ids,
     semantic_search_memory,
 )
+from research_x.memory.feedback import feedback_scores_for_docs
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.relations import relation_summary_for_docs
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
@@ -126,7 +127,7 @@ def search_memory(
             for candidate in candidates
             if candidate.get("source_tweet_id")
         )
-        feedback = _feedback_scores(conn, doc_ids)
+        feedback = feedback_scores_for_docs(conn, doc_ids, plan=plan)
         account_counts = _bookmark_account_counts(conn, tweet_ids)
         relation_counts = relation_summary_for_docs(conn, doc_ids)
         latest_observed_at = _latest_observed_at(conn)
@@ -668,36 +669,6 @@ def _relation_score(
 
 def _contains_event_date(text: str) -> bool:
     return any(token in text for token in ("202", "開催", "期限", "締切", "予約", "イベント"))
-
-
-def _feedback_scores(conn: sqlite3.Connection, doc_ids: tuple[str, ...]) -> dict[str, float]:
-    if not doc_ids:
-        return {}
-    placeholders = ",".join("?" for _ in doc_ids)
-    rows = conn.execute(
-        f"""
-        SELECT doc_id, label, COUNT(*) AS count
-        FROM memory_feedback
-        WHERE doc_id IN ({placeholders})
-        GROUP BY doc_id, label
-        """,
-        doc_ids,
-    ).fetchall()
-    weights = {
-        "useful": 1.0,
-        "good_for_skill": 0.8,
-        "not_useful": -1.2,
-        "wrong_topic": -1.8,
-        "too_old": -1.0,
-        "missing_context": -0.4,
-        "bad_skill_route": -0.8,
-    }
-    result: dict[str, float] = {}
-    for row in rows:
-        result[str(row["doc_id"])] = result.get(str(row["doc_id"]), 0.0) + (
-            weights.get(str(row["label"]), 0.0) * int(row["count"])
-        )
-    return result
 
 
 def _bookmark_account_counts(

@@ -239,6 +239,8 @@ def _embedding_specs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def _invalid_json_counts(conn: sqlite3.Connection) -> dict[str, int]:
     field_specs = [
         ("memory_documents", "metadata_json"),
+        ("memory_feedback", "query_terms_json"),
+        ("memory_feedback", "intents_json"),
         ("memory_relations", "evidence_json"),
         ("memory_external_runs", "parameters_json"),
         ("memory_external_items", "metadata_json"),

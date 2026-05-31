@@ -35,6 +35,9 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             query TEXT NOT NULL,
             doc_id TEXT NOT NULL,
             label TEXT NOT NULL,
+            route TEXT,
+            query_terms_json TEXT,
+            intents_json TEXT,
             note TEXT,
             created_at TEXT NOT NULL
         );
@@ -269,6 +272,8 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_documents(account_id);
         CREATE INDEX IF NOT EXISTS idx_memory_feedback_doc
             ON memory_feedback(doc_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_feedback_doc_label
+            ON memory_feedback(doc_id, label);
         CREATE INDEX IF NOT EXISTS idx_memory_eval_runs_status
             ON memory_eval_runs(status, finished_at);
         CREATE INDEX IF NOT EXISTS idx_memory_eval_results_run
@@ -309,6 +314,7 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_workflow_steps(workflow_id, step_index);
         """
     )
+    _migrate_memory_feedback(conn)
     _migrate_memory_embeddings(conn)
     conn.execute(
         """
@@ -322,6 +328,18 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
 
 def memory_document_count(conn: sqlite3.Connection) -> int:
     return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])
+
+
+def _migrate_memory_feedback(conn: sqlite3.Connection) -> None:
+    columns = _column_names(conn, "memory_feedback")
+    migrations = {
+        "route": "ALTER TABLE memory_feedback ADD COLUMN route TEXT",
+        "query_terms_json": "ALTER TABLE memory_feedback ADD COLUMN query_terms_json TEXT",
+        "intents_json": "ALTER TABLE memory_feedback ADD COLUMN intents_json TEXT",
+    }
+    for column, sql in migrations.items():
+        if column not in columns:
+            conn.execute(sql)
 
 
 def _migrate_memory_embeddings(conn: sqlite3.Connection) -> None:

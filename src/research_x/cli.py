@@ -824,6 +824,11 @@ def main(argv: list[str] | None = None) -> int:
         ],
     )
     memory_feedback_parser.add_argument("--note", default=None)
+    memory_feedback_parser.add_argument(
+        "--route",
+        default=None,
+        help="optional workflow route this feedback applies to",
+    )
     memory_export_parser = memory_subparsers.add_parser(
         "export-corpus2skill",
         help="export memory_documents to Corpus2Skill-compatible JSONL",
@@ -2194,6 +2199,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             query=args.query,
             doc_id=args.doc_id,
             label=args.label,
+            route=args.route,
             note=args.note,
         )
         print(f"feedback: {feedback_id}")

@@ -607,6 +607,10 @@ fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relatio
 semantic indexes, missing embedding source hashes, V2 orphan rows, invalid V2 JSON/enums, and other
 states that should not be treated as production evidence.
 
+Feedback is stored with query terms and detected intents, so a `wrong_topic` or `useful` judgment
+affects similar future searches more strongly than unrelated ones. Add `--route` to `memory
+feedback` when the judgment is route-specific.
+
 Operational rule: build the memory corpus explicitly before searching or indexing. Search,
 relations, and embeddings should not silently rebuild empty memory tables, because that hides stale
 or missing index state from audits.

@@ -29,7 +29,7 @@ from research_x.memory.evals import (
 )
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
-from research_x.memory.feedback import add_feedback
+from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.query import build_query_plan
@@ -151,7 +151,58 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
 
     with sqlite3.connect(db_path) as conn:
         count = conn.execute("SELECT COUNT(*) FROM memory_feedback").fetchone()[0]
+        terms_json, intents_json = conn.execute(
+            """
+            SELECT query_terms_json, intents_json
+            FROM memory_feedback
+            WHERE feedback_id = ?
+            """,
+            (feedback_id,),
+        ).fetchone()
     assert count == 1
+    assert "強化学習" in json.loads(terms_json)
+    assert json.loads(intents_json)
+
+
+def test_memory_feedback_scores_are_query_aware(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    add_feedback(
+        db_path,
+        query="居酒屋",
+        doc_id="bookmark:acct:tweet-1",
+        label="wrong_topic",
+    )
+    add_feedback(
+        db_path,
+        query="強化学習 ロボット",
+        doc_id="bookmark:acct:tweet-1",
+        label="useful",
+        route="technical_learning",
+    )
+
+    current_plan = build_query_plan("強化学習 ロボット")
+    unrelated_plan = build_query_plan("居酒屋")
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        current_scores = feedback_scores_for_docs(
+            conn,
+            ("bookmark:acct:tweet-1",),
+            plan=current_plan,
+            route="technical_learning",
+        )
+        unrelated_scores = feedback_scores_for_docs(
+            conn,
+            ("bookmark:acct:tweet-1",),
+            plan=unrelated_plan,
+            route="place_recall",
+        )
+
+    assert current_scores["bookmark:acct:tweet-1"] > 0
+    assert unrelated_scores["bookmark:acct:tweet-1"] < current_scores["bookmark:acct:tweet-1"]
 
 
 def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:

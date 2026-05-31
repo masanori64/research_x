@@ -823,7 +823,8 @@ What may need refactoring later:
   should keep the same provenance and rebuild behavior.
 - `memory evidence` remains a legacy-compatible hit bundle; new AI callers should prefer
   `memory context` for chunks and citation metadata.
-- feedback scoring should eventually become query/route-aware.
+- feedback scoring is query/intent-aware and can be route-aware when feedback records include a
+  route, so judgments affect similar future searches more strongly than unrelated searches.
 - external Web evidence is stored separately from local X evidence; URL discovery rows are not
   citation-ready until `reader/extract` or `llm-context` produces context chunks.
 - combined context bundles can include `local_x_db`, `official`, `secondary`, and

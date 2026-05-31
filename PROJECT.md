@@ -109,7 +109,7 @@ Implemented behavior:
 - compact evidence bundles for local search results;
 - deterministic query planning and local hybrid ranking;
 - Japanese entity/date preservation in query plans and relation-expanded retrieval candidates;
-- feedback capture;
+- query/intent-aware feedback capture and ranking influence;
 - OpenAI/Gemini/OpenAI-compatible production embedding providers;
 - explicit diagnostic-only `local_hash` embeddings;
 - embedding indexes tracked by provider, model, dimensions, profile, text template, and source
