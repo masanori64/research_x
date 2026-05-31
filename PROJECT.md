@@ -141,6 +141,8 @@ Implemented behavior:
 - `memory eval` can run the same route cases with an explicit semantic provider/profile/template;
 - `memory eval --cases` accepts user/project JSON or JSONL route cases instead of only the built-in
   checks;
+- optional stored eval runs/results for comparing retrieval quality across rebuilds and embedding
+  profiles;
 - `memory export-corpus2skill --bundle-dir` writes `corpus.jsonl` plus `manifest.json` for the
   official Corpus2Skill compiler boundary;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and

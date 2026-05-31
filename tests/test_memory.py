@@ -14,7 +14,7 @@ from research_x.memory.corpus import (
 )
 from research_x.memory.derived import build_derived_documents
 from research_x.memory.embeddings import build_memory_embeddings, embedding_coverage_report
-from research_x.memory.evals import load_eval_cases, run_memory_eval
+from research_x.memory.evals import load_eval_cases, run_memory_eval, store_memory_eval_results
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
@@ -73,6 +73,11 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     current_plan = build_query_plan("昔保存した技術情報が今も正しいか確認したい")
     assert "freshness" in current_plan.intents
     assert current_plan.prefers_recent is True
+    author_plan = build_query_plan("Aさんの過去発言から2026年のAIの展望について教えて")
+    assert author_plan.doc_type_weights["author_profile"] > author_plan.doc_type_weights.get(
+        "topic_thread",
+        0.0,
+    )
 
 
 def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
@@ -1298,8 +1303,26 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
         limit=2,
         answer_provider="none",
     )
+    stored_run_id = store_memory_eval_results(
+        db_path,
+        custom_results,
+        cases_path=str(cases_path),
+        parameters={"limit": 2, "answer_provider": "none"},
+    )
+
     assert len(custom_results) == 1
     assert custom_results[0].route == "quote_context"
+    with sqlite3.connect(db_path) as conn:
+        stored_run = conn.execute(
+            "SELECT status, case_count FROM memory_eval_runs WHERE run_id = ?",
+            (stored_run_id,),
+        ).fetchone()
+        stored_results = conn.execute(
+            "SELECT COUNT(*) FROM memory_eval_results WHERE run_id = ?",
+            (stored_run_id,),
+        ).fetchone()[0]
+    assert stored_run[1] == 1
+    assert stored_results == 1
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
@@ -1906,6 +1929,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "local_hash",
                 "--semantic-dimensions",
                 "64",
+                "--store",
             ]
         )
         == 0

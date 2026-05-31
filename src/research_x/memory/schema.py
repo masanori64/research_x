@@ -46,6 +46,43 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS memory_eval_runs (
+            run_id TEXT PRIMARY KEY,
+            cases_path TEXT,
+            case_count INTEGER NOT NULL,
+            parameters_json TEXT NOT NULL,
+            status TEXT NOT NULL,
+            ok_count INTEGER NOT NULL,
+            needs_review_count INTEGER NOT NULL,
+            fail_count INTEGER NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_eval_results (
+            result_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            case_index INTEGER NOT NULL,
+            query TEXT NOT NULL,
+            status TEXT NOT NULL,
+            route TEXT NOT NULL,
+            expected_route TEXT,
+            stop_reason TEXT NOT NULL,
+            hits INTEGER NOT NULL,
+            context_chunks INTEGER NOT NULL,
+            first_doc_id TEXT,
+            best_score REAL NOT NULL,
+            matched_terms_json TEXT NOT NULL,
+            retrieval_engines_json TEXT NOT NULL,
+            source_kinds_json TEXT NOT NULL,
+            answer_status TEXT,
+            answer_citations INTEGER NOT NULL,
+            notes_json TEXT NOT NULL,
+            metadata_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(run_id) REFERENCES memory_eval_runs(run_id)
+        );
+
         CREATE TABLE IF NOT EXISTS memory_embeddings (
             doc_id TEXT NOT NULL,
             provider TEXT NOT NULL,
@@ -232,6 +269,12 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_documents(account_id);
         CREATE INDEX IF NOT EXISTS idx_memory_feedback_doc
             ON memory_feedback(doc_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_eval_runs_status
+            ON memory_eval_runs(status, finished_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_eval_results_run
+            ON memory_eval_results(run_id, case_index);
+        CREATE INDEX IF NOT EXISTS idx_memory_eval_results_status
+            ON memory_eval_results(status);
         CREATE INDEX IF NOT EXISTS idx_memory_relations_source
             ON memory_relations(source_doc_id);
         CREATE INDEX IF NOT EXISTS idx_memory_relations_target

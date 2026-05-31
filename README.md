@@ -491,7 +491,8 @@ chunk count, source kinds, no-store answer status, answer citation count, and to
 rather than only raw hit shape.
 Pass `--semantic-provider`, `--semantic-profile`, and `--semantic-template-version` to evaluate a
 specific embedding index. Pass `--cases path\to\cases.jsonl` to run project-specific regression
-queries instead of only the built-in route cases.
+queries instead of only the built-in route cases. Add `--store` to persist eval runs/results for
+later comparison.
 External chunks classify `source_kind` as `official`, `secondary`, or `user_generated`; the broader
 transport type `external_web` is retained as metadata. Local X chunks remain `local_x_db`.
 
@@ -556,6 +557,7 @@ uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `
   --cases examples/memory_eval_cases.jsonl `
   --semantic-provider auto `
+  --store `
   --strict
 uv run python -m research_x memory export-corpus2skill `
   --db runs/x_data.sqlite3 `

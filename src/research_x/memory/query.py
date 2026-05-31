@@ -281,6 +281,10 @@ def build_query_plan(query: str) -> QueryPlan:
     author_terms = tuple(token[1:] for token in terms if token.startswith("@") and len(token) > 1)
     if author_terms:
         doc_type_weights["author_profile"] = doc_type_weights.get("author_profile", 0.0) + 2.0
+    if "author" in intents:
+        doc_type_weights["author_profile"] = doc_type_weights.get("author_profile", 0.0) + 1.5
+        if "topic_thread" in doc_type_weights:
+            doc_type_weights["topic_thread"] = min(doc_type_weights["topic_thread"], 0.4)
 
     if requires_bookmark:
         doc_type_weights["bookmark_doc"] = doc_type_weights.get("bookmark_doc", 0.0) + 1.0

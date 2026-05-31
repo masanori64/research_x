@@ -769,6 +769,8 @@ Current implementation:
   embedding quality can be compared against lexical/relation-only routing.
 - Eval input can also come from a JSON/JSONL cases file, allowing the user's real recurring
   questions to become route-level regression tests.
+- Eval runs can be persisted in `memory_eval_runs` / `memory_eval_results` when `--store` is used,
+  so retrieval quality can be compared across corpus, relation, and embedding rebuilds.
 - Freshness routes can use deterministic freshness edges and optional judged `supports` /
   `contradicts` edges, but generated relation judgments remain inference metadata until cited
   through context chunks and answer annotations.

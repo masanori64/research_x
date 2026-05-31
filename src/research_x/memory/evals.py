@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import sqlite3
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
 
@@ -30,7 +34,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="最近保存した強化学習とロボット系の情報を古いものを除いて出して",
         required_any_terms=("強化学習", "ロボット", "機械学習", "AI"),
-        preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
         required_feature="recent",
         expected_route="learning_map",
     ),
@@ -198,6 +202,94 @@ def eval_results_json(results: tuple[MemoryEvalResult, ...]) -> str:
         indent=2,
         sort_keys=True,
     )
+
+
+def store_memory_eval_results(
+    db_path: str | Path,
+    results: tuple[MemoryEvalResult, ...],
+    *,
+    parameters: dict[str, Any],
+    cases_path: str | None = None,
+    run_id: str | None = None,
+) -> str:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    now = _utc_now()
+    resolved_run_id = run_id or _eval_run_id(results, parameters, now)
+    counts = {
+        "ok": sum(1 for result in results if result.status == "ok"),
+        "needs_review": sum(1 for result in results if result.status == "needs_review"),
+        "fail": sum(1 for result in results if result.status == "fail"),
+    }
+    status = "fail" if counts["fail"] else "needs_review" if counts["needs_review"] else "ok"
+    with sqlite3.connect(path, timeout=60) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            """
+            INSERT INTO memory_eval_runs (
+                run_id, cases_path, case_count, parameters_json, status,
+                ok_count, needs_review_count, fail_count, started_at, finished_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+                parameters_json=excluded.parameters_json,
+                status=excluded.status,
+                ok_count=excluded.ok_count,
+                needs_review_count=excluded.needs_review_count,
+                fail_count=excluded.fail_count,
+                finished_at=excluded.finished_at
+            """,
+            (
+                resolved_run_id,
+                cases_path,
+                len(results),
+                json.dumps(parameters, ensure_ascii=False, sort_keys=True),
+                status,
+                counts["ok"],
+                counts["needs_review"],
+                counts["fail"],
+                now,
+                now,
+            ),
+        )
+        conn.execute("DELETE FROM memory_eval_results WHERE run_id = ?", (resolved_run_id,))
+        for index, result in enumerate(results):
+            conn.execute(
+                """
+                INSERT INTO memory_eval_results (
+                    result_id, run_id, case_index, query, status, route,
+                    expected_route, stop_reason, hits, context_chunks, first_doc_id,
+                    best_score, matched_terms_json, retrieval_engines_json,
+                    source_kinds_json, answer_status, answer_citations,
+                    notes_json, metadata_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    _eval_result_id(resolved_run_id, index, result),
+                    resolved_run_id,
+                    index,
+                    result.query,
+                    result.status,
+                    result.route,
+                    result.expected_route,
+                    result.stop_reason,
+                    result.hits,
+                    result.context_chunks,
+                    result.first_doc_id,
+                    result.best_score,
+                    json.dumps(result.matched_terms, ensure_ascii=False),
+                    json.dumps(result.retrieval_engines, ensure_ascii=False),
+                    json.dumps(result.source_kinds, ensure_ascii=False),
+                    result.answer_status,
+                    result.answer_citations,
+                    json.dumps(result.notes, ensure_ascii=False),
+                    json.dumps(asdict(result), ensure_ascii=False, sort_keys=True),
+                    now,
+                ),
+            )
+    return resolved_run_id
 
 
 def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
@@ -425,3 +517,29 @@ def _source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
         }
     )
     return tuple(kinds)
+
+
+def _eval_run_id(
+    results: tuple[MemoryEvalResult, ...],
+    parameters: dict[str, Any],
+    created_at: str,
+) -> str:
+    payload = {
+        "created_at": created_at,
+        "parameters": parameters,
+        "queries": [result.query for result in results],
+        "statuses": [result.status for result in results],
+    }
+    return _hash_id("memory-eval-run", json.dumps(payload, ensure_ascii=False, sort_keys=True))[:24]
+
+
+def _eval_result_id(run_id: str, index: int, result: MemoryEvalResult) -> str:
+    return _hash_id("memory-eval-result", run_id, str(index), result.query, result.status)[:24]
+
+
+def _hash_id(*parts: str) -> str:
+    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
+
+
+def _utc_now() -> str:
+    return datetime.now(tz=UTC).isoformat(timespec="seconds")

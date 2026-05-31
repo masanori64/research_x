@@ -254,6 +254,12 @@ def _invalid_json_counts(conn: sqlite3.Connection) -> dict[str, int]:
         ("memory_workflow_runs", "metadata_json"),
         ("memory_workflow_steps", "input_json"),
         ("memory_workflow_steps", "output_json"),
+        ("memory_eval_runs", "parameters_json"),
+        ("memory_eval_results", "matched_terms_json"),
+        ("memory_eval_results", "retrieval_engines_json"),
+        ("memory_eval_results", "source_kinds_json"),
+        ("memory_eval_results", "notes_json"),
+        ("memory_eval_results", "metadata_json"),
     ]
     if _table_exists(conn, "ai_labels"):
         field_specs.append(("ai_labels", "tags_json"))
@@ -365,6 +371,15 @@ def _v2_orphan_counts(conn: sqlite3.Connection) -> dict[str, int]:
             WHERE w.workflow_id IS NULL
             """,
         ),
+        (
+            "memory_eval_results.run_id",
+            """
+            SELECT COUNT(*)
+            FROM memory_eval_results er
+            LEFT JOIN memory_eval_runs r ON r.run_id = er.run_id
+            WHERE r.run_id IS NULL
+            """,
+        ),
     ]
     counts: dict[str, int] = {}
     for key, sql in specs:
@@ -462,6 +477,18 @@ def _invalid_enum_counts(conn: sqlite3.Connection) -> dict[str, int]:
             "memory_workflow_steps",
             "status",
             {"ok", "needs_review", "error"},
+        ),
+        (
+            "memory_eval_runs.status",
+            "memory_eval_runs",
+            "status",
+            {"ok", "needs_review", "fail"},
+        ),
+        (
+            "memory_eval_results.status",
+            "memory_eval_results",
+            "status",
+            {"ok", "needs_review", "fail"},
         ),
     ]
     counts: dict[str, int] = {}

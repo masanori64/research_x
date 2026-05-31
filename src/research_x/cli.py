@@ -838,6 +838,12 @@ def main(argv: list[str] | None = None) -> int:
     memory_eval_parser.add_argument("--answer-api-key-env", default=None)
     memory_eval_parser.add_argument("--answer-base-url", default=None)
     memory_eval_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
+    memory_eval_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="store eval run/results for later comparison",
+    )
     memory_eval_parser.add_argument("--json", action="store_true")
     memory_eval_parser.add_argument(
         "--strict",
@@ -2144,11 +2150,13 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             format_eval_results,
             load_eval_cases,
             run_memory_eval,
+            store_memory_eval_results,
         )
 
+        cases = load_eval_cases(args.cases) if args.cases else None
         results = run_memory_eval(
             args.db,
-            cases=load_eval_cases(args.cases) if args.cases else None,
+            cases=cases,
             limit=args.limit,
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,
@@ -2165,7 +2173,46 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             answer_base_url=args.answer_base_url,
             answer_timeout_seconds=args.answer_timeout_seconds,
         )
-        print(eval_results_json(results) if args.json else format_eval_results(results))
+        stored_run_id = None
+        if args.store:
+            stored_run_id = store_memory_eval_results(
+                args.db,
+                results,
+                cases_path=args.cases,
+                parameters={
+                    "limit": args.limit,
+                    "case_count": len(cases) if cases is not None else None,
+                    "semantic_provider": args.semantic_provider,
+                    "semantic_model": args.semantic_model,
+                    "semantic_dimensions": args.semantic_dimensions,
+                    "semantic_profile": args.semantic_profile,
+                    "semantic_template_version": args.semantic_template_version,
+                    "semantic_weight": args.semantic_weight,
+                    "semantic_candidates": args.semantic_candidates,
+                    "answer_provider": args.answer_provider,
+                    "answer_model": args.answer_model,
+                },
+            )
+        if args.json:
+            if stored_run_id:
+                print(
+                    json.dumps(
+                        {
+                            "run_id": stored_run_id,
+                            "results": [result.__dict__ for result in results],
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+            else:
+                print(eval_results_json(results))
+        else:
+            output = format_eval_results(results)
+            if stored_run_id:
+                output = f"{output}\nstored eval run: {stored_run_id}"
+            print(output)
         return 2 if args.strict and any(not result.ok for result in results) else 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")
 
