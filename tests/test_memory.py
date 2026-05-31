@@ -1,5 +1,7 @@
+import io
 import json
 import sqlite3
+import urllib.error
 from pathlib import Path
 
 from research_x.cli import main
@@ -1804,6 +1806,48 @@ def test_openai_compatible_embedding_request_uses_custom_endpoint(monkeypatch) -
         "encoding_format": "float",
         "dimensions": 3,
     }
+
+
+def test_embedding_post_json_uses_retry_after(monkeypatch) -> None:
+    calls = []
+    sleeps = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def fake_urlopen(request, *, timeout):
+        calls.append((request, timeout))
+        if len(calls) == 1:
+            raise urllib.error.HTTPError(
+                url="https://embeddings.example/v1/embeddings",
+                code=429,
+                msg="Too Many Requests",
+                hdrs={"Retry-After": "0.25"},
+                fp=io.BytesIO(b"busy"),
+            )
+        return FakeResponse()
+
+    monkeypatch.setattr(embeddings.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(embeddings.time, "sleep", lambda seconds: sleeps.append(seconds))
+
+    response = embeddings._post_json(  # noqa: SLF001
+        "https://embeddings.example/v1/embeddings",
+        {"input": ["hello"]},
+        headers={"Authorization": "Bearer fake"},
+        timeout_seconds=30,
+        retries=2,
+    )
+
+    assert response == {"ok": True}
+    assert len(calls) == 2
+    assert sleeps == [0.25]
 
 
 def test_memory_cli_commands(tmp_path: Path, capsys) -> None:

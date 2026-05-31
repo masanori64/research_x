@@ -1338,8 +1338,19 @@ def _post_json(
             if attempt == retries:
                 raise RuntimeError("embedding API timed out") from exc
             last_error = exc
-        time.sleep(min(2**attempt, 30))
+        time.sleep(_retry_sleep_seconds(last_error, attempt=attempt))
     raise RuntimeError(f"embedding API failed: {last_error}")
+
+
+def _retry_sleep_seconds(error: Exception | None, *, attempt: int) -> float:
+    if isinstance(error, urllib.error.HTTPError):
+        retry_after = error.headers.get("Retry-After") if error.headers else None
+        if retry_after:
+            try:
+                return max(0.0, min(float(retry_after), 300.0))
+            except ValueError:
+                pass
+    return float(min(2**attempt, 30))
 
 
 def _gemini_model_name(model: str) -> str:
