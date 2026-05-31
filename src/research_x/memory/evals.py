@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from research_x.memory.evidence import build_evidence_bundle
+from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,8 @@ class EvalCase:
     required_any_terms: tuple[str, ...]
     preferred_doc_types: tuple[str, ...] = ()
     required_feature: str | None = None
+    expected_route: str | None = None
+    expected_stop_reasons: tuple[str, ...] = ()
     min_hit_score: float = 1.0
 
 
@@ -22,22 +24,33 @@ DEFAULT_EVAL_CASES = (
         required_any_terms=("カフェ", "喫茶", "居酒屋", "レストラン", "グルメ", "店"),
         preferred_doc_types=("bookmark_doc",),
         required_feature="bookmark_context",
+        expected_route="place_recall",
     ),
     EvalCase(
         query="最近保存した強化学習とロボット系の情報を古いものを除いて出して",
         required_any_terms=("強化学習", "ロボット", "機械学習", "AI"),
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
         required_feature="recent",
+        expected_route="learning_map",
+    ),
+    EvalCase(
+        query="5/29のキオクシアの株価急騰について保存している人たちの見方から分析して",
+        required_any_terms=("5/29", "キオクシア", "株価", "急騰", "分析"),
+        preferred_doc_types=("ticker_event", "author_profile", "bookmark_doc", "tweet_doc"),
+        expected_route="company_event",
+        min_hit_score=0.5,
     ),
     EvalCase(
         query="成人向け漫画の公式リンク誘導っぽいブクマを作品名つきで出して",
         required_any_terms=("成人", "エロ", "R18", "漫画", "同人", "DLsite", "FANZA", "公式"),
         preferred_doc_types=("bookmark_doc", "media_doc"),
+        expected_route="adult_comic",
     ),
     EvalCase(
         query="この作者をなぜ何度も保存しているか説明して",
         required_any_terms=("作者", "author", "@"),
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        expected_route="author_stance",
         min_hit_score=0.5,
     ),
     EvalCase(
@@ -45,12 +58,15 @@ DEFAULT_EVAL_CASES = (
         required_any_terms=("引用", "引用元", "quoted", "quote"),
         preferred_doc_types=("quote_tree_doc",),
         required_feature="quote_context",
+        expected_route="quote_context",
     ),
     EvalCase(
         query="同じテーマで古くなった情報と新しい情報を比較して",
         required_any_terms=("古い", "新しい", "最近", "更新"),
         preferred_doc_types=("tweet_doc", "bookmark_doc"),
         required_feature="freshness",
+        expected_route="current_fact_check",
+        expected_stop_reasons=("external_context_needed", "no_local_evidence"),
         min_hit_score=0.5,
     ),
     EvalCase(
@@ -58,12 +74,14 @@ DEFAULT_EVAL_CASES = (
         required_any_terms=("画像", "資料", "技術", "media", "photo"),
         preferred_doc_types=("media_doc", "bookmark_doc"),
         required_feature="media_context",
+        expected_route="media_context",
     ),
     EvalCase(
         query="イベント系で日付が近いものだけ出して",
         required_any_terms=("イベント", "開催", "日付", "期限", "予約"),
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
         required_feature="event_dates",
+        expected_route="event_recall",
         min_hit_score=0.5,
     ),
     EvalCase(
@@ -71,6 +89,7 @@ DEFAULT_EVAL_CASES = (
         required_any_terms=("重複", "複数", "アカウント"),
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
         required_feature="cross_account",
+        expected_route="cross_account",
         min_hit_score=0.5,
     ),
     EvalCase(
@@ -78,6 +97,7 @@ DEFAULT_EVAL_CASES = (
         required_any_terms=("関心", "領域", "最近", "保存"),
         preferred_doc_types=("tweet_doc", "bookmark_doc"),
         required_feature="recent",
+        expected_route="learning_map",
         min_hit_score=0.5,
     ),
 )
@@ -87,10 +107,16 @@ DEFAULT_EVAL_CASES = (
 class MemoryEvalResult:
     query: str
     status: str
+    route: str
+    expected_route: str | None
+    stop_reason: str
     hits: int
+    context_chunks: int
     first_doc_id: str | None
     best_score: float
     matched_terms: tuple[str, ...]
+    retrieval_engines: tuple[str, ...]
+    source_kinds: tuple[str, ...]
     notes: tuple[str, ...]
 
     @property
@@ -105,9 +131,15 @@ def run_memory_eval(
 ) -> tuple[MemoryEvalResult, ...]:
     results = []
     for case in DEFAULT_EVAL_CASES:
-        bundle = build_evidence_bundle(db_path, case.query, limit=limit)
-        hits = bundle.get("hits", [])
-        results.append(_evaluate_case(case, hits))
+        workflow = run_memory_workflow(
+            db_path,
+            case.query,
+            limit=limit,
+            answer_provider="none",
+            store=False,
+        )
+        hits = workflow.context_bundle.retrieved_hits if workflow.context_bundle else []
+        results.append(_evaluate_case(case, workflow, hits))
     return tuple(results)
 
 
@@ -126,23 +158,44 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
         notes = f" notes={'; '.join(result.notes)}" if result.notes else ""
         terms = ",".join(result.matched_terms[:6]) if result.matched_terms else "-"
         lines.append(
-            f"{result.status}: hits={result.hits} best={result.best_score:.2f} "
+            f"{result.status}: route={result.route} stop={result.stop_reason} "
+            f"hits={result.hits} chunks={result.context_chunks} best={result.best_score:.2f} "
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
 
 
-def _evaluate_case(case: EvalCase, hits: list[dict]) -> MemoryEvalResult:
+def _evaluate_case(
+    case: EvalCase,
+    workflow: MemoryWorkflow,
+    hits: list[dict],
+) -> MemoryEvalResult:
     notes: list[str] = []
+    source_kinds = _source_kinds(workflow)
+    context_chunks = len(workflow.context_bundle.context_chunks) if workflow.context_bundle else 0
+    if case.expected_route and workflow.route != case.expected_route:
+        notes.append(f"route mismatch: expected {case.expected_route}, got {workflow.route}")
+    if case.expected_stop_reasons and workflow.stop_reason not in case.expected_stop_reasons:
+        notes.append(
+            "stop reason mismatch: expected "
+            f"{', '.join(case.expected_stop_reasons)}, got {workflow.stop_reason}"
+        )
     if not hits:
+        notes.append("no hits")
         return MemoryEvalResult(
             query=case.query,
             status="fail",
+            route=workflow.route,
+            expected_route=case.expected_route,
+            stop_reason=workflow.stop_reason,
             hits=0,
+            context_chunks=context_chunks,
             first_doc_id=None,
             best_score=0.0,
             matched_terms=(),
-            notes=("no hits",),
+            retrieval_engines=(),
+            source_kinds=source_kinds,
+            notes=tuple(notes),
         )
 
     first = hits[0]
@@ -166,18 +219,30 @@ def _evaluate_case(case: EvalCase, hits: list[dict]) -> MemoryEvalResult:
         notes.append("required term family missing")
     if case.required_feature and not feature_found:
         notes.append(f"required feature missing: {case.required_feature}")
+    if workflow.status == "error":
+        notes.append(f"workflow error stop reason: {workflow.stop_reason}")
 
     status = "ok" if not notes else "needs_review"
-    if "first hit is missing compact evidence" in notes or "required term family missing" in notes:
+    if (
+        "first hit is missing compact evidence" in notes
+        or "required term family missing" in notes
+        or any(note.startswith("route mismatch") for note in notes)
+    ):
         status = "fail"
 
     return MemoryEvalResult(
         query=case.query,
         status=status,
+        route=workflow.route,
+        expected_route=case.expected_route,
+        stop_reason=workflow.stop_reason,
         hits=len(hits),
+        context_chunks=context_chunks,
         first_doc_id=first.get("doc_id"),
         best_score=best_score,
         matched_terms=matched_terms,
+        retrieval_engines=_retrieval_engines(hits),
+        source_kinds=source_kinds,
         notes=tuple(notes),
     )
 
@@ -243,3 +308,20 @@ def _bookmark_account_count(hit: dict) -> int:
         return metadata_count
     account_id = evidence.get("account_id")
     return 1 if account_id else 0
+
+
+def _retrieval_engines(hits: list[dict]) -> tuple[str, ...]:
+    engines: list[str] = []
+    for hit in hits:
+        why = str(hit.get("why_relevant") or "")
+        engine = why.split(" match:", 1)[0].strip()
+        if engine and engine not in engines:
+            engines.append(engine)
+    return tuple(engines)
+
+
+def _source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
+    if workflow.context_bundle is None:
+        return ()
+    kinds = sorted({chunk.source_kind for chunk in workflow.context_bundle.context_chunks})
+    return tuple(kinds)

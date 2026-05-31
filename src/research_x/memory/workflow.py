@@ -401,14 +401,20 @@ def plan_workflow_route(plan: QueryPlan, *, requested_route: str = "auto") -> Wo
         return _route("author_stance", "author_intent")
     if "quote_context" in intents:
         return _route("quote_context", "quote_intent")
+    if "adult_comic" in intents:
+        return _route("adult_comic", "adult_comic_intent")
     if "media" in intents:
         return _route("media_context", "media_intent")
     if "cross_account" in intents:
         return _route("cross_account", "cross_account_intent")
     if _looks_like_current_fact_check(plan):
         return _route("current_fact_check", "freshness_or_current_fact_check")
+    if "event" in intents:
+        return _route("event_recall", "event_intent")
     if intents.intersection({"technology", "science"}):
         return _route("learning_map", "learning_or_research_intent")
+    if _looks_like_broad_topic_map(plan):
+        return _route("learning_map", "broad_topic_map")
     return _route("local_memory_search", "default_local_search")
 
 
@@ -449,7 +455,9 @@ _ROUTE_DOC_TYPES: dict[str, tuple[str, ...]] = {
     "learning_map": ("bookmark_doc", "tweet_doc", "media_doc", "quote_tree_doc"),
     "current_fact_check": ("bookmark_doc", "tweet_doc", "ticker_event"),
     "quote_context": ("quote_tree_doc", "bookmark_doc"),
+    "adult_comic": ("bookmark_doc", "media_doc"),
     "media_context": ("media_doc", "bookmark_doc"),
+    "event_recall": ("bookmark_doc", "tweet_doc", "ticker_event"),
     "cross_account": ("bookmark_doc", "tweet_doc"),
     "local_memory_search": ("bookmark_doc", "tweet_doc", "place_card", "author_profile"),
 }
@@ -477,6 +485,11 @@ def _looks_like_current_fact_check(plan: QueryPlan) -> bool:
         "ファクトチェック",
     )
     return any(term.casefold() in text for term in current_terms)
+
+
+def _looks_like_broad_topic_map(plan: QueryPlan) -> bool:
+    text = plan.normalized_query.casefold()
+    return any(term.casefold() in text for term in ("関心領域", "db 全体", "db全体", "全体"))
 
 
 def _stop_reason(

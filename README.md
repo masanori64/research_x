@@ -446,6 +446,8 @@ uv run python -m research_x memory workflow `
 Add `--answer-provider gemini --answer-model gemini-2.5-flash` when a stored answer artifact is
 wanted. `workflow` stop reasons include `enough_evidence`, `no_local_evidence`,
 `external_context_needed`, `needs_user_review`, `budget_exhausted`, and `provider_error`.
+`memory eval` uses the same route planner, so eval output includes route, stop reason, context
+chunk count, source kinds, and top evidence health rather than only raw hit shape.
 
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.

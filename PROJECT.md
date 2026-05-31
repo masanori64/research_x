@@ -159,7 +159,7 @@ Implementation checklist:
 - [x] Add schema for search/tool runs, context chunks, citations, answer runs, and workflow traces.
 - [x] Keep all existing memory commands working while adding the new tables.
 - [x] Split local retrieved hits into `memory context` chunks and citation-ready source metadata.
-- [ ] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
+- [x] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
 - [x] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.
 - [x] Add an external evidence provider interface with a no-network fake provider first.

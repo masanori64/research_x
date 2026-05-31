@@ -681,6 +681,14 @@ Each eval should record:
 - whether citations point to raw/local/external sources;
 - answer status: `ok`, `needs_review`, or `fail`.
 
+Current implementation:
+
+- `memory eval` runs the same bounded route planner as `memory workflow` in no-store mode.
+- Eval output records route, expected route, stop reason, context chunk count, retrieval engines,
+  and source kinds.
+- Route mismatches and missing compact evidence fail; weak or absent evidence remains visible as
+  `needs_review` / `fail` instead of being hidden behind a successful command exit.
+
 ## Compatibility With Current Implementation
 
 No current code needs to be deleted immediately.

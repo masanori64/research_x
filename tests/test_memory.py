@@ -10,6 +10,7 @@ from research_x.memory.context import build_context_bundle
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
 from research_x.memory.derived import build_derived_documents
 from research_x.memory.embeddings import build_memory_embeddings
+from research_x.memory.evals import run_memory_eval
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
@@ -692,6 +693,26 @@ def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
     assert recent_learning.route == "learning_map"
     assert current_fact.route == "current_fact_check"
     assert current_fact.wants_external_context is True
+
+
+def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    results = run_memory_eval(db_path, limit=2)
+    by_route = {result.route: result for result in results}
+
+    assert by_route["place_recall"].expected_route == "place_recall"
+    assert by_route["place_recall"].context_chunks > 0
+    assert "local_x_db" in by_route["place_recall"].source_kinds
+    assert by_route["learning_map"].expected_route == "learning_map"
+    assert by_route["company_event"].expected_route == "company_event"
+    assert by_route["current_fact_check"].stop_reason in {
+        "external_context_needed",
+        "no_local_evidence",
+    }
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
