@@ -71,6 +71,9 @@ src/research_x/memory/
   audit.py
   query.py
   evals.py
+  llm_context.py
+  answer.py
+  workflow.py
 ```
 
 Implemented commands:
@@ -89,6 +92,9 @@ research_x memory evidence
 research_x memory context
 research_x memory external-search
 research_x memory extract-url
+research_x memory llm-context
+research_x memory answer
+research_x memory workflow
 research_x memory export-corpus2skill
 research_x memory feedback
 research_x memory eval
@@ -119,6 +125,8 @@ Implemented behavior:
   schema;
 - ranked local search candidate rows in `memory_search_results`, separate from LLM-ready chunks;
 - bounded `memory workflow` routing with step logs and stop reasons;
+- `memory workflow --llm-context-provider` integration that adds Brave/fake LLM-context chunks to
+  the same context run before optional answer generation;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
   citation-ready metadata;
 - `memory context --external-run-id` integration that combines local X chunks with extracted
@@ -172,6 +180,7 @@ Implementation checklist:
       explicit.
 - [x] Add OpenAI-style citation annotations for generated answers.
 - [x] Add bounded workflow routing with logged stop reasons.
+- [x] Integrate LLM-context chunks into bounded workflows before answer generation.
 
 Future command candidates:
 

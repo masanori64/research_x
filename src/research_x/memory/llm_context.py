@@ -161,6 +161,7 @@ def fetch_llm_context_to_context(
     query: str,
     *,
     run_id: str | None = None,
+    chunk_index_offset: int = 0,
     provider: str = "brave",
     api_key_env: str = "BRAVE_SEARCH_API_KEY",
     endpoint: str | None = None,
@@ -220,6 +221,7 @@ def fetch_llm_context_to_context(
             source=source,
             run_id=run_id,
             query=query,
+            chunk_index_offset=max(0, chunk_index_offset),
         )
         for source in sources
     )
@@ -388,6 +390,7 @@ def _context_chunk(
     source: LLMContextSource,
     run_id: str | None,
     query: str,
+    chunk_index_offset: int,
 ) -> dict[str, Any]:
     chunk_text = _chunk_text(query=query, source=source)
     source_kind = classify_external_source_kind(source.url, metadata=source.metadata)
@@ -401,7 +404,7 @@ def _context_chunk(
         "provider": provider,
         "provider_role": LLM_CONTEXT_ROLE,
         "chunk_text": chunk_text,
-        "chunk_index": source.position,
+        "chunk_index": chunk_index_offset + source.position,
         "token_count": _estimate_tokens(chunk_text),
         "relevance_score": 0.0,
         "extractor_version": LLM_CONTEXT_EXTRACTOR_VERSION,

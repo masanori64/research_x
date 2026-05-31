@@ -707,6 +707,76 @@ def test_memory_workflow_can_attach_generated_answer_to_workflow(tmp_path: Path)
     assert answer_workflow_id == workflow.workflow_id
 
 
+def test_memory_workflow_can_merge_llm_context_into_route(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット 今も正しい？",
+        limit=2,
+        llm_context_provider="fake",
+    )
+
+    assert workflow.route == "current_fact_check"
+    assert workflow.status == "ok"
+    assert workflow.stop_reason == "enough_evidence"
+    assert [step.action for step in workflow.steps] == ["plan", "context", "llm_context"]
+    assert workflow.context_bundle is not None
+    assert "local_x_db" in {
+        chunk.source_kind for chunk in workflow.context_bundle.context_chunks
+    }
+    assert "secondary" in {chunk.source_kind for chunk in workflow.context_bundle.context_chunks}
+    assert any(
+        chunk.provider_role == "llm_context_provider"
+        for chunk in workflow.context_bundle.context_chunks
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        tool_run_id = conn.execute(
+            """
+            SELECT run_id
+            FROM memory_tool_calls
+            WHERE action = 'llm_context'
+            """
+        ).fetchone()[0]
+
+    assert tool_run_id == workflow.context_bundle.run_id
+
+
+def test_memory_workflow_answer_uses_merged_llm_context(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット 今も正しい？",
+        limit=1,
+        llm_context_provider="fake",
+        answer_provider="fake",
+        max_context_chunks=4,
+    )
+
+    assert workflow.answer is not None
+    assert [step.action for step in workflow.steps] == [
+        "plan",
+        "context",
+        "llm_context",
+        "answer",
+    ]
+    assert any(
+        chunk.provider_role == "llm_context_provider"
+        for chunk in workflow.answer.selected_context_chunks
+    )
+    assert workflow.answer.retrieval_config["context_parameters"]["llm_context"][
+        "provider_role"
+    ] == "llm_context_provider"
+
+
 def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
     recent_learning = plan_workflow_route(
         build_query_plan("最近保存した強化学習とロボット系の情報を出して")
@@ -1229,6 +1299,22 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         == 0
     )
     assert main(["memory", "workflow", "--db", str(db_path), "--query", "ロボット"]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "workflow",
+                "--db",
+                str(db_path),
+                "--query",
+                "ロボット 今も正しい？",
+                "--llm-context-provider",
+                "fake",
+                "--allow-fixture-provider",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
     output = (
@@ -1323,6 +1409,23 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "--query",
                 "ロボット",
                 "--answer-provider",
+                "fake",
+            ]
+        )
+        == 1
+    )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
+    assert (
+        main(
+            [
+                "memory",
+                "workflow",
+                "--db",
+                str(db_path),
+                "--query",
+                "ロボット 今も正しい？",
+                "--llm-context-provider",
                 "fake",
             ]
         )

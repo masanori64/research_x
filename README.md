@@ -459,7 +459,10 @@ uv run python -m research_x memory workflow `
 ```
 
 Add `--answer-provider gemini --answer-model gemini-2.5-flash` when a stored answer artifact is
-wanted. `workflow` stop reasons include `enough_evidence`, `no_local_evidence`,
+wanted. Add `--llm-context-provider brave --llm-context-search-lang ja --llm-context-country JP`
+when the route needs current external grounding before answering. The LLM-context chunks are stored
+under the same context run and cited like other chunks; they do not replace local X evidence.
+`workflow` stop reasons include `enough_evidence`, `no_local_evidence`,
 `external_context_needed`, `needs_user_review`, `budget_exhausted`, and `provider_error`.
 `memory eval` uses the same route planner, so eval output includes route, stop reason, context
 chunk count, source kinds, and top evidence health rather than only raw hit shape.
@@ -514,6 +517,9 @@ uv run python -m research_x memory workflow `
   --db runs/x_data.sqlite3 `
   --query "昔保存したこの技術情報、今も正しい？" `
   --semantic-provider auto `
+  --llm-context-provider brave `
+  --llm-context-search-lang ja `
+  --llm-context-country JP `
   --answer-provider gemini `
   --answer-model gemini-2.5-flash
 ```

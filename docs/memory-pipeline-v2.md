@@ -191,6 +191,9 @@ Implementation impact:
   snippets as context chunks, and records `extracted_context_with_source_urls` retention metadata.
 - `memory_search_results` stores the ranked local candidate list separately from context chunks, so
   a search run can be audited without treating LLM-ready snippets as the original ranking output.
+- `memory workflow --llm-context-provider` attaches LLM-context chunks to the same local context run
+  before optional answer generation. Current fact-check routes still require local X evidence;
+  external Web context is auxiliary grounding, not a replacement for the user's saved source.
 
 ## Non-Negotiable Invariants
 
@@ -720,6 +723,7 @@ memory context          -> Layer 4 chunks plus Layer 5 citation metadata
 memory extract-url      -> Layer 3 reader/extract to Layer 4 external chunks
 memory context --external-run-id -> combined local/external context bundle
 memory answer           -> Layer 6 generated answer artifact plus answer citations
+memory workflow         -> Layer 7 bounded workflow traces with optional LLM-context grounding
 memory feedback/eval    -> Layer 7 feedback/eval
 memory audit            -> rebuild/index health gate
 ```

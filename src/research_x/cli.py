@@ -518,6 +518,47 @@ def main(argv: list[str] | None = None) -> int:
     memory_workflow_parser.add_argument("--external-user-agent", default="research-x/0.1")
     memory_workflow_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
     memory_workflow_parser.add_argument(
+        "--llm-context-provider",
+        choices=["none", "fake", "brave"],
+        default="none",
+        help="optional LLM-context provider to add external grounding to the workflow context",
+    )
+    memory_workflow_parser.add_argument(
+        "--llm-context-api-key-env",
+        default="BRAVE_SEARCH_API_KEY",
+    )
+    memory_workflow_parser.add_argument("--llm-context-endpoint", default=None)
+    memory_workflow_parser.add_argument("--llm-context-country", default=None)
+    memory_workflow_parser.add_argument("--llm-context-search-lang", default=None)
+    memory_workflow_parser.add_argument("--llm-context-count", type=int, default=20)
+    memory_workflow_parser.add_argument("--llm-context-max-urls", type=int, default=20)
+    memory_workflow_parser.add_argument("--llm-context-max-tokens", type=int, default=8192)
+    memory_workflow_parser.add_argument("--llm-context-max-snippets", type=int, default=50)
+    memory_workflow_parser.add_argument("--llm-context-threshold-mode", default="balanced")
+    memory_workflow_parser.add_argument(
+        "--llm-context-max-tokens-per-url",
+        type=int,
+        default=4096,
+    )
+    memory_workflow_parser.add_argument(
+        "--llm-context-max-snippets-per-url",
+        type=int,
+        default=50,
+    )
+    memory_workflow_parser.add_argument("--llm-context-freshness", default=None)
+    memory_workflow_parser.add_argument(
+        "--llm-context-enable-local",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    memory_workflow_parser.add_argument("--llm-context-goggles", default=None)
+    memory_workflow_parser.add_argument(
+        "--llm-context-max-chars-per-source",
+        type=int,
+        default=6000,
+    )
+    memory_workflow_parser.add_argument("--llm-context-timeout-seconds", type=float, default=30.0)
+    memory_workflow_parser.add_argument(
         "--answer-provider",
         choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
         default="none",
@@ -1723,6 +1764,16 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             store=args.store,
             allow=args.allow_fixture_provider,
         )
+        _require_fixture_provider_opt_in(
+            provider=(
+                args.llm_context_provider
+                if args.llm_context_provider != "none"
+                else None
+            ),
+            role="llm-context",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
         workflow = run_memory_workflow(
             args.db,
             args.query,
@@ -1744,6 +1795,23 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             external_timeout_seconds=args.external_timeout_seconds,
             external_user_agent=args.external_user_agent,
             external_max_bytes=args.external_max_bytes,
+            llm_context_provider=args.llm_context_provider,
+            llm_context_api_key_env=args.llm_context_api_key_env,
+            llm_context_endpoint=args.llm_context_endpoint,
+            llm_context_country=args.llm_context_country,
+            llm_context_search_lang=args.llm_context_search_lang,
+            llm_context_count=args.llm_context_count,
+            llm_context_max_urls=args.llm_context_max_urls,
+            llm_context_max_tokens=args.llm_context_max_tokens,
+            llm_context_max_snippets=args.llm_context_max_snippets,
+            llm_context_threshold_mode=args.llm_context_threshold_mode,
+            llm_context_max_tokens_per_url=args.llm_context_max_tokens_per_url,
+            llm_context_max_snippets_per_url=args.llm_context_max_snippets_per_url,
+            llm_context_freshness=args.llm_context_freshness,
+            llm_context_enable_local=args.llm_context_enable_local,
+            llm_context_goggles=args.llm_context_goggles,
+            llm_context_max_chars_per_source=args.llm_context_max_chars_per_source,
+            llm_context_timeout_seconds=args.llm_context_timeout_seconds,
             answer_provider=args.answer_provider,
             answer_model=args.answer_model,
             answer_api_key_env=args.answer_api_key_env,
