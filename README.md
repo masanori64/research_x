@@ -602,6 +602,9 @@ uv run python -m research_x memory workflow `
   --answer-model gemini-2.5-flash
 ```
 
+Add one or more `--doc-type` values to `memory export-corpus2skill` when a narrower navigation-map
+corpus is useful, for example `--doc-type topic_thread --doc-type author_profile`.
+
 `fake` providers are for deterministic wiring tests only. `memory audit --strict` flags stored
 fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
 semantic indexes, missing embedding source hashes, V2 orphan rows, invalid V2 JSON/enums, and other

@@ -46,6 +46,7 @@ class Corpus2SkillBundleSummary:
     manifest_path: str
     documents: int
     by_doc_type: dict[str, int]
+    doc_types: tuple[str, ...]
 
 
 def build_memory_corpus(db_path: str | Path) -> CorpusBuildSummary:
@@ -78,14 +79,16 @@ def export_corpus2skill_jsonl(
     out_path: str | Path,
     *,
     limit: int | None = None,
+    doc_types: tuple[str, ...] = (),
 ) -> int:
     path = Path(db_path)
     output = Path(out_path)
     output.parent.mkdir(parents=True, exist_ok=True)
+    resolved_doc_types = _normalize_doc_types(doc_types)
     with sqlite3.connect(path, timeout=60) as conn, output.open("w", encoding="utf-8") as handle:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
-        rows = _corpus2skill_rows(conn, limit=limit)
+        rows = _corpus2skill_rows(conn, limit=limit, doc_types=resolved_doc_types)
         for row in rows:
             handle.write(json.dumps(_corpus2skill_record(row), ensure_ascii=False) + "\n")
     return len(rows)
@@ -96,19 +99,21 @@ def export_corpus2skill_bundle(
     out_dir: str | Path,
     *,
     limit: int | None = None,
+    doc_types: tuple[str, ...] = (),
 ) -> Corpus2SkillBundleSummary:
     path = Path(db_path)
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=True)
     corpus_path = output / "corpus.jsonl"
     manifest_path = output / "manifest.json"
+    resolved_doc_types = _normalize_doc_types(doc_types)
     with sqlite3.connect(path, timeout=60) as conn, corpus_path.open(
         "w",
         encoding="utf-8",
     ) as handle:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
-        rows = _corpus2skill_rows(conn, limit=limit)
+        rows = _corpus2skill_rows(conn, limit=limit, doc_types=resolved_doc_types)
         for row in rows:
             handle.write(json.dumps(_corpus2skill_record(row), ensure_ascii=False) + "\n")
     by_doc_type = dict(sorted(Counter(str(row["doc_type"]) for row in rows).items()))
@@ -118,6 +123,10 @@ def export_corpus2skill_bundle(
         "corpus_path": str(corpus_path),
         "documents": len(rows),
         "by_doc_type": by_doc_type,
+        "filters": {
+            "doc_types": list(resolved_doc_types),
+            "limit": limit,
+        },
         "compile_hint": [
             "uv",
             "run",
@@ -147,6 +156,7 @@ def export_corpus2skill_bundle(
         manifest_path=str(manifest_path),
         documents=len(rows),
         by_doc_type=by_doc_type,
+        doc_types=resolved_doc_types,
     )
 
 
@@ -177,19 +187,27 @@ def _delete_orphaned_relations(conn: sqlite3.Connection) -> None:
     )
 
 
-def _corpus2skill_rows(conn: sqlite3.Connection, *, limit: int | None) -> list[sqlite3.Row]:
+def _corpus2skill_rows(
+    conn: sqlite3.Connection,
+    *,
+    limit: int | None,
+    doc_types: tuple[str, ...],
+) -> list[sqlite3.Row]:
     sql = """
         SELECT
             doc_id, doc_type, source_tweet_id, account_id, author_screen_name,
             title, compact_text, body, metadata_json, created_at, observed_at, updated_at
         FROM memory_documents
-        ORDER BY doc_type, observed_at DESC, doc_id
     """
-    params: tuple[Any, ...] = ()
+    params: list[Any] = []
+    if doc_types:
+        sql += f" WHERE doc_type IN ({','.join('?' for _ in doc_types)})"
+        params.extend(doc_types)
+    sql += " ORDER BY doc_type, observed_at DESC, doc_id"
     if limit is not None and limit > 0:
         sql += " LIMIT ?"
-        params = (limit,)
-    return conn.execute(sql, params).fetchall()
+        params.append(limit)
+    return conn.execute(sql, tuple(params)).fetchall()
 
 
 def _corpus2skill_record(row: sqlite3.Row) -> dict[str, Any]:
@@ -577,6 +595,15 @@ def _loads_json(value: str | None, *, default: Any) -> Any:
         return json.loads(value)
     except json.JSONDecodeError:
         return default
+
+
+def _normalize_doc_types(doc_types: tuple[str, ...]) -> tuple[str, ...]:
+    result = []
+    for doc_type in doc_types:
+        value = doc_type.strip()
+        if value and value not in result:
+            result.append(value)
+    return tuple(result)
 
 
 def _title(author: str | None, tweet_id: Any, created_at: str | None) -> str:

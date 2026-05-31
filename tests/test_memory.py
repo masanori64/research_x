@@ -132,6 +132,11 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
     )
     exported = export_corpus2skill_jsonl(db_path, out_path)
     bundle = export_corpus2skill_bundle(db_path, tmp_path / "c2s_bundle")
+    filtered_bundle = export_corpus2skill_bundle(
+        db_path,
+        tmp_path / "c2s_bookmarks",
+        doc_types=("bookmark_doc",),
+    )
 
     assert feedback_id
     assert exported == 5
@@ -144,10 +149,15 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
         for line in Path(bundle.corpus_path).read_text(encoding="utf-8").splitlines()
     ]
     manifest = json.loads(Path(bundle.manifest_path).read_text(encoding="utf-8"))
+    filtered_manifest = json.loads(
+        Path(filtered_bundle.manifest_path).read_text(encoding="utf-8")
+    )
     assert bundle.documents == 5
     assert bundle_rows[0]["metadata"]["research_x_metadata"]
     assert manifest["format"] == "corpus2skill-jsonl-bundle-v1"
     assert manifest["compile_hint"][:3] == ["uv", "run", "python"]
+    assert filtered_bundle.documents == 1
+    assert filtered_manifest["filters"]["doc_types"] == ["bookmark_doc"]
 
     with sqlite3.connect(db_path) as conn:
         count = conn.execute("SELECT COUNT(*) FROM memory_feedback").fetchone()[0]
@@ -1963,6 +1973,8 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 str(db_path),
                 "--bundle-dir",
                 str(tmp_path / "c2s_cli_bundle"),
+                "--doc-type",
+                "bookmark_doc",
                 "--limit",
                 "2",
             ]

@@ -148,7 +148,8 @@ Implemented behavior:
   profiles;
 - stored eval run listing/detail commands for post-run inspection;
 - `memory export-corpus2skill --bundle-dir` writes `corpus.jsonl` plus `manifest.json` for the
-  official Corpus2Skill compiler boundary;
+  official Corpus2Skill compiler boundary, with optional `--doc-type` filters for narrower
+  navigation-map exports;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
   citation-ready metadata;
 - `memory context --external-run-id` integration that combines local X chunks with extracted

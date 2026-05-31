@@ -265,7 +265,8 @@ Decision:
 Implementation impact:
 
 - `memory export-corpus2skill --bundle-dir` writes `corpus.jsonl` with `id` / `contents` plus
-  trace metadata and a `manifest.json` containing the compile hint.
+  trace metadata and a `manifest.json` containing the compile hint. `--doc-type` filters can create
+  narrower map-oriented bundles without removing the full export path.
 - The bundle is an integration boundary, not a replacement for search/context/citation tables.
 
 ## Non-Negotiable Invariants
