@@ -594,7 +594,7 @@ _ROUTE_DOC_TYPES: dict[str, tuple[str, ...]] = {
     "place_recall": ("place_card", "bookmark_doc", "media_doc"),
     "company_event": ("ticker_event", "author_profile", "bookmark_doc", "tweet_doc"),
     "author_stance": ("author_profile", "bookmark_doc", "tweet_doc", "quote_tree_doc"),
-    "learning_map": ("bookmark_doc", "tweet_doc", "media_doc", "quote_tree_doc"),
+    "learning_map": ("topic_thread", "bookmark_doc", "tweet_doc", "media_doc", "quote_tree_doc"),
     "current_fact_check": ("bookmark_doc", "tweet_doc", "ticker_event"),
     "quote_context": ("quote_tree_doc", "bookmark_doc"),
     "adult_comic": ("bookmark_doc", "media_doc"),

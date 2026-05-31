@@ -1370,6 +1370,7 @@ def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
     current_fact = plan_workflow_route(build_query_plan("昔保存したこの技術情報、今も正しい？"))
 
     assert recent_learning.route == "learning_map"
+    assert recent_learning.recommended_doc_types[0] == "topic_thread"
     assert current_fact.route == "current_fact_check"
     assert current_fact.wants_external_context is True
 
