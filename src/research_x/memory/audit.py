@@ -646,8 +646,15 @@ def _warnings(
             f"{review_answers}"
         )
     if not specs and documents:
-        warnings.append("no embeddings found; run memory build-embeddings with openai or gemini")
-    production_specs = [spec for spec in specs if spec["provider"] in {"openai", "gemini"}]
+        warnings.append(
+            "no embeddings found; run memory build-embeddings with openai, gemini, "
+            "or openai_compatible"
+        )
+    production_specs = [
+        spec
+        for spec in specs
+        if spec["provider"] in {"openai", "gemini", "openai_compatible"}
+    ]
     if specs and not production_specs:
         warnings.append(
             "only local_hash embeddings are present; "

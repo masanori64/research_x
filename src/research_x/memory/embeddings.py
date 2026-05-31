@@ -24,15 +24,19 @@ LOCAL_HASH_PROVIDER = "local_hash"
 LOCAL_HASH_MODEL = "local-hash-v1"
 OPENAI_PROVIDER = "openai"
 OPENAI_DEFAULT_MODEL = "text-embedding-3-small"
+OPENAI_COMPATIBLE_PROVIDER = "openai_compatible"
+OPENAI_COMPATIBLE_DEFAULT_MODEL = OPENAI_DEFAULT_MODEL
+OPENAI_COMPATIBLE_BASE_URL_ENV = "OPENAI_COMPATIBLE_EMBEDDINGS_URL"
 GEMINI_PROVIDER = "gemini"
 GEMINI_DEFAULT_MODEL = "gemini-embedding-2"
-PRODUCTION_PROVIDERS = (GEMINI_PROVIDER, OPENAI_PROVIDER)
+PRODUCTION_PROVIDERS = (GEMINI_PROVIDER, OPENAI_PROVIDER, OPENAI_COMPATIBLE_PROVIDER)
 DEFAULT_EMBEDDING_PROFILE = "general_memory"
 DEFAULT_TEXT_TEMPLATE_VERSION = "memory-doc-embedding-v1"
 
 DEFAULT_DIMENSIONS = {
     LOCAL_HASH_PROVIDER: 512,
     OPENAI_PROVIDER: 1536,
+    OPENAI_COMPATIBLE_PROVIDER: 1536,
     GEMINI_PROVIDER: 768,
 }
 
@@ -128,6 +132,9 @@ def resolve_embedding_spec(
         resolved_model = model or LOCAL_HASH_MODEL
     elif resolved_provider == OPENAI_PROVIDER:
         resolved_model = model or OPENAI_DEFAULT_MODEL
+    elif resolved_provider == OPENAI_COMPATIBLE_PROVIDER:
+        resolved_model = model or OPENAI_COMPATIBLE_DEFAULT_MODEL
+        base_url = base_url or os.environ.get(OPENAI_COMPATIBLE_BASE_URL_ENV)
     elif resolved_provider == GEMINI_PROVIDER:
         resolved_model = model or GEMINI_DEFAULT_MODEL
     else:
@@ -555,6 +562,44 @@ class _OpenAIEmbedder:
         return vectors
 
 
+class _OpenAICompatibleEmbedder:
+    def __init__(self, spec: EmbeddingSpec) -> None:
+        self.spec = spec
+        if not spec.base_url:
+            raise RuntimeError(
+                "openai_compatible embeddings require --base-url or "
+                f"{OPENAI_COMPATIBLE_BASE_URL_ENV}"
+            )
+        self.api_key = _api_key(spec.api_key_env or "OPENAI_COMPATIBLE_API_KEY")
+
+    def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        payload: dict[str, Any] = {
+            "model": self.spec.model,
+            "input": texts,
+            "encoding_format": "float",
+        }
+        if self.spec.dimensions:
+            payload["dimensions"] = self.spec.dimensions
+        response = _post_json(
+            self.spec.base_url or "",
+            payload,
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout_seconds=self.spec.timeout_seconds,
+        )
+        data = response.get("data")
+        if not isinstance(data, list):
+            raise RuntimeError(f"OpenAI-compatible embeddings response missing data: {response}")
+        vectors = []
+        for item in sorted(data, key=lambda row: int(row.get("index", 0))):
+            vector = item.get("embedding")
+            if not isinstance(vector, list):
+                raise RuntimeError(
+                    f"OpenAI-compatible embeddings response missing embedding: {item}"
+                )
+            vectors.append(_normalize_vector([float(value) for value in vector]))
+        return vectors
+
+
 class _GeminiEmbedder:
     def __init__(self, spec: EmbeddingSpec) -> None:
         self.spec = spec
@@ -610,6 +655,8 @@ def _embedder(spec: EmbeddingSpec):
         return _LocalHashEmbedder(spec)
     if spec.provider == OPENAI_PROVIDER:
         return _OpenAIEmbedder(spec)
+    if spec.provider == OPENAI_COMPATIBLE_PROVIDER:
+        return _OpenAICompatibleEmbedder(spec)
     if spec.provider == GEMINI_PROVIDER:
         return _GeminiEmbedder(spec)
     raise ValueError(f"unknown embedding provider: {spec.provider}")
@@ -860,13 +907,14 @@ def _resolve_available_spec(
     if local_hash_rows:
         raise RuntimeError(
             "only diagnostic local_hash embeddings are available. "
-            "Build a production embedding index with OpenAI or Gemini, "
+            "Build a production embedding index with OpenAI, Gemini, or OpenAI-compatible, "
             "or explicitly pass --semantic-provider local_hash for diagnostic searches."
         )
     raise RuntimeError(
         "no production memory embeddings found; run "
         "`research_x memory build-embeddings --provider gemini` or "
-        "`research_x memory build-embeddings --provider openai` first"
+        "`research_x memory build-embeddings --provider openai` or "
+        "`research_x memory build-embeddings --provider openai_compatible --base-url ...` first"
     )
 
 
@@ -891,7 +939,7 @@ def _coverage_spec(
                 provider, model, dimensions,
                 embedding_profile, text_template_version
             ORDER BY
-                CASE WHEN provider IN ('gemini', 'openai') THEN 0 ELSE 1 END,
+                CASE WHEN provider IN ('gemini', 'openai', 'openai_compatible') THEN 0 ELSE 1 END,
                 MAX(updated_at) DESC,
                 provider, model, dimensions, embedding_profile, text_template_version
             LIMIT 1
@@ -1105,8 +1153,13 @@ def _auto_embedding_provider() -> str:
         return GEMINI_PROVIDER
     if os.environ.get("OPENAI_API_KEY"):
         return OPENAI_PROVIDER
+    if os.environ.get("OPENAI_COMPATIBLE_API_KEY") and os.environ.get(
+        OPENAI_COMPATIBLE_BASE_URL_ENV
+    ):
+        return OPENAI_COMPATIBLE_PROVIDER
     raise RuntimeError(
-        "no production embedding API key found. Set GEMINI_API_KEY or OPENAI_API_KEY, "
+        "no production embedding API key found. Set GEMINI_API_KEY, OPENAI_API_KEY, "
+        f"or OPENAI_COMPATIBLE_API_KEY plus {OPENAI_COMPATIBLE_BASE_URL_ENV}, "
         "or explicitly pass --provider local_hash for an offline diagnostic index."
     )
 

@@ -214,6 +214,9 @@ Implementation impact:
 
 - `memory_embeddings` now keys rows by provider, model, dimensions, embedding profile, and text
   template version.
+- `openai_compatible` embedding providers are production-capable when a full embeddings endpoint,
+  model, dimensions, and API-key env var are supplied explicitly; they are not auto-guessed unless
+  `OPENAI_COMPATIBLE_API_KEY` and `OPENAI_COMPATIBLE_EMBEDDINGS_URL` are both set.
 - `memory build-embeddings`, `memory search`, `memory evidence`, `memory context`,
   `memory answer`, and `memory workflow` can select a semantic profile/template explicitly.
 - `memory embedding-specs`, `memory embedding-coverage`, and `memory audit` expose
@@ -343,7 +346,8 @@ Required local engines:
 - exact lookup: tweet IDs, URLs, author handles, dates, labels;
 - FTS5 lexical search;
 - metadata filters: account, bookmark/tweet kind, date range, author, doc type;
-- production semantic search: OpenAI/Gemini or another production embedding provider;
+- production semantic search: OpenAI/Gemini/OpenAI-compatible or another production embedding
+  provider;
 - relation expansion: quotes, media, duplicate bookmarks, freshness candidates;
 - feedback-aware ranking.
 

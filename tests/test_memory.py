@@ -340,6 +340,40 @@ def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
     assert any("only local_hash embeddings" in warning for warning in report.warnings)
 
 
+def test_memory_audit_accepts_openai_compatible_embeddings_as_production(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        return {
+            "data": [
+                {"index": index, "embedding": [1.0, 0.0, 0.0]}
+                for index, _text in enumerate(payload["input"])
+            ]
+        }
+
+    monkeypatch.setenv("CUSTOM_EMBED_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    build_memory_embeddings(
+        db_path,
+        provider="openai_compatible",
+        model="custom-embedding",
+        dimensions=3,
+        api_key_env="CUSTOM_EMBED_KEY",
+        base_url="https://embeddings.example/v1/embeddings",
+    )
+
+    report = audit_memory_db(db_path)
+
+    assert not report.warnings
+
+
 def test_memory_commands_do_not_implicitly_rebuild_corpus(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
@@ -1708,6 +1742,41 @@ def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     assert "taskType" not in request
     assert request["embedContentConfig"]["outputDimensionality"] == 3
     assert "Represent this search query" in request["content"]["parts"][0]["text"]
+
+
+def test_openai_compatible_embedding_request_uses_custom_endpoint(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
+
+    monkeypatch.setenv("CUSTOM_EMBED_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    spec = embeddings.resolve_embedding_spec(
+        provider="openai_compatible",
+        model="custom-embedding",
+        dimensions=3,
+        api_key_env="CUSTOM_EMBED_KEY",
+        base_url="https://embeddings.example/v1/embeddings",
+    )
+    vector = embeddings._OpenAICompatibleEmbedder(spec).embed_texts(  # noqa: SLF001
+        ["robot learning"],
+        task_type="RETRIEVAL_DOCUMENT",
+    )[0]
+
+    assert vector
+    assert captured["url"] == "https://embeddings.example/v1/embeddings"
+    assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["payload"] == {
+        "model": "custom-embedding",
+        "input": ["robot learning"],
+        "encoding_format": "float",
+        "dimensions": 3,
+    }
 
 
 def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
