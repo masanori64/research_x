@@ -850,6 +850,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="return a non-zero exit code when any eval case is not ok",
     )
+    memory_eval_runs_parser = memory_subparsers.add_parser(
+        "eval-runs",
+        help="list stored memory eval runs",
+    )
+    memory_eval_runs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_runs_parser.add_argument("--limit", type=int, default=20)
+    memory_eval_runs_parser.add_argument("--json", action="store_true")
+    memory_eval_show_parser = memory_subparsers.add_parser(
+        "eval-show",
+        help="show one stored memory eval run and its case results",
+    )
+    memory_eval_show_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_show_parser.add_argument("--run-id", required=True)
+    memory_eval_show_parser.add_argument("--json", action="store_true")
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -2214,6 +2228,22 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
                 output = f"{output}\nstored eval run: {stored_run_id}"
             print(output)
         return 2 if args.strict and any(not result.ok for result in results) else 0
+    if args.memory_command == "eval-runs":
+        from research_x.memory.evals import eval_runs_json, format_eval_runs, list_memory_eval_runs
+
+        runs = list_memory_eval_runs(args.db, limit=args.limit)
+        print(eval_runs_json(runs) if args.json else format_eval_runs(runs))
+        return 0
+    if args.memory_command == "eval-show":
+        from research_x.memory.evals import (
+            eval_run_json,
+            format_eval_run,
+            load_memory_eval_run,
+        )
+
+        payload = load_memory_eval_run(args.db, args.run_id)
+        print(eval_run_json(payload) if args.json else format_eval_run(payload))
+        return 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")
 
 

@@ -14,7 +14,13 @@ from research_x.memory.corpus import (
 )
 from research_x.memory.derived import build_derived_documents
 from research_x.memory.embeddings import build_memory_embeddings, embedding_coverage_report
-from research_x.memory.evals import load_eval_cases, run_memory_eval, store_memory_eval_results
+from research_x.memory.evals import (
+    list_memory_eval_runs,
+    load_eval_cases,
+    load_memory_eval_run,
+    run_memory_eval,
+    store_memory_eval_results,
+)
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
@@ -1321,8 +1327,12 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
             "SELECT COUNT(*) FROM memory_eval_results WHERE run_id = ?",
             (stored_run_id,),
         ).fetchone()[0]
+    listed_runs = list_memory_eval_runs(db_path)
+    loaded_run = load_memory_eval_run(db_path, stored_run_id)
     assert stored_run[1] == 1
     assert stored_results == 1
+    assert listed_runs[0]["run_id"] == stored_run_id
+    assert loaded_run["results"][0]["route"] == "quote_context"
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
@@ -1930,6 +1940,22 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "--semantic-dimensions",
                 "64",
                 "--store",
+            ]
+        )
+        == 0
+    )
+    with sqlite3.connect(db_path) as conn:
+        eval_run_id = conn.execute("SELECT run_id FROM memory_eval_runs LIMIT 1").fetchone()[0]
+    assert main(["memory", "eval-runs", "--db", str(db_path)]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "eval-show",
+                "--db",
+                str(db_path),
+                "--run-id",
+                eval_run_id,
             ]
         )
         == 0

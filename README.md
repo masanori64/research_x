@@ -492,7 +492,8 @@ rather than only raw hit shape.
 Pass `--semantic-provider`, `--semantic-profile`, and `--semantic-template-version` to evaluate a
 specific embedding index. Pass `--cases path\to\cases.jsonl` to run project-specific regression
 queries instead of only the built-in route cases. Add `--store` to persist eval runs/results for
-later comparison.
+later comparison. Use `memory eval-runs` and `memory eval-show --run-id <id>` to inspect stored
+history.
 External chunks classify `source_kind` as `official`, `secondary`, or `user_generated`; the broader
 transport type `external_web` is retained as metadata. Local X chunks remain `local_x_db`.
 
@@ -523,6 +524,8 @@ memory llm-context        Pre-extracted Web context provider role, fake or Brave
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
 memory eval               Route-oriented memory checks.
+memory eval-runs          List stored eval runs.
+memory eval-show          Show one stored eval run and case-level results.
 memory export-corpus2skill Export JSONL or a corpus.jsonl/manifest bundle for Corpus2Skill.
 ```
 

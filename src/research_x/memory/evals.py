@@ -292,6 +292,118 @@ def store_memory_eval_results(
     return resolved_run_id
 
 
+def list_memory_eval_runs(db_path: str | Path, *, limit: int = 20) -> tuple[dict[str, Any], ...]:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        rows = conn.execute(
+            """
+            SELECT
+                run_id, cases_path, case_count, status,
+                ok_count, needs_review_count, fail_count,
+                started_at, finished_at, parameters_json
+            FROM memory_eval_runs
+            ORDER BY finished_at DESC, run_id DESC
+            LIMIT ?
+            """,
+            (max(1, limit),),
+        ).fetchall()
+    return tuple(_eval_run_row(row) for row in rows)
+
+
+def load_memory_eval_run(db_path: str | Path, run_id: str) -> dict[str, Any]:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        run = conn.execute(
+            """
+            SELECT
+                run_id, cases_path, case_count, status,
+                ok_count, needs_review_count, fail_count,
+                started_at, finished_at, parameters_json
+            FROM memory_eval_runs
+            WHERE run_id = ?
+            """,
+            (run_id,),
+        ).fetchone()
+        if run is None:
+            raise RuntimeError(f"memory eval run not found: {run_id}")
+        results = conn.execute(
+            """
+            SELECT
+                case_index, query, status, route, expected_route, stop_reason,
+                hits, context_chunks, first_doc_id, best_score,
+                matched_terms_json, retrieval_engines_json, source_kinds_json,
+                answer_status, answer_citations, notes_json, metadata_json, created_at
+            FROM memory_eval_results
+            WHERE run_id = ?
+            ORDER BY case_index
+            """,
+            (run_id,),
+        ).fetchall()
+    return {
+        "run": _eval_run_row(run),
+        "results": [_eval_result_row(row) for row in results],
+    }
+
+
+def eval_runs_json(runs: tuple[dict[str, Any], ...]) -> str:
+    return json.dumps(list(runs), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def eval_run_json(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_eval_runs(runs: tuple[dict[str, Any], ...]) -> str:
+    if not runs:
+        return "(no stored memory eval runs)"
+    lines = []
+    for run in runs:
+        lines.append(
+            " ".join(
+                [
+                    run["run_id"],
+                    f"status={run['status']}",
+                    f"cases={run['case_count']}",
+                    f"ok={run['ok_count']}",
+                    f"review={run['needs_review_count']}",
+                    f"fail={run['fail_count']}",
+                    f"finished={run['finished_at']}",
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
+def format_eval_run(payload: dict[str, Any]) -> str:
+    run = payload["run"]
+    lines = [
+        (
+            f"run: {run['run_id']} status={run['status']} cases={run['case_count']} "
+            f"ok={run['ok_count']} review={run['needs_review_count']} fail={run['fail_count']}"
+        ),
+        f"finished: {run['finished_at']}",
+        f"cases_path: {run.get('cases_path') or '-'}",
+        "results:",
+    ]
+    for result in payload["results"]:
+        notes = "; ".join(result["notes"]) if result["notes"] else "-"
+        lines.append(
+            "  "
+            f"#{result['case_index']} {result['status']} route={result['route']} "
+            f"stop={result['stop_reason']} best={result['best_score']:.2f} "
+            f"first={result.get('first_doc_id') or '-'} notes={notes}"
+        )
+    return "\n".join(lines)
+
+
 def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
     lines = []
     for result in results:
@@ -321,6 +433,64 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
         expected_stop_reasons=_tuple_field(record, "expected_stop_reasons"),
         min_hit_score=float(record.get("min_hit_score", 1.0)),
     )
+
+
+def _eval_run_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "run_id": row["run_id"],
+        "cases_path": row["cases_path"],
+        "case_count": int(row["case_count"]),
+        "status": row["status"],
+        "ok_count": int(row["ok_count"]),
+        "needs_review_count": int(row["needs_review_count"]),
+        "fail_count": int(row["fail_count"]),
+        "started_at": row["started_at"],
+        "finished_at": row["finished_at"],
+        "parameters": _loads_json(row["parameters_json"]),
+    }
+
+
+def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "case_index": int(row["case_index"]),
+        "query": row["query"],
+        "status": row["status"],
+        "route": row["route"],
+        "expected_route": row["expected_route"],
+        "stop_reason": row["stop_reason"],
+        "hits": int(row["hits"]),
+        "context_chunks": int(row["context_chunks"]),
+        "first_doc_id": row["first_doc_id"],
+        "best_score": float(row["best_score"]),
+        "matched_terms": _loads_json_array(row["matched_terms_json"]),
+        "retrieval_engines": _loads_json_array(row["retrieval_engines_json"]),
+        "source_kinds": _loads_json_array(row["source_kinds_json"]),
+        "answer_status": row["answer_status"],
+        "answer_citations": int(row["answer_citations"]),
+        "notes": _loads_json_array(row["notes_json"]),
+        "metadata": _loads_json(row["metadata_json"]),
+        "created_at": row["created_at"],
+    }
+
+
+def _loads_json(value: str | None) -> dict[str, Any]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _loads_json_array(value: str | None) -> list[Any]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
 
 
 def _tuple_field(record: dict[str, Any], key: str) -> tuple[str, ...]:

@@ -143,6 +143,7 @@ Implemented behavior:
   checks;
 - optional stored eval runs/results for comparing retrieval quality across rebuilds and embedding
   profiles;
+- stored eval run listing/detail commands for post-run inspection;
 - `memory export-corpus2skill --bundle-dir` writes `corpus.jsonl` plus `manifest.json` for the
   official Corpus2Skill compiler boundary;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
