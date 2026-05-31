@@ -473,7 +473,8 @@ under the same context run and cited like other chunks; they do not replace loca
 chunk count, source kinds, no-store answer status, answer citation count, and top evidence health
 rather than only raw hit shape.
 Pass `--semantic-provider`, `--semantic-profile`, and `--semantic-template-version` to evaluate a
-specific embedding index.
+specific embedding index. Pass `--cases path\to\cases.jsonl` to run project-specific regression
+queries instead of only the built-in route cases.
 External chunks classify `source_kind` as `official`, `secondary`, or `user_generated`; the broader
 transport type `external_web` is retained as metadata. Local X chunks remain `local_x_db`.
 

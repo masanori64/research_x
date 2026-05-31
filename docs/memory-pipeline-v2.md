@@ -741,6 +741,8 @@ Current implementation:
   source kinds, answer status, and answer citation count.
 - Eval input can pin semantic provider, model, dimensions, profile, and template so production
   embedding quality can be compared against lexical/relation-only routing.
+- Eval input can also come from a JSON/JSONL cases file, allowing the user's real recurring
+  questions to become route-level regression tests.
 - Route mismatches and missing compact evidence fail; weak or absent evidence remains visible as
   `needs_review` / `fail` instead of being hidden behind a successful command exit.
 

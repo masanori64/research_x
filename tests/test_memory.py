@@ -10,7 +10,7 @@ from research_x.memory.context import build_context_bundle
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
 from research_x.memory.derived import build_derived_documents
 from research_x.memory.embeddings import build_memory_embeddings
-from research_x.memory.evals import run_memory_eval
+from research_x.memory.evals import load_eval_cases, run_memory_eval
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
@@ -1094,6 +1094,30 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
         for result in semantic_results
         for engine in result.retrieval_engines
     )
+    cases_path = tmp_path / "memory_eval_cases.jsonl"
+    cases_path.write_text(
+        json.dumps(
+            {
+                "query": "引用元を見ないと意味が変わる投稿を根拠付きで出して",
+                "required_any_terms": ["引用", "引用元", "quote"],
+                "preferred_doc_types": ["quote_tree_doc"],
+                "required_feature": "quote_context",
+                "expected_route": "quote_context",
+                "min_hit_score": 0.5,
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    custom_results = run_memory_eval(
+        db_path,
+        cases=load_eval_cases(cases_path),
+        limit=2,
+        answer_provider="none",
+    )
+    assert len(custom_results) == 1
+    assert custom_results[0].route == "quote_context"
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
@@ -1603,6 +1627,20 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    cli_eval_cases = tmp_path / "memory_eval_cases.jsonl"
+    cli_eval_cases.write_text(
+        json.dumps(
+            {
+                "query": "強化学習 ロボット",
+                "required_any_terms": ["強化学習", "ロボット"],
+                "preferred_doc_types": ["bookmark_doc", "tweet_doc"],
+                "min_hit_score": 0.5,
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     assert (
         main(
             [
@@ -1610,6 +1648,8 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "eval",
                 "--db",
                 str(db_path),
+                "--cases",
+                str(cli_eval_cases),
                 "--limit",
                 "1",
                 "--semantic-provider",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
@@ -103,6 +104,23 @@ DEFAULT_EVAL_CASES = (
 )
 
 
+def load_eval_cases(path: str | Path) -> tuple[EvalCase, ...]:
+    case_path = Path(path)
+    text = case_path.read_text(encoding="utf-8")
+    if case_path.suffix.lower() == ".jsonl":
+        records = [
+            json.loads(line)
+            for line in text.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    else:
+        payload = json.loads(text)
+        records = payload.get("cases", payload) if isinstance(payload, dict) else payload
+    if not isinstance(records, list):
+        raise ValueError("eval cases file must contain a JSON list or an object with a cases list")
+    return tuple(_eval_case_from_mapping(record) for record in records)
+
+
 @dataclass(frozen=True)
 class MemoryEvalResult:
     query: str
@@ -129,6 +147,7 @@ class MemoryEvalResult:
 def run_memory_eval(
     db_path: str | Path,
     *,
+    cases: tuple[EvalCase, ...] | None = None,
     limit: int = 3,
     semantic_provider: str | None = None,
     semantic_model: str | None = None,
@@ -146,7 +165,7 @@ def run_memory_eval(
     answer_timeout_seconds: float = 90.0,
 ) -> tuple[MemoryEvalResult, ...]:
     results = []
-    for case in DEFAULT_EVAL_CASES:
+    for case in cases or DEFAULT_EVAL_CASES:
         workflow = run_memory_workflow(
             db_path,
             case.query,
@@ -193,6 +212,41 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
+
+
+def _eval_case_from_mapping(record: Any) -> EvalCase:
+    if not isinstance(record, dict):
+        raise ValueError("each eval case must be a JSON object")
+    query = record.get("query")
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("each eval case requires a non-empty query")
+    return EvalCase(
+        query=query,
+        required_any_terms=_tuple_field(record, "required_any_terms"),
+        preferred_doc_types=_tuple_field(record, "preferred_doc_types"),
+        required_feature=_optional_string(record.get("required_feature")),
+        expected_route=_optional_string(record.get("expected_route")),
+        expected_stop_reasons=_tuple_field(record, "expected_stop_reasons"),
+        min_hit_score=float(record.get("min_hit_score", 1.0)),
+    )
+
+
+def _tuple_field(record: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = record.get(key, ())
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, list | tuple):
+        return tuple(str(item) for item in value if str(item))
+    raise ValueError(f"{key} must be a string or list of strings")
+
+
+def _optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _evaluate_case(

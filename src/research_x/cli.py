@@ -739,6 +739,11 @@ def main(argv: list[str] | None = None) -> int:
         help="run fixed evaluation queries against the memory search layer",
     )
     memory_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_parser.add_argument(
+        "--cases",
+        default=None,
+        help="optional JSON/JSONL eval cases file; omit to use built-in route cases",
+    )
     memory_eval_parser.add_argument("--limit", type=int, default=3)
     memory_eval_parser.add_argument(
         "--semantic-provider",
@@ -2000,11 +2005,13 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         from research_x.memory.evals import (
             eval_results_json,
             format_eval_results,
+            load_eval_cases,
             run_memory_eval,
         )
 
         results = run_memory_eval(
             args.db,
+            cases=load_eval_cases(args.cases) if args.cases else None,
             limit=args.limit,
             semantic_provider=args.semantic_provider,
             semantic_model=args.semantic_model,

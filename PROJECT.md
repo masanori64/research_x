@@ -131,6 +131,8 @@ Implemented behavior:
 - `memory workflow --llm-context-provider` integration that adds Brave/fake LLM-context chunks to
   the same context run before optional answer generation;
 - `memory eval` can run the same route cases with an explicit semantic provider/profile/template;
+- `memory eval --cases` accepts user/project JSON or JSONL route cases instead of only the built-in
+  checks;
 - `memory context` command that turns local retrieved hits into LLM-ready chunks and
   citation-ready metadata;
 - `memory context --external-run-id` integration that combines local X chunks with extracted
