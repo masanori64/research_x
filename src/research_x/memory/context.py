@@ -257,6 +257,8 @@ def _chunk(
         "score_components": hit.get("score_components") or {},
         "freshness": hit.get("freshness"),
         "bookmark_account_count": hit.get("bookmark_account_count"),
+        "derived": evidence.get("derived"),
+        "omitted": _omitted_context_counts(evidence),
     }
     chunk_id = _hash_id(
         "chunk",
@@ -311,6 +313,7 @@ def _citation(
             "doc_type": hit.get("doc_type"),
             "tweet_id": hit.get("tweet_id"),
             "author": (hit.get("evidence") or {}).get("author"),
+            "derived": (hit.get("evidence") or {}).get("derived"),
         },
     )
 
@@ -388,7 +391,24 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
         ]
         if quote_lines:
             parts.append("Quoted tweets:\n" + "\n".join(quote_lines))
+            if len(quoted) > len(quote_lines):
+                parts.append(f"Quoted tweets omitted: {len(quoted) - len(quote_lines)}")
     media = evidence.get("media") or []
+    derived = evidence.get("derived")
+    if isinstance(derived, dict):
+        source_ids = [str(value) for value in derived.get("source_doc_ids") or ()]
+        source_urls = [str(value) for value in derived.get("source_urls") or () if value]
+        parts.append(
+            "\n".join(
+                [
+                    f"Derived kind: {derived.get('derived_kind') or ''}",
+                    "Derived source doc count: "
+                    f"{derived.get('source_doc_count') or len(source_ids)}",
+                    "Derived source doc ids: " + _listed(source_ids, limit=12),
+                    "Derived source urls: " + _listed(source_urls, limit=8),
+                ]
+            )
+        )
     if media:
         media_lines = [
             (
@@ -400,6 +420,8 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
         ]
         if media_lines:
             parts.append("Media:\n" + "\n".join(media_lines))
+            if len(media) > len(media_lines):
+                parts.append(f"Media omitted: {len(media) - len(media_lines)}")
     relations = evidence.get("relations") or []
     if relations:
         relation_lines = [
@@ -412,6 +434,16 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
         ]
         if relation_lines:
             parts.append("Relations:\n" + "\n".join(relation_lines))
+            if len(relations) > len(relation_lines):
+                omitted_ids = [
+                    str(row.get("relation_id") or "")
+                    for row in relations[len(relation_lines) :]
+                    if isinstance(row, dict)
+                ]
+                parts.append(
+                    f"Relations omitted: {len(relations) - len(relation_lines)} "
+                    f"ids={_listed(omitted_ids, limit=12)}"
+                )
     return "\n".join(part for part in parts if part.strip())
 
 
@@ -557,3 +589,18 @@ def _estimate_tokens(text: str) -> int:
     ascii_words = len([part for part in text.split() if part])
     non_ascii = sum(1 for char in text if ord(char) > 127)
     return max(1, ascii_words + (non_ascii + 1) // 2)
+
+
+def _omitted_context_counts(evidence: dict[str, Any]) -> dict[str, int]:
+    return {
+        "quoted_tweets": max(0, len(evidence.get("quoted_tweets") or []) - 3),
+        "media": max(0, len(evidence.get("media") or []) - 4),
+        "relations": max(0, len(evidence.get("relations") or []) - 4),
+    }
+
+
+def _listed(values: list[str], *, limit: int) -> str:
+    cleaned = [value for value in values if value]
+    shown = cleaned[:limit]
+    suffix = f" ... omitted {len(cleaned) - len(shown)}" if len(cleaned) > len(shown) else ""
+    return ", ".join(shown) + suffix if shown else ""

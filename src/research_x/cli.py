@@ -1268,7 +1268,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if ok else 1
         raise AssertionError(f"unhandled auth command {args.auth_command}")
     if args.command == "bookmarks":
-        limit = 100000 if args.all else args.limit
+        limit = args.limit
         max_scroll_steps = max(args.max_scroll_steps, 1000) if args.all else args.max_scroll_steps
         result, classification = run_bookmark_job(
             out_dir=Path(args.out),

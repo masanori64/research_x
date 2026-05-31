@@ -156,7 +156,12 @@ def run_pipeline(
                 break
 
         items = tuple(list(merged.values())[: max(1, target.limit)])
-        if len(items) >= max(1, target.limit) or (ok_with_any_items and items):
+        provider_exhausted = any(_outcome_exhausted(attempt.outcome) for attempt in attempts)
+        if (
+            len(items) >= max(1, target.limit)
+            or (provider_exhausted and items)
+            or (ok_with_any_items and items)
+        ):
             status = PipelineStatus.OK
         elif items:
             status = PipelineStatus.PARTIAL
@@ -175,6 +180,7 @@ def run_pipeline(
                     "min_successful_providers": min_successful_providers,
                     "stop_after_first_success": stop_after_first_success,
                     "ok_with_any_items": ok_with_any_items,
+                    "provider_exhausted": provider_exhausted,
                 },
             )
         )
@@ -220,6 +226,17 @@ def classify_outcome(outcome: FetchOutcome) -> ProviderFailureKind:
     if "selector" in text or "locator" in text or "article" in text:
         return ProviderFailureKind.DOM_DRIFT
     return ProviderFailureKind.ERROR
+
+
+def _outcome_exhausted(outcome: FetchOutcome) -> bool:
+    if outcome.status != OutcomeStatus.OK:
+        return False
+    metadata = outcome.metadata or {}
+    return bool(
+        metadata.get("cursor_exhausted")
+        or metadata.get("timeline_exhausted")
+        or metadata.get("finished")
+    )
 
 
 def _safe_fetch(adapter, target: AcquisitionTarget) -> FetchOutcome:

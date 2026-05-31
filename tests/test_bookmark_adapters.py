@@ -9,6 +9,10 @@ from research_x.adapters.bookmark_adapters import (
     _write_netscape_cookies,
     _XWebGraphQLBookmarkSettings,
 )
+from research_x.bookmarks import (
+    EXHAUSTIVE_BOOKMARK_MAX_PAGES,
+    _bookmark_adapters,
+)
 from research_x.contracts import AcquisitionTarget, AdapterConfig, OutcomeStatus, TargetKind
 
 
@@ -152,6 +156,25 @@ def test_gallery_dl_items_marks_quoted_leaf_as_non_root_bookmark() -> None:
     assert items[0].raw["bookmark_root"] is True
     assert items[1].raw["bookmark_root"] is False
     assert items[1].raw["bookmark_relation"] == "quoted_tweet"
+
+
+def test_bookmark_exhaustive_adapters_do_not_use_smoke_limits(tmp_path) -> None:
+    adapters = _bookmark_adapters(
+        storage_state=tmp_path / "state.json",
+        output_path=tmp_path / "out",
+        headless=True,
+        timeout_ms=45000,
+        max_scroll_steps=1000,
+        limit=1_000_000_000,
+        exhaustive=True,
+    )
+    by_id = {adapter.adapter_id: adapter for adapter in adapters}
+
+    assert by_id["twscrape_raw"].options["max_pages"] == EXHAUSTIVE_BOOKMARK_MAX_PAGES
+    assert by_id["x_web_graphql_bookmarks"].options["max_pages"] == (
+        EXHAUSTIVE_BOOKMARK_MAX_PAGES
+    )
+    assert by_id["gallery_dl_bookmarks"].options["exhaustive"] is True
 
 
 def test_write_netscape_cookies_from_playwright_state(tmp_path) -> None:

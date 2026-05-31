@@ -53,6 +53,7 @@ def evidence_bundle_json(bundle: dict[str, Any]) -> str:
 def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) -> dict[str, Any]:
     tweet_id = result.source_tweet_id
     tweet = _tweet(conn, tweet_id) if tweet_id else {}
+    derived = _derived_evidence(result.metadata)
     return {
         "doc_id": result.doc_id,
         "doc_type": result.doc_type,
@@ -72,6 +73,7 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
             "quoted_tweets": _quoted_tweets(conn, tweet_id) if tweet_id else [],
             "media": _media(conn, tweet_id) if tweet_id else [],
             "relations": _relations(conn, result.doc_id),
+            "derived": derived,
         },
     }
 
@@ -179,6 +181,20 @@ def _relations(conn: sqlite3.Connection, doc_id: str) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def _derived_evidence(metadata: dict[str, Any]) -> dict[str, Any] | None:
+    derived_kind = metadata.get("derived_kind")
+    if not derived_kind:
+        return None
+    return {
+        "derived_kind": derived_kind,
+        "source_doc_ids": metadata.get("source_doc_ids") or [],
+        "source_tweet_ids": metadata.get("source_tweet_ids") or [],
+        "source_urls": metadata.get("source_urls") or [],
+        "source_doc_count": metadata.get("source_doc_count"),
+        "display_source_doc_ids": metadata.get("display_source_doc_ids") or [],
+    }
 
 
 def _loads_json(value: str | None) -> dict[str, Any]:

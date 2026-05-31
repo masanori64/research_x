@@ -21,6 +21,7 @@ class MemoryAuditReport:
     embedding_specs: tuple[dict[str, Any], ...]
     orphaned_feedback: int
     invalid_json_by_field: dict[str, int]
+    fixture_artifacts: dict[str, int]
     warnings: tuple[str, ...]
 
 
@@ -40,6 +41,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         specs = _embedding_specs(conn)
         orphaned_feedback = _orphaned_feedback(conn)
         invalid_json = _invalid_json_counts(conn)
+        fixture_artifacts = _fixture_artifact_counts(conn)
     warnings = _warnings(
         documents=documents,
         fts_rows=fts_rows,
@@ -50,6 +52,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         specs=specs,
         orphaned_feedback=orphaned_feedback,
         invalid_json=invalid_json,
+        fixture_artifacts=fixture_artifacts,
     )
     return MemoryAuditReport(
         db_path=str(path),
@@ -62,6 +65,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         embedding_specs=tuple(specs),
         orphaned_feedback=orphaned_feedback,
         invalid_json_by_field=invalid_json,
+        fixture_artifacts=fixture_artifacts,
         warnings=tuple(warnings),
     )
 
@@ -81,6 +85,7 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"isolated documents by type: {report.isolated_documents_by_type or {}}",
         f"orphaned feedback: {report.orphaned_feedback}",
         f"invalid JSON by field: {report.invalid_json_by_field or {}}",
+        f"fixture artifacts: {report.fixture_artifacts or {}}",
         "embedding specs:",
     ]
     if report.embedding_specs:
@@ -223,6 +228,61 @@ def _invalid_json_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return invalid
 
 
+def _fixture_artifact_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    specs = [
+        (
+            "memory_external_runs.fake_provider",
+            """
+            SELECT COUNT(*)
+            FROM memory_external_runs
+            WHERE provider = 'fake'
+               OR endpoint LIKE 'memory://fake%'
+            """,
+        ),
+        (
+            "memory_external_items.fixture",
+            """
+            SELECT COUNT(*)
+            FROM memory_external_items
+            WHERE metadata_json LIKE '%"fixture": true%'
+               OR source = 'example.invalid'
+            """,
+        ),
+        (
+            "memory_tool_calls.fake_provider",
+            """
+            SELECT COUNT(*)
+            FROM memory_tool_calls
+            WHERE provider = 'fake'
+            """,
+        ),
+        (
+            "memory_context_chunks.fixture",
+            """
+            SELECT COUNT(*)
+            FROM memory_context_chunks
+            WHERE provider = 'fake'
+               OR metadata_json LIKE '%"fixture": true%'
+               OR chunk_text LIKE '%Fake extracted page%'
+            """,
+        ),
+        (
+            "memory_answer_runs.fake_provider",
+            """
+            SELECT COUNT(*)
+            FROM memory_answer_runs
+            WHERE structured_json LIKE '%"mode": "deterministic_fake"%'
+            """,
+        ),
+    ]
+    counts: dict[str, int] = {}
+    for key, sql in specs:
+        count = int(conn.execute(sql).fetchone()[0])
+        if count:
+            counts[key] = count
+    return counts
+
+
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
     row = conn.execute(
         """
@@ -248,6 +308,7 @@ def _warnings(
     specs: list[dict[str, Any]],
     orphaned_feedback: int,
     invalid_json: dict[str, int],
+    fixture_artifacts: dict[str, int],
 ) -> list[str]:
     warnings: list[str] = []
     if documents == 0:
@@ -272,6 +333,11 @@ def _warnings(
         )
     if invalid_json:
         warnings.append(f"invalid JSON detected: {invalid_json}")
+    if fixture_artifacts:
+        warnings.append(
+            "fixture/fake memory artifacts are present; "
+            f"do not use them as production evidence: {fixture_artifacts}"
+        )
     if not specs and documents:
         warnings.append("no embeddings found; run memory build-embeddings with openai or gemini")
     production_specs = [spec for spec in specs if spec["provider"] in {"openai", "gemini"}]

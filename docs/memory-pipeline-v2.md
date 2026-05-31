@@ -146,6 +146,37 @@ Primary sources checked:
 - Spellbook: https://github.com/majiayu000/spellbook
 - Tencent/WeKnora: https://github.com/Tencent/WeKnora
 
+### 2026-06-01: Remove Diagnostic Shrinking From Production Paths
+
+Decision:
+
+- Preserve unmatched Japanese entity/place/date tokens in query plans instead of only using broad
+  intent expansions.
+- Treat `memory_relations` as a retrieval expansion source, not only as a post-retrieval scoring
+  boost.
+- Keep derived-card bodies compact, but retain all source document IDs, tweet IDs, URLs, and
+  `derived_from_source` relations in metadata/provenance.
+- Flag stored fake/fixture external/search/reader/answer artifacts in `memory audit --strict`.
+- When answer context is truncated, create answer-specific subchunk IDs and mark missing citation
+  markers as `needs_review` instead of silently treating them as supporting citations.
+
+Rationale:
+
+- A broad intent route such as food or finance must not drop exact user signals like `北千住`,
+  `5/29`, or `キオクシア`.
+- Relations are part of the evidence graph; a quote, source tweet, duplicate bookmark, or derived
+  source can be relevant even when its text does not match the original query.
+- Diagnostic fake providers are useful for test coverage, but they must be visible and fail strict
+  production audit gates.
+
+Implementation impact:
+
+- `memory search` now includes relation-expanded candidates in the returned result set.
+- `memory context` carries derived provenance and omitted relation/media/quote counts.
+- `memory answer` records context selection metadata, omitted chunk IDs, truncated chunk IDs, and
+  missing citation markers.
+- `memory audit` reports `fixture_artifacts`.
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.

@@ -36,6 +36,59 @@ FOOD_TERMS = (
     "店",
 )
 
+VENUE_TERMS = (
+    "美術館",
+    "博物館",
+    "ギャラリー",
+    "展示",
+    "会場",
+    "劇場",
+    "映画館",
+    "ライブハウス",
+    "ホール",
+    "公園",
+    "ホテル",
+    "温泉",
+    "サウナ",
+    "書店",
+    "本屋",
+    "ショップ",
+    "施設",
+    "スポット",
+    "場所",
+    "行きたい",
+)
+
+PLACE_TERMS = tuple(dict.fromkeys((*FOOD_TERMS, *VENUE_TERMS)))
+PLACE_LABEL_HINTS = (
+    "place",
+    "venue",
+    "spot",
+    "food",
+    "restaurant",
+    "cafe",
+    "event",
+    "travel",
+    "飯",
+    "食事",
+    "グルメ",
+    "店",
+    "場所",
+    "イベント",
+)
+PLACE_URL_DOMAINS = (
+    "tabelog.com",
+    "hotpepper.jp",
+    "gnavi.co.jp",
+    "retty.me",
+    "tripadvisor",
+    "google.com/maps",
+    "maps.app.goo.gl",
+    "map.yahoo.co.jp",
+    "jalan.net",
+    "ikyu.com",
+)
+
 AREA_TERMS = (
     "北千住",
     "渋谷",
@@ -230,38 +283,45 @@ def _place_cards(
     descriptors: dict[str, dict[str, tuple[str, ...]]] = {}
     for row in rows:
         text = _row_text(row)
-        food_terms = _terms_in_text(FOOD_TERMS, text)
-        if not food_terms:
+        place_terms = _place_terms(row, text)
+        if not place_terms:
             continue
         areas = _extract_areas(text)
-        key = _place_key(row, areas=areas, food_terms=food_terms)
+        key = _place_key(row, areas=areas, place_terms=place_terms)
         grouped[key].append(row)
-        descriptors[key] = {"areas": areas, "food_terms": food_terms}
+        descriptor = descriptors.setdefault(key, {"areas": (), "place_terms": ()})
+        descriptor["areas"] = _merge_tuple(descriptor["areas"], areas)
+        descriptor["place_terms"] = _merge_tuple(descriptor["place_terms"], place_terms)
 
     documents: list[DerivedDocument] = []
     for key, group in sorted(grouped.items()):
-        source_rows = _dedupe_sources(group, limit=max_source_docs_per_card)
+        all_source_rows = tuple(group)
+        display_rows = _dedupe_sources(group, limit=max_source_docs_per_card)
         descriptor = descriptors[key]
-        title_terms = _unique((*descriptor["areas"], *descriptor["food_terms"]))[:5]
+        title_terms = _unique((*descriptor["areas"], *descriptor["place_terms"]))[:5]
         title = "place_card " + (" ".join(title_terms) if title_terms else key)
         body = _derived_body(
             "place_card",
             title=title,
-            source_rows=source_rows,
+            source_rows=display_rows,
             extra_lines=(
                 f"place_key: {key}",
                 f"areas: {', '.join(descriptor['areas'])}" if descriptor["areas"] else None,
-                f"food_terms: {', '.join(descriptor['food_terms'])}",
+                f"place_terms: {', '.join(descriptor['place_terms'])}",
             ),
         )
         metadata = _source_metadata(
             "place_card",
-            source_rows,
+            all_source_rows,
             extra={
                 "place_key": key,
                 "areas": descriptor["areas"],
-                "food_terms": descriptor["food_terms"],
-                "grouping_version": "place-card-heuristic-v1",
+                "place_terms": descriptor["place_terms"],
+                "food_terms": tuple(
+                    term for term in descriptor["place_terms"] if term in FOOD_TERMS
+                ),
+                "display_source_doc_ids": [str(row["doc_id"]) for row in display_rows],
+                "grouping_version": "place-card-provenance-v2",
             },
         )
         documents.append(
@@ -271,7 +331,7 @@ def _place_cards(
                 title=title,
                 body=body,
                 metadata=metadata,
-                source_rows=source_rows,
+                source_rows=all_source_rows,
                 now=now,
             )
         )
@@ -297,16 +357,17 @@ def _author_profiles(
 
     documents: list[DerivedDocument] = []
     for key, group in sorted(grouped.items()):
-        source_rows = _dedupe_sources(group, limit=max_source_docs_per_card)
-        if len(source_rows) < max(1, min_author_docs):
+        all_source_rows = tuple(group)
+        display_rows = _dedupe_sources(group, limit=max_source_docs_per_card)
+        if len(all_source_rows) < max(1, min_author_docs):
             continue
         author = display_names[key]
-        labels = _top_labels(source_rows)
+        labels = _top_labels(all_source_rows)
         title = f"author_profile @{author}"
         body = _derived_body(
             "author_profile",
             title=title,
-            source_rows=source_rows,
+            source_rows=display_rows,
             extra_lines=(
                 f"author: @{author}",
                 f"top_labels: {', '.join(labels)}" if labels else None,
@@ -314,10 +375,11 @@ def _author_profiles(
         )
         metadata = _source_metadata(
             "author_profile",
-            source_rows,
+            all_source_rows,
             extra={
                 "author": author,
                 "top_labels": labels,
+                "display_source_doc_ids": [str(row["doc_id"]) for row in display_rows],
                 "grouping_version": "author-profile-v1",
             },
         )
@@ -328,7 +390,7 @@ def _author_profiles(
                 title=title,
                 body=body,
                 metadata=metadata,
-                source_rows=source_rows,
+                source_rows=all_source_rows,
                 now=now,
                 author_screen_name=author,
             )
@@ -363,7 +425,8 @@ def _ticker_events(
 
     documents: list[DerivedDocument] = []
     for key, group in sorted(grouped.items()):
-        source_rows = _dedupe_sources(group, limit=max_source_docs_per_card)
+        all_source_rows = tuple(group)
+        display_rows = _dedupe_sources(group, limit=max_source_docs_per_card)
         descriptor = descriptors[key]
         company = str(descriptor["company"])
         dates = tuple(str(value) for value in descriptor["dates"])
@@ -373,7 +436,7 @@ def _ticker_events(
         body = _derived_body(
             "ticker_event",
             title=title,
-            source_rows=source_rows,
+            source_rows=display_rows,
             extra_lines=(
                 f"company_or_ticker: {company}",
                 f"dates: {', '.join(dates)}" if dates else None,
@@ -382,12 +445,13 @@ def _ticker_events(
         )
         metadata = _source_metadata(
             "ticker_event",
-            source_rows,
+            all_source_rows,
             extra={
                 "company_or_ticker": company,
                 "dates": dates,
                 "finance_terms": finance_terms,
-                "grouping_version": "ticker-event-heuristic-v1",
+                "display_source_doc_ids": [str(row["doc_id"]) for row in display_rows],
+                "grouping_version": "ticker-event-provenance-v2",
             },
         )
         documents.append(
@@ -397,7 +461,7 @@ def _ticker_events(
                 title=title,
                 body=body,
                 metadata=metadata,
-                source_rows=source_rows,
+                source_rows=all_source_rows,
                 now=now,
             )
         )
@@ -449,7 +513,7 @@ def _source_metadata(
     )
     return {
         "derived_kind": derived_kind,
-        "source_doc_ids": [str(row["doc_id"]) for row in source_rows],
+        "source_doc_ids": list(_unique(str(row["doc_id"]) for row in source_rows)),
         "source_tweet_ids": tweet_ids,
         "source_doc_count": len(source_rows),
         "accounts": _unique(str(row["account_id"]) for row in source_rows if row["account_id"]),
@@ -655,6 +719,24 @@ def _terms_in_text(terms: tuple[str, ...], text: str) -> tuple[str, ...]:
     return tuple(term for term in terms if term.casefold() in folded)
 
 
+def _place_terms(row: sqlite3.Row, text: str) -> tuple[str, ...]:
+    terms = list(_terms_in_text(PLACE_TERMS, text))
+    metadata = _loads_json(row["metadata_json"])
+    labels = tuple(str(label) for label in metadata.get("labels") or ())
+    label_blob = " ".join(labels).casefold()
+    if any(hint.casefold() in label_blob for hint in PLACE_LABEL_HINTS):
+        terms.extend(label for label in labels[:6] if label)
+    url = str(metadata.get("url") or "")
+    domain = _domain(url)
+    if domain and any(known in domain or known in url for known in PLACE_URL_DOMAINS):
+        terms.append(domain)
+    if _extract_areas(text) and any(
+        token in text for token in ("行きたい", "行く", "場所", "スポット", "店", "会場", "展示")
+    ):
+        terms.append("place_hint")
+    return _unique(terms)
+
+
 def _extract_areas(text: str) -> tuple[str, ...]:
     values: list[str] = []
     for area in AREA_TERMS:
@@ -676,16 +758,16 @@ def _place_key(
     row: sqlite3.Row,
     *,
     areas: tuple[str, ...],
-    food_terms: tuple[str, ...],
+    place_terms: tuple[str, ...],
 ) -> str:
     if areas:
-        return "|".join(("area", areas[0], *food_terms[:3]))
+        return "|".join(("area", areas[0]))
     metadata = _loads_json(row["metadata_json"])
     url = str(metadata.get("url") or "")
     domain = _domain(url)
     if domain:
-        return "|".join(("domain", domain, *food_terms[:3]))
-    return "|".join(("tweet", str(row["source_tweet_id"] or row["doc_id"]), *food_terms[:3]))
+        return "|".join(("domain", domain))
+    return "|".join(("tweet", str(row["source_tweet_id"] or row["doc_id"]), *place_terms[:3]))
 
 
 def _extract_companies(text: str) -> tuple[str, ...]:
@@ -765,6 +847,10 @@ def _loads_json(value: str | None) -> dict[str, Any]:
 
 def _clean_candidate(value: str) -> str:
     return str(value).strip(" 　。、,.!?！？「」『』（）()[]【】").strip()
+
+
+def _merge_tuple(left: tuple[str, ...], right: tuple[str, ...]) -> tuple[str, ...]:
+    return _unique((*left, *right))
 
 
 def _unique(values: Any) -> tuple[str, ...]:

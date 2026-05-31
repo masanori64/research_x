@@ -105,6 +105,16 @@ def search_memory(
                 account=account,
             )
             raw_rows.extend(_rows_by_doc_ids(conn, tuple(hit.doc_id for hit in semantic_hits)))
+        seed_candidates = _merge_candidates(raw_rows)
+        raw_rows.extend(
+            _relation_expansion_search(
+                conn,
+                tuple(candidate["doc_id"] for candidate in seed_candidates),
+                limit=pool_limit,
+                doc_type=doc_type,
+                account=account,
+            )
+        )
         candidates = _merge_candidates(raw_rows)
         doc_ids = tuple(candidate["doc_id"] for candidate in candidates)
         tweet_ids = tuple(
@@ -346,6 +356,50 @@ def _rows_by_doc_ids(
     return [dict(row) for row in rows]
 
 
+def _relation_expansion_search(
+    conn: sqlite3.Connection,
+    doc_ids: tuple[str, ...],
+    *,
+    limit: int,
+    doc_type: str | None,
+    account: str | None,
+) -> list[dict[str, Any]]:
+    if not doc_ids:
+        return []
+    placeholders = ",".join("?" for _ in doc_ids)
+    filters, params = _relation_expansion_filters(doc_type=doc_type, account=account)
+    rows = conn.execute(
+        f"""
+        WITH related AS (
+            SELECT
+                CASE
+                    WHEN source_doc_id IN ({placeholders}) THEN target_doc_id
+                    ELSE source_doc_id
+                END AS related_doc_id,
+                MAX(strength) AS relation_strength
+            FROM memory_relations
+            WHERE source_doc_id IN ({placeholders})
+               OR target_doc_id IN ({placeholders})
+            GROUP BY related_doc_id
+        )
+        SELECT
+            d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
+            d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.created_at, d.observed_at, d.updated_at,
+            related.relation_strength AS raw_score,
+            'relation_expansion' AS match_method
+        FROM related
+        JOIN memory_documents d ON d.doc_id = related.related_doc_id
+        WHERE d.doc_id NOT IN ({placeholders})
+        {filters}
+        ORDER BY related.relation_strength DESC, d.observed_at DESC, d.doc_id
+        LIMIT ?
+        """,
+        (*doc_ids, *doc_ids, *doc_ids, *doc_ids, *params, max(1, limit)),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
     for row in rows:
@@ -365,7 +419,13 @@ def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _method_priority(method: str) -> int:
-    return {"fts": 4, "semantic": 3, "like": 2, "metadata": 1}.get(method, 0)
+    return {
+        "fts": 5,
+        "semantic": 4,
+        "like": 3,
+        "metadata": 2,
+        "relation_expansion": 1,
+    }.get(method, 0)
 
 
 def _result_from_candidate(
@@ -467,6 +527,34 @@ def _filters(*, doc_type: str | None, account: str | None) -> tuple[str, tuple[A
     return "\n".join(parts), tuple(params)
 
 
+def _relation_expansion_filters(
+    *,
+    doc_type: str | None,
+    account: str | None,
+) -> tuple[str, tuple[Any, ...]]:
+    parts = []
+    params: list[Any] = []
+    if doc_type:
+        parts.append("AND d.doc_type = ?")
+        params.append(doc_type)
+    if account:
+        parts.append(
+            """
+            AND (
+                d.account_id = ?
+                OR d.account_id IS NULL
+                OR d.source_tweet_id IN (
+                    SELECT tweet_id
+                    FROM account_bookmarks
+                    WHERE account_id = ?
+                )
+            )
+            """
+        )
+        params.extend([account, account])
+    return "\n".join(parts), tuple(params)
+
+
 def _fts_query(terms: tuple[str, ...]) -> str:
     terms = tuple(term.strip().replace('"', '""') for term in terms if term.strip())
     if not terms:
@@ -502,6 +590,8 @@ def _method_score(methods: tuple[str, ...]) -> float:
         score += 0.5
     if "metadata" in methods:
         score += 0.25
+    if "relation_expansion" in methods:
+        score += 0.2
     if len(methods) > 1:
         score += 0.4
     return score

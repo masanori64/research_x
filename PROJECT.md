@@ -99,6 +99,7 @@ Implemented behavior:
 - rebuildable `memory_documents` and FTS index over the canonical X store;
 - compact evidence bundles for local search results;
 - deterministic query planning and local hybrid ranking;
+- Japanese entity/date preservation in query plans and relation-expanded retrieval candidates;
 - feedback capture;
 - OpenAI/Gemini production embedding providers;
 - explicit diagnostic-only `local_hash` embeddings;
@@ -115,9 +116,10 @@ Implemented behavior:
 - `memory context --external-run-id` integration that combines local X chunks with extracted
   external Web chunks under one context bundle/run id;
 - `memory build-derived` command that adds rebuildable `place_card`, `author_profile`, and
-  `ticker_event` documents without replacing raw X records;
+  `ticker_event` documents without replacing raw X records, while preserving full source
+  provenance even when card bodies are compact;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
-  semantic indexes, and weak retrieval behavior.
+  semantic indexes, stored fake/fixture artifacts, and weak retrieval behavior.
 
 Known limitation:
 

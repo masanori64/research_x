@@ -45,7 +45,10 @@ bookmarks:
 ```
 
 The chain stops when the target has enough deduped items and the configured minimum number of
-successful providers has been reached.
+successful providers has been reached. For cursor-based full bookmark runs, a provider that reaches
+cursor exhaustion is also treated as a complete target even when the item count is below the
+internal high-water limit. The pipeline should not use "any items were found" as the success signal
+for `--all`.
 
 ## Session Broker
 
@@ -158,7 +161,12 @@ edge from the quoting tweet. The automatic routes are:
 ```powershell
 uv run python -m research_x bookmarks --out runs\bookmarks --limit 100 --no-classify
 uv run python -m research_x bookmarks --out runs\bookmarks --limit 100 --classify --model gpt-4o-mini
+uv run python -m research_x bookmarks --out runs\bookmarks_full --all --no-classify --db runs\x_data.sqlite3
 ```
+
+`--all` raises cursor-provider page budgets and removes the normal `gallery-dl --range` cap. The
+run should finish because the bookmark cursor is exhausted, rate limited, canceled, or failed, not
+because one provider returned a small partial batch.
 
 The command also writes DB-friendly files:
 

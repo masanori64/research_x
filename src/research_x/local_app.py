@@ -172,7 +172,7 @@ class CollectionApp:
             self._raise_if_cancelled(job)
             self._set_status(job, "bookmarks", "ブックマークを取得しています")
             fetch_all = form.get("fetch_all") == "on"
-            limit = 100000 if fetch_all else max(1, int(form.get("limit", "100") or 100))
+            limit = max(1, int(form.get("limit", "100") or 100))
             api_key_env = form.get("api_key_env", "GEMINI_API_KEY") or "GEMINI_API_KEY"
             with _temporary_classifier_env(form, api_key_env):
                 result, classification = run_bookmark_job(
@@ -1148,6 +1148,10 @@ def _live_status_script(job: AppJob) -> str:
 
           function hasUsefulProgress(progress) {{
             return (
+              (progress.cursor_item_count && progress.cursor_item_count > 0) ||
+              (progress.page_count && progress.page_count > 0) ||
+              progress.cursor_finished === true ||
+              progress.rate_limited === true ||
               (progress.media_total && progress.media_total > 0) ||
               (progress.label_total !== null && progress.label_total !== undefined)
             );

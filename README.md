@@ -72,6 +72,7 @@ app             Start the local browser app.
 progress        Start a standalone live progress monitor for an output directory.
 notify          Play/speak a local completion notification.
 adapters        List provider catalog and source-backed adapter notes.
+memory          Build/search/audit the AI-callable local evidence layer.
 ```
 
 ## Providers
@@ -174,7 +175,9 @@ uv run python -m research_x bookmarks `
 
 The bookmark chain can use direct web GraphQL replay, exported session cookies, browser network
 capture, and rendered fallbacks. Cursor state and raw GraphQL pages are kept so long runs can be
-resumed.
+resumed. `--all` uses cursor exhaustion, not "any items were found", as the completion signal; a
+cursor provider that reaches the end of the bookmark timeline can mark the pipeline complete even
+when the total is below the internal high-water limit.
 
 Main outputs:
 
@@ -425,6 +428,51 @@ the cited context chunks remain traceable back to local X rows or extracted exte
 
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
+
+Memory command surface:
+
+```text
+memory build-corpus       Build memory_documents and FTS from the canonical X DB.
+memory build-derived      Build place_card, author_profile, and ticker_event views.
+memory build-relations    Build explicit graph/relation edges.
+memory build-embeddings   Build semantic indexes with OpenAI/Gemini or diagnostic local_hash.
+memory audit              Check production readiness and diagnostic/fake artifacts.
+memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
+memory context            Build LLM-ready chunks and citation metadata.
+memory external-search    URL discovery provider role, fake or Serper.
+memory extract-url        Reader/extract provider role, fake or HTTP.
+memory answer             Generated answer artifact with source chunk citations.
+memory eval               Route-oriented memory checks.
+```
+
+Production memory runbook:
+
+```powershell
+uv run python -m research_x memory build-corpus --db runs/x_data.sqlite3
+uv run python -m research_x memory build-derived --db runs/x_data.sqlite3
+uv run python -m research_x memory build-relations --db runs/x_data.sqlite3
+uv run python -m research_x memory build-embeddings `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 768
+uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
+uv run python -m research_x memory eval --db runs/x_data.sqlite3 --strict
+uv run python -m research_x memory context `
+  --db runs/x_data.sqlite3 `
+  --query "北千住で保存したピザ店" `
+  --semantic-provider auto
+uv run python -m research_x memory answer `
+  --db runs/x_data.sqlite3 `
+  --query "北千住で保存したピザ店を教えて" `
+  --semantic-provider auto `
+  --answer-provider gemini `
+  --answer-model gemini-2.5-flash
+```
+
+`fake` providers are for deterministic wiring tests only. `memory audit --strict` flags stored
+fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
+semantic indexes, and other states that should not be treated as production evidence.
 
 Operational rule: build the memory corpus explicitly before searching or indexing. Search,
 relations, and embeddings should not silently rebuild empty memory tables, because that hides stale

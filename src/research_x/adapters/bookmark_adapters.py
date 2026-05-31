@@ -303,10 +303,10 @@ class GalleryDLBookmarksAdapter:
             "--no-download",
             "--cookies",
             str(cookies_path),
-            "--range",
-            f"1-{max(1, target.limit)}",
-            "https://x.com/i/bookmarks",
         ]
+        if not settings.exhaustive:
+            command.extend(["--range", f"1-{max(1, target.limit)}"])
+        command.append("https://x.com/i/bookmarks")
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -355,6 +355,7 @@ class GalleryDLBookmarksAdapter:
             metadata={
                 "library": "gallery-dl",
                 "work_dir": str(work_dir),
+                "exhaustive": settings.exhaustive,
                 "stderr": stderr_text[-1200:] if stderr_text else None,
             },
         )
@@ -718,10 +719,12 @@ class _GalleryDLBookmarkSettings:
         storage_state: Path,
         work_dir: Path,
         request_timeout_seconds: float,
+        exhaustive: bool,
     ) -> None:
         self.storage_state = storage_state
         self.work_dir = work_dir
         self.request_timeout_seconds = request_timeout_seconds
+        self.exhaustive = exhaustive
 
     @classmethod
     def from_config(cls, config: AdapterConfig) -> _GalleryDLBookmarkSettings:
@@ -731,6 +734,7 @@ class _GalleryDLBookmarkSettings:
             ),
             work_dir=Path(str(config.options.get("work_dir", ".secrets/gallery_dl_bookmarks"))),
             request_timeout_seconds=float(config.options.get("request_timeout_seconds", 120)),
+            exhaustive=bool(config.options.get("exhaustive", False)),
         )
 
     def readiness_error(self) -> str | None:

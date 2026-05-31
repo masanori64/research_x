@@ -186,7 +186,28 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
 
 
 _LATIN_TOKEN_RE = re.compile(r"[@#]?[A-Za-z0-9_][A-Za-z0-9_.:/-]{1,}")
-_DATE_RE = re.compile(r"\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2}日?)?")
+_DATE_RE = re.compile(
+    r"(?:\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2}日?)?|\d{1,2}/\d{1,2})"
+)
+_CJK_TOKEN_RE = re.compile(r"[一-龥ぁ-んァ-ンー]{2,}")
+_CJK_STOP_TOKENS = {
+    "これ",
+    "それ",
+    "あれ",
+    "この人",
+    "について",
+    "教えて",
+    "お願い",
+    "ください",
+    "できる",
+    "ほしい",
+    "保存した",
+    "出して",
+    "見たい",
+    "知りたい",
+    "わかる",
+    "どこ",
+}
 
 
 def build_query_plan(query: str) -> QueryPlan:
@@ -203,6 +224,9 @@ def build_query_plan(query: str) -> QueryPlan:
         if token:
             _append(terms, token)
             _append(exact_terms, token)
+    for token in _cjk_tokens(normalized):
+        _append(terms, token)
+        _append(exact_terms, token)
 
     for profile in INTENT_PROFILES:
         if any(_contains(normalized, trigger) for trigger in profile.triggers):
@@ -298,3 +322,26 @@ def _quoted_phrases(query: str) -> tuple[str, ...]:
         for match in re.findall(pattern, query):
             _append(phrases, match)
     return tuple(phrases)
+
+
+def _cjk_tokens(query: str) -> tuple[str, ...]:
+    tokens: list[str] = []
+    for raw in _CJK_TOKEN_RE.findall(query):
+        token = raw.strip(" 　。、,.!?！？「」『』（）()[]【】")
+        if len(token) < 2:
+            continue
+        if token.endswith("について") and len(token) > 6:
+            token = token.removesuffix("について")
+        if token.casefold() not in {value.casefold() for value in _CJK_STOP_TOKENS}:
+            _append(tokens, token)
+        for subtoken in _split_cjk_token(token):
+            if subtoken.casefold() in {value.casefold() for value in _CJK_STOP_TOKENS}:
+                continue
+            _append(tokens, subtoken)
+    return tuple(tokens)
+
+
+def _split_cjk_token(token: str) -> tuple[str, ...]:
+    separators = r"(?:について|にある|にいる|では|には|から|まで|なら|で|の|を|が|は|と)"
+    parts = re.split(separators, token)
+    return tuple(part for part in parts if len(part) >= 2)

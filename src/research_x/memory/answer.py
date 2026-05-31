@@ -125,6 +125,22 @@ class MemoryAnswer:
         }
 
 
+@dataclass(frozen=True)
+class ChunkSelection:
+    chunks: tuple[ContextChunk, ...]
+    omitted_chunk_ids: tuple[str, ...]
+    omitted_char_count: int
+    truncated_chunk_ids: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "selected_chunk_ids": [chunk.chunk_id for chunk in self.chunks],
+            "omitted_chunk_ids": list(self.omitted_chunk_ids),
+            "omitted_char_count": self.omitted_char_count,
+            "truncated_chunk_ids": list(self.truncated_chunk_ids),
+        }
+
+
 class AnswerProvider(Protocol):
     provider_id: str
     provider_role: str
@@ -310,11 +326,12 @@ def build_memory_answer(
         base_url=answer_base_url,
         timeout_seconds=answer_timeout_seconds,
     )
-    chunks = _select_chunks(
+    selection = _select_chunks(
         context_bundle.context_chunks,
         max_chunks=max_context_chunks,
         max_chars=max_context_chars,
     )
+    chunks = selection.chunks
     citations = _citations_for_chunks(context_bundle.citation_annotations, chunks)
     generated = provider.generate(
         question=query,
@@ -329,8 +346,8 @@ def build_memory_answer(
         prompt_version=prompt_version,
         max_context_chunks=max_context_chunks,
         max_context_chars=max_context_chars,
+        selection=selection,
     )
-    status = "ok" if chunks and generated.answer_text.strip() else "needs_review"
     answer_id = _answer_id(
         query,
         context_bundle.run_id,
@@ -346,11 +363,23 @@ def build_memory_answer(
         citations=citations,
         created_at=created_at,
     )
+    missing_markers = [
+        citation.metadata["marker"]
+        for citation in answer_citations
+        if not citation.metadata.get("marker_found")
+    ]
+    status = (
+        "ok"
+        if chunks and generated.answer_text.strip() and not missing_markers
+        else "needs_review"
+    )
     structured = {
         **generated.structured,
         "context_run_id": context_bundle.run_id,
         "raw_response_hash": generated.raw_response_hash,
+        "context_selection": selection.as_dict(),
         "selected_chunk_ids": [chunk.chunk_id for chunk in chunks],
+        "missing_citation_markers": missing_markers,
         "answer_citation_count": len(answer_citations),
     }
     answer = MemoryAnswer(
@@ -531,37 +560,65 @@ def _select_chunks(
     *,
     max_chunks: int,
     max_chars: int,
-) -> tuple[ContextChunk, ...]:
+) -> ChunkSelection:
     selected: list[ContextChunk] = []
     used_chars = 0
     limit_chars = max(1, max_chars)
+    truncated: list[str] = []
     for chunk in chunks[: max(1, max_chunks)]:
         next_chars = len(chunk.chunk_text)
         if selected and used_chars + next_chars > limit_chars:
             break
         if not selected and next_chars > limit_chars:
+            text = chunk.chunk_text[:limit_chars]
+            subchunk_id = _hash_id(
+                "answer-subchunk",
+                chunk.chunk_id,
+                str(limit_chars),
+                _text_hash(text),
+            )
             selected.append(
                 ContextChunk(
-                    chunk_id=chunk.chunk_id,
+                    chunk_id=subchunk_id,
                     run_id=chunk.run_id,
                     source_kind=chunk.source_kind,
                     source_id=chunk.source_id,
                     source_url=chunk.source_url,
                     provider=chunk.provider,
                     provider_role=chunk.provider_role,
-                    chunk_text=chunk.chunk_text[:limit_chars],
+                    chunk_text=text,
                     chunk_index=chunk.chunk_index,
-                    token_count=chunk.token_count,
+                    token_count=_estimate_tokens(text),
                     relevance_score=chunk.relevance_score,
                     extractor_version=chunk.extractor_version,
                     created_at=chunk.created_at,
-                    metadata=chunk.metadata,
+                    metadata={
+                        **chunk.metadata,
+                        "original_chunk_id": chunk.chunk_id,
+                        "truncated_for_answer": True,
+                        "omitted_chars": max(0, len(chunk.chunk_text) - len(text)),
+                    },
                 )
             )
+            truncated.append(chunk.chunk_id)
             break
         selected.append(chunk)
         used_chars += next_chars
-    return tuple(selected)
+    selected_ids = {
+        str(chunk.metadata.get("original_chunk_id") or chunk.chunk_id) for chunk in selected
+    }
+    omitted = tuple(chunk.chunk_id for chunk in chunks if chunk.chunk_id not in selected_ids)
+    omitted_chars = sum(
+        len(chunk.chunk_text)
+        for chunk in chunks
+        if chunk.chunk_id not in selected_ids
+    )
+    return ChunkSelection(
+        chunks=tuple(selected),
+        omitted_chunk_ids=omitted,
+        omitted_char_count=omitted_chars,
+        truncated_chunk_ids=tuple(truncated),
+    )
 
 
 def _citations_for_chunks(
@@ -569,9 +626,41 @@ def _citations_for_chunks(
     chunks: tuple[ContextChunk, ...],
 ) -> tuple[CitationAnnotation, ...]:
     by_chunk_id = {citation.chunk_id: citation for citation in citations}
-    return tuple(
-        by_chunk_id[chunk.chunk_id] for chunk in chunks if chunk.chunk_id in by_chunk_id
-    )
+    result: list[CitationAnnotation] = []
+    for chunk in chunks:
+        original_chunk_id = str(chunk.metadata.get("original_chunk_id") or chunk.chunk_id)
+        citation = by_chunk_id.get(original_chunk_id)
+        if citation is None:
+            continue
+        if citation.chunk_id == chunk.chunk_id:
+            result.append(citation)
+            continue
+        result.append(
+            CitationAnnotation(
+                citation_id=_hash_id(
+                    "answer-subchunk-citation",
+                    citation.citation_id,
+                    chunk.chunk_id,
+                ),
+                answer_id=citation.answer_id,
+                chunk_id=chunk.chunk_id,
+                source_kind=citation.source_kind,
+                source_id=citation.source_id,
+                source_url=citation.source_url,
+                title=citation.title,
+                field_path=citation.field_path,
+                support_type=citation.support_type,
+                evidence_status=citation.evidence_status,
+                confidence=citation.confidence,
+                created_at=citation.created_at,
+                metadata={
+                    **citation.metadata,
+                    "original_chunk_id": original_chunk_id,
+                    "truncated_for_answer": True,
+                },
+            )
+        )
+    return tuple(result)
 
 
 def _answer_citations(
@@ -585,6 +674,7 @@ def _answer_citations(
     for index, citation in enumerate(citations, start=1):
         marker = f"[{index}]"
         start, end = _marker_span(answer_text, marker)
+        marker_found = start is not None and end is not None
         result.append(
             AnswerCitation(
                 citation_id=_hash_id(
@@ -602,13 +692,14 @@ def _answer_citations(
                 answer_start_index=start,
                 answer_end_index=end,
                 field_path=f"answer_text.annotations[{index - 1}]",
-                support_type="supports_answer",
+                support_type="supports_answer" if marker_found else "uncited_context",
                 evidence_status=citation.evidence_status,
-                confidence=citation.confidence,
+                confidence=citation.confidence if marker_found else min(0.35, citation.confidence),
                 created_at=created_at,
                 metadata={
                     "display_index": index,
                     "marker": marker,
+                    "marker_found": marker_found,
                     "source_context_citation_id": citation.citation_id,
                     "source_field_path": citation.field_path,
                     **citation.metadata,
@@ -625,6 +716,7 @@ def _retrieval_config(
     prompt_version: str,
     max_context_chunks: int,
     max_context_chars: int,
+    selection: ChunkSelection,
 ) -> dict[str, Any]:
     return {
         "context_run_id": context_bundle.run_id,
@@ -638,6 +730,7 @@ def _retrieval_config(
         "prompt_version": prompt_version,
         "max_context_chunks": max_context_chunks,
         "max_context_chars": max_context_chars,
+        "context_selection": selection.as_dict(),
     }
 
 
@@ -811,3 +904,9 @@ def _truncate(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
     return text[: max(0, max_chars - 3)].rstrip() + "..."
+
+
+def _estimate_tokens(text: str) -> int:
+    ascii_words = len([part for part in text.split() if part])
+    non_ascii = sum(1 for char in text if ord(char) > 127)
+    return max(1, ascii_words + (non_ascii + 1) // 2)

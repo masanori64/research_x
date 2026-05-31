@@ -55,6 +55,11 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     exclude_plan = build_query_plan("最近保存した強化学習を古いものを除いて出して")
     assert exclude_plan.excludes_old is True
     assert "古い" not in exclude_plan.search_terms
+    place_plan = build_query_plan("北千住にあるピザの店")
+    assert "北千住" in place_plan.exact_terms
+    finance_plan = build_query_plan("5/29のキオクシアの株価急騰")
+    assert "5/29" in finance_plan.exact_terms
+    assert "キオクシア" in finance_plan.exact_terms
 
 
 def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
@@ -345,6 +350,12 @@ def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
     summary = build_memory_relations(db_path)
     relations = relations_for_doc(db_path, "tweet:tweet-1")
     results = search_memory(db_path, "引用元を見たい", limit=5)
+    expanded = search_memory(
+        db_path,
+        "引用元リンク",
+        limit=5,
+        doc_type="tweet_doc",
+    )
     bundle = build_evidence_bundle(db_path, "引用元を見たい", limit=3)
 
     assert summary.by_type["bookmark_of_tweet"] == 1
@@ -353,6 +364,10 @@ def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
     assert summary.by_type["has_quote_tree"] == 1
     assert any(relation.relation_type == "has_quote_tree" for relation in relations)
     assert any(result.score_components["relations"] > 0 for result in results)
+    assert any(
+        result.source_tweet_id == "tweet-1" and "relation_expansion" in result.match_method
+        for result in expanded
+    )
     assert bundle["hits"][0]["evidence"]["relations"]
 
 
@@ -381,6 +396,9 @@ def test_external_evidence_fake_provider_is_stored(tmp_path: Path) -> None:
     assert run_count == 1
     assert item_count == 2
     assert role == "index_provider"
+    report = audit_memory_db(db_path)
+    assert report.fixture_artifacts["memory_external_runs.fake_provider"] == 1
+    assert any("fixture/fake memory artifacts" in warning for warning in report.warnings)
 
 
 def test_external_evidence_serper_provider_uses_key_and_normalizes(
@@ -523,6 +541,7 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
         limit=2,
         doc_type="bookmark_doc",
         answer_provider="fake",
+        max_context_chars=40,
     )
 
     assert answer.answer_id
@@ -533,6 +552,7 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
     assert citation.answer_id == answer.answer_id
     assert citation.answer_start_index is not None
     assert citation.support_type == "supports_answer"
+    assert answer.structured["context_selection"]["truncated_chunk_ids"]
 
     with sqlite3.connect(db_path) as conn:
         answer_rows = conn.execute("SELECT COUNT(*) FROM memory_answer_runs").fetchone()[0]
@@ -596,13 +616,40 @@ def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
     assert "fake-key" not in json.dumps(answer.as_dict(), ensure_ascii=False)
 
 
+def test_memory_answer_marks_uncited_generated_text_for_review(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        del url, payload, headers, timeout_seconds, retries
+        return {"choices": [{"message": {"content": "根拠はありますが番号を付けません。"}}]}
+
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    monkeypatch.setattr("research_x.memory.answer._post_json", fake_post_json)
+
+    answer = build_memory_answer(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="gemini",
+    )
+
+    assert answer.status == "needs_review"
+    assert answer.structured["missing_citation_markers"] == ["[1]"]
+    assert answer.citation_annotations[0].support_type == "uncited_context"
+
+
 def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
     _seed_derived_source_rows(db_path)
     build_memory_corpus(db_path)
 
-    summary = build_derived_documents(db_path)
+    summary = build_derived_documents(db_path, max_source_docs_per_card=2)
     build_memory_relations(db_path)
 
     assert summary.place_cards >= 1
@@ -610,12 +657,21 @@ def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path)
     assert summary.ticker_events == 1
 
     place_results = search_memory(db_path, "北千住 ピザ", limit=3)
+    venue_results = search_memory(db_path, "横浜 ギャラリー 展示", limit=3)
     finance_results = search_memory(db_path, "5/29 キオクシア 株価 急騰", limit=3)
     author_results = search_memory(db_path, "@foodie ピザ", limit=5)
+    place_bundle = build_evidence_bundle(
+        db_path,
+        "北千住 ピザ",
+        limit=1,
+        doc_type="place_card",
+    )
 
     assert any(result.doc_type == "place_card" for result in place_results)
+    assert any(result.doc_type == "place_card" for result in venue_results)
     assert finance_results[0].doc_type == "ticker_event"
     assert any(result.doc_type == "author_profile" for result in author_results)
+    assert place_bundle["hits"][0]["evidence"]["derived"]["source_doc_count"] > 2
 
     with sqlite3.connect(db_path) as conn:
         doc_count = conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0]
@@ -634,9 +690,21 @@ def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path)
             WHERE doc_type = 'ticker_event'
             """
         ).fetchone()[0]
+        place_metadata = json.loads(
+            conn.execute(
+                """
+                SELECT metadata_json
+                FROM memory_documents
+                WHERE doc_type = 'place_card'
+                  AND metadata_json LIKE '%北千住%'
+                """
+            ).fetchone()[0]
+        )
 
     assert fts_count == doc_count
-    assert derived_relations >= summary.documents
+    assert derived_relations >= place_metadata["source_doc_count"]
+    assert place_metadata["source_doc_count"] > len(place_metadata["display_source_doc_ids"])
+    assert len(place_metadata["source_doc_ids"]) == place_metadata["source_doc_count"]
     assert "キオクシア" in ticker_metadata
 
 
@@ -942,6 +1010,48 @@ def _seed_derived_source_rows(db_path: Path) -> None:
                     "{}",
                     "2026-05-29T00:00:00+00:00",
                 ),
+                (
+                    "tweet-place-2",
+                    "https://x.com/foodie/status/tweet-place-2",
+                    "foodie",
+                    "北千住でピザとカフェを探すメモ。予約候補。",
+                    "2026-05-28T00:00:00+00:00",
+                    "2026-05-28T00:00:00+00:00",
+                    "2026-05-28T00:00:00+00:00",
+                    "bookmark_root",
+                    "bookmarks",
+                    "[]",
+                    "{}",
+                    "2026-05-28T00:00:00+00:00",
+                ),
+                (
+                    "tweet-place-3",
+                    "https://x.com/foodie/status/tweet-place-3",
+                    "foodie",
+                    "北千住のイタリアン。ピザ店リストの追加。",
+                    "2026-05-29T01:00:00+00:00",
+                    "2026-05-29T01:00:00+00:00",
+                    "2026-05-29T01:00:00+00:00",
+                    "bookmark_root",
+                    "bookmarks",
+                    "[]",
+                    "{}",
+                    "2026-05-29T01:00:00+00:00",
+                ),
+                (
+                    "tweet-venue",
+                    "https://x.com/art/status/tweet-venue",
+                    "artguide",
+                    "横浜のギャラリーで展示。週末に行きたい場所。",
+                    "2026-05-30T00:00:00+00:00",
+                    "2026-05-30T00:00:00+00:00",
+                    "2026-05-30T00:00:00+00:00",
+                    "bookmark_root",
+                    "bookmarks",
+                    "[]",
+                    "{}",
+                    "2026-05-30T00:00:00+00:00",
+                ),
             ],
         )
         conn.executemany(
@@ -954,6 +1064,9 @@ def _seed_derived_source_rows(db_path: Path) -> None:
             [
                 ("acct", "tweet-place", 1, "2026-05-27T00:00:00+00:00", "[]", "run"),
                 ("acct", "tweet-finance", 2, "2026-05-29T00:00:00+00:00", "[]", "run"),
+                ("acct", "tweet-place-2", 3, "2026-05-28T00:00:00+00:00", "[]", "run"),
+                ("acct", "tweet-place-3", 4, "2026-05-29T01:00:00+00:00", "[]", "run"),
+                ("acct", "tweet-venue", 5, "2026-05-30T00:00:00+00:00", "[]", "run"),
             ],
         )
 
