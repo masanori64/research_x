@@ -371,6 +371,19 @@ uv run python -m research_x memory context `
 This stores a search run, context chunks, and citation annotations without turning generated labels
 or answers into evidence.
 
+Derived memory documents are optional but recommended before embedding or workflow evaluation. They
+preserve raw X rows while adding higher-level searchable cards for places, authors, and finance
+events:
+
+```powershell
+uv run python -m research_x memory build-derived `
+  --db runs/x_data.sqlite3
+```
+
+This currently creates `place_card`, `author_profile`, and `ticker_event` rows in
+`memory_documents`, keeps source row provenance in metadata, and links each derived row back to its
+source documents with `derived_from_source` relations.
+
 Reader/extract is separate from URL discovery. Use `memory extract-url` to turn a known URL, or URLs
 from an external-search run, into external context chunks:
 

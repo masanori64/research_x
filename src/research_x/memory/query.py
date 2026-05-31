@@ -41,7 +41,18 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
     IntentProfile(
         intent_id="food",
         label="food/place",
-        triggers=("飯", "食事", "カフェ", "喫茶", "居酒屋", "レストラン", "ラーメン", "自炊"),
+        triggers=(
+            "飯",
+            "食事",
+            "カフェ",
+            "喫茶",
+            "居酒屋",
+            "レストラン",
+            "ラーメン",
+            "ピザ",
+            "イタリアン",
+            "自炊",
+        ),
         expansions=(
             "カフェ",
             "喫茶",
@@ -53,7 +64,26 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
             "店",
             "予約",
         ),
-        doc_type_weights={"bookmark_doc": 1.2, "media_doc": 0.4},
+        doc_type_weights={"place_card": 2.2, "bookmark_doc": 1.2, "media_doc": 0.4},
+    ),
+    IntentProfile(
+        intent_id="finance",
+        label="finance/company-event",
+        triggers=("株価", "急騰", "急落", "決算", "銘柄", "投資", "金融", "半導体", "キオクシア"),
+        expansions=(
+            "株価",
+            "急騰",
+            "急落",
+            "決算",
+            "銘柄",
+            "投資",
+            "金融",
+            "半導体",
+            "市場",
+            "業績",
+            "分析",
+        ),
+        doc_type_weights={"ticker_event": 2.2, "author_profile": 0.5, "bookmark_doc": 0.7},
     ),
     IntentProfile(
         intent_id="technology",
@@ -83,6 +113,13 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
             "実装",
         ),
         doc_type_weights={"bookmark_doc": 0.9, "tweet_doc": 0.5, "media_doc": 0.5},
+    ),
+    IntentProfile(
+        intent_id="author",
+        label="author/stance",
+        triggers=("作者", "この人", "発言", "見解", "展望", "意見", "スタンス"),
+        expansions=("作者", "author", "発言", "見解", "展望", "意見", "スタンス"),
+        doc_type_weights={"author_profile": 2.0, "bookmark_doc": 0.5, "tweet_doc": 0.5},
     ),
     IntentProfile(
         intent_id="science",
@@ -115,7 +152,7 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
         label="event/date",
         triggers=("イベント", "開催", "日付", "期限", "締切", "展示", "ライブ", "コミケ", "予約"),
         expansions=("イベント", "開催", "日付", "期限", "締切", "展示", "ライブ", "予約"),
-        doc_type_weights={"bookmark_doc": 1.0, "tweet_doc": 0.2},
+        doc_type_weights={"ticker_event": 0.5, "bookmark_doc": 1.0, "tweet_doc": 0.2},
     ),
     IntentProfile(
         intent_id="quote_context",
@@ -200,6 +237,8 @@ def build_query_plan(query: str) -> QueryPlan:
     wants_cross_account = "cross_account" in intents
     wants_event_dates = "event" in intents
     author_terms = tuple(token[1:] for token in terms if token.startswith("@") and len(token) > 1)
+    if author_terms:
+        doc_type_weights["author_profile"] = doc_type_weights.get("author_profile", 0.0) + 2.0
 
     if requires_bookmark:
         doc_type_weights["bookmark_doc"] = doc_type_weights.get("bookmark_doc", 0.0) + 1.0

@@ -8,6 +8,7 @@ from research_x.memory.answer import build_memory_answer
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import build_context_bundle
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
+from research_x.memory.derived import build_derived_documents
 from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
@@ -595,6 +596,50 @@ def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
     assert "fake-key" not in json.dumps(answer.as_dict(), ensure_ascii=False)
 
 
+def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    _seed_derived_source_rows(db_path)
+    build_memory_corpus(db_path)
+
+    summary = build_derived_documents(db_path)
+    build_memory_relations(db_path)
+
+    assert summary.place_cards >= 1
+    assert summary.author_profiles >= 1
+    assert summary.ticker_events == 1
+
+    place_results = search_memory(db_path, "北千住 ピザ", limit=3)
+    finance_results = search_memory(db_path, "5/29 キオクシア 株価 急騰", limit=3)
+    author_results = search_memory(db_path, "@foodie ピザ", limit=5)
+
+    assert any(result.doc_type == "place_card" for result in place_results)
+    assert finance_results[0].doc_type == "ticker_event"
+    assert any(result.doc_type == "author_profile" for result in author_results)
+
+    with sqlite3.connect(db_path) as conn:
+        doc_count = conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0]
+        fts_count = conn.execute("SELECT COUNT(*) FROM memory_document_fts").fetchone()[0]
+        derived_relations = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_relations
+            WHERE relation_type = 'derived_from_source'
+            """
+        ).fetchone()[0]
+        ticker_metadata = conn.execute(
+            """
+            SELECT metadata_json
+            FROM memory_documents
+            WHERE doc_type = 'ticker_event'
+            """
+        ).fetchone()[0]
+
+    assert fts_count == doc_count
+    assert derived_relations >= summary.documents
+    assert "キオクシア" in ticker_metadata
+
+
 def test_reader_extract_fake_provider_stores_external_context(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
 
@@ -716,6 +761,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     _seed_db(db_path)
 
     assert main(["memory", "build-corpus", "--db", str(db_path)]) == 0
+    assert main(["memory", "build-derived", "--db", str(db_path)]) == 0
     assert main(
         [
             "memory",
@@ -820,6 +866,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
 
     output = external_output_start + extract_output + external_output + capsys.readouterr().out
     assert "tweet-1" in output
+    assert "place_cards" in output
     assert "hits" in output
     assert "context_chunks" in output
     assert "answer_text" in output
@@ -853,6 +900,62 @@ def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, cap
     captured = capsys.readouterr()
     assert "diagnostic local_hash" in captured.err
     assert "Traceback" not in captured.err
+
+
+def _seed_derived_source_rows(db_path: Path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            """
+            INSERT INTO tweets (
+                tweet_id, url, author_screen_name, text, created_at,
+                first_observed_at, last_observed_at, role, collection_kind,
+                providers_json, raw_json, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "tweet-place",
+                    "https://x.com/foodie/status/tweet-place",
+                    "foodie",
+                    "北千住のピザ店。イタリアンのランチが良かったのであとで行きたい。",
+                    "2026-05-27T00:00:00+00:00",
+                    "2026-05-27T00:00:00+00:00",
+                    "2026-05-27T00:00:00+00:00",
+                    "bookmark_root",
+                    "bookmarks",
+                    "[]",
+                    "{}",
+                    "2026-05-27T00:00:00+00:00",
+                ),
+                (
+                    "tweet-finance",
+                    "https://x.com/market/status/tweet-finance",
+                    "marketwatcher",
+                    "5/29 キオクシアの株価が急騰。半導体と決算の分析メモ。",
+                    "2026-05-29T00:00:00+00:00",
+                    "2026-05-29T00:00:00+00:00",
+                    "2026-05-29T00:00:00+00:00",
+                    "bookmark_root",
+                    "bookmarks",
+                    "[]",
+                    "{}",
+                    "2026-05-29T00:00:00+00:00",
+                ),
+            ],
+        )
+        conn.executemany(
+            """
+            INSERT INTO account_bookmarks (
+                account_id, tweet_id, bookmark_index, observed_at, providers_json, run_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                ("acct", "tweet-place", 1, "2026-05-27T00:00:00+00:00", "[]", "run"),
+                ("acct", "tweet-finance", 2, "2026-05-29T00:00:00+00:00", "[]", "run"),
+            ],
+        )
 
 
 def _seed_db(db_path: Path) -> None:

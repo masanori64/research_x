@@ -46,6 +46,7 @@ def build_memory_relations(db_path: str | Path) -> RelationBuildSummary:
         _quote_relations(conn, relations)
         _same_bookmarked_tweet_relations(conn, relations)
         _older_same_author_label_relations(conn, relations)
+        _derived_document_relations(conn, relations)
 
         conn.execute("DELETE FROM memory_relations")
         for relation in relations.values():
@@ -317,6 +318,37 @@ def _older_same_author_label_relations(
                 )
             previous = row
             previous_tweet_id = tweet_id
+
+
+def _derived_document_relations(
+    conn: sqlite3.Connection,
+    relations: dict[str, MemoryRelation],
+) -> None:
+    rows = conn.execute(
+        """
+        SELECT doc_id, doc_type, metadata_json
+        FROM memory_documents
+        WHERE doc_type IN ('place_card', 'author_profile', 'ticker_event')
+        ORDER BY doc_type, doc_id
+        """
+    ).fetchall()
+    for row in rows:
+        metadata = _loads_json(row["metadata_json"])
+        for source_doc_id in metadata.get("source_doc_ids") or ():
+            if not source_doc_id:
+                continue
+            _add_relation(
+                relations,
+                str(row["doc_id"]),
+                str(source_doc_id),
+                "derived_from_source",
+                strength=0.65,
+                status="derived",
+                evidence={
+                    "derived_kind": row["doc_type"],
+                    "source_doc_id": str(source_doc_id),
+                },
+            )
 
 
 def _add_relation(

@@ -61,6 +61,7 @@ src/research_x/memory/
   schema.py
   search.py
   context.py
+  derived.py
   evidence.py
   external.py
   reader.py
@@ -76,6 +77,7 @@ Implemented commands:
 
 ```text
 research_x memory build-corpus
+research_x memory build-derived
 research_x memory audit
 research_x memory build-embeddings
 research_x memory embedding-specs
@@ -112,6 +114,8 @@ Implemented behavior:
   citation-ready metadata;
 - `memory context --external-run-id` integration that combines local X chunks with extracted
   external Web chunks under one context bundle/run id;
+- `memory build-derived` command that adds rebuildable `place_card`, `author_profile`, and
+  `ticker_event` documents without replacing raw X records;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
   semantic indexes, and weak retrieval behavior.
 
@@ -146,7 +150,7 @@ Implementation checklist:
 - [x] Split local retrieved hits into `memory context` chunks and citation-ready source metadata.
 - [ ] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
-- [ ] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.
+- [x] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.
 - [x] Add an external evidence provider interface with a no-network fake provider first.
 - [x] Add Serper as an optional Google SERP `web-search` / `index_provider`.
 - [x] Add reader/extract provider interface with no-network fake provider first.
@@ -160,7 +164,6 @@ Implementation checklist:
 Future command candidates:
 
 ```text
-research_x memory build-derived
 research_x memory cite
 research_x memory workflow
 ```

@@ -251,6 +251,30 @@ def main(argv: list[str] | None = None) -> int:
         default="runs/x_data.sqlite3",
         help="SQLite database path",
     )
+    memory_derived_parser = memory_subparsers.add_parser(
+        "build-derived",
+        help="build derived place, author, and ticker-event memory documents",
+    )
+    memory_derived_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_derived_parser.add_argument(
+        "--kind",
+        action="append",
+        choices=["place_card", "author_profile", "ticker_event"],
+        default=None,
+        help="derived document kind to rebuild; repeat to select multiple",
+    )
+    memory_derived_parser.add_argument(
+        "--max-source-docs-per-card",
+        type=int,
+        default=8,
+        help="maximum source documents quoted in each derived card",
+    )
+    memory_derived_parser.add_argument(
+        "--min-author-docs",
+        type=int,
+        default=1,
+        help="minimum source documents required for an author_profile",
+    )
     memory_audit_parser = memory_subparsers.add_parser(
         "audit",
         help="audit memory indexes and fail in strict mode when production readiness is missing",
@@ -1373,6 +1397,17 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         from research_x.memory.corpus import build_memory_corpus, summary_as_dict
 
         summary = build_memory_corpus(args.db)
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "build-derived":
+        from research_x.memory.derived import build_derived_documents, summary_as_dict
+
+        summary = build_derived_documents(
+            args.db,
+            kinds=tuple(args.kind) if args.kind else None,
+            max_source_docs_per_card=args.max_source_docs_per_card,
+            min_author_docs=args.min_author_docs,
+        )
         print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
         return 0
     if args.memory_command == "audit":

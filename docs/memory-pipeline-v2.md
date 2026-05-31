@@ -660,6 +660,7 @@ memory_citation_annotations -> Layer 5 citation-ready source metadata
 memory_answer_runs      -> Layer 6 answer artifacts
 memory_workflow_runs    -> Layer 7 bounded workflow traces
 memory_workflow_steps   -> Layer 7 bounded workflow step logs
+memory build-derived    -> Layer 1 derived cards for places/authors/ticker events
 memory evidence         -> legacy-compatible local hit bundle
 memory context          -> Layer 4 chunks plus Layer 5 citation metadata
 memory extract-url      -> Layer 3 reader/extract to Layer 4 external chunks
@@ -672,7 +673,8 @@ memory audit            -> rebuild/index health gate
 What may need refactoring later:
 
 - `memory_embeddings` primary key may need `embedding_profile` and `text_template_version`.
-- `memory_documents` may need more doc types or a separate derived-view builder.
+- `memory_documents` now includes derived cards from `memory build-derived`; future derived types
+  should keep the same provenance and rebuild behavior.
 - `memory evidence` remains a legacy-compatible hit bundle; new AI callers should prefer
   `memory context` for chunks and citation metadata.
 - feedback scoring should eventually become query/route-aware.
