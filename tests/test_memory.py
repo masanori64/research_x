@@ -531,6 +531,119 @@ def test_memory_relations_feed_search_and_evidence(tmp_path: Path) -> None:
     assert bundle["hits"][0]["evidence"]["relations"]
 
 
+def test_memory_relations_build_url_topic_and_freshness_edges(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            """
+            INSERT INTO tweets (
+                tweet_id, url, author_screen_name, text, created_at,
+                first_observed_at, last_observed_at, role, collection_kind,
+                providers_json, raw_json, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "tweet-old",
+                    "https://x.com/a/status/tweet-old",
+                    "a",
+                    "古い強化学習とロボットのメモ。",
+                    "2025-01-01T00:00:00+00:00",
+                    "2025-01-01T00:00:00+00:00",
+                    "2025-01-01T00:00:00+00:00",
+                    "profile",
+                    "profile",
+                    "[]",
+                    "{}",
+                    "2025-01-01T00:00:00+00:00",
+                ),
+                (
+                    "tweet-new",
+                    "https://x.com/a/status/tweet-new",
+                    "a",
+                    "新しい強化学習とロボットの更新メモ。",
+                    "2026-06-01T00:00:00+00:00",
+                    "2026-06-01T00:00:00+00:00",
+                    "2026-06-01T00:00:00+00:00",
+                    "profile",
+                    "profile",
+                    "[]",
+                    "{}",
+                    "2026-06-01T00:00:00+00:00",
+                ),
+            ],
+        )
+        conn.executemany(
+            """
+            INSERT INTO ai_labels (
+                label_id, account_id, tweet_id, label_scope, category_id,
+                category_label, confidence, tags_json, summary, rationale,
+                model, run_id, generated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "label-old",
+                    None,
+                    "tweet-old",
+                    "tweets",
+                    "tech",
+                    "Technology",
+                    0.9,
+                    '["強化学習", "ロボット"]',
+                    "old summary",
+                    "rationale",
+                    "fake-model",
+                    "run",
+                    "2026-05-26T00:00:00+00:00",
+                ),
+                (
+                    "label-new",
+                    None,
+                    "tweet-new",
+                    "tweets",
+                    "tech",
+                    "Technology",
+                    0.9,
+                    '["強化学習", "ロボット"]',
+                    "new summary",
+                    "rationale",
+                    "fake-model",
+                    "run",
+                    "2026-05-26T00:00:00+00:00",
+                ),
+            ],
+        )
+    build_memory_corpus(db_path)
+
+    summary = build_memory_relations(db_path)
+    bookmark_relations = relations_for_doc(db_path, "bookmark:acct:tweet-1", limit=20)
+    old_relations = relations_for_doc(db_path, "tweet:tweet-old", limit=20)
+    new_relations = relations_for_doc(db_path, "tweet:tweet-new", limit=20)
+    results = search_memory(
+        db_path,
+        "最近保存した強化学習とロボット系の情報を古いものを除いて出して",
+        limit=5,
+    )
+
+    assert summary.by_type["same_url"] >= 1
+    assert summary.by_type["same_topic"] >= 1
+    assert summary.by_type["newer_than"] >= 1
+    assert summary.by_type["older_than"] >= 1
+    assert summary.by_type["obsolete_candidate"] >= 1
+    assert any(relation.relation_type == "same_url" for relation in bookmark_relations)
+    assert any(relation.relation_type == "older_than" for relation in old_relations)
+    assert any(relation.relation_type == "obsolete_candidate" for relation in old_relations)
+    assert any(relation.relation_type == "newer_than" for relation in new_relations)
+    assert any(
+        (result.metadata.get("relation_counts") or {}).get("newer_than")
+        for result in results
+    )
+
+
 def test_memory_relation_rebuild_preserves_manual_edges(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)

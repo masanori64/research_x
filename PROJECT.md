@@ -111,7 +111,8 @@ Implemented behavior:
 - explicit diagnostic-only `local_hash` embeddings;
 - embedding indexes tracked by provider, model, dimensions, profile, text template, and source
   document hash;
-- relation edges for bookmarks, media, quotes, duplicate bookmarks, and weak stale candidates;
+- relation edges for bookmarks, media, quotes, duplicate bookmarks, same URL, same topic,
+  newer/older neighbors, and obsolete candidates;
 - relation rebuilds preserve non-builder relation types such as future `supports` and
   `contradicts` edges;
 - external URL-discovery provider contract with no-network fake provider and optional Serper
@@ -197,8 +198,8 @@ research_x memory cite
 - Add production embedding rebuild/eval for the chosen provider and template on the real DB.
 - Add profile-specific embeddings only after route evals show the broad `general_memory` index is
   not enough.
-- Strengthen freshness relations: `same_url`, `same_topic`, `newer_than`, `supports`,
-  `contradicts`, `obsolete_candidate`.
+- Add AI/judge-assisted `supports` and `contradicts` relations after the deterministic freshness
+  graph is stable.
 - Integrate Corpus2Skill OSS as a navigation map, not as the source of final evidence.
 - Add external Web evidence providers only behind explicit provider roles and audit logs.
 

@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
@@ -18,9 +19,16 @@ BUILDER_RELATION_TYPES = (
     "quote_tree_includes",
     "has_quote_tree",
     "same_bookmarked_tweet",
+    "same_url",
+    "same_topic",
+    "newer_than",
+    "older_than",
+    "obsolete_candidate",
     "older_same_author_label",
     "derived_from_source",
 )
+
+OBSOLETE_CANDIDATE_GAP_DAYS = 180
 
 
 @dataclass(frozen=True)
@@ -56,6 +64,9 @@ def build_memory_relations(db_path: str | Path) -> RelationBuildSummary:
         _media_relations(conn, relations)
         _quote_relations(conn, relations)
         _same_bookmarked_tweet_relations(conn, relations)
+        _same_url_relations(conn, relations)
+        _same_topic_relations(conn, relations)
+        _freshness_relations(conn, relations)
         _older_same_author_label_relations(conn, relations)
         _derived_document_relations(conn, relations)
 
@@ -286,6 +297,115 @@ def _same_bookmarked_tweet_relations(
             )
 
 
+def _same_url_relations(conn: sqlite3.Connection, relations: dict[str, MemoryRelation]) -> None:
+    groups: dict[str, list[sqlite3.Row]] = defaultdict(list)
+    for row in _document_rows(conn):
+        url = _doc_url(row)
+        if not url:
+            continue
+        groups[url].append(row)
+
+    for url, group in groups.items():
+        if len(group) < 2:
+            continue
+        _connect_ordered_group(
+            relations,
+            sorted(group, key=_doc_sort_key),
+            "same_url",
+            strength=0.72,
+            status="active",
+            evidence_factory=lambda left, right, shared_url=url: {
+                "url": shared_url,
+                "left_doc_id": left["doc_id"],
+                "right_doc_id": right["doc_id"],
+            },
+        )
+
+
+def _same_topic_relations(conn: sqlite3.Connection, relations: dict[str, MemoryRelation]) -> None:
+    groups: dict[str, list[sqlite3.Row]] = defaultdict(list)
+    for row in _document_rows(conn):
+        for topic in _topic_terms(row):
+            groups[topic].append(row)
+
+    for topic, group in groups.items():
+        unique = _unique_rows(group)
+        if len(unique) < 2:
+            continue
+        _connect_ordered_group(
+            relations,
+            sorted(unique, key=_doc_sort_key),
+            "same_topic",
+            strength=0.44,
+            status="topic_neighbor",
+            evidence_factory=lambda left, right, shared_topic=topic: {
+                "topic": shared_topic,
+                "left_doc_id": left["doc_id"],
+                "right_doc_id": right["doc_id"],
+            },
+        )
+
+
+def _freshness_relations(conn: sqlite3.Connection, relations: dict[str, MemoryRelation]) -> None:
+    groups: dict[tuple[str, str], list[sqlite3.Row]] = defaultdict(list)
+    for row in _document_rows(conn):
+        author = str(row["author_screen_name"] or "").casefold()
+        if not author:
+            continue
+        for topic in _topic_terms(row):
+            groups[(author, topic)].append(row)
+
+    for (author, topic), group in groups.items():
+        unique = sorted(_unique_rows(group), key=_doc_sort_key)
+        if len(unique) < 2:
+            continue
+        previous: sqlite3.Row | None = None
+        previous_date: datetime | None = None
+        for row in unique:
+            current_date = _doc_datetime(row)
+            if previous is not None and previous_date is not None and current_date is not None:
+                gap_days = max(0.0, (current_date - previous_date).total_seconds() / 86400.0)
+                evidence = {
+                    "author": author,
+                    "topic": topic,
+                    "older_doc_id": previous["doc_id"],
+                    "newer_doc_id": row["doc_id"],
+                    "older_date": previous["created_at"] or previous["observed_at"],
+                    "newer_date": row["created_at"] or row["observed_at"],
+                    "gap_days": round(gap_days, 2),
+                }
+                _add_relation(
+                    relations,
+                    str(row["doc_id"]),
+                    str(previous["doc_id"]),
+                    "newer_than",
+                    strength=0.58,
+                    status="freshness_neighbor",
+                    evidence=evidence,
+                )
+                _add_relation(
+                    relations,
+                    str(previous["doc_id"]),
+                    str(row["doc_id"]),
+                    "older_than",
+                    strength=0.58,
+                    status="freshness_neighbor",
+                    evidence=evidence,
+                )
+                if gap_days >= OBSOLETE_CANDIDATE_GAP_DAYS:
+                    _add_relation(
+                        relations,
+                        str(previous["doc_id"]),
+                        str(row["doc_id"]),
+                        "obsolete_candidate",
+                        strength=0.34,
+                        status="candidate",
+                        evidence=evidence,
+                    )
+            previous = row
+            previous_date = current_date
+
+
 def _older_same_author_label_relations(
     conn: sqlite3.Connection,
     relations: dict[str, MemoryRelation],
@@ -360,6 +480,112 @@ def _derived_document_relations(
                     "source_doc_id": str(source_doc_id),
                 },
             )
+
+
+def _document_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT
+            doc_id, doc_type, source_tweet_id, account_id, author_screen_name,
+            metadata_json, created_at, observed_at, updated_at
+        FROM memory_documents
+        ORDER BY observed_at, created_at, doc_id
+        """
+    ).fetchall()
+
+
+def _connect_ordered_group(
+    relations: dict[str, MemoryRelation],
+    rows: list[sqlite3.Row],
+    relation_type: str,
+    *,
+    strength: float,
+    status: str,
+    evidence_factory,
+) -> None:
+    previous: sqlite3.Row | None = None
+    for row in rows:
+        if previous is not None:
+            _add_relation(
+                relations,
+                str(previous["doc_id"]),
+                str(row["doc_id"]),
+                relation_type,
+                strength=strength,
+                status=status,
+                evidence=evidence_factory(previous, row),
+            )
+        previous = row
+
+
+def _unique_rows(rows: list[sqlite3.Row]) -> list[sqlite3.Row]:
+    seen: set[str] = set()
+    unique = []
+    for row in rows:
+        doc_id = str(row["doc_id"])
+        if doc_id in seen:
+            continue
+        seen.add(doc_id)
+        unique.append(row)
+    return unique
+
+
+def _doc_url(row: sqlite3.Row) -> str | None:
+    metadata = _loads_json(row["metadata_json"])
+    url = metadata.get("url")
+    if not isinstance(url, str) or not url.strip():
+        return None
+    return _normalize_url(url)
+
+
+def _topic_terms(row: sqlite3.Row) -> tuple[str, ...]:
+    metadata = _loads_json(row["metadata_json"])
+    terms: list[str] = []
+    for key in ("labels", "top_labels", "place_terms", "areas", "food_terms"):
+        values = metadata.get(key)
+        if isinstance(values, list | tuple):
+            terms.extend(str(value) for value in values)
+    for key in ("company_or_ticker", "place_key"):
+        value = metadata.get(key)
+        if isinstance(value, str):
+            terms.append(value)
+    return tuple(_clean_topic(term) for term in terms if _clean_topic(term))
+
+
+def _clean_topic(value: str) -> str:
+    cleaned = " ".join(value.casefold().strip().split())
+    return cleaned[:80]
+
+
+def _normalize_url(url: str) -> str:
+    parsed = urlsplit(url.strip())
+    scheme = parsed.scheme.lower() or "https"
+    netloc = parsed.netloc.lower()
+    path = parsed.path.rstrip("/") or parsed.path
+    query_pairs = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.lower().startswith("utm_")
+    ]
+    query = urlencode(query_pairs, doseq=True)
+    return urlunsplit((scheme, netloc, path, query, ""))
+
+
+def _doc_sort_key(row: sqlite3.Row) -> tuple[str, str]:
+    return (str(row["created_at"] or row["observed_at"] or ""), str(row["doc_id"]))
+
+
+def _doc_datetime(row: sqlite3.Row) -> datetime | None:
+    value = str(row["created_at"] or row["observed_at"] or "")
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _add_relation(

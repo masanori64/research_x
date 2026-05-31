@@ -643,10 +643,21 @@ def _relation_score(
             score += min(0.6, 0.2 * relation_counts.get("incoming:has_media", 0))
     if plan.wants_cross_account:
         score += min(2.0, 0.5 * relation_counts.get("same_bookmarked_tweet", 0))
+    if plan.intents:
+        score += min(0.6, 0.15 * relation_counts.get("same_topic", 0))
+        score += min(0.3, 0.1 * relation_counts.get("incoming:same_topic", 0))
+    if plan.requires_bookmark_context or plan.requires_quote_context:
+        score += min(0.4, 0.1 * relation_counts.get("same_url", 0))
+        score += min(0.2, 0.1 * relation_counts.get("incoming:same_url", 0))
     if plan.excludes_old:
         score -= min(2.0, 0.6 * relation_counts.get("older_same_author_label", 0))
+        score -= min(1.5, 0.5 * relation_counts.get("older_than", 0))
+        score -= min(1.2, 0.4 * relation_counts.get("incoming:newer_than", 0))
+        score -= min(1.0, 0.5 * relation_counts.get("obsolete_candidate", 0))
     if plan.prefers_recent:
         score += min(1.0, 0.4 * relation_counts.get("incoming:older_same_author_label", 0))
+        score += min(1.4, 0.45 * relation_counts.get("newer_than", 0))
+        score += min(1.0, 0.35 * relation_counts.get("incoming:older_than", 0))
     return score
 
 

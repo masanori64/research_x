@@ -390,6 +390,11 @@ This currently creates `place_card`, `author_profile`, and `ticker_event` rows i
 `memory_documents`, keeps source row provenance in metadata, and links each derived row back to its
 source documents with `derived_from_source` relations.
 
+`memory build-relations` also builds deterministic graph edges for quote/media/bookmark context,
+duplicate bookmarks, shared URLs, shared topics, newer/older same-author topic neighbors, and
+`obsolete_candidate` freshness hints. Those freshness hints are ranking signals, not proof that old
+content is wrong.
+
 Reader/extract is separate from URL discovery. Use `memory extract-url` to turn a known URL, or URLs
 from an external-search run, into external context chunks:
 

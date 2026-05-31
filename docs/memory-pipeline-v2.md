@@ -219,6 +219,24 @@ Implementation impact:
 - `memory audit --strict` warns when embedding rows lack source hashes, because that means the
   index predates the V2 provenance contract.
 
+### 2026-06-01: Deterministic Freshness Relations First
+
+Decision:
+
+- Build deterministic `same_url`, `same_topic`, `newer_than`, `older_than`, and
+  `obsolete_candidate` edges before adding AI-generated support/contradiction judgments.
+- Treat `obsolete_candidate` as a candidate relation only. It marks an older same-author/same-topic
+  neighbor separated by a large time gap, not proof that the older content is false.
+
+Implementation impact:
+
+- `memory build-relations` now adds URL, topic, and newer/older neighbor edges from
+  `memory_documents` metadata.
+- `memory search` uses these relation counts for freshness-aware ranking while keeping the raw
+  X rows and derived documents unchanged.
+- Future `supports` / `contradicts` edges should be added by a reviewed extraction or judge step,
+  not inferred solely from date ordering.
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.
@@ -663,7 +681,7 @@ The local DB remains the evidence source. Corpus2Skill is a map.
 
 Do not introduce a heavy graph framework before the relation table is strong.
 
-Near-term relation types:
+Implemented and near-term relation types:
 
 - `bookmark_of_tweet`
 - `has_media`
@@ -675,9 +693,9 @@ Near-term relation types:
 - `same_topic`
 - `newer_than`
 - `older_than`
-- `supports`
-- `contradicts`
 - `obsolete_candidate`
+- `supports` (future AI/judge-assisted)
+- `contradicts` (future AI/judge-assisted)
 
 Relations must include:
 
