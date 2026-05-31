@@ -2,6 +2,10 @@
 
 This mode uses the adapters as cooperating providers instead of selecting one winner.
 
+Adapter source URLs, readiness notes, blockers, and source-backed evidence live in
+`src/research_x/adapters/catalog.py`. Keep this file focused on operational provider chaining,
+auth/session handling, shared store behavior, and current smoke expectations.
+
 ## Provider Roles
 
 | Provider | Pipeline role |

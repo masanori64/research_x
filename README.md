@@ -8,6 +8,18 @@ storing the results in a canonical local SQLite database. The current production
 bookmark/tweet acquisition, account-scoped browser session handling, media capture, AI labeling,
 and a local web app for running and monitoring jobs.
 
+## Documentation Map
+
+- `AGENTS.md`: short always-read agent rules and command policy.
+- `README.md`: repository entry point and current CLI surface.
+- `PROJECT.md`: memory-search implementation checklist.
+- `docs/memory-pipeline-v2.md`: single detailed architecture source for the AI-callable evidence
+  pipeline.
+- `docs/pipeline.md`: acquisition/auth/provider pipeline details.
+
+Do not add new memory-architecture Markdown files unless explicitly requested. Update the existing
+source-of-truth file instead.
+
 ## Current Mission
 
 The repository has two phases:
@@ -89,9 +101,7 @@ uv run python -m research_x adapters --json
 
 See also:
 
-- `docs/adapter-research.md`
 - `docs/pipeline.md`
-- `docs/authenticated-smoke.md`
 
 ## Canonical Store
 
@@ -301,52 +311,37 @@ uv run python -m research_x progress `
 
 ## Next Project: AI-Callable Memory Search
 
-The next major branch should build on the existing DB, not replace it.
+The next major branch builds an AI-callable, user-specific evidence system over the existing X DB.
+The detailed architecture source is [docs/memory-pipeline-v2.md](docs/memory-pipeline-v2.md).
+The implementation checklist is [PROJECT.md](PROJECT.md).
+
+The current `research_x.memory` package is the lower retrieval foundation, not disposable work. The
+next phase keeps the raw X DB, `memory_documents`, FTS, production embeddings, relations, evidence,
+audit, feedback, and evals, then adds explicit context chunks, citations, answer artifacts, and
+workflow traces above them.
 
 Target architecture:
 
 ```text
 Raw X DB
-  -> Living Corpus Layer
-  -> Hybrid Retrieval Core
-  -> Temporal / Obsolescence Layer
-  -> Corpus2Skill Navigation Layer
-  -> Evidence Bundle API
-  -> Lightweight Agentic Search Tool
-  -> Feedback / Eval / Rebuild Loop
+  -> Normalized / Derived Views
+  -> Retrieval Engines
+  -> LLM-Ready Context Chunks
+  -> Citation Metadata
+  -> Bounded Workflows / Orchestrator
+  -> Answer Artifacts
+  -> Feedback / Eval / Audit / Rebuild
 ```
 
-Initial implementation should be a separate `research_x.memory` package, with commands such as:
+Core invariant:
 
 ```text
-research_x memory build-corpus
-research_x memory audit
-research_x memory build-embeddings
-research_x memory embedding-specs
-research_x memory build-relations
-research_x memory relations
-research_x memory plan
-research_x memory search
-research_x memory evidence
-research_x memory export-corpus2skill
-research_x memory feedback
-research_x memory eval
+raw source != searchable document != search result != context chunk != citation != answer
 ```
 
-Do this in stages:
-
-1. canonical/living documents from the current SQLite DB,
-2. SQLite FTS5 search,
-3. compact evidence bundles,
-4. feedback table,
-5. fixed evaluation queries,
-6. natural-language query planning,
-7. local hybrid ranking from FTS/substring/metadata/feedback/freshness signals,
-8. embedding index and semantic reranking,
-9. relation edges for bookmarks, media, quotes, duplicate bookmarks, and stale candidates,
-10. strict audit checks for missing/stale indexes and diagnostic-only embeddings,
-11. Corpus2Skill export/navigation,
-12. richer freshness/obsolete edges.
+Next implementation step: add explicit `search_runs`, `tool_calls`, `context_chunks`,
+`citation_annotations`, `answer_runs`, and workflow traces while keeping existing memory commands
+working.
 
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
@@ -372,7 +367,7 @@ src/research_x/
   cli.py                 CLI entrypoint.
 
 examples/                Config and taxonomy examples.
-docs/                    Research notes and pipeline documentation.
+docs/                    Acquisition pipeline docs and memory architecture.
 tests/                   Unit tests.
 ```
 
