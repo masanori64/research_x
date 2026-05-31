@@ -358,6 +358,19 @@ For Serper, set `SERPER_API_KEY` and switch `--provider serper`. Serper results 
 signals, not citation-ready evidence; reader/extract or LLM-context providers must produce grounded
 chunks before answers cite them.
 
+Local context generation is now split from raw retrieval. Use `memory context` when an AI caller
+needs LLM-ready chunks and citation-ready source metadata:
+
+```powershell
+uv run python -m research_x memory context `
+  --db runs/x_data.sqlite3 `
+  --query "強化学習 ロボット" `
+  --limit 5
+```
+
+This stores a search run, context chunks, and citation annotations without turning generated labels
+or answers into evidence.
+
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 

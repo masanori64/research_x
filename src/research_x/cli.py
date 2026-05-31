@@ -348,6 +348,32 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument("--semantic-base-url", default=None)
     memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_evidence_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_context_parser = memory_subparsers.add_parser(
+        "context",
+        help="build LLM-ready context chunks and citation-ready metadata for a memory query",
+    )
+    memory_context_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_context_parser.add_argument("--query", required=True)
+    memory_context_parser.add_argument("--limit", type=int, default=5)
+    memory_context_parser.add_argument("--doc-type", default=None)
+    memory_context_parser.add_argument("--account", default=None)
+    memory_context_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=["auto", "local_hash", "openai", "gemini"],
+    )
+    memory_context_parser.add_argument("--semantic-model", default=None)
+    memory_context_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_context_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_context_parser.add_argument("--semantic-base-url", default=None)
+    memory_context_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_context_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_context_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store the search run, context chunks, and citation annotations",
+    )
     memory_external_parser = memory_subparsers.add_parser(
         "external-search",
         help="run an external URL-discovery provider and store normalized results",
@@ -1335,6 +1361,26 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_candidates=args.semantic_candidates,
         )
         print(evidence_bundle_json(bundle))
+        return 0
+    if args.memory_command == "context":
+        from research_x.memory.context import build_context_bundle, context_bundle_json
+
+        bundle = build_context_bundle(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            store=args.store,
+        )
+        print(context_bundle_json(bundle))
         return 0
     if args.memory_command == "external-search":
         from research_x.memory.external import external_evidence_json, search_external_evidence

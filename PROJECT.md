@@ -60,6 +60,7 @@ src/research_x/memory/
   corpus.py
   schema.py
   search.py
+  context.py
   evidence.py
   external.py
   feedback.py
@@ -82,6 +83,7 @@ research_x memory relations
 research_x memory plan
 research_x memory search
 research_x memory evidence
+research_x memory context
 research_x memory external-search
 research_x memory export-corpus2skill
 research_x memory feedback
@@ -100,6 +102,10 @@ Implemented behavior:
 - external URL-discovery provider contract with no-network fake provider and optional Serper
   provider;
 - normalized external discovery run/item storage in the SQLite DB;
+- V2 search run, tool call, context chunk, citation annotation, answer run, and workflow trace
+  schema;
+- `memory context` command that turns local retrieved hits into LLM-ready chunks and
+  citation-ready metadata;
 - strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
   semantic indexes, and weak retrieval behavior.
 
@@ -129,10 +135,9 @@ workflow_steps
 
 Implementation checklist:
 
-- [ ] Add schema for search/tool runs, context chunks, citations, answer runs, and workflow traces.
-- [ ] Keep all existing memory commands working while adding the new tables.
-- [ ] Split `memory evidence` output into retrieved hits, context chunks, and citation-ready source
-      metadata.
+- [x] Add schema for search/tool runs, context chunks, citations, answer runs, and workflow traces.
+- [x] Keep all existing memory commands working while adding the new tables.
+- [x] Split local retrieved hits into `memory context` chunks and citation-ready source metadata.
 - [ ] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
 - [ ] Add derived document builders for `place_card`, `author_profile`, and `ticker_event`.

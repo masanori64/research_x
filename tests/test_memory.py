@@ -5,6 +5,7 @@ from pathlib import Path
 from research_x.cli import main
 from research_x.memory import embeddings
 from research_x.memory.audit import audit_memory_db
+from research_x.memory.context import build_context_bundle
 from research_x.memory.corpus import build_memory_corpus, export_corpus2skill_jsonl
 from research_x.memory.embeddings import build_memory_embeddings
 from research_x.memory.evidence import build_evidence_bundle
@@ -419,6 +420,48 @@ def test_external_evidence_serper_provider_uses_key_and_normalizes(
     assert bundle.items[0].source == "example.com"
 
 
+def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    bundle = build_context_bundle(
+        db_path,
+        "強化学習 ロボット",
+        limit=2,
+        doc_type="bookmark_doc",
+    )
+
+    assert bundle.run_id
+    assert bundle.retrieved_hits
+    assert bundle.context_chunks
+    assert bundle.citation_annotations
+    chunk = bundle.context_chunks[0]
+    citation = bundle.citation_annotations[0]
+    assert chunk.source_kind == "local_x_db"
+    assert chunk.provider_role == "context_builder"
+    assert "Quoted tweets:" in chunk.chunk_text
+    assert citation.chunk_id == chunk.chunk_id
+    assert citation.source_url == "https://x.com/a/status/tweet-1"
+    assert citation.evidence_status == "fact"
+
+    with sqlite3.connect(db_path) as conn:
+        search_runs = conn.execute("SELECT COUNT(*) FROM memory_search_runs").fetchone()[0]
+        chunks = conn.execute("SELECT COUNT(*) FROM memory_context_chunks").fetchone()[0]
+        citations = conn.execute(
+            "SELECT COUNT(*) FROM memory_citation_annotations"
+        ).fetchone()[0]
+        answers = conn.execute("SELECT COUNT(*) FROM memory_answer_runs").fetchone()[0]
+        workflows = conn.execute("SELECT COUNT(*) FROM memory_workflow_runs").fetchone()[0]
+
+    assert search_runs == 1
+    assert chunks == len(bundle.context_chunks)
+    assert citations == len(bundle.citation_annotations)
+    assert answers == 0
+    assert workflows == 0
+
+
 def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     captured = {}
 
@@ -496,6 +539,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     ) == 0
     assert main(["memory", "plan", "--query", "引用元を見たい"]) == 0
     assert main(["memory", "evidence", "--db", str(db_path), "--query", "ロボット"]) == 0
+    assert main(["memory", "context", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert (
         main(
             [
@@ -518,6 +562,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     output = capsys.readouterr().out
     assert "tweet-1" in output
     assert "hits" in output
+    assert "context_chunks" in output
     assert "memory://fake-external-search" in output
 
 

@@ -653,7 +653,14 @@ memory_embeddings       -> Layer 2 semantic retrieval
 memory_relations        -> Layer 2 relation expansion / future graph base
 memory_external_runs    -> Layer 3 external provider run metadata
 memory_external_items   -> Layer 3 normalized external URL discovery results
-memory evidence         -> Layer 4 local context bundle, partial Layer 5 citations
+memory_search_runs      -> Layer 2/4 local query execution records
+memory_context_chunks   -> Layer 4 LLM-ready context chunks
+memory_citation_annotations -> Layer 5 citation-ready source metadata
+memory_answer_runs      -> Layer 6 answer artifacts
+memory_workflow_runs    -> Layer 7 bounded workflow traces
+memory_workflow_steps   -> Layer 7 bounded workflow step logs
+memory evidence         -> legacy-compatible local hit bundle
+memory context          -> Layer 4 chunks plus Layer 5 citation metadata
 memory feedback/eval    -> Layer 7 feedback/eval
 memory audit            -> rebuild/index health gate
 ```
@@ -662,7 +669,8 @@ What may need refactoring later:
 
 - `memory_embeddings` primary key may need `embedding_profile` and `text_template_version`.
 - `memory_documents` may need more doc types or a separate derived-view builder.
-- `memory evidence` may need to split "hit evidence" from "citation annotations".
+- `memory evidence` remains a legacy-compatible hit bundle; new AI callers should prefer
+  `memory context` for chunks and citation metadata.
 - feedback scoring should eventually become query/route-aware.
 - external Web evidence should be stored separately from local X evidence.
 
