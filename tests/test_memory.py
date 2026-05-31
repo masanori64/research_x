@@ -1079,6 +1079,21 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     }
     no_answer_results = run_memory_eval(db_path, limit=1, answer_provider="none")
     assert all(result.answer_status is None for result in no_answer_results)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    semantic_results = run_memory_eval(
+        db_path,
+        limit=1,
+        answer_provider="none",
+        semantic_provider="local_hash",
+        semantic_dimensions=64,
+        semantic_profile="general_memory",
+        semantic_template_version="memory-doc-embedding-v1",
+    )
+    assert any(
+        "semantic" in engine
+        for result in semantic_results
+        for engine in result.retrieval_engines
+    )
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
@@ -1588,7 +1603,23 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
-    assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "eval",
+                "--db",
+                str(db_path),
+                "--limit",
+                "1",
+                "--semantic-provider",
+                "local_hash",
+                "--semantic-dimensions",
+                "64",
+            ]
+        )
+        == 0
+    )
 
     output = (
         external_output_start

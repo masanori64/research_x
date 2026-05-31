@@ -472,6 +472,8 @@ under the same context run and cited like other chunks; they do not replace loca
 `memory eval` uses the same route planner, so eval output includes route, stop reason, context
 chunk count, source kinds, no-store answer status, answer citation count, and top evidence health
 rather than only raw hit shape.
+Pass `--semantic-provider`, `--semantic-profile`, and `--semantic-template-version` to evaluate a
+specific embedding index.
 External chunks classify `source_kind` as `official`, `secondary`, or `user_generated`; the broader
 transport type `external_web` is retained as metadata. Local X chunks remain `local_x_db`.
 
@@ -515,7 +517,10 @@ uv run python -m research_x memory build-embeddings `
   --embedding-profile general_memory `
   --text-template-version memory-doc-embedding-v1
 uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
-uv run python -m research_x memory eval --db runs/x_data.sqlite3 --strict
+uv run python -m research_x memory eval `
+  --db runs/x_data.sqlite3 `
+  --semantic-provider auto `
+  --strict
 uv run python -m research_x memory context `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店" `

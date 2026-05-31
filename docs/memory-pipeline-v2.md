@@ -216,6 +216,7 @@ Implementation impact:
 - `memory build-embeddings`, `memory search`, `memory evidence`, `memory context`,
   `memory answer`, and `memory workflow` can select a semantic profile/template explicitly.
 - `memory embedding-specs` and `memory audit` expose profile/template metadata.
+- `memory eval` can run route-level checks against a specific semantic provider/profile/template.
 - `memory audit --strict` warns when embedding rows lack source hashes, because that means the
   index predates the V2 provenance contract.
 
@@ -738,6 +739,8 @@ Current implementation:
 - `memory eval` runs the same bounded route planner as `memory workflow` in no-store mode.
 - Eval output records route, expected route, stop reason, context chunk count, retrieval engines,
   source kinds, answer status, and answer citation count.
+- Eval input can pin semantic provider, model, dimensions, profile, and template so production
+  embedding quality can be compared against lexical/relation-only routing.
 - Route mismatches and missing compact evidence fail; weak or absent evidence remains visible as
   `needs_review` / `fail` instead of being hidden behind a successful command exit.
 

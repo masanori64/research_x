@@ -741,6 +741,19 @@ def main(argv: list[str] | None = None) -> int:
     memory_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_eval_parser.add_argument("--limit", type=int, default=3)
     memory_eval_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=["auto", "local_hash", "openai", "gemini"],
+    )
+    memory_eval_parser.add_argument("--semantic-model", default=None)
+    memory_eval_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_eval_parser.add_argument("--semantic-profile", default=None)
+    memory_eval_parser.add_argument("--semantic-template-version", default=None)
+    memory_eval_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_eval_parser.add_argument("--semantic-base-url", default=None)
+    memory_eval_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_eval_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_eval_parser.add_argument(
         "--answer-provider",
         choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
         default="fake",
@@ -1993,6 +2006,15 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         results = run_memory_eval(
             args.db,
             limit=args.limit,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
             answer_provider=args.answer_provider,
             answer_model=args.answer_model,
             answer_api_key_env=args.answer_api_key_env,
