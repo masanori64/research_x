@@ -93,6 +93,28 @@ class EmbeddingCoverageReport:
 
 
 @dataclass(frozen=True)
+class EmbeddingBuildEstimate:
+    db_path: str
+    provider: str
+    model: str
+    dimensions: int
+    embedding_profile: str
+    text_template_version: str
+    documents: int
+    selected: int
+    missing: int
+    stale_text: int
+    stale_source: int
+    current: int
+    estimated_input_chars: int
+    estimated_input_tokens: int
+    batch_size: int
+    estimated_batches: int
+    price_per_million_input_tokens: float | None = None
+    estimated_input_cost: float | None = None
+
+
+@dataclass(frozen=True)
 class SemanticHit:
     doc_id: str
     similarity: float
@@ -460,6 +482,120 @@ def embedding_coverage_report(
 
 def embedding_coverage_json(report: EmbeddingCoverageReport) -> str:
     return json.dumps(asdict(report), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def estimate_memory_embedding_build(
+    db_path: str | Path,
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+    dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
+    api_key_env: str | None = None,
+    base_url: str | None = None,
+    batch_size: int = 64,
+    limit: int | None = None,
+    rebuild: bool = False,
+    price_per_million_input_tokens: float | None = None,
+) -> EmbeddingBuildEstimate:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    spec = resolve_embedding_spec(
+        provider=provider,
+        model=model,
+        dimensions=dimensions,
+        embedding_profile=embedding_profile,
+        text_template_version=text_template_version,
+        api_key_env=api_key_env,
+        base_url=base_url,
+    )
+    resolved_batch_size = max(1, batch_size)
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        documents = memory_document_count(conn)
+        if documents == 0:
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
+        rows = _embedding_source_rows(
+            conn,
+            spec=spec,
+            limit=limit,
+            rebuild=rebuild,
+        )
+    counts = {"missing": 0, "stale_text": 0, "stale_source": 0, "current": 0}
+    input_chars = 0
+    input_tokens = 0
+    for row in rows:
+        status = _coverage_status(row)
+        counts[status] += 1
+        text = _embedding_text(row)
+        input_chars += len(text)
+        input_tokens += _rough_input_token_count(text)
+    selected = len(rows)
+    estimated_cost = None
+    if price_per_million_input_tokens is not None:
+        estimated_cost = (input_tokens / 1_000_000) * price_per_million_input_tokens
+    return EmbeddingBuildEstimate(
+        db_path=str(path),
+        provider=spec.provider,
+        model=spec.model,
+        dimensions=spec.dimensions,
+        embedding_profile=spec.embedding_profile,
+        text_template_version=spec.text_template_version,
+        documents=documents,
+        selected=selected,
+        missing=counts["missing"],
+        stale_text=counts["stale_text"],
+        stale_source=counts["stale_source"],
+        current=counts["current"],
+        estimated_input_chars=input_chars,
+        estimated_input_tokens=input_tokens,
+        batch_size=resolved_batch_size,
+        estimated_batches=math.ceil(selected / resolved_batch_size) if selected else 0,
+        price_per_million_input_tokens=price_per_million_input_tokens,
+        estimated_input_cost=estimated_cost,
+    )
+
+
+def embedding_estimate_json(estimate: EmbeddingBuildEstimate) -> str:
+    return json.dumps(asdict(estimate), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_embedding_estimate(estimate: EmbeddingBuildEstimate) -> str:
+    lines = [
+        f"db: {estimate.db_path}",
+        (
+            "spec: "
+            f"{estimate.provider}/{estimate.model} dims={estimate.dimensions} "
+            f"profile={estimate.embedding_profile} template={estimate.text_template_version}"
+        ),
+        (
+            "documents: "
+            f"{estimate.documents} selected={estimate.selected} "
+            f"missing={estimate.missing} stale_text={estimate.stale_text} "
+            f"stale_source={estimate.stale_source} current={estimate.current}"
+        ),
+        (
+            "input estimate: "
+            f"chars={estimate.estimated_input_chars} "
+            f"tokens~={estimate.estimated_input_tokens}"
+        ),
+        (
+            "api batches: "
+            f"batch_size={estimate.batch_size} estimated_batches={estimate.estimated_batches}"
+        ),
+    ]
+    if estimate.estimated_input_cost is None:
+        lines.append("estimated input cost: unknown")
+    else:
+        lines.append(
+            "estimated input cost: "
+            f"{estimate.estimated_input_cost:.6f} "
+            f"@ {estimate.price_per_million_input_tokens}/1M input tokens"
+        )
+    return "\n".join(lines)
 
 
 def format_embedding_coverage(report: EmbeddingCoverageReport) -> str:
@@ -1095,6 +1231,12 @@ def _compact_metadata(value: str | None) -> str:
 
 def _text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _rough_input_token_count(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, math.ceil(len(text) / 2))
 
 
 def _clean_id(value: str | None) -> str | None:

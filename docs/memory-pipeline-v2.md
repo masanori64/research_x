@@ -219,6 +219,8 @@ Implementation impact:
   `OPENAI_COMPATIBLE_API_KEY` and `OPENAI_COMPATIBLE_EMBEDDINGS_URL` are both set.
 - `memory build-embeddings`, `memory search`, `memory evidence`, `memory context`,
   `memory answer`, and `memory workflow` can select a semantic profile/template explicitly.
+- `memory embedding-estimate` gives the selected document count, approximate input-token volume,
+  API batch count, and optional input-cost estimate before a cloud build is started.
 - `memory embedding-specs`, `memory embedding-coverage`, and `memory audit` expose
   profile/template metadata and missing/stale index coverage.
 - `memory eval` can run route-level checks against a specific semantic provider/profile/template.

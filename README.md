@@ -513,6 +513,7 @@ memory build-corpus       Build memory_documents and FTS from the canonical X DB
 memory build-derived      Build place_card, author_profile, ticker_event, and topic_thread views.
 memory build-relations    Build explicit graph/relation edges.
 memory judge-relations    Judge supports/contradicts edges from freshness candidates.
+memory embedding-estimate Estimate selected docs, batches, tokens, and optional input cost.
 memory build-embeddings   Build versioned semantic indexes with OpenAI/Gemini/OpenAI-compatible or diagnostic local_hash.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory embedding-coverage Show embedding coverage/staleness by doc_type.
@@ -539,6 +540,12 @@ uv run python -m research_x memory judge-relations `
   --db runs/x_data.sqlite3 `
   --provider gemini `
   --model gemini-2.5-flash
+uv run python -m research_x memory embedding-estimate `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 768 `
+  --batch-size 64
 uv run python -m research_x memory build-embeddings `
   --db runs/x_data.sqlite3 `
   --provider gemini `

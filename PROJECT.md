@@ -83,6 +83,7 @@ research_x memory build-corpus
 research_x memory build-derived
 research_x memory audit
 research_x memory build-embeddings
+research_x memory embedding-estimate
 research_x memory embedding-specs
 research_x memory embedding-coverage
 research_x memory build-relations
@@ -115,6 +116,8 @@ Implemented behavior:
   document hash;
 - embedding coverage reports by document type so newly added derived views cannot silently remain
   unindexed;
+- embedding build estimates for selected documents, approximate input tokens, API batches, and
+  optional input-token cost before cloud indexing;
 - relation edges for bookmarks, media, quotes, duplicate bookmarks, same URL, same topic,
   newer/older neighbors, and obsolete candidates;
 - relation rebuilds preserve non-builder relation types such as future `supports` and

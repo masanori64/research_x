@@ -315,6 +315,35 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_parser.add_argument("--limit", type=int, default=None)
     memory_embedding_parser.add_argument("--rebuild", action="store_true")
     memory_embedding_parser.add_argument("--progress-every", type=int, default=1000)
+    memory_embedding_estimate_parser = memory_subparsers.add_parser(
+        "embedding-estimate",
+        help="estimate documents, API batches, tokens, and optional cost for embedding builds",
+    )
+    memory_embedding_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_estimate_parser.add_argument(
+        "--provider",
+        default="auto",
+        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+    )
+    memory_embedding_estimate_parser.add_argument("--model", default=None)
+    memory_embedding_estimate_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_estimate_parser.add_argument("--embedding-profile", default="general_memory")
+    memory_embedding_estimate_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_embedding_estimate_parser.add_argument("--api-key-env", default=None)
+    memory_embedding_estimate_parser.add_argument("--base-url", default=None)
+    memory_embedding_estimate_parser.add_argument("--batch-size", type=int, default=64)
+    memory_embedding_estimate_parser.add_argument("--limit", type=int, default=None)
+    memory_embedding_estimate_parser.add_argument("--rebuild", action="store_true")
+    memory_embedding_estimate_parser.add_argument(
+        "--price-per-million-input-tokens",
+        type=float,
+        default=None,
+        help="optional provider price used only for a rough input-cost estimate",
+    )
+    memory_embedding_estimate_parser.add_argument("--json", action="store_true")
     memory_specs_parser = memory_subparsers.add_parser(
         "embedding-specs",
         help="list available embedding indexes in the DB",
@@ -1742,6 +1771,34 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             progress_every=args.progress_every,
         )
         print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "embedding-estimate":
+        from research_x.memory.embeddings import (
+            embedding_estimate_json,
+            estimate_memory_embedding_build,
+            format_embedding_estimate,
+        )
+
+        estimate = estimate_memory_embedding_build(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            batch_size=args.batch_size,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            price_per_million_input_tokens=args.price_per_million_input_tokens,
+        )
+        output = (
+            embedding_estimate_json(estimate)
+            if args.json
+            else format_embedding_estimate(estimate)
+        )
+        print(output)
         return 0
     if args.memory_command == "embedding-specs":
         from research_x.memory.embeddings import available_embedding_specs

@@ -13,7 +13,11 @@ from research_x.memory.corpus import (
     export_corpus2skill_jsonl,
 )
 from research_x.memory.derived import build_derived_documents
-from research_x.memory.embeddings import build_memory_embeddings, embedding_coverage_report
+from research_x.memory.embeddings import (
+    build_memory_embeddings,
+    embedding_coverage_report,
+    estimate_memory_embedding_build,
+)
 from research_x.memory.evals import (
     list_memory_eval_runs,
     load_eval_cases,
@@ -217,6 +221,29 @@ def test_memory_embedding_coverage_reports_missing_doc_types(tmp_path: Path) -> 
     assert report.missing == report.documents - 5
     assert by_type["topic_thread"].missing >= 1
     assert by_type["bookmark_doc"].current == 1
+
+
+def test_memory_embedding_estimate_reports_selection_and_cost(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    estimate = estimate_memory_embedding_build(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        dimensions=768,
+        batch_size=2,
+        price_per_million_input_tokens=0.15,
+    )
+
+    assert estimate.provider == "gemini"
+    assert estimate.documents == 5
+    assert estimate.selected == 5
+    assert estimate.missing == 5
+    assert estimate.estimated_batches == 3
+    assert estimate.estimated_input_tokens > 0
+    assert estimate.estimated_input_cost is not None
 
 
 def test_memory_embedding_schema_migrates_legacy_rows(tmp_path: Path) -> None:
@@ -1799,6 +1826,23 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     ) == 0
     assert main(["memory", "audit", "--db", str(db_path)]) == 0
     assert main(["memory", "audit", "--db", str(db_path), "--strict"]) == 2
+    assert (
+        main(
+            [
+                "memory",
+                "embedding-estimate",
+                "--db",
+                str(db_path),
+                "--provider",
+                "gemini",
+                "--dimensions",
+                "768",
+                "--batch-size",
+                "2",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "embedding-specs", "--db", str(db_path)]) == 0
     assert (
         main(
