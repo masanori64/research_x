@@ -415,6 +415,21 @@ uv run python -m research_x memory context `
   --external-provider http
 ```
 
+For machine-oriented Web grounding in one call, `memory llm-context` can store pre-extracted
+external context chunks. The Brave provider uses Brave Search LLM Context
+(`BRAVE_SEARCH_API_KEY`, `X-Subscription-Token`, `/res/v1/llm/context`) and stores extracted
+snippets plus source URLs, not raw HTML:
+
+```powershell
+uv run python -m research_x memory llm-context `
+  --db runs/x_data.sqlite3 `
+  --query "昔保存したこの技術情報、今も正しい？" `
+  --provider brave `
+  --search-lang ja `
+  --country JP `
+  --max-tokens 8192
+```
+
 To produce a generated answer artifact from the same context contract, use `memory answer`.
 The default `fake` answer engine is deterministic and no-network; switch to `gemini`,
 `openai_chat`, or `openai_compatible` only when an API key is configured. Stored fake answers
@@ -464,6 +479,7 @@ memory search             Hybrid retrieval with lexical, metadata, relation expa
 memory context            Build LLM-ready chunks and citation metadata.
 memory external-search    URL discovery provider role, fake or Serper.
 memory extract-url        Reader/extract provider role, fake or HTTP.
+memory llm-context        Pre-extracted Web context provider role, fake or Brave.
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
 memory eval               Route-oriented memory checks.

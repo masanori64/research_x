@@ -14,6 +14,7 @@ from research_x.memory.evals import run_memory_eval
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback
+from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.query import build_query_plan
 from research_x.memory.reader import (
     HttpResponse,
@@ -933,6 +934,97 @@ def test_reader_extract_external_run_uses_stored_urls(tmp_path: Path) -> None:
     assert bundles[0].context_chunk["metadata"]["external_run_id"] == external.run_id
 
 
+def test_llm_context_fake_provider_stores_chunks_and_citations(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+
+    bundle = fetch_llm_context_to_context(
+        db_path,
+        "北千住 ピザ",
+        provider="fake",
+    )
+
+    assert bundle.provider == "fake"
+    assert bundle.context_chunks
+    assert bundle.citation_annotations
+    assert bundle.context_chunks[0]["provider_role"] == "llm_context_provider"
+    assert bundle.retention_policy == "extracted_context_with_source_urls"
+
+    with sqlite3.connect(db_path) as conn:
+        tool_calls = conn.execute(
+            "SELECT COUNT(*) FROM memory_tool_calls WHERE action = 'llm_context'"
+        ).fetchone()[0]
+        chunks = conn.execute(
+            "SELECT COUNT(*) FROM memory_context_chunks WHERE provider = 'fake'"
+        ).fetchone()[0]
+        citations = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_citation_annotations
+            WHERE source_kind = 'external_web'
+            """
+        ).fetchone()[0]
+
+    assert tool_calls == 1
+    assert chunks == len(bundle.context_chunks)
+    assert citations == len(bundle.citation_annotations)
+
+
+def test_llm_context_brave_provider_parses_generic_grounding(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        captured["timeout_seconds"] = timeout_seconds
+        return {
+            "grounding": {
+                "generic": [
+                    {
+                        "url": "https://example.com/pizza",
+                        "title": "Pizza page",
+                        "snippets": ["北千住のピザ店", "予約情報"],
+                    }
+                ]
+            },
+            "sources": {
+                "https://example.com/pizza": {
+                    "title": "Pizza page",
+                    "hostname": "example.com",
+                }
+            },
+        }
+
+    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "brave-key")
+    monkeypatch.setattr("research_x.memory.llm_context._post_json", fake_post_json)
+
+    bundle = fetch_llm_context_to_context(
+        tmp_path / "x.sqlite3",
+        "北千住 ピザ",
+        provider="brave",
+        count=99,
+        maximum_number_of_urls=99,
+        maximum_number_of_tokens=999999,
+        maximum_number_of_snippets=999,
+        search_lang="ja",
+        country="JP",
+    )
+
+    assert captured["url"] == "https://api.search.brave.com/res/v1/llm/context"
+    assert captured["headers"]["X-Subscription-Token"] == "brave-key"
+    assert captured["payload"]["q"] == "北千住 ピザ"
+    assert captured["payload"]["count"] == 50
+    assert captured["payload"]["maximum_number_of_urls"] == 50
+    assert captured["payload"]["maximum_number_of_tokens"] == 32768
+    assert captured["payload"]["maximum_number_of_snippets"] == 256
+    assert bundle.sources[0].url == "https://example.com/pizza"
+    assert "北千住" in bundle.context_chunks[0]["chunk_text"]
+    assert "brave-key" not in json.dumps(bundle.as_dict(), ensure_ascii=False)
+
+
 def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     captured = {}
 
@@ -1034,6 +1126,23 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         main(
             [
                 "memory",
+                "llm-context",
+                "--db",
+                str(db_path),
+                "--query",
+                "北千住 ピザ",
+                "--provider",
+                "fake",
+                "--allow-fixture-provider",
+            ]
+        )
+        == 0
+    )
+    llm_context_output = capsys.readouterr().out
+    assert (
+        main(
+            [
+                "memory",
                 "external-search",
                 "--db",
                 str(db_path),
@@ -1087,7 +1196,13 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert main(["memory", "workflow", "--db", str(db_path), "--query", "ロボット"]) == 0
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
-    output = external_output_start + extract_output + external_output + capsys.readouterr().out
+    output = (
+        external_output_start
+        + extract_output
+        + llm_context_output
+        + external_output
+        + capsys.readouterr().out
+    )
     assert "tweet-1" in output
     assert "place_cards" in output
     assert "hits" in output
@@ -1096,6 +1211,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert "workflow:" in output
     assert "external_web" in output
     assert "reader_extract" in output
+    assert "llm_context" in output
     assert "memory://fake-external-search" in output
 
 
@@ -1114,6 +1230,23 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 str(db_path),
                 "--query",
                 "北千住 ピザ",
+                "--provider",
+                "fake",
+            ]
+        )
+        == 1
+    )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
+    assert (
+        main(
+            [
+                "memory",
+                "llm-context",
+                "--db",
+                str(db_path),
+                "--query",
+                "ロボット",
                 "--provider",
                 "fake",
             ]

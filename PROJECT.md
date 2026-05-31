@@ -167,7 +167,7 @@ Implementation checklist:
 - [x] Add reader/extract provider interface with no-network fake provider first.
 - [x] Add basic HTTP reader that extracts readable text into external context chunks.
 - [x] Integrate extracted external Web chunks into `memory context` bundles.
-- [ ] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
+- [x] Add Brave-style `llm_context` only after rate limits, storage rights, and retention policy are
       explicit.
 - [x] Add OpenAI-style citation annotations for generated answers.
 - [x] Add bounded workflow routing with logged stop reasons.

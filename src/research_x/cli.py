@@ -607,6 +607,49 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    memory_llm_context_parser = memory_subparsers.add_parser(
+        "llm-context",
+        help="fetch pre-extracted Web context for LLM grounding",
+    )
+    memory_llm_context_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_llm_context_parser.add_argument("--query", required=True)
+    memory_llm_context_parser.add_argument(
+        "--provider",
+        choices=["fake", "brave"],
+        default="brave",
+        help="LLM-context provider; brave calls Brave Search LLM Context",
+    )
+    memory_llm_context_parser.add_argument("--api-key-env", default="BRAVE_SEARCH_API_KEY")
+    memory_llm_context_parser.add_argument("--endpoint", default=None)
+    memory_llm_context_parser.add_argument("--country", default=None)
+    memory_llm_context_parser.add_argument("--search-lang", default=None)
+    memory_llm_context_parser.add_argument("--count", type=int, default=20)
+    memory_llm_context_parser.add_argument("--max-urls", type=int, default=20)
+    memory_llm_context_parser.add_argument("--max-tokens", type=int, default=8192)
+    memory_llm_context_parser.add_argument("--max-snippets", type=int, default=50)
+    memory_llm_context_parser.add_argument("--threshold-mode", default="balanced")
+    memory_llm_context_parser.add_argument("--max-tokens-per-url", type=int, default=4096)
+    memory_llm_context_parser.add_argument("--max-snippets-per-url", type=int, default=50)
+    memory_llm_context_parser.add_argument("--freshness", default=None)
+    memory_llm_context_parser.add_argument(
+        "--enable-local",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    memory_llm_context_parser.add_argument("--goggles", default=None)
+    memory_llm_context_parser.add_argument("--max-chars-per-source", type=int, default=6000)
+    memory_llm_context_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    memory_llm_context_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store tool call, external context chunks, and citation annotations",
+    )
+    memory_llm_context_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
     memory_feedback_parser = memory_subparsers.add_parser(
         "feedback",
         help="record search-result feedback for later ranking improvements",
@@ -1783,6 +1826,39 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             store=args.store,
         )
         print(reader_context_json(bundle))
+        return 0
+    if args.memory_command == "llm-context":
+        from research_x.memory.llm_context import fetch_llm_context_to_context, llm_context_json
+
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="llm-context",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
+        bundle = fetch_llm_context_to_context(
+            args.db,
+            args.query,
+            provider=args.provider,
+            api_key_env=args.api_key_env,
+            endpoint=args.endpoint,
+            country=args.country,
+            search_lang=args.search_lang,
+            count=args.count,
+            maximum_number_of_urls=args.max_urls,
+            maximum_number_of_tokens=args.max_tokens,
+            maximum_number_of_snippets=args.max_snippets,
+            context_threshold_mode=args.threshold_mode,
+            maximum_number_of_tokens_per_url=args.max_tokens_per_url,
+            maximum_number_of_snippets_per_url=args.max_snippets_per_url,
+            freshness=args.freshness,
+            enable_local=args.enable_local,
+            goggles=args.goggles,
+            max_chars_per_source=args.max_chars_per_source,
+            timeout_seconds=args.timeout_seconds,
+            store=args.store,
+        )
+        print(llm_context_json(bundle))
         return 0
     if args.memory_command == "feedback":
         from research_x.memory.feedback import add_feedback
