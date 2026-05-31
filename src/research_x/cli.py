@@ -414,6 +414,11 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="store the search run, context chunks, and citation annotations",
     )
+    memory_context_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
     memory_answer_parser = memory_subparsers.add_parser(
         "answer",
         help="build context chunks and generate a cited answer artifact",
@@ -469,6 +474,11 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="store the search run, context chunks, answer, and answer citations",
     )
+    memory_answer_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
     memory_external_parser = memory_subparsers.add_parser(
         "external-search",
         help="run an external URL-discovery provider and store normalized results",
@@ -493,6 +503,11 @@ def main(argv: list[str] | None = None) -> int:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="store the normalized external run/items in the memory DB",
+    )
+    memory_external_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
     )
     memory_extract_parser = memory_subparsers.add_parser(
         "extract-url",
@@ -523,6 +538,11 @@ def main(argv: list[str] | None = None) -> int:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="store tool call, context chunk, and citation annotation rows",
+    )
+    memory_extract_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
     )
     memory_feedback_parser = memory_subparsers.add_parser(
         "feedback",
@@ -1501,6 +1521,12 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
     if args.memory_command == "context":
         from research_x.memory.context import build_context_bundle, context_bundle_json
 
+        _require_fixture_provider_opt_in(
+            provider=args.external_provider if args.external_run_id else None,
+            role="reader/extract",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
         bundle = build_context_bundle(
             args.db,
             args.query,
@@ -1528,6 +1554,18 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
     if args.memory_command == "answer":
         from research_x.memory.answer import answer_json, build_memory_answer
 
+        _require_fixture_provider_opt_in(
+            provider=args.answer_provider,
+            role="answer",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.external_provider if args.external_run_id else None,
+            role="reader/extract",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
         answer = build_memory_answer(
             args.db,
             args.query,
@@ -1563,6 +1601,12 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
     if args.memory_command == "external-search":
         from research_x.memory.external import external_evidence_json, search_external_evidence
 
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="external-search",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
         bundle = search_external_evidence(
             args.db,
             args.query,
@@ -1589,6 +1633,12 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             raise ValueError("pass --url or --external-run-id")
         if args.url and args.external_run_id:
             raise ValueError("pass only one of --url or --external-run-id")
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="reader/extract",
+            store=args.store,
+            allow=args.allow_fixture_provider,
+        )
         if args.external_run_id:
             bundles = extract_external_run_to_context(
                 args.db,
@@ -1647,6 +1697,22 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         print(eval_results_json(results) if args.json else format_eval_results(results))
         return 2 if args.strict and any(not result.ok for result in results) else 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")
+
+
+def _require_fixture_provider_opt_in(
+    *,
+    provider: str | None,
+    role: str,
+    store: bool,
+    allow: bool,
+) -> None:
+    if provider != "fake" or not store or allow:
+        return
+    raise ValueError(
+        f"{role} provider 'fake' is diagnostic-only. "
+        "Pass --no-store for a dry wiring check, or pass --allow-fixture-provider "
+        "when intentionally writing fixture rows to a test DB."
+    )
 
 
 def _configure_stdio() -> None:

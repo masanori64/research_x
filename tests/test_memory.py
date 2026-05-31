@@ -934,6 +934,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "https://example.com/pizza",
                 "--provider",
                 "fake",
+                "--allow-fixture-provider",
             ]
         )
         == 0
@@ -952,6 +953,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "fake",
                 "--limit",
                 "1",
+                "--allow-fixture-provider",
             ]
         )
         == 0
@@ -973,11 +975,25 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "fake",
                 "--external-limit",
                 "1",
+                "--allow-fixture-provider",
             ]
         )
         == 0
     )
-    assert main(["memory", "answer", "--db", str(db_path), "--query", "ロボット"]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "answer",
+                "--db",
+                str(db_path),
+                "--query",
+                "ロボット",
+                "--allow-fixture-provider",
+            ]
+        )
+        == 0
+    )
     assert main(["memory", "eval", "--db", str(db_path), "--limit", "1"]) == 0
 
     output = external_output_start + extract_output + external_output + capsys.readouterr().out
@@ -989,6 +1005,54 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert "external_web" in output
     assert "reader_extract" in output
     assert "memory://fake-external-search" in output
+
+
+def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+
+    assert (
+        main(
+            [
+                "memory",
+                "external-search",
+                "--db",
+                str(db_path),
+                "--query",
+                "北千住 ピザ",
+                "--provider",
+                "fake",
+            ]
+        )
+        == 1
+    )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
+    assert "Traceback" not in captured.err
+    with sqlite3.connect(db_path) as conn:
+        tables = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name = 'memory_external_runs'"
+        ).fetchone()[0]
+    assert tables == 0
+
+    assert (
+        main(
+            [
+                "memory",
+                "external-search",
+                "--db",
+                str(db_path),
+                "--query",
+                "北千住 ピザ",
+                "--provider",
+                "fake",
+                "--no-store",
+            ]
+        )
+        == 0
+    )
 
 
 def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, capsys) -> None:

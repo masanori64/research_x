@@ -157,6 +157,8 @@ Decision:
 - Keep derived-card bodies compact, but retain all source document IDs, tweet IDs, URLs, and
   `derived_from_source` relations in metadata/provenance.
 - Flag stored fake/fixture external/search/reader/answer artifacts in `memory audit --strict`.
+- Require explicit CLI opt-in before stored fake/fixture provider rows are written; dry wiring
+  checks can use `--no-store`.
 - When answer context is truncated, create answer-specific subchunk IDs and mark missing citation
   markers as `needs_review` instead of silently treating them as supporting citations.
 

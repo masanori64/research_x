@@ -354,7 +354,8 @@ is useful for tests and wiring, while Serper is available as an optional Google 
 uv run python -m research_x memory external-search `
   --db runs/x_data.sqlite3 `
   --query "北千住 ピザ" `
-  --provider fake
+  --provider fake `
+  --no-store
 ```
 
 For Serper, set `SERPER_API_KEY` and switch `--provider serper`. Serper results are URL discovery
@@ -397,8 +398,9 @@ uv run python -m research_x memory extract-url `
   --provider http
 ```
 
-Use `--provider fake` for deterministic no-network tests. The HTTP reader stores extracted text as
-external context, while raw HTML is not stored in the DB.
+Use `--provider fake --no-store` for deterministic no-network tests, or add
+`--allow-fixture-provider` when intentionally writing fixture rows to a test DB. The HTTP reader
+stores extracted text as external context, while raw HTML is not stored in the DB.
 
 To combine local X evidence and extracted external context in one bundle, pass a stored
 external-search run to `memory context`:
@@ -413,13 +415,15 @@ uv run python -m research_x memory context `
 
 To produce a generated answer artifact from the same context contract, use `memory answer`.
 The default `fake` answer engine is deterministic and no-network; switch to `gemini`,
-`openai_chat`, or `openai_compatible` only when an API key is configured:
+`openai_chat`, or `openai_compatible` only when an API key is configured. Stored fake answers
+require explicit fixture opt-in:
 
 ```powershell
 uv run python -m research_x memory answer `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店を教えて" `
-  --answer-provider fake
+  --answer-provider fake `
+  --allow-fixture-provider
 ```
 
 Generated answers are stored as derived artifacts in `memory_answer_runs`. Answer citations are

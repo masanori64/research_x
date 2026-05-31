@@ -110,6 +110,8 @@ Implemented behavior:
   provider;
 - normalized external discovery run/item storage in the SQLite DB;
 - reader/extract provider contract with no-network fake provider and basic HTTP reader;
+- CLI fixture-provider guard so fake external/search/reader/answer rows require explicit opt-in
+  before being stored;
 - external URL extraction into tool call, context chunk, and citation annotation rows;
 - V2 search run, tool call, context chunk, citation annotation, answer run, and workflow trace
   schema;
