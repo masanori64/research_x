@@ -269,6 +269,81 @@ Implementation impact:
   narrower map-oriented bundles without removing the full export path.
 - The bundle is an integration boundary, not a replacement for search/context/citation tables.
 
+### 2026-06-01: Multiple Embeddings Stay Candidate Engines
+
+Decision:
+
+- Interpret Corpus2Skill's "no embeddings/vector DB at serve time" claim narrowly. The compiler still
+  embeds and clusters documents offline; the serve-time change is that the agent navigates files and
+  fetches documents by ID instead of querying a live vector index.
+- Keep one broad production `general_memory` embedding profile as the default. Add route/domain
+  profiles only when evals show that broad embeddings plus FTS/exact/metadata/relation retrieval and
+  derived document views miss relevant evidence.
+- When multiple embedding profiles or retrieval engines are active, treat them as separate candidate
+  engines. Combine ranked lists with explicit engine names, component ranks/scores, route weights,
+  and rank-level fusion such as RRF; do not directly compare raw cosine, BM25, or model-specific
+  scores as if they shared a scale.
+- Use Corpus2Skill as a navigation hint, relations as context expansion, and GraphRAG-style summaries
+  only for broad sensemaking. Final evidence must still come from local/external context chunks with
+  citations back to source records.
+- Keep Agentic RAG as bounded orchestration with step logs and stop reasons, not the main retrieval
+  primitive.
+
+Rationale:
+
+- Corpus2Skill reports gains for curated, single-domain, atomic-document corpora, but also describes
+  regimes where flat retrieval remains preferable: open-domain pools, long extractive documents, and
+  homogeneous/tabular corpora where clustering provides little signal.
+- A personal X memory DB is heterogeneous and often exact-signal-heavy: author, date, URL, bookmark
+  ownership, quote/media context, freshness, and subjective interest signals matter as much as
+  semantic similarity.
+- Hybrid-search systems commonly use rank fusion because individual rankers produce incompatible
+  score ranges. Multiple named/multivector representations are useful, but every new profile adds
+  cost, coverage, staleness, and routing risk.
+- GraphRAG shows how entity relations and community summaries help global, corpus-level questions.
+  This project should first exploit explicit `memory_relations` for quote, URL, bookmark, media, same
+  topic, and freshness stitching before adopting a heavier graph framework.
+- ADW-style orchestration is useful as contract discipline: parse/retrieve/reason/act boundaries,
+  typed handoffs, audit logs, and human review. It should not imply broad autonomous mutation of the
+  local evidence store.
+
+Rejected alternatives:
+
+- Replacing FTS/exact/relation retrieval with Corpus2Skill navigation.
+- Building many route-specific embedding indexes upfront.
+- Averaging or directly comparing scores from unrelated embedding providers/profiles.
+- Making an open-ended Agentic RAG loop the default query path.
+- Adding a graph database before relation-table evals show that it improves real routes.
+
+Implementation impact:
+
+- Keep `general_memory` / `memory-doc-embedding-v1` as the normal production semantic index.
+- If a route-specific profile is proposed, add route evals that prove recall or ranking improvement
+  and report coverage/staleness by provider, model, dimensions, profile, and template.
+- Persist per-engine contributions in search/workflow artifacts so a fused result can be audited.
+- Prefer RRF or another rank-level fusion for candidate merging, followed by optional bounded
+  reranking/judging over a small candidate set.
+- Corpus2Skill outputs and GraphRAG/community summaries are not citation-ready unless selected
+  context chunks still link back to raw local or extracted external sources.
+
+Primary sources checked:
+
+- Corpus2Skill README: https://github.com/dukesun99/Corpus2Skill
+- Corpus2Skill paper: https://arxiv.org/abs/2604.14572
+- Azure AI Search hybrid/RRF: https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking
+  and https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query
+- Qdrant hybrid and multi-vector docs: https://qdrant.tech/documentation/search/hybrid-queries/,
+  https://qdrant.tech/documentation/manage-data/points/, and
+  https://qdrant.tech/documentation/tutorials-search-engineering/using-multivector-representations/
+- Microsoft GraphRAG paper/docs: https://arxiv.org/abs/2404.16130,
+  https://microsoft.github.io/graphrag/query/overview/, and
+  https://microsoft.github.io/graphrag/index/overview/
+- LlamaIndex Agentic RAG / ADW / workflow docs:
+  https://developers.llamaindex.ai/python/framework/optimizing/agentic_strategies/agentic_strategies/,
+  https://www.llamaindex.ai/blog/introducing-agentic-document-workflows,
+  https://www.llamaindex.ai/blog/beyond-chatbots-adopting-agentic-document-workflows-for-enterprises,
+  and https://www.llamaindex.ai/blog/introducing-workflows-beta-a-new-way-to-create-complex-ai-applications-with-llamaindex
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.
