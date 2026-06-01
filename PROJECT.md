@@ -147,6 +147,9 @@ Implemented behavior:
 - optional stored eval runs/results for comparing retrieval quality across rebuilds and embedding
   profiles;
 - stored eval run listing/detail commands for post-run inspection;
+- machine-readable question-type coverage targets so evals cover recall, set, aggregation,
+  comparison, multi-hop, temporal, abstention, citation, multilingual, media, preference, and
+  exploratory-map cases instead of only the first concrete examples;
 - `memory export-corpus2skill --bundle-dir` writes `corpus.jsonl` plus `manifest.json` for the
   official Corpus2Skill compiler boundary, with optional `--doc-type` filters for narrower
   navigation-map exports;
@@ -196,6 +199,8 @@ Implementation checklist:
 - [x] Split local retrieved hits into `memory context` chunks and citation-ready source metadata.
 - [x] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
+- [x] Add a question-type catalog and attach question types to eval cases before changing retrieval
+      fusion or production embedding providers.
 - [x] Add derived document builders for `place_card`, `author_profile`, `ticker_event`, and
       `topic_thread`.
 - [x] Add an external evidence provider interface with a no-network fake provider first.

@@ -907,6 +907,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_eval_show_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_eval_show_parser.add_argument("--run-id", required=True)
     memory_eval_show_parser.add_argument("--json", action="store_true")
+    memory_question_types_parser = memory_subparsers.add_parser(
+        "question-types",
+        help="list memory-search question types used to broaden eval coverage",
+    )
+    memory_question_types_parser.add_argument("--json", action="store_true")
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -2321,6 +2326,11 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
         payload = load_memory_eval_run(args.db, args.run_id)
         print(eval_run_json(payload) if args.json else format_eval_run(payload))
+        return 0
+    if args.memory_command == "question-types":
+        from research_x.memory.question_types import format_question_types, question_types_json
+
+        print(question_types_json() if args.json else format_question_types())
         return 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")
 

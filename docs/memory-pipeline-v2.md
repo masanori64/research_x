@@ -344,6 +344,36 @@ Primary sources checked:
   https://www.llamaindex.ai/blog/beyond-chatbots-adopting-agentic-document-workflows-for-enterprises,
   and https://www.llamaindex.ai/blog/introducing-workflows-beta-a-new-way-to-create-complex-ai-applications-with-llamaindex
 
+### 2026-06-01: Question-Type Coverage Before More Retrieval Changes
+
+Decision:
+
+- Add a machine-readable question-type catalog before widening retrieval fusion or adding more
+  production embedding providers.
+- Treat the user's concrete examples as seed cases, not as the full task surface.
+- Keep the current route planner/eval behavior intact while tagging eval cases with question types.
+
+Rationale:
+
+- RAG and IR benchmarks separate tasks such as simple recall, set recall, aggregation, comparison,
+  multi-hop reasoning, temporal/freshness, false-premise abstention, citation/provenance,
+  multilingual retrieval, multimodal grounding, personalization, and exploratory mapping.
+- A personal X memory database needs all of these entry points eventually. Optimizing only for the
+  first few user examples would overfit the route planner and make later retrieval changes brittle.
+- This phase is deliberately safer than changing scoring: it records the target surface and exposes
+  current readiness/risks without altering ranking behavior.
+
+Implementation impact:
+
+- `memory question-types` lists the catalog.
+- Eval cases can carry `question_type`; stored eval metadata preserves it.
+- The next retrieval-fusion work should prove improvements per question type, not only per route.
+
+Sources used:
+
+- BEIR, MTEB, MIRACL, HotpotQA, MuSiQue, 2WikiMultiHopQA, CRAG, FRAMES, LongMemEval, RAGAS, ARES,
+  DeepEval, and multimodal retrieval benchmark patterns.
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.

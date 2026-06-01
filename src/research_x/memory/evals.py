@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.question_types import known_question_type_ids
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
@@ -16,6 +17,7 @@ from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 class EvalCase:
     query: str
     required_any_terms: tuple[str, ...]
+    question_type: str = "single_fact_conditioned"
     preferred_doc_types: tuple[str, ...] = ()
     required_feature: str | None = None
     expected_route: str | None = None
@@ -27,6 +29,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="あとで行きたくて保存したカフェ系を出して",
         required_any_terms=("カフェ", "喫茶", "居酒屋", "レストラン", "グルメ", "店"),
+        question_type="set_recall",
         preferred_doc_types=("bookmark_doc",),
         required_feature="bookmark_context",
         expected_route="place_recall",
@@ -34,6 +37,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="最近保存した強化学習とロボット系の情報を古いものを除いて出して",
         required_any_terms=("強化学習", "ロボット", "機械学習", "AI"),
+        question_type="temporal_freshness",
         preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
         required_feature="recent",
         expected_route="learning_map",
@@ -41,6 +45,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="5/29のキオクシアの株価急騰について保存している人たちの見方から分析して",
         required_any_terms=("5/29", "キオクシア", "株価", "急騰", "分析"),
+        question_type="multi_hop_evidence",
         preferred_doc_types=("ticker_event", "author_profile", "bookmark_doc", "tweet_doc"),
         expected_route="company_event",
         min_hit_score=0.5,
@@ -48,12 +53,14 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="成人向け漫画の公式リンク誘導っぽいブクマを作品名つきで出して",
         required_any_terms=("成人", "エロ", "R18", "漫画", "同人", "DLsite", "FANZA", "公式"),
+        question_type="single_fact_conditioned",
         preferred_doc_types=("bookmark_doc", "media_doc"),
         expected_route="adult_comic",
     ),
     EvalCase(
         query="この作者をなぜ何度も保存しているか説明して",
         required_any_terms=("作者", "author", "@"),
+        question_type="personal_preference",
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
         expected_route="author_stance",
         min_hit_score=0.5,
@@ -61,6 +68,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="引用元を見ないと意味が変わる投稿を根拠付きで出して",
         required_any_terms=("引用", "引用元", "quoted", "quote"),
+        question_type="multi_hop_evidence",
         preferred_doc_types=("quote_tree_doc",),
         required_feature="quote_context",
         expected_route="quote_context",
@@ -68,6 +76,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="同じテーマで古くなった情報と新しい情報を比較して",
         required_any_terms=("古い", "新しい", "最近", "更新"),
+        question_type="temporal_freshness",
         preferred_doc_types=("tweet_doc", "bookmark_doc"),
         required_feature="freshness",
         expected_route="current_fact_check",
@@ -77,6 +86,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="画像付きで保存した技術資料っぽい投稿を出して",
         required_any_terms=("画像", "資料", "技術", "media", "photo"),
+        question_type="media_grounded",
         preferred_doc_types=("media_doc", "bookmark_doc"),
         required_feature="media_context",
         expected_route="media_context",
@@ -84,6 +94,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="イベント系で日付が近いものだけ出して",
         required_any_terms=("イベント", "開催", "日付", "期限", "予約"),
+        question_type="single_fact_conditioned",
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
         required_feature="event_dates",
         expected_route="event_recall",
@@ -92,6 +103,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="複数アカウントで重複して保存しているテーマを出して",
         required_any_terms=("重複", "複数", "アカウント"),
+        question_type="aggregation_count_rank",
         preferred_doc_types=("bookmark_doc", "tweet_doc"),
         required_feature="cross_account",
         expected_route="cross_account",
@@ -100,6 +112,7 @@ DEFAULT_EVAL_CASES = (
     EvalCase(
         query="DB 全体で最近増えている関心領域を出して",
         required_any_terms=("関心", "領域", "最近", "保存"),
+        question_type="aggregation_count_rank",
         preferred_doc_types=("tweet_doc", "bookmark_doc"),
         required_feature="recent",
         expected_route="learning_map",
@@ -128,6 +141,7 @@ def load_eval_cases(path: str | Path) -> tuple[EvalCase, ...]:
 @dataclass(frozen=True)
 class MemoryEvalResult:
     query: str
+    question_type: str
     status: str
     route: str
     expected_route: str | None
@@ -398,6 +412,7 @@ def format_eval_run(payload: dict[str, Any]) -> str:
         lines.append(
             "  "
             f"#{result['case_index']} {result['status']} route={result['route']} "
+            f"type={result.get('question_type') or '-'} "
             f"stop={result['stop_reason']} best={result['best_score']:.2f} "
             f"first={result.get('first_doc_id') or '-'} notes={notes}"
         )
@@ -411,6 +426,7 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
         terms = ",".join(result.matched_terms[:6]) if result.matched_terms else "-"
         lines.append(
             f"{result.status}: route={result.route} stop={result.stop_reason} "
+            f"type={result.question_type} "
             f"hits={result.hits} chunks={result.context_chunks} best={result.best_score:.2f} "
             f"answer={result.answer_status or '-'} citations={result.answer_citations} "
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
@@ -424,9 +440,13 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
     query = record.get("query")
     if not isinstance(query, str) or not query.strip():
         raise ValueError("each eval case requires a non-empty query")
+    question_type = str(record.get("question_type") or "single_fact_conditioned")
+    if question_type not in known_question_type_ids():
+        raise ValueError(f"unknown question_type: {question_type}")
     return EvalCase(
         query=query,
         required_any_terms=_tuple_field(record, "required_any_terms"),
+        question_type=question_type,
         preferred_doc_types=_tuple_field(record, "preferred_doc_types"),
         required_feature=_optional_string(record.get("required_feature")),
         expected_route=_optional_string(record.get("expected_route")),
@@ -454,6 +474,10 @@ def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "case_index": int(row["case_index"]),
         "query": row["query"],
+        "question_type": _loads_json(row["metadata_json"]).get(
+            "question_type",
+            "single_fact_conditioned",
+        ),
         "status": row["status"],
         "route": row["route"],
         "expected_route": row["expected_route"],
@@ -530,6 +554,7 @@ def _evaluate_case(
         notes.append("no hits")
         return MemoryEvalResult(
             query=case.query,
+            question_type=case.question_type,
             status="fail",
             route=workflow.route,
             expected_route=case.expected_route,
@@ -587,6 +612,7 @@ def _evaluate_case(
 
     return MemoryEvalResult(
         query=case.query,
+        question_type=case.question_type,
         status=status,
         route=workflow.route,
         expected_route=case.expected_route,

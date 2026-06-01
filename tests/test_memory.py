@@ -33,6 +33,7 @@ from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.query import build_query_plan
+from research_x.memory.question_types import known_question_type_ids, question_types_as_dicts
 from research_x.memory.reader import (
     HttpResponse,
     extract_external_run_to_context,
@@ -1385,6 +1386,7 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     by_route = {result.route: result for result in results}
 
     assert by_route["place_recall"].expected_route == "place_recall"
+    assert by_route["place_recall"].question_type == "set_recall"
     assert by_route["place_recall"].context_chunks > 0
     assert "local_x_db" in by_route["place_recall"].source_kinds
     assert by_route["place_recall"].answer_status == "ok"
@@ -1417,6 +1419,7 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
         json.dumps(
             {
                 "query": "引用元を見ないと意味が変わる投稿を根拠付きで出して",
+                "question_type": "multi_hop_evidence",
                 "required_any_terms": ["引用", "引用元", "quote"],
                 "preferred_doc_types": ["quote_tree_doc"],
                 "required_feature": "quote_context",
@@ -1443,6 +1446,7 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
 
     assert len(custom_results) == 1
     assert custom_results[0].route == "quote_context"
+    assert custom_results[0].question_type == "multi_hop_evidence"
     with sqlite3.connect(db_path) as conn:
         stored_run = conn.execute(
             "SELECT status, case_count FROM memory_eval_runs WHERE run_id = ?",
@@ -1458,6 +1462,18 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     assert stored_results == 1
     assert listed_runs[0]["run_id"] == stored_run_id
     assert loaded_run["results"][0]["route"] == "quote_context"
+    assert loaded_run["results"][0]["question_type"] == "multi_hop_evidence"
+
+
+def test_memory_question_type_catalog_is_machine_readable() -> None:
+    ids = known_question_type_ids()
+    rows = question_types_as_dicts()
+
+    assert "single_fact_conditioned" in ids
+    assert "media_grounded" in ids
+    assert "abstention_false_premise" in ids
+    assert len(ids) == len(set(ids))
+    assert all(row["required_capabilities"] for row in rows)
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
@@ -2181,6 +2197,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    assert main(["memory", "question-types"]) == 0
 
     output = (
         external_output_start
@@ -2198,6 +2215,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert "external_web" in output
     assert "reader_extract" in output
     assert "llm_context" in output
+    assert "single_fact_conditioned" in output
     assert "memory://fake-external-search" in output
 
 

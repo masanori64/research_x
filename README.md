@@ -489,6 +489,8 @@ under the same context run and cited like other chunks; they do not replace loca
 `memory eval` uses the same route planner, so eval output includes route, stop reason, context
 chunk count, source kinds, no-store answer status, answer citation count, and top evidence health
 rather than only raw hit shape.
+`memory question-types` lists the broader RAG/search task catalog used to keep eval coverage from
+collapsing into only the first few concrete examples.
 Pass `--semantic-provider`, `--semantic-profile`, and `--semantic-template-version` to evaluate a
 specific embedding index. Pass `--cases path\to\cases.jsonl` to run project-specific regression
 queries instead of only the built-in route cases. Add `--store` to persist eval runs/results for
@@ -527,6 +529,7 @@ memory workflow           Bounded route/context/answer orchestration with stop r
 memory eval               Route-oriented memory checks.
 memory eval-runs          List stored eval runs.
 memory eval-show          Show one stored eval run and case-level results.
+memory question-types     List question-type coverage targets for memory evals.
 memory export-corpus2skill Export JSONL or a corpus.jsonl/manifest bundle for Corpus2Skill.
 ```
 
