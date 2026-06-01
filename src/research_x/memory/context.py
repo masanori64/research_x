@@ -262,6 +262,9 @@ def _chunk(
         "tweet_id": hit.get("tweet_id"),
         "matched_terms": hit.get("matched_terms") or [],
         "score_components": hit.get("score_components") or {},
+        "engine_contributions": hit.get("metadata", {}).get("engine_contributions")
+        if isinstance(hit.get("metadata"), dict)
+        else [],
         "freshness": hit.get("freshness"),
         "bookmark_account_count": hit.get("bookmark_account_count"),
         "derived": evidence.get("derived"),
@@ -580,6 +583,9 @@ def _store_search_result(
         "title": hit.get("title"),
         "matched_terms": hit.get("matched_terms") or [],
         "score_components": hit.get("score_components") or {},
+        "engine_contributions": hit.get("metadata", {}).get("engine_contributions")
+        if isinstance(hit.get("metadata"), dict)
+        else [],
         "why_relevant": hit.get("why_relevant"),
         "freshness": hit.get("freshness"),
         "bookmark_account_count": hit.get("bookmark_account_count"),

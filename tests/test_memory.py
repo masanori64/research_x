@@ -68,6 +68,8 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     assert results
     assert any(result.source_tweet_id == "tweet-1" for result in results)
     assert all(result.compact_text for result in results)
+    assert results[0].metadata["engine_contributions"]
+    assert "rrf" in results[0].score_components
     assert any(result.source_tweet_id == "tweet-1" for result in natural_results)
     assert natural_results[0].score_components["doc_type"] > 0
     assert "カフェ" in natural_results[0].matched_terms
@@ -113,6 +115,7 @@ def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
     assert hit["compact_text"]
     assert hit["matched_terms"]
     assert hit["score_components"]
+    assert hit["metadata"]["engine_contributions"]
     assert hit["evidence"]["url"] == "https://x.com/a/status/tweet-1"
     assert hit["evidence"]["quoted_tweets"][0]["tweet_id"] == "tweet-2"
     assert hit["evidence"]["media"][0]["media_id"] == "media-1"
@@ -248,10 +251,16 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
     assert rerun.selected == 0
     assert results
     assert any(result.score_components["semantic"] > 0 for result in results)
+    assert any(result.score_components["rrf"] > 0 for result in results)
     assert any(
         result.metadata["semantic"]["embedding_profile"] == "general_memory"
         for result in results
         if "semantic" in result.metadata
+    )
+    assert any(
+        contribution["engine"] in {"semantic", "semantic_rerank"}
+        for result in results
+        for contribution in result.metadata["engine_contributions"]
     )
 
     with sqlite3.connect(db_path) as conn:
@@ -1105,7 +1114,7 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
         search_results = conn.execute("SELECT COUNT(*) FROM memory_search_results").fetchone()[0]
         first_result = conn.execute(
             """
-            SELECT rank, doc_id, source_kind, provider_role, evidence_status
+            SELECT rank, doc_id, source_kind, provider_role, evidence_status, metadata_json
             FROM memory_search_results
             WHERE run_id = ?
             ORDER BY rank
@@ -1128,7 +1137,9 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
         "local_x_db",
         "index_provider",
         "fact",
+        first_result[5],
     )
+    assert json.loads(first_result[5])["engine_contributions"]
     assert chunks == len(bundle.context_chunks)
     assert citations == len(bundle.citation_annotations)
     assert answers == 0

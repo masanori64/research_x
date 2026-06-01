@@ -69,6 +69,7 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
         "freshness": result.metadata.get("freshness", "active"),
         "matched_terms": list(result.matched_terms),
         "score_components": result.score_components,
+        "metadata": _public_result_metadata(result.metadata),
         "bookmark_account_count": result.metadata.get("bookmark_account_count"),
         "evidence": {
             "url": result.metadata.get("url") or tweet.get("url"),
@@ -199,6 +200,20 @@ def _derived_evidence(metadata: dict[str, Any]) -> dict[str, Any] | None:
         "source_doc_count": metadata.get("source_doc_count"),
         "display_source_doc_ids": metadata.get("display_source_doc_ids") or [],
     }
+
+
+def _public_result_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "engine_contributions",
+        "retrieval_methods",
+        "semantic",
+        "rrf_raw",
+        "relation_counts",
+        "bookmark_account_count",
+        "observed_at",
+        "created_at",
+    )
+    return {key: metadata[key] for key in keys if key in metadata}
 
 
 def _loads_json(value: str | None) -> dict[str, Any]:

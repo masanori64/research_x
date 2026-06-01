@@ -696,6 +696,13 @@ def _bookmark_account_count(hit: dict) -> int:
 def _retrieval_engines(hits: list[dict]) -> tuple[str, ...]:
     engines: list[str] = []
     for hit in hits:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        for contribution in metadata.get("engine_contributions") or ():
+            if not isinstance(contribution, dict):
+                continue
+            engine = str(contribution.get("engine") or "")
+            if engine and engine not in engines:
+                engines.append(engine)
         why = str(hit.get("why_relevant") or "")
         engine = why.split(" match:", 1)[0].strip()
         if engine and engine not in engines:

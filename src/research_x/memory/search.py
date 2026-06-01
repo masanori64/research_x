@@ -68,30 +68,42 @@ def search_memory(
 
         raw_rows: list[dict[str, Any]] = []
         raw_rows.extend(
-            _fts_search(
-                conn,
-                plan,
-                limit=pool_limit,
-                doc_type=doc_type,
-                account=account,
+            _with_engine_contributions(
+                _fts_search(
+                    conn,
+                    plan,
+                    limit=pool_limit,
+                    doc_type=doc_type,
+                    account=account,
+                ),
+                "fts",
+                plan=plan,
             )
         )
         raw_rows.extend(
-            _like_search(
-                conn,
-                plan,
-                limit=pool_limit,
-                doc_type=doc_type,
-                account=account,
+            _with_engine_contributions(
+                _like_search(
+                    conn,
+                    plan,
+                    limit=pool_limit,
+                    doc_type=doc_type,
+                    account=account,
+                ),
+                "like",
+                plan=plan,
             )
         )
         raw_rows.extend(
-            _metadata_search(
-                conn,
-                plan,
-                limit=pool_limit,
-                doc_type=doc_type,
-                account=account,
+            _with_engine_contributions(
+                _metadata_search(
+                    conn,
+                    plan,
+                    limit=pool_limit,
+                    doc_type=doc_type,
+                    account=account,
+                ),
+                "metadata",
+                plan=plan,
             )
         )
         if semantic_provider:
@@ -109,15 +121,25 @@ def search_memory(
                 doc_type=doc_type,
                 account=account,
             )
-            raw_rows.extend(_rows_by_doc_ids(conn, tuple(hit.doc_id for hit in semantic_hits)))
+            raw_rows.extend(
+                _with_semantic_contributions(
+                    _rows_by_doc_ids(conn, tuple(hit.doc_id for hit in semantic_hits)),
+                    semantic_hits,
+                    plan=plan,
+                )
+            )
         seed_candidates = _merge_candidates(raw_rows)
         raw_rows.extend(
-            _relation_expansion_search(
-                conn,
-                tuple(candidate["doc_id"] for candidate in seed_candidates),
-                limit=pool_limit,
-                doc_type=doc_type,
-                account=account,
+            _with_engine_contributions(
+                _relation_expansion_search(
+                    conn,
+                    tuple(candidate["doc_id"] for candidate in seed_candidates),
+                    limit=pool_limit,
+                    doc_type=doc_type,
+                    account=account,
+                ),
+                "relation_expansion",
+                plan=plan,
             )
         )
         candidates = _merge_candidates(raw_rows)
@@ -148,6 +170,7 @@ def search_memory(
                 base_url=semantic_base_url,
             )
         )
+    semantic_rerank_ranks = _semantic_rerank_ranks(semantic_by_doc)
     results = [
         _result_from_candidate(
             candidate,
@@ -157,6 +180,7 @@ def search_memory(
             relation_counts=relation_counts.get(str(candidate["doc_id"]), {}),
             latest_observed_at=latest_observed_at,
             semantic_hit=semantic_by_doc.get(str(candidate["doc_id"])),
+            semantic_rerank_rank=semantic_rerank_ranks.get(str(candidate["doc_id"])),
             semantic_weight=semantic_weight,
         )
         for candidate in candidates
@@ -414,13 +438,18 @@ def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         existing = merged.get(doc_id)
         if existing is None:
             row["_match_methods"] = {row["match_method"]}
+            row["_engine_contributions"] = list(row.get("_engine_contributions") or [])
             merged[doc_id] = row
             continue
         existing["_match_methods"].add(row["match_method"])
+        existing.setdefault("_engine_contributions", []).extend(
+            row.get("_engine_contributions") or []
+        )
         if _method_priority(str(row["match_method"])) > _method_priority(
             str(existing["match_method"])
         ):
             row["_match_methods"] = existing["_match_methods"]
+            row["_engine_contributions"] = existing.get("_engine_contributions", [])
             merged[doc_id] = row
     return list(merged.values())
 
@@ -435,6 +464,168 @@ def _method_priority(method: str) -> int:
     }.get(method, 0)
 
 
+def _with_engine_contributions(
+    rows: list[dict[str, Any]],
+    engine: str,
+    *,
+    plan: QueryPlan,
+) -> list[dict[str, Any]]:
+    weight = _engine_route_weight(engine, plan)
+    for rank, row in enumerate(rows, start=1):
+        row["_engine_contributions"] = [
+            {
+                "engine": engine,
+                "rank": rank,
+                "raw_score": _safe_float(row.get("raw_score")),
+                "route_weight": weight,
+                "rrf": round(weight / (60.0 + rank), 8),
+            }
+        ]
+    return rows
+
+
+def _with_semantic_contributions(
+    rows: list[dict[str, Any]],
+    hits: tuple[SemanticHit, ...],
+    *,
+    plan: QueryPlan,
+) -> list[dict[str, Any]]:
+    by_doc = {
+        hit.doc_id: {
+            "rank": rank,
+            "similarity": hit.similarity,
+            "provider": hit.provider,
+            "model": hit.model,
+            "dimensions": hit.dimensions,
+            "embedding_profile": hit.embedding_profile,
+            "text_template_version": hit.text_template_version,
+        }
+        for rank, hit in enumerate(hits, start=1)
+    }
+    weight = _engine_route_weight("semantic", plan)
+    for row in rows:
+        semantic = by_doc.get(str(row.get("doc_id")))
+        if not semantic:
+            continue
+        rank = int(semantic["rank"])
+        row["_engine_contributions"] = [
+            {
+                "engine": "semantic",
+                "rank": rank,
+                "raw_score": float(semantic["similarity"]),
+                "route_weight": weight,
+                "rrf": round(weight / (60.0 + rank), 8),
+                "provider": semantic["provider"],
+                "model": semantic["model"],
+                "dimensions": semantic["dimensions"],
+                "embedding_profile": semantic["embedding_profile"],
+                "text_template_version": semantic["text_template_version"],
+            }
+        ]
+    return rows
+
+
+def _dedupe_engine_contributions(values: list[Any]) -> list[dict[str, Any]]:
+    best: dict[tuple[str, str | None], dict[str, Any]] = {}
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        engine = str(value.get("engine") or "")
+        if not engine:
+            continue
+        key = (
+            engine,
+            str(value.get("provider") or "") or None,
+            str(value.get("model") or "") or None,
+            str(value.get("dimensions") or "") or None,
+            str(value.get("embedding_profile") or "") or None,
+            str(value.get("text_template_version") or "") or None,
+        )
+        current = best.get(key)
+        rank = int(value.get("rank") or 0)
+        if current is None or rank < int(current.get("rank") or 10**9):
+            best[key] = dict(value)
+    return sorted(
+        best.values(),
+        key=lambda item: (str(item.get("engine")), int(item.get("rank") or 0)),
+    )
+
+
+def _rrf_score(contributions: list[dict[str, Any]]) -> float:
+    return round(sum(float(item.get("rrf") or 0.0) for item in contributions), 6)
+
+
+def _rrf_rank_component(contributions: list[dict[str, Any]]) -> float:
+    return round(_rrf_score(contributions) * 60.0, 6)
+
+
+def _semantic_rerank_ranks(
+    semantic_by_doc: dict[str, SemanticHit | SemanticScore],
+) -> dict[str, int]:
+    ranked = sorted(
+        semantic_by_doc.items(),
+        key=lambda item: item[1].similarity,
+        reverse=True,
+    )
+    return {doc_id: rank for rank, (doc_id, _score) in enumerate(ranked, start=1)}
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _engine_route_weight(engine: str, plan: QueryPlan) -> float:
+    if engine == "fts":
+        return 1.25 if plan.exact_terms else 1.0
+    if engine == "semantic":
+        return 1.2 if "technology" in plan.intents or "author" in plan.intents else 1.0
+    if engine == "metadata":
+        return 1.25 if plan.requires_bookmark_context or plan.requires_media_context else 1.0
+    if engine == "relation_expansion":
+        return 1.3 if plan.requires_quote_context or "freshness" in plan.intents else 1.0
+    return 0.8
+
+
+def _ensure_semantic_rerank_contribution(
+    contributions: list[dict[str, Any]],
+    *,
+    semantic_hit: SemanticHit | SemanticScore,
+    rank: int,
+    plan: QueryPlan,
+) -> list[dict[str, Any]]:
+    existing = [
+        item
+        for item in contributions
+        if item.get("engine") in {"semantic", "semantic_rerank"}
+        and item.get("provider") == semantic_hit.provider
+        and item.get("model") == semantic_hit.model
+        and item.get("dimensions") == semantic_hit.dimensions
+        and item.get("embedding_profile") == semantic_hit.embedding_profile
+        and item.get("text_template_version") == semantic_hit.text_template_version
+    ]
+    if existing:
+        return contributions
+    weight = _engine_route_weight("semantic", plan)
+    return [
+        *contributions,
+        {
+            "engine": "semantic_rerank",
+            "rank": rank,
+            "raw_score": semantic_hit.similarity,
+            "route_weight": weight,
+            "rrf": round(weight / (60.0 + rank), 8),
+            "provider": semantic_hit.provider,
+            "model": semantic_hit.model,
+            "dimensions": semantic_hit.dimensions,
+            "embedding_profile": semantic_hit.embedding_profile,
+            "text_template_version": semantic_hit.text_template_version,
+        },
+    ]
+
+
 def _result_from_candidate(
     row: dict[str, Any],
     *,
@@ -444,6 +635,7 @@ def _result_from_candidate(
     relation_counts: dict[str, int],
     latest_observed_at: datetime | None,
     semantic_hit: SemanticHit | SemanticScore | None,
+    semantic_rerank_rank: int | None,
     semantic_weight: float,
 ) -> MemorySearchResult:
     metadata = _loads_json(row.get("metadata_json"))
@@ -455,6 +647,16 @@ def _result_from_candidate(
     matched_terms = tuple(term for term in plan.search_terms if _term_in_text(term, text_blob))
     expansion_matches = tuple(term for term in matched_terms if term not in exact_terms)
     methods = tuple(sorted(row.get("_match_methods", (str(row.get("match_method") or ""),))))
+    engine_contributions = _dedupe_engine_contributions(
+        row.get("_engine_contributions") or [],
+    )
+    if semantic_hit and semantic_rerank_rank is not None:
+        engine_contributions = _ensure_semantic_rerank_contribution(
+            engine_contributions,
+            semantic_hit=semantic_hit,
+            rank=semantic_rerank_rank,
+            plan=plan,
+        )
 
     components = {
         "lexical_exact": 2.0 * len(exact_terms),
@@ -475,6 +677,7 @@ def _result_from_candidate(
         else 0.0,
         "relations": _relation_score(plan, str(row["doc_type"]), relation_counts),
         "feedback": feedback_score,
+        "rrf": _rrf_rank_component(engine_contributions),
     }
     score = round(sum(components.values()), 6)
     metadata = dict(metadata)
@@ -483,6 +686,8 @@ def _result_from_candidate(
             "rank_score_components": components,
             "matched_terms": matched_terms,
             "retrieval_methods": methods,
+            "engine_contributions": engine_contributions,
+            "rrf_raw": _rrf_score(engine_contributions),
             "observed_at": row.get("observed_at"),
             "created_at": row.get("created_at"),
         }
