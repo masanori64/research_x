@@ -179,8 +179,8 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
     IntentProfile(
         intent_id="media",
         label="media",
-        triggers=("画像", "写真", "動画", "イラスト", "資料", "スクショ"),
-        expansions=("画像", "写真", "動画", "イラスト", "資料", "media", "photo", "video"),
+        triggers=("画像", "写真", "動画", "イラスト", "スクショ", "図表"),
+        expansions=("画像", "写真", "動画", "イラスト", "図表", "media", "photo", "video"),
         doc_type_weights={"media_doc": 2.0, "bookmark_doc": 0.4},
     ),
     IntentProfile(
@@ -193,7 +193,24 @@ INTENT_PROFILES: tuple[IntentProfile, ...] = (
     IntentProfile(
         intent_id="freshness",
         label="freshness",
-        triggers=("最近", "新しい", "古い", "最新", "古くなった", "昔", "今も", "正しい", "除いて"),
+        triggers=(
+            "最近",
+            "新しい",
+            "古い",
+            "最新",
+            "古くなった",
+            "昔",
+            "今も",
+            "正しい",
+            "除いて",
+            "矛盾",
+            "反対意見",
+            "反対",
+            "同じ話",
+            "contradict",
+            "contradiction",
+            "support",
+        ),
         expansions=("最近", "新しい", "最新", "古い", "昔", "更新", "obsolete", "freshness"),
         doc_type_weights={"bookmark_doc": 0.4, "tweet_doc": 0.4},
     ),
@@ -267,7 +284,21 @@ def build_query_plan(query: str) -> QueryPlan:
 
     prefers_recent = any(
         _contains(normalized, term)
-        for term in ("最近", "新しい", "最新", "今も", "現在", "現時点")
+        for term in (
+            "最近",
+            "新しい",
+            "最新",
+            "今も",
+            "現在",
+            "現時点",
+            "矛盾",
+            "反対意見",
+            "反対",
+            "同じ話",
+            "contradict",
+            "contradiction",
+            "support",
+        )
     )
     excludes_old = any(
         _contains(normalized, term)

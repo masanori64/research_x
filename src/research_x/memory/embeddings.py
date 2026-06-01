@@ -355,9 +355,11 @@ def semantic_scores_for_doc_ids(
     return {
         row["doc_id"]: SemanticScore(
             doc_id=row["doc_id"],
-            similarity=cosine_similarity(
-                query_vector,
-                unpack_embedding_array(row["embedding"], int(row["dimensions"])),
+            similarity=float(
+                cosine_similarity(
+                    query_vector,
+                    unpack_embedding_array(row["embedding"], int(row["dimensions"])),
+                )
             ),
             provider=row["provider"],
             model=row["model"],
@@ -987,6 +989,20 @@ def _resolve_available_spec(
         )
         rows = _embedding_index_count(conn, spec)
         if rows == 0:
+            available_spec = _matching_available_spec(
+                conn,
+                provider=spec.provider,
+                model=model,
+                dimensions=dimensions,
+                embedding_profile=spec.embedding_profile,
+                text_template_version=spec.text_template_version,
+                api_key_env=api_key_env,
+                base_url=base_url,
+            )
+            if available_spec and (
+                dimensions is None or available_spec.dimensions == dimensions
+            ):
+                return available_spec
             raise RuntimeError(
                 "embedding index not found for "
                 f"{spec.provider}/{spec.model} dims={spec.dimensions}; "
@@ -1051,6 +1067,59 @@ def _resolve_available_spec(
         "`research_x memory build-embeddings --provider gemini` or "
         "`research_x memory build-embeddings --provider openai` or "
         "`research_x memory build-embeddings --provider openai_compatible --base-url ...` first"
+    )
+
+
+def _matching_available_spec(
+    conn: sqlite3.Connection,
+    *,
+    provider: str,
+    model: str | None,
+    dimensions: int | None,
+    embedding_profile: str,
+    text_template_version: str,
+    api_key_env: str | None,
+    base_url: str | None,
+) -> EmbeddingSpec | None:
+    filters = [
+        "provider = ?",
+        "embedding_profile = ?",
+        "text_template_version = ?",
+    ]
+    params: list[Any] = [provider, embedding_profile, text_template_version]
+    if model:
+        filters.append("model = ?")
+        params.append(model)
+    if dimensions:
+        filters.append("dimensions = ?")
+        params.append(dimensions)
+    row = conn.execute(
+        f"""
+        SELECT
+            provider, model, dimensions,
+            embedding_profile, text_template_version
+        FROM memory_embeddings
+        WHERE {' AND '.join(filters)}
+        GROUP BY
+            provider, model, dimensions,
+            embedding_profile, text_template_version
+        ORDER BY
+            MAX(updated_at) DESC, provider, model, dimensions,
+            embedding_profile, text_template_version
+        LIMIT 1
+        """,
+        params,
+    ).fetchone()
+    if not row:
+        return None
+    return resolve_embedding_spec(
+        provider=row["provider"],
+        model=row["model"],
+        dimensions=int(row["dimensions"]),
+        embedding_profile=row["embedding_profile"],
+        text_template_version=row["text_template_version"],
+        api_key_env=api_key_env,
+        base_url=base_url,
     )
 
 

@@ -544,11 +544,22 @@ def _dedupe_engine_contributions(values: list[Any]) -> list[dict[str, Any]]:
         current = best.get(key)
         rank = int(value.get("rank") or 0)
         if current is None or rank < int(current.get("rank") or 10**9):
-            best[key] = dict(value)
+            best[key] = _normalise_engine_contribution(value)
     return sorted(
         best.values(),
         key=lambda item: (str(item.get("engine")), int(item.get("rank") or 0)),
     )
+
+
+def _normalise_engine_contribution(value: dict[str, Any]) -> dict[str, Any]:
+    normalised = dict(value)
+    for key in ("rank", "dimensions"):
+        if key in normalised and normalised[key] is not None:
+            normalised[key] = int(normalised[key])
+    for key in ("raw_score", "route_weight", "rrf"):
+        if key in normalised:
+            normalised[key] = _safe_float(normalised[key])
+    return normalised
 
 
 def _rrf_score(contributions: list[dict[str, Any]]) -> float:
@@ -614,7 +625,7 @@ def _ensure_semantic_rerank_contribution(
         {
             "engine": "semantic_rerank",
             "rank": rank,
-            "raw_score": semantic_hit.similarity,
+            "raw_score": _safe_float(semantic_hit.similarity),
             "route_weight": weight,
             "rrf": round(weight / (60.0 + rank), 8),
             "provider": semantic_hit.provider,
@@ -664,7 +675,7 @@ def _result_from_candidate(
         "retrieval_method": _method_score(methods),
         "doc_type": plan.doc_type_weights.get(str(row["doc_type"]), 0.0),
         "context": _context_score(plan, str(row["doc_type"]), body, metadata),
-        "semantic": max(0.0, semantic_hit.similarity) * semantic_weight
+        "semantic": max(0.0, _safe_float(semantic_hit.similarity)) * semantic_weight
         if semantic_hit
         else 0.0,
         "freshness": _freshness_score(
@@ -676,10 +687,11 @@ def _result_from_candidate(
         if plan.wants_cross_account and bookmark_account_count > 1
         else 0.0,
         "relations": _relation_score(plan, str(row["doc_type"]), relation_counts),
-        "feedback": feedback_score,
+        "feedback": _safe_float(feedback_score),
         "rrf": _rrf_rank_component(engine_contributions),
     }
-    score = round(sum(components.values()), 6)
+    components = {key: float(value) for key, value in components.items()}
+    score = float(round(sum(components.values()), 6))
     metadata = dict(metadata)
     metadata.update(
         {
@@ -703,7 +715,7 @@ def _result_from_candidate(
             "dimensions": semantic_hit.dimensions,
             "embedding_profile": semantic_hit.embedding_profile,
             "text_template_version": semantic_hit.text_template_version,
-            "similarity": semantic_hit.similarity,
+            "similarity": _safe_float(semantic_hit.similarity),
             "weight": semantic_weight,
         }
     if components["freshness"] > 0 and plan.prefers_recent:

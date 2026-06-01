@@ -681,6 +681,29 @@ def _feature_found(feature: str | None, hits: list[dict]) -> bool:
         freshness_score = float((hit.get("score_components") or {}).get("freshness") or 0.0)
         if feature == "freshness" and abs(freshness_score) > 0.0001:
             return True
+        relation_counts = (hit.get("metadata") or {}).get("relation_counts") or {}
+        if feature == "freshness" and _has_freshness_relation(relation_counts):
+            return True
+    return False
+
+
+def _has_freshness_relation(relation_counts: dict[str, Any]) -> bool:
+    freshness_relations = (
+        "newer_than",
+        "older_than",
+        "older_same_author_label",
+        "obsolete_candidate",
+        "supports",
+        "contradicts",
+    )
+    for relation, count in relation_counts.items():
+        if str(relation).removeprefix("incoming:") not in freshness_relations:
+            continue
+        try:
+            if int(count or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            continue
     return False
 
 

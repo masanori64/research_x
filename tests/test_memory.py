@@ -43,7 +43,7 @@ from research_x.memory.relations import build_memory_relations, relations_for_do
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.search import search_memory
 from research_x.memory.source_kinds import classify_external_source_kind
-from research_x.memory.workflow import plan_workflow_route, run_memory_workflow
+from research_x.memory.workflow import plan_workflow_route, run_memory_workflow, workflow_json
 
 
 def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
@@ -77,6 +77,14 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     plan = build_query_plan("画像付きで保存した技術資料っぽい投稿を出して")
     assert plan.requires_media_context is True
     assert "media_doc" in plan.doc_type_weights
+    docs_plan = build_query_plan(
+        "日本語で聞くけど、保存した英語論文や公式docsから強化学習の資料を出して"
+    )
+    assert "technology" in docs_plan.intents
+    assert "media" not in docs_plan.intents
+    contradiction_plan = build_query_plan("同じ話で反対意見や矛盾している保存投稿はある？")
+    assert "freshness" in contradiction_plan.intents
+    assert contradiction_plan.prefers_recent is True
     exclude_plan = build_query_plan("最近保存した強化学習を古いものを除いて出して")
     assert exclude_plan.excludes_old is True
     assert "古い" not in exclude_plan.search_terms
@@ -405,6 +413,24 @@ def test_memory_semantic_explicit_provider_requires_existing_index(tmp_path: Pat
         assert "embedding index not found" in str(exc)
     else:
         raise AssertionError("explicit semantic provider should require a matching index")
+
+
+def test_memory_semantic_explicit_provider_uses_available_dimensions(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    results = search_memory(db_path, "robot paper", limit=3, semantic_provider="local_hash")
+
+    assert results
+    semantic_meta = [
+        result.metadata.get("semantic")
+        for result in results
+        if result.metadata.get("semantic")
+    ]
+    assert semantic_meta
+    assert {row["dimensions"] for row in semantic_meta} == {64}
 
 
 def test_memory_semantic_provider_requires_complete_scope_index(tmp_path: Path) -> None:
@@ -1349,6 +1375,28 @@ def test_memory_workflow_can_merge_llm_context_into_route(tmp_path: Path) -> Non
     assert tool_run_id == workflow.context_bundle.run_id
 
 
+def test_memory_workflow_json_accepts_semantic_scores(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=2,
+        semantic_provider="local_hash",
+        answer_provider="none",
+    )
+    payload = json.loads(workflow_json(workflow))
+
+    assert payload["context_bundle"]["context_chunks"]
+    assert payload["context_bundle"]["retrieved_hits"][0]["metadata"]["semantic"][
+        "dimensions"
+    ] == 64
+
+
 def test_memory_workflow_answer_uses_merged_llm_context(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
@@ -1385,11 +1433,15 @@ def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
         build_query_plan("最近保存した強化学習とロボット系の情報を出して")
     )
     current_fact = plan_workflow_route(build_query_plan("昔保存したこの技術情報、今も正しい？"))
+    contradiction_fact = plan_workflow_route(
+        build_query_plan("同じ話で反対意見や矛盾している保存投稿はある？")
+    )
 
     assert recent_learning.route == "learning_map"
     assert recent_learning.recommended_doc_types[0] == "topic_thread"
     assert current_fact.route == "current_fact_check"
     assert current_fact.wants_external_context is True
+    assert contradiction_fact.route == "current_fact_check"
 
 
 def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:

@@ -539,6 +539,8 @@ def plan_workflow_route(plan: QueryPlan, *, requested_route: str = "auto") -> Wo
         return _route("place_recall", "food_intent")
     if "finance" in intents:
         return _route("company_event", "finance_intent")
+    if _looks_like_current_fact_check(plan):
+        return _route("current_fact_check", "freshness_or_current_fact_check")
     if plan.author_terms or "author" in intents:
         return _route("author_stance", "author_intent")
     if "quote_context" in intents:
@@ -549,8 +551,6 @@ def plan_workflow_route(plan: QueryPlan, *, requested_route: str = "auto") -> Wo
         return _route("media_context", "media_intent")
     if "cross_account" in intents:
         return _route("cross_account", "cross_account_intent")
-    if _looks_like_current_fact_check(plan):
-        return _route("current_fact_check", "freshness_or_current_fact_check")
     if "event" in intents:
         return _route("event_recall", "event_intent")
     if intents.intersection({"technology", "science"}):
@@ -625,6 +625,13 @@ def _looks_like_current_fact_check(plan: QueryPlan) -> bool:
         "obsolete",
         "事実確認",
         "ファクトチェック",
+        "矛盾",
+        "反対意見",
+        "反対",
+        "同じ話",
+        "contradict",
+        "contradiction",
+        "support",
     )
     return any(term.casefold() in text for term in current_terms)
 
