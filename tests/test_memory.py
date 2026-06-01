@@ -118,7 +118,9 @@ def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
     assert hit["metadata"]["engine_contributions"]
     assert hit["evidence"]["url"] == "https://x.com/a/status/tweet-1"
     assert hit["evidence"]["quoted_tweets"][0]["tweet_id"] == "tweet-2"
+    assert hit["evidence"]["quoted_tweets"][0]["child_also_bookmarked"] is False
     assert hit["evidence"]["media"][0]["media_id"] == "media-1"
+    assert hit["evidence"]["media"][0]["url"] == "https://example.test/image.jpg"
 
 
 def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
@@ -1105,6 +1107,9 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
     assert chunk.source_kind == "local_x_db"
     assert chunk.provider_role == "context_builder"
     assert "Quoted tweets:" in chunk.chunk_text
+    assert "also_bookmarked=False" in chunk.chunk_text
+    assert "id=media-1" in chunk.chunk_text
+    assert "url=https://example.test/image.jpg" in chunk.chunk_text
     assert citation.chunk_id == chunk.chunk_id
     assert citation.source_url == "https://x.com/a/status/tweet-1"
     assert citation.evidence_status == "fact"
@@ -1585,6 +1590,7 @@ def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path)
     assert finance_results[0].doc_type == "ticker_event"
     assert any(result.doc_type == "author_profile" for result in author_results)
     assert place_bundle["hits"][0]["evidence"]["derived"]["source_doc_count"] > 2
+    assert place_bundle["hits"][0]["evidence"]["derived"]["source_tweet_ids"]
 
     with sqlite3.connect(db_path) as conn:
         doc_count = conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0]

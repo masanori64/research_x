@@ -118,7 +118,8 @@ def _quoted_tweets(conn: sqlite3.Connection, tweet_id: str) -> list[dict[str, An
     rows = conn.execute(
         """
         SELECT
-            c.tweet_id, c.url, c.author_screen_name, c.text
+            c.tweet_id, c.url, c.author_screen_name, c.text,
+            e.child_also_bookmarked
         FROM tweet_edges e
         JOIN tweets c ON c.tweet_id = e.child_tweet_id
         WHERE e.parent_tweet_id = ?
@@ -134,6 +135,7 @@ def _quoted_tweets(conn: sqlite3.Connection, tweet_id: str) -> list[dict[str, An
             "url": row["url"],
             "author": row["author_screen_name"],
             "text": _compact(row["text"] or "", limit=240),
+            "child_also_bookmarked": bool(row["child_also_bookmarked"]),
         }
         for row in rows
     ]

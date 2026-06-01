@@ -395,7 +395,11 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
     quoted = evidence.get("quoted_tweets") or []
     if quoted:
         quote_lines = [
-            f"- @{row.get('author') or ''}: {row.get('text') or ''} {row.get('url') or ''}".strip()
+            (
+                f"- @{row.get('author') or ''}: {row.get('text') or ''} "
+                f"{row.get('url') or ''} "
+                f"also_bookmarked={bool(row.get('child_also_bookmarked'))}"
+            ).strip()
             for row in quoted[:3]
             if isinstance(row, dict)
         ]
@@ -407,6 +411,10 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
     derived = evidence.get("derived")
     if isinstance(derived, dict):
         source_ids = [str(value) for value in derived.get("source_doc_ids") or ()]
+        source_tweet_ids = [str(value) for value in derived.get("source_tweet_ids") or ()]
+        display_source_ids = [
+            str(value) for value in derived.get("display_source_doc_ids") or ()
+        ]
         source_urls = [str(value) for value in derived.get("source_urls") or () if value]
         parts.append(
             "\n".join(
@@ -415,6 +423,9 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
                     "Derived source doc count: "
                     f"{derived.get('source_doc_count') or len(source_ids)}",
                     "Derived source doc ids: " + _listed(source_ids, limit=12),
+                    "Derived source tweet ids: " + _listed(source_tweet_ids, limit=12),
+                    "Derived display source doc ids: "
+                    + _listed(display_source_ids, limit=12),
                     "Derived source urls: " + _listed(source_urls, limit=8),
                 ]
             )
@@ -422,8 +433,10 @@ def _chunk_text(*, query: str, hit: dict[str, Any], evidence: dict[str, Any]) ->
     if media:
         media_lines = [
             (
-                f"- {row.get('type') or ''} status={row.get('download_status') or ''} "
-                f"alt={row.get('alt_text') or ''} path={row.get('local_path') or ''}"
+                f"- id={row.get('media_id') or ''} type={row.get('type') or ''} "
+                f"status={row.get('download_status') or ''} "
+                f"url={row.get('url') or ''} alt={row.get('alt_text') or ''} "
+                f"path={row.get('local_path') or ''}"
             ).strip()
             for row in media[:4]
             if isinstance(row, dict)
