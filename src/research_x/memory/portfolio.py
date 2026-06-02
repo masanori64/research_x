@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,24 @@ class PortfolioArmResult:
     top_doc_ids: tuple[str, ...]
     top_bundle_keys: tuple[str, ...]
     error: str | None
+    case_status: str | None = None
+    case_notes: tuple[str, ...] = ()
+    required_terms_found: bool = False
+    preferred_doc_type_found: bool = False
+    required_feature_found: bool = False
+
+
+@dataclass(frozen=True)
+class PortfolioArmSummary:
+    name: str
+    provider: str | None
+    model: str | None
+    dimensions: int | None
+    case_count: int
+    ok: int
+    needs_review: int
+    fail: int
+    error: int
 
 
 @dataclass(frozen=True)
@@ -69,6 +87,7 @@ class PortfolioCaseResult:
 @dataclass(frozen=True)
 class PortfolioEvalReport:
     cases: tuple[PortfolioCaseResult, ...]
+    arm_summaries: tuple[PortfolioArmSummary, ...]
     parameters: dict[str, Any]
 
 
@@ -149,7 +168,11 @@ def run_portfolio_eval(
         )
         for case in resolved_cases
     )
-    return PortfolioEvalReport(cases=results, parameters=parameters)
+    return PortfolioEvalReport(
+        cases=results,
+        arm_summaries=_arm_summaries(results),
+        parameters=parameters,
+    )
 
 
 def portfolio_eval_json(report: PortfolioEvalReport) -> str:
@@ -161,8 +184,19 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
         "portfolio-eval: "
         f"cases={len(report.cases)} semantic_specs={len(report.parameters['semantic_specs'])}"
     ]
+    if report.arm_summaries:
+        lines.append("arm summaries:")
+        for summary in report.arm_summaries:
+            lines.append(
+                "  "
+                f"{summary.name}: ok={summary.ok} review={summary.needs_review} "
+                f"fail={summary.fail} error={summary.error}"
+            )
     for case in report.cases:
         top = case.fused_hits[0].doc_id if case.fused_hits else "-"
+        arm_statuses = ",".join(
+            f"{arm.name}:{arm.case_status or arm.status}" for arm in case.arms
+        )
         lines.append(
             " ".join(
                 [
@@ -170,6 +204,7 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
                     f"type={case.question_type}",
                     f"top={top}",
                     f"arms={len(case.arms)}",
+                    f"arm_status={arm_statuses}",
                     f"query={case.query}",
                 ]
             )
@@ -193,11 +228,10 @@ def _run_case(
     for index, spec in enumerate(semantic_specs, start=1):
         name = spec.name or _semantic_arm_name(spec, index=index)
         arm_payloads.append(_run_arm(db_path, case.query, name=name, spec=spec, limit=arm_limit))
+    arm_payloads = _evaluate_arms(case, arm_payloads, limit=limit)
     fused_hits = _fuse_hits(arm_payloads, limit=limit, rrf_k=rrf_k)
     notes = _case_notes(case, fused_hits)
-    status = "ok" if not notes else "needs_review"
-    if not fused_hits or "required term family missing" in notes:
-        status = "fail"
+    status = _case_status(notes, fused_hits)
     return PortfolioCaseResult(
         query=case.query,
         question_type=case.question_type,
@@ -265,6 +299,75 @@ def _run_arm(
             error=_compact_error(str(exc)),
         )
         return arm, []
+
+
+def _evaluate_arms(
+    case: EvalCase,
+    arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]],
+    *,
+    limit: int,
+) -> list[tuple[PortfolioArmResult, list[dict[str, Any]]]]:
+    evaluated: list[tuple[PortfolioArmResult, list[dict[str, Any]]]] = []
+    for arm, hits in arm_payloads:
+        if arm.status != "ok":
+            note = arm.error or "arm failed"
+            evaluated.append(
+                (
+                    replace(
+                        arm,
+                        case_status="error",
+                        case_notes=(note,),
+                    ),
+                    hits,
+                )
+            )
+            continue
+        arm_hits = _portfolio_hits_from_raw_hits(hits, limit=limit)
+        notes = _case_notes(case, arm_hits)
+        evaluated.append(
+            (
+                replace(
+                    arm,
+                    case_status=_case_status(notes, arm_hits),
+                    case_notes=tuple(notes),
+                    required_terms_found=_required_terms_found(case, arm_hits),
+                    preferred_doc_type_found=_preferred_doc_type_found(case, arm_hits),
+                    required_feature_found=_feature_found(case.required_feature, arm_hits),
+                ),
+                hits,
+            )
+        )
+    return evaluated
+
+
+def _portfolio_hits_from_raw_hits(
+    hits: list[dict[str, Any]],
+    *,
+    limit: int,
+) -> list[PortfolioHit]:
+    portfolio_hits = []
+    for index, raw in enumerate(hits[:limit], start=1):
+        hit = dict(raw)
+        bundle_key = _bundle_key(hit)
+        metadata = dict(hit.get("metadata") or {})
+        metadata["evidence"] = hit.get("evidence") or {}
+        metadata["rank_score_components"] = hit.get("score_components") or {}
+        metadata["portfolio_bundle_key"] = bundle_key
+        portfolio_hits.append(
+            PortfolioHit(
+                rank=index,
+                bundle_key=bundle_key,
+                doc_id=str(hit.get("doc_id") or ""),
+                doc_type=str(hit.get("doc_type") or ""),
+                tweet_id=_string_or_none(hit.get("tweet_id")),
+                score=float(hit.get("score") or 0.0),
+                title=str(hit.get("title") or ""),
+                compact_text=str(hit.get("compact_text") or ""),
+                contributions=(),
+                metadata=metadata,
+            )
+        )
+    return portfolio_hits
 
 
 def _fuse_hits(
@@ -336,7 +439,7 @@ def _fuse_hits(
 def _case_notes(case: EvalCase, hits: list[PortfolioHit]) -> list[str]:
     notes: list[str] = []
     if not hits:
-        return ["no fused hits"]
+        return ["no hits"]
     if case.required_any_terms and not _required_terms_found(case, hits):
         notes.append("required term family missing")
     if case.preferred_doc_types and not _preferred_doc_type_found(case, hits):
@@ -344,6 +447,54 @@ def _case_notes(case: EvalCase, hits: list[PortfolioHit]) -> list[str]:
     if case.required_feature and not _feature_found(case.required_feature, hits):
         notes.append(f"required feature missing: {case.required_feature}")
     return notes
+
+
+def _case_status(notes: list[str], hits: list[PortfolioHit]) -> str:
+    if not hits or "required term family missing" in notes:
+        return "fail"
+    return "ok" if not notes else "needs_review"
+
+
+def _arm_summaries(cases: tuple[PortfolioCaseResult, ...]) -> tuple[PortfolioArmSummary, ...]:
+    buckets: dict[str, dict[str, Any]] = {}
+    for case in cases:
+        for arm in case.arms:
+            bucket = buckets.setdefault(
+                arm.name,
+                {
+                    "name": arm.name,
+                    "provider": arm.provider,
+                    "model": arm.model,
+                    "dimensions": arm.dimensions,
+                    "case_count": 0,
+                    "ok": 0,
+                    "needs_review": 0,
+                    "fail": 0,
+                    "error": 0,
+                },
+            )
+            bucket["case_count"] += 1
+            status = arm.case_status or arm.status
+            if status in {"ok", "needs_review", "fail", "error"}:
+                bucket[status] += 1
+            else:
+                bucket["error"] += 1
+    return tuple(
+        PortfolioArmSummary(
+            name=str(bucket["name"]),
+            provider=_string_or_none(bucket["provider"]),
+            model=_string_or_none(bucket["model"]),
+            dimensions=(
+                int(bucket["dimensions"]) if bucket["dimensions"] is not None else None
+            ),
+            case_count=int(bucket["case_count"]),
+            ok=int(bucket["ok"]),
+            needs_review=int(bucket["needs_review"]),
+            fail=int(bucket["fail"]),
+            error=int(bucket["error"]),
+        )
+        for bucket in buckets.values()
+    )
 
 
 def _required_terms_found(case: EvalCase, hits: list[PortfolioHit]) -> bool:

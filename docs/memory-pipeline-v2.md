@@ -424,8 +424,9 @@ Rejected alternatives:
 Implementation impact:
 
 - `memory portfolio-eval` is the experimental portfolio/eval contract. It compares lexical-only and
-  candidate semantic arms under the same eval cases, then reports source-bundle-level RRF fusion
-  without changing the production `memory search` ranking path.
+  candidate semantic arms under the same eval cases, reports per-arm case verdicts and summaries,
+  then reports source-bundle-level RRF fusion without changing the production `memory search`
+  ranking path.
 - Candidate engines need stable names, provider/model/profile/template metadata, route weights,
   rank positions, and bundle restoration metadata.
 - Eval must compare at least: lexical-only, lexical+relations+derived, one production provider,
