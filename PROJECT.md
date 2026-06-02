@@ -74,6 +74,7 @@ src/research_x/memory/
   llm_context.py
   answer.py
   workflow.py
+  portfolio.py
 ```
 
 Implemented commands:
@@ -98,6 +99,7 @@ research_x memory extract-url
 research_x memory llm-context
 research_x memory answer
 research_x memory workflow
+research_x memory portfolio-eval
 research_x memory export-corpus2skill
 research_x memory feedback
 research_x memory eval
@@ -147,6 +149,8 @@ Implemented behavior:
 - optional stored eval runs/results for comparing retrieval quality across rebuilds and embedding
   profiles;
 - stored eval run listing/detail commands for post-run inspection;
+- experimental `memory portfolio-eval` comparison for lexical-only and candidate semantic arms,
+  with source-bundle-level RRF fusion metadata that does not alter production search ranking;
 - machine-readable question-type coverage targets so evals cover recall, set, aggregation,
   comparison, multi-hop, temporal, abstention, citation, multilingual, media, preference, and
   exploratory-map cases instead of only the first concrete examples;
@@ -222,9 +226,12 @@ research_x memory cite
 
 ## Later Milestones
 
+- Add an experimental Adaptive Evidence Portfolio/eval contract before promoting multi-provider
+  embeddings. It should compare lexical-only, relations/derived views, one production embedding
+  provider, candidate multi-provider RRF, and source-bundle-restored context under the same cases.
 - Run production embedding rebuild/eval for the chosen provider and template on the real DB.
-- Add profile-specific embeddings only after route evals show the broad `general_memory` index is
-  not enough.
+- Add profile-specific or provider-specific embeddings only after route evals show the broad
+  `general_memory` index plus FTS/metadata/relations/derived views is not enough.
 - Run AI/judge-assisted `supports` and `contradicts` relation passes on the real DB, then evaluate
   whether the extra edges improve currentness/fact-check routes.
 - Run the exported Corpus2Skill bundle through the OSS compiler and evaluate it as a navigation map,

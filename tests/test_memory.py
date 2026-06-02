@@ -32,6 +32,10 @@ from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
+from research_x.memory.portfolio import (
+    parse_portfolio_semantic_spec,
+    run_portfolio_eval,
+)
 from research_x.memory.query import build_query_plan
 from research_x.memory.question_types import known_question_type_ids, question_types_as_dicts
 from research_x.memory.reader import (
@@ -451,6 +455,69 @@ def test_memory_semantic_provider_requires_complete_scope_index(tmp_path: Path) 
         assert "semantic index is incomplete" in str(exc)
     else:
         raise AssertionError("semantic search should not continue with a partial index")
+
+
+def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    build_memory_embeddings(
+        db_path,
+        provider="local_hash",
+        dimensions=32,
+        embedding_profile="alt_memory",
+    )
+
+    case = load_eval_cases(
+        _write_cases(
+            tmp_path,
+            [
+                {
+                    "query": "robot paper",
+                    "required_any_terms": ["ロボット", "robot"],
+                    "question_type": "multi_hop_evidence",
+                    "preferred_doc_types": ["bookmark_doc", "quote_tree_doc"],
+                }
+            ],
+        )
+    )[0]
+    report = run_portfolio_eval(
+        db_path,
+        cases=(case,),
+        semantic_specs=(
+            parse_portfolio_semantic_spec(
+                "provider=local_hash,dimensions=64,name=hash64"
+            ),
+            parse_portfolio_semantic_spec(
+                "provider=local_hash,dimensions=32,profile=alt_memory,name=hash32"
+            ),
+        ),
+        limit=3,
+        arm_limit=5,
+    )
+    result = report.cases[0]
+
+    assert result.status == "ok"
+    assert {arm.name for arm in result.arms} == {"lexical", "hash64", "hash32"}
+    assert result.fused_hits
+    assert result.fused_hits[0].bundle_key.startswith("tweet:")
+    contribution_arms = {
+        contribution["arm"]
+        for hit in result.fused_hits
+        for contribution in hit.contributions
+    }
+    assert {"lexical", "hash64", "hash32"}.issubset(contribution_arms)
+
+
+def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
+    try:
+        parse_portfolio_semantic_spec("provider=local_hash,dimensions=64,bad=value")
+    except ValueError as exc:
+        assert "unknown portfolio semantic spec field" in str(exc)
+    else:
+        raise AssertionError("portfolio semantic spec should reject unknown fields")
 
 
 def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
@@ -2427,6 +2494,12 @@ def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, cap
     captured = capsys.readouterr()
     assert "diagnostic local_hash" in captured.err
     assert "Traceback" not in captured.err
+
+
+def _write_cases(tmp_path: Path, cases: list[dict]) -> Path:
+    path = tmp_path / "cases.json"
+    path.write_text(json.dumps({"cases": cases}, ensure_ascii=False), encoding="utf-8")
+    return path
 
 
 def _seed_derived_source_rows(db_path: Path) -> None:

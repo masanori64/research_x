@@ -374,6 +374,74 @@ Sources used:
 - BEIR, MTEB, MIRACL, HotpotQA, MuSiQue, 2WikiMultiHopQA, CRAG, FRAMES, LongMemEval, RAGAS, ARES,
   DeepEval, and multimodal retrieval benchmark patterns.
 
+### 2026-06-02: Adaptive Evidence Portfolio Beats Naive Multi-Provider Embeddings
+
+Decision:
+
+- Do not implement "run every embedding provider and fuse everything" as the production default.
+- Keep single broad production embedding plus FTS, metadata, relations, and derived documents as the
+  baseline that any multi-provider design must beat.
+- Treat multiple providers as an `Adaptive Evidence Portfolio`: provider-specific embeddings are
+  challenger or specialist retrieval engines, selected by route and eval evidence, not a permanent
+  fanout.
+- Fuse candidates at the source-bundle level whenever practical. A hit on a quote child, media doc,
+  bookmark doc, derived card, or semantic provider result must canonicalize back to the root evidence
+  bundle before final context selection.
+- Use provider diversity only when it adds a distinct failure-mode advantage: Japanese short text,
+  cross-lingual aliases, technical jargon, multimodal/media evidence, or exploratory topic mapping.
+- Keep raw provider scores out of cross-provider ranking. Fusion may use rank-level signals, route
+  weights, bundle-level evidence features, and bounded reranking after source restoration.
+
+Rationale:
+
+- Primary systems such as Qdrant and Azure AI Search support multi-query / multi-vector retrieval
+  with RRF, but they also expose the need for candidate depth, separate score ranges, weighting, and
+  debug traces.
+- Production-style RAG-Fusion evidence shows that higher raw recall can be neutralized by reranking
+  and truncation budgets. This means more providers can create more noise without improving the final
+  answer.
+- Financial/text-table retrieval benchmarks show that BM25 can outperform dense retrieval for exact
+  or numeric domains, and that hybrid plus reranking can be strong only after the corpus and route are
+  shaped correctly.
+- A personal X memory DB is not one semantic task. It mixes exact entity recall, subjective bookmark
+  ownership, quote/media reconstruction, author history, temporal freshness, and broad learning maps.
+  Multi-representation is required; multi-provider is optional.
+
+Rejected alternatives:
+
+- Always querying OpenAI, Gemini, Voyage, Jina, Cohere, and Mistral at runtime.
+- Declaring multi-provider embeddings superior before a single-provider production baseline exists.
+- Treating provider agreement as truth. Agreement is a ranking signal only; final evidence still
+  comes from context chunks and citations.
+- Treating provider disagreement as an automatic answer-expansion signal. Disagreement should first
+  trigger bundle restoration and eval logging.
+- Adding multimodal or domain-specific providers before media/OCR/derived source contracts can cite
+  the restored local source.
+
+Implementation impact:
+
+- `memory portfolio-eval` is the experimental portfolio/eval contract. It compares lexical-only and
+  candidate semantic arms under the same eval cases, then reports source-bundle-level RRF fusion
+  without changing the production `memory search` ranking path.
+- Candidate engines need stable names, provider/model/profile/template metadata, route weights,
+  rank positions, and bundle restoration metadata.
+- Eval must compare at least: lexical-only, lexical+relations+derived, one production provider,
+  candidate multi-provider RRF, and source-bundle-restored context.
+- Go only if multi-provider retrieval improves measured route-level evidence quality over the
+  single-provider baseline without degrading exact-token, citation, abstention, quote/media, or
+  freshness routes.
+- If the eval gain is only from more raw recall but not from final context/citation quality, improve
+  document views, relations, query routing, or reranking before adding provider complexity.
+
+Sources checked:
+
+- Qdrant Hybrid Queries: https://qdrant.tech/documentation/search/hybrid-queries/
+- Azure AI Search RRF scoring: https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking
+- RAG-Fusion deployment study: https://arxiv.org/abs/2603.02153
+- Text/table retrieval benchmark: https://arxiv.org/abs/2604.01733
+- Anthropic Contextual Retrieval: https://www.anthropic.com/engineering/contextual-retrieval
+- RAGRouter-Bench: https://arxiv.org/abs/2602.00296
+
 ## Non-Negotiable Invariants
 
 1. Raw X records are never replaced by summaries.

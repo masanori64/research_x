@@ -893,6 +893,37 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="return a non-zero exit code when any eval case is not ok",
     )
+    memory_portfolio_eval_parser = memory_subparsers.add_parser(
+        "portfolio-eval",
+        help=(
+            "compare lexical, single-provider, and candidate semantic arms "
+            "without promoting multi-provider search to production"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_portfolio_eval_parser.add_argument(
+        "--cases",
+        default=None,
+        help="optional JSON/JSONL eval cases file; omit to use built-in route cases",
+    )
+    memory_portfolio_eval_parser.add_argument("--limit", type=int, default=5)
+    memory_portfolio_eval_parser.add_argument("--arm-limit", type=int, default=20)
+    memory_portfolio_eval_parser.add_argument("--rrf-k", type=float, default=60.0)
+    memory_portfolio_eval_parser.add_argument(
+        "--semantic-spec",
+        action="append",
+        default=[],
+        help=(
+            "candidate semantic arm as key=value CSV, e.g. "
+            "provider=local_hash,dimensions=64,name=hash64,weight=1.0; repeatable"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument("--json", action="store_true")
+    memory_portfolio_eval_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return a non-zero exit code when any portfolio case is not ok",
+    )
     memory_eval_runs_parser = memory_subparsers.add_parser(
         "eval-runs",
         help="list stored memory eval runs",
@@ -2311,6 +2342,26 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
                 output = f"{output}\nstored eval run: {stored_run_id}"
             print(output)
         return 2 if args.strict and any(not result.ok for result in results) else 0
+    if args.memory_command == "portfolio-eval":
+        from research_x.memory.evals import load_eval_cases
+        from research_x.memory.portfolio import (
+            format_portfolio_eval,
+            parse_portfolio_semantic_specs,
+            portfolio_eval_json,
+            run_portfolio_eval,
+        )
+
+        cases = load_eval_cases(args.cases) if args.cases else None
+        report = run_portfolio_eval(
+            args.db,
+            cases=cases,
+            semantic_specs=parse_portfolio_semantic_specs(args.semantic_spec),
+            limit=args.limit,
+            arm_limit=args.arm_limit,
+            rrf_k=args.rrf_k,
+        )
+        print(portfolio_eval_json(report) if args.json else format_portfolio_eval(report))
+        return 2 if args.strict and any(case.status != "ok" for case in report.cases) else 0
     if args.memory_command == "eval-runs":
         from research_x.memory.evals import eval_runs_json, format_eval_runs, list_memory_eval_runs
 
