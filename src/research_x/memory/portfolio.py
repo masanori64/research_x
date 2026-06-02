@@ -170,12 +170,17 @@ def run_portfolio_eval(
     limit: int = 5,
     arm_limit: int = 20,
     rrf_k: float = 60.0,
+    fusion_mode: str = "guarded_rrf",
+    min_agreement: int = 2,
 ) -> PortfolioEvalReport:
     resolved_cases = cases or DEFAULT_EVAL_CASES
+    resolved_fusion_mode = _resolve_fusion_mode(fusion_mode)
     parameters = {
         "limit": max(1, limit),
         "arm_limit": max(1, arm_limit),
         "rrf_k": float(rrf_k),
+        "fusion_mode": resolved_fusion_mode,
+        "min_agreement": max(1, min_agreement),
         "semantic_specs": [asdict(spec) for spec in semantic_specs],
     }
     results = tuple(
@@ -186,6 +191,8 @@ def run_portfolio_eval(
             limit=max(1, limit),
             arm_limit=max(1, arm_limit),
             rrf_k=max(1.0, float(rrf_k)),
+            fusion_mode=resolved_fusion_mode,
+            min_agreement=max(1, min_agreement),
         )
         for case in resolved_cases
     )
@@ -257,6 +264,8 @@ def _run_case(
     limit: int,
     arm_limit: int,
     rrf_k: float,
+    fusion_mode: str,
+    min_agreement: int,
 ) -> PortfolioCaseResult:
     arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]] = []
     arm_payloads.append(_run_arm(db_path, case.query, name="lexical", spec=None, limit=arm_limit))
@@ -264,7 +273,13 @@ def _run_case(
         name = spec.name or _semantic_arm_name(spec, index=index)
         arm_payloads.append(_run_arm(db_path, case.query, name=name, spec=spec, limit=arm_limit))
     arm_payloads = _evaluate_arms(case, arm_payloads, limit=limit)
-    fused_hits = _fuse_hits(arm_payloads, limit=limit, rrf_k=rrf_k)
+    fused_hits = _fuse_hits(
+        arm_payloads,
+        limit=limit,
+        rrf_k=rrf_k,
+        fusion_mode=fusion_mode,
+        min_agreement=min_agreement,
+    )
     notes = _case_notes(case, fused_hits)
     status = _case_status(notes, fused_hits)
     best_arm = _best_case_arm(tuple(arm for arm, _hits in arm_payloads))
@@ -418,6 +433,8 @@ def _fuse_hits(
     *,
     limit: int,
     rrf_k: float,
+    fusion_mode: str = "guarded_rrf",
+    min_agreement: int = 2,
 ) -> list[PortfolioHit]:
     buckets: dict[str, dict[str, Any]] = {}
     for arm, hits in arm_payloads:
@@ -454,6 +471,11 @@ def _fuse_hits(
         key=lambda item: (float(item[1]["score"]), -int(item[1]["best_rank"])),
         reverse=True,
     )
+    ranked = _apply_fusion_guard(
+        ranked,
+        fusion_mode=fusion_mode,
+        min_agreement=max(1, min_agreement),
+    )
     fused = []
     for index, (bundle_key, bucket) in enumerate(ranked[:limit], start=1):
         hit = dict(bucket["hit"])
@@ -477,6 +499,44 @@ def _fuse_hits(
             )
         )
     return fused
+
+
+def _apply_fusion_guard(
+    ranked: list[tuple[str, dict[str, Any]]],
+    *,
+    fusion_mode: str,
+    min_agreement: int,
+) -> list[tuple[str, dict[str, Any]]]:
+    if fusion_mode == "rrf":
+        return ranked
+    if fusion_mode != "guarded_rrf":
+        raise ValueError(f"unknown portfolio fusion mode: {fusion_mode}")
+    primary: list[tuple[str, dict[str, Any]]] = []
+    deferred: list[tuple[str, dict[str, Any]]] = []
+    for item in ranked:
+        _bundle_key, bucket = item
+        if _passes_guard(bucket, min_agreement=min_agreement):
+            primary.append(item)
+        else:
+            deferred.append(item)
+    return primary + deferred
+
+
+def _passes_guard(bucket: dict[str, Any], *, min_agreement: int) -> bool:
+    contributions = bucket.get("contributions") or ()
+    arm_names = {
+        str(contribution.get("arm") or "")
+        for contribution in contributions
+        if isinstance(contribution, dict)
+    }
+    return "lexical" in arm_names or len(arm_names) >= min_agreement
+
+
+def _resolve_fusion_mode(value: str) -> str:
+    normalized = (value or "guarded_rrf").strip().lower().replace("-", "_")
+    if normalized not in {"rrf", "guarded_rrf"}:
+        raise ValueError("portfolio fusion mode must be 'rrf' or 'guarded_rrf'")
+    return normalized
 
 
 def _case_notes(case: EvalCase, hits: list[PortfolioHit]) -> list[str]:

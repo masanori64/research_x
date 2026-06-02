@@ -437,6 +437,9 @@ Implementation impact:
   freshness routes.
 - If the eval gain is only from more raw recall but not from final context/citation quality, improve
   document views, relations, query routing, or reranking before adding provider complexity.
+- `guarded_rrf` is the default portfolio fusion mode. Raw RRF is still available for comparison,
+  but semantic-only candidates are deferred unless lexical retrieval also found the bundle or enough
+  independent arms agree. This preserves entry breadth while making fusion regressions visible.
 
 Sources checked:
 

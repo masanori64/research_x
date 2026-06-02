@@ -6,6 +6,7 @@ from pathlib import Path
 
 from research_x.cli import main
 from research_x.memory import embeddings
+from research_x.memory import portfolio as memory_portfolio
 from research_x.memory.answer import build_memory_answer
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import build_context_bundle
@@ -529,6 +530,75 @@ def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
         assert "unknown portfolio semantic spec field" in str(exc)
     else:
         raise AssertionError("portfolio semantic spec should reject unknown fields")
+
+
+def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
+    lexical_arm = memory_portfolio.PortfolioArmResult(
+        name="lexical",
+        status="ok",
+        provider=None,
+        model=None,
+        dimensions=None,
+        embedding_profile=None,
+        text_template_version=None,
+        weight=1.0,
+        hit_count=1,
+        top_doc_ids=("tweet:lexical",),
+        top_bundle_keys=("tweet:lexical",),
+        error=None,
+    )
+    semantic_arm = memory_portfolio.PortfolioArmResult(
+        name="hash256",
+        status="ok",
+        provider="local_hash",
+        model="local-hash-v1",
+        dimensions=256,
+        embedding_profile="general_memory",
+        text_template_version="memory-doc-embedding-v1",
+        weight=10.0,
+        hit_count=1,
+        top_doc_ids=("tweet:semantic",),
+        top_bundle_keys=("tweet:semantic",),
+        error=None,
+    )
+    lexical_hit = {
+        "doc_id": "tweet:lexical",
+        "doc_type": "tweet_doc",
+        "tweet_id": "lexical",
+        "title": "lexical",
+        "compact_text": "lexical exact match",
+        "metadata": {},
+        "evidence": {},
+        "score_components": {},
+    }
+    semantic_hit = {
+        "doc_id": "tweet:semantic",
+        "doc_type": "tweet_doc",
+        "tweet_id": "semantic",
+        "title": "semantic",
+        "compact_text": "semantic only high weight",
+        "metadata": {},
+        "evidence": {},
+        "score_components": {},
+    }
+
+    raw_rrf = memory_portfolio._fuse_hits(  # noqa: SLF001
+        [(lexical_arm, [lexical_hit]), (semantic_arm, [semantic_hit])],
+        limit=2,
+        rrf_k=60.0,
+        fusion_mode="rrf",
+        min_agreement=2,
+    )
+    guarded = memory_portfolio._fuse_hits(  # noqa: SLF001
+        [(lexical_arm, [lexical_hit]), (semantic_arm, [semantic_hit])],
+        limit=2,
+        rrf_k=60.0,
+        fusion_mode="guarded_rrf",
+        min_agreement=2,
+    )
+
+    assert raw_rrf[0].doc_id == "tweet:semantic"
+    assert guarded[0].doc_id == "tweet:lexical"
 
 
 def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:

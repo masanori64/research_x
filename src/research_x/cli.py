@@ -926,6 +926,18 @@ def main(argv: list[str] | None = None) -> int:
     memory_portfolio_eval_parser.add_argument("--arm-limit", type=int, default=20)
     memory_portfolio_eval_parser.add_argument("--rrf-k", type=float, default=60.0)
     memory_portfolio_eval_parser.add_argument(
+        "--fusion-mode",
+        choices=["guarded_rrf", "rrf"],
+        default="guarded_rrf",
+        help="guarded_rrf preserves lexical/multi-arm agreement before raw RRF-only candidates",
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--min-agreement",
+        type=int,
+        default=2,
+        help="minimum distinct arms needed for non-lexical candidates in guarded_rrf",
+    )
+    memory_portfolio_eval_parser.add_argument(
         "--semantic-spec",
         action="append",
         default=[],
@@ -2375,6 +2387,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             limit=args.limit,
             arm_limit=args.arm_limit,
             rrf_k=args.rrf_k,
+            fusion_mode=args.fusion_mode,
+            min_agreement=args.min_agreement,
         )
         print(portfolio_eval_json(report) if args.json else format_portfolio_eval(report))
         return 2 if args.strict and any(case.status != "ok" for case in report.cases) else 0
