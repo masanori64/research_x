@@ -508,6 +508,9 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
         "hash32",
     }
     assert all(summary.ok == 1 for summary in report.arm_summaries)
+    assert report.verdict.status == "hold"
+    assert not report.verdict.promotable
+    assert any("does not beat" in blocker for blocker in report.verdict.blockers)
     assert result.fused_hits
     assert result.fused_hits[0].bundle_key.startswith("tweet:")
     contribution_arms = {

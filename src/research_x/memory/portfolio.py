@@ -58,6 +58,22 @@ class PortfolioArmSummary:
 
 
 @dataclass(frozen=True)
+class PortfolioPromotionVerdict:
+    status: str
+    promotable: bool
+    reason: str
+    baseline_arm: str | None
+    best_single_arm: str | None
+    fused_ok: int
+    fused_needs_review: int
+    fused_fail: int
+    best_single_ok: int
+    best_single_needs_review: int
+    best_single_fail: int
+    blockers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PortfolioHit:
     rank: int
     bundle_key: str
@@ -88,6 +104,7 @@ class PortfolioCaseResult:
 class PortfolioEvalReport:
     cases: tuple[PortfolioCaseResult, ...]
     arm_summaries: tuple[PortfolioArmSummary, ...]
+    verdict: PortfolioPromotionVerdict
     parameters: dict[str, Any]
 
 
@@ -168,9 +185,11 @@ def run_portfolio_eval(
         )
         for case in resolved_cases
     )
+    arm_summaries = _arm_summaries(results)
     return PortfolioEvalReport(
         cases=results,
-        arm_summaries=_arm_summaries(results),
+        arm_summaries=arm_summaries,
+        verdict=_promotion_verdict(results, arm_summaries, semantic_specs),
         parameters=parameters,
     )
 
@@ -184,6 +203,13 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
         "portfolio-eval: "
         f"cases={len(report.cases)} semantic_specs={len(report.parameters['semantic_specs'])}"
     ]
+    lines.append(
+        "verdict: "
+        f"{report.verdict.status} promotable={report.verdict.promotable} "
+        f"reason={report.verdict.reason}"
+    )
+    for blocker in report.verdict.blockers:
+        lines.append(f"  blocker: {blocker}")
     if report.arm_summaries:
         lines.append("arm summaries:")
         for summary in report.arm_summaries:
@@ -495,6 +521,99 @@ def _arm_summaries(cases: tuple[PortfolioCaseResult, ...]) -> tuple[PortfolioArm
         )
         for bucket in buckets.values()
     )
+
+
+def _promotion_verdict(
+    cases: tuple[PortfolioCaseResult, ...],
+    arm_summaries: tuple[PortfolioArmSummary, ...],
+    semantic_specs: tuple[PortfolioSemanticSpec, ...],
+) -> PortfolioPromotionVerdict:
+    fused_counts = _case_status_counts(case.status for case in cases)
+    baseline = _summary_by_name(arm_summaries, "lexical")
+    best_single = _best_single_arm(arm_summaries)
+    blockers: list[str] = []
+    if not semantic_specs:
+        blockers.append("no candidate semantic arms were configured")
+    if not cases:
+        blockers.append("no eval cases were run")
+    if fused_counts["fail"]:
+        blockers.append(f"fused result has {fused_counts['fail']} failing case(s)")
+    if any(summary.error for summary in arm_summaries):
+        errored = ", ".join(
+            f"{summary.name}:{summary.error}" for summary in arm_summaries if summary.error
+        )
+        blockers.append(f"candidate arm errors present: {errored}")
+    if best_single and not _fused_beats_single(fused_counts, best_single):
+        blockers.append(f"fused result does not beat best single arm: {best_single.name}")
+    promotable = not blockers
+    if not semantic_specs:
+        status = "insufficient_semantic_arms"
+        reason = "configure at least one candidate semantic arm before promotion can be judged"
+    elif promotable:
+        status = "promote_candidate"
+        reason = "fused portfolio beats the strongest single arm with no blockers"
+    else:
+        status = "hold"
+        reason = "portfolio did not clear promotion gates"
+    return PortfolioPromotionVerdict(
+        status=status,
+        promotable=promotable,
+        reason=reason,
+        baseline_arm=baseline.name if baseline else None,
+        best_single_arm=best_single.name if best_single else None,
+        fused_ok=fused_counts["ok"],
+        fused_needs_review=fused_counts["needs_review"],
+        fused_fail=fused_counts["fail"],
+        best_single_ok=best_single.ok if best_single else 0,
+        best_single_needs_review=best_single.needs_review if best_single else 0,
+        best_single_fail=best_single.fail if best_single else 0,
+        blockers=tuple(blockers),
+    )
+
+
+def _case_status_counts(statuses: Any) -> dict[str, int]:
+    counts = {"ok": 0, "needs_review": 0, "fail": 0}
+    for status in statuses:
+        if status in counts:
+            counts[status] += 1
+    return counts
+
+
+def _summary_by_name(
+    summaries: tuple[PortfolioArmSummary, ...],
+    name: str,
+) -> PortfolioArmSummary | None:
+    return next((summary for summary in summaries if summary.name == name), None)
+
+
+def _best_single_arm(
+    summaries: tuple[PortfolioArmSummary, ...],
+) -> PortfolioArmSummary | None:
+    if not summaries:
+        return None
+    return max(summaries, key=_arm_strength_key)
+
+
+def _arm_strength_key(summary: PortfolioArmSummary) -> tuple[int, int, int, int]:
+    return (
+        summary.ok,
+        -summary.fail,
+        -summary.needs_review,
+        -summary.error,
+    )
+
+
+def _fused_beats_single(
+    fused_counts: dict[str, int],
+    best_single: PortfolioArmSummary,
+) -> bool:
+    fused_key = (
+        fused_counts["ok"],
+        -fused_counts["fail"],
+        -fused_counts["needs_review"],
+        0,
+    )
+    return fused_key > _arm_strength_key(best_single)
 
 
 def _required_terms_found(case: EvalCase, hits: list[PortfolioHit]) -> bool:
