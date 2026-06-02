@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.embeddings import PRODUCTION_PROVIDERS
 from research_x.memory.schema import ensure_memory_schema
 
 
@@ -649,13 +650,12 @@ def _warnings(
         )
     if not specs and documents:
         warnings.append(
-            "no embeddings found; run memory build-embeddings with openai, gemini, "
-            "or openai_compatible"
+            "no embeddings found; run memory build-embeddings with a production provider"
         )
     production_specs = [
         spec
         for spec in specs
-        if spec["provider"] in {"openai", "gemini", "openai_compatible"}
+        if spec["provider"] in PRODUCTION_PROVIDERS
     ]
     if specs and not production_specs:
         warnings.append(

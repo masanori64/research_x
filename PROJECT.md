@@ -112,7 +112,8 @@ Implemented behavior:
 - deterministic query planning and local hybrid ranking;
 - Japanese entity/date preservation in query plans and relation-expanded retrieval candidates;
 - query/intent-aware feedback capture and ranking influence;
-- OpenAI/Gemini/OpenAI-compatible production embedding providers;
+- OpenAI/Gemini/Voyage/Cohere/Mistral/Jina/OpenAI-compatible production-capable embedding
+  providers;
 - explicit diagnostic-only `local_hash` embeddings;
 - embedding indexes tracked by provider, model, dimensions, profile, text template, and source
   document hash;
@@ -176,8 +177,7 @@ Known limitation:
 - `memory evidence` remains legacy-compatible; use `memory context` and `memory extract-url` for
   chunk/citation objects;
 - `older_same_author_label` is only a weak stale candidate, not proof of obsolescence;
-- production semantic quality requires a real OpenAI/Gemini/OpenAI-compatible embedding index, not
-  `local_hash`.
+- production semantic quality requires a real production-capable embedding index, not `local_hash`.
 
 ## Next Milestone: V2 Evidence Objects
 

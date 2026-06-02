@@ -29,7 +29,24 @@ OPENAI_COMPATIBLE_DEFAULT_MODEL = OPENAI_DEFAULT_MODEL
 OPENAI_COMPATIBLE_BASE_URL_ENV = "OPENAI_COMPATIBLE_EMBEDDINGS_URL"
 GEMINI_PROVIDER = "gemini"
 GEMINI_DEFAULT_MODEL = "gemini-embedding-2"
-PRODUCTION_PROVIDERS = (GEMINI_PROVIDER, OPENAI_PROVIDER, OPENAI_COMPATIBLE_PROVIDER)
+VOYAGE_PROVIDER = "voyage"
+VOYAGE_DEFAULT_MODEL = "voyage-3.5"
+COHERE_PROVIDER = "cohere"
+COHERE_DEFAULT_MODEL = "embed-v4.0"
+MISTRAL_PROVIDER = "mistral"
+MISTRAL_DEFAULT_MODEL = "mistral-embed"
+JINA_PROVIDER = "jina"
+JINA_DEFAULT_MODEL = "jina-embeddings-v3"
+PRODUCTION_PROVIDERS = (
+    GEMINI_PROVIDER,
+    OPENAI_PROVIDER,
+    VOYAGE_PROVIDER,
+    COHERE_PROVIDER,
+    MISTRAL_PROVIDER,
+    JINA_PROVIDER,
+    OPENAI_COMPATIBLE_PROVIDER,
+)
+EMBEDDING_PROVIDER_CHOICES = ("auto", LOCAL_HASH_PROVIDER, *PRODUCTION_PROVIDERS)
 DEFAULT_EMBEDDING_PROFILE = "general_memory"
 DEFAULT_TEXT_TEMPLATE_VERSION = "memory-doc-embedding-v1"
 
@@ -38,6 +55,10 @@ DEFAULT_DIMENSIONS = {
     OPENAI_PROVIDER: 1536,
     OPENAI_COMPATIBLE_PROVIDER: 1536,
     GEMINI_PROVIDER: 768,
+    VOYAGE_PROVIDER: 1024,
+    COHERE_PROVIDER: 1536,
+    MISTRAL_PROVIDER: 1024,
+    JINA_PROVIDER: 1024,
 }
 
 
@@ -159,9 +180,17 @@ def resolve_embedding_spec(
         base_url = base_url or os.environ.get(OPENAI_COMPATIBLE_BASE_URL_ENV)
     elif resolved_provider == GEMINI_PROVIDER:
         resolved_model = model or GEMINI_DEFAULT_MODEL
+    elif resolved_provider == VOYAGE_PROVIDER:
+        resolved_model = model or VOYAGE_DEFAULT_MODEL
+    elif resolved_provider == COHERE_PROVIDER:
+        resolved_model = model or COHERE_DEFAULT_MODEL
+    elif resolved_provider == MISTRAL_PROVIDER:
+        resolved_model = model or MISTRAL_DEFAULT_MODEL
+    elif resolved_provider == JINA_PROVIDER:
+        resolved_model = model or JINA_DEFAULT_MODEL
     else:
         raise ValueError(f"unknown embedding provider: {provider}")
-    resolved_dimensions = dimensions or DEFAULT_DIMENSIONS[resolved_provider]
+    resolved_dimensions = dimensions or _default_dimensions(resolved_provider, resolved_model)
     if resolved_dimensions <= 0:
         raise ValueError("embedding dimensions must be positive")
     return EmbeddingSpec(
@@ -788,6 +817,106 @@ class _GeminiEmbedder:
         return vectors
 
 
+class _VoyageEmbedder:
+    def __init__(self, spec: EmbeddingSpec) -> None:
+        self.spec = spec
+        self.api_key = _api_key(spec.api_key_env or "VOYAGE_API_KEY")
+
+    def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        payload: dict[str, Any] = {
+            "model": self.spec.model,
+            "input": texts,
+            "input_type": _voyage_input_type(task_type),
+            "truncation": True,
+            "output_dtype": "float",
+        }
+        if self.spec.dimensions:
+            payload["output_dimension"] = self.spec.dimensions
+        response = _post_json(
+            self.spec.base_url or "https://api.voyageai.com/v1/embeddings",
+            payload,
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout_seconds=self.spec.timeout_seconds,
+        )
+        return _embedding_vectors_from_data_response(response, "Voyage")
+
+
+class _CohereEmbedder:
+    def __init__(self, spec: EmbeddingSpec) -> None:
+        self.spec = spec
+        self.api_key = _api_key(spec.api_key_env or "COHERE_API_KEY")
+
+    def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        payload: dict[str, Any] = {
+            "model": self.spec.model,
+            "texts": texts,
+            "input_type": _cohere_input_type(task_type),
+            "embedding_types": ["float"],
+            "truncate": "END",
+        }
+        if self.spec.dimensions:
+            payload["output_dimension"] = self.spec.dimensions
+        response = _post_json(
+            self.spec.base_url or "https://api.cohere.com/v2/embed",
+            payload,
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout_seconds=self.spec.timeout_seconds,
+        )
+        embeddings_value = response.get("embeddings")
+        if isinstance(embeddings_value, dict):
+            vectors = embeddings_value.get("float")
+        else:
+            vectors = embeddings_value
+        return _embedding_vectors_from_sequence(vectors, "Cohere")
+
+
+class _MistralEmbedder:
+    def __init__(self, spec: EmbeddingSpec) -> None:
+        self.spec = spec
+        self.api_key = _api_key(spec.api_key_env or "MISTRAL_API_KEY")
+
+    def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        payload: dict[str, Any] = {
+            "model": self.spec.model,
+            "input": texts,
+            "encoding_format": "float",
+        }
+        if self.spec.dimensions:
+            payload["output_dimension"] = self.spec.dimensions
+        response = _post_json(
+            self.spec.base_url or "https://api.mistral.ai/v1/embeddings",
+            payload,
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout_seconds=self.spec.timeout_seconds,
+        )
+        return _embedding_vectors_from_data_response(response, "Mistral")
+
+
+class _JinaEmbedder:
+    def __init__(self, spec: EmbeddingSpec) -> None:
+        self.spec = spec
+        self.api_key = _api_key(spec.api_key_env or "JINA_API_KEY")
+
+    def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        payload: dict[str, Any] = {
+            "model": self.spec.model,
+            "input": texts,
+            "task": _jina_task(task_type),
+            "embedding_type": "float",
+            "normalized": True,
+            "truncate": True,
+        }
+        if self.spec.dimensions:
+            payload["dimensions"] = self.spec.dimensions
+        response = _post_json(
+            self.spec.base_url or "https://api.jina.ai/v1/embeddings",
+            payload,
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout_seconds=self.spec.timeout_seconds,
+        )
+        return _embedding_vectors_from_data_response(response, "Jina")
+
+
 def _embedder(spec: EmbeddingSpec):
     if spec.provider == LOCAL_HASH_PROVIDER:
         return _LocalHashEmbedder(spec)
@@ -797,6 +926,14 @@ def _embedder(spec: EmbeddingSpec):
         return _OpenAICompatibleEmbedder(spec)
     if spec.provider == GEMINI_PROVIDER:
         return _GeminiEmbedder(spec)
+    if spec.provider == VOYAGE_PROVIDER:
+        return _VoyageEmbedder(spec)
+    if spec.provider == COHERE_PROVIDER:
+        return _CohereEmbedder(spec)
+    if spec.provider == MISTRAL_PROVIDER:
+        return _MistralEmbedder(spec)
+    if spec.provider == JINA_PROVIDER:
+        return _JinaEmbedder(spec)
     raise ValueError(f"unknown embedding provider: {spec.provider}")
 
 
@@ -1059,13 +1196,18 @@ def _resolve_available_spec(
     if local_hash_rows:
         raise RuntimeError(
             "only diagnostic local_hash embeddings are available. "
-            "Build a production embedding index with OpenAI, Gemini, or OpenAI-compatible, "
+            "Build a production embedding index with OpenAI, Gemini, Voyage, Cohere, "
+            "Mistral, Jina, or OpenAI-compatible, "
             "or explicitly pass --semantic-provider local_hash for diagnostic searches."
         )
     raise RuntimeError(
         "no production memory embeddings found; run "
         "`research_x memory build-embeddings --provider gemini` or "
         "`research_x memory build-embeddings --provider openai` or "
+        "`research_x memory build-embeddings --provider voyage` or "
+        "`research_x memory build-embeddings --provider cohere` or "
+        "`research_x memory build-embeddings --provider mistral` or "
+        "`research_x memory build-embeddings --provider jina` or "
         "`research_x memory build-embeddings --provider openai_compatible --base-url ...` first"
     )
 
@@ -1144,7 +1286,13 @@ def _coverage_spec(
                 provider, model, dimensions,
                 embedding_profile, text_template_version
             ORDER BY
-                CASE WHEN provider IN ('gemini', 'openai', 'openai_compatible') THEN 0 ELSE 1 END,
+                CASE
+                  WHEN provider IN (
+                    'gemini', 'openai', 'voyage', 'cohere',
+                    'mistral', 'jina', 'openai_compatible'
+                  ) THEN 0
+                  ELSE 1
+                END,
                 MAX(updated_at) DESC,
                 provider, model, dimensions, embedding_profile, text_template_version
             LIMIT 1
@@ -1352,6 +1500,62 @@ def _normalize_vector(vector: list[float]) -> list[float]:
     return [float(value / norm) for value in vector]
 
 
+def _embedding_vectors_from_data_response(
+    response: dict[str, Any],
+    provider_name: str,
+) -> list[list[float]]:
+    data = response.get("data")
+    if not isinstance(data, list):
+        raise RuntimeError(f"{provider_name} embeddings response missing data: {response}")
+    vectors = []
+    for item in sorted(data, key=_embedding_data_index):
+        if not isinstance(item, dict):
+            raise RuntimeError(f"{provider_name} embeddings response item is invalid: {item}")
+        vectors.append(_embedding_vector_from_value(item.get("embedding"), provider_name))
+    return vectors
+
+
+def _embedding_vectors_from_sequence(value: Any, provider_name: str) -> list[list[float]]:
+    if not isinstance(value, list):
+        raise RuntimeError(f"{provider_name} embeddings response missing vectors: {value}")
+    return [_embedding_vector_from_value(vector, provider_name) for vector in value]
+
+
+def _embedding_vector_from_value(value: Any, provider_name: str) -> list[float]:
+    if not isinstance(value, list):
+        raise RuntimeError(f"{provider_name} embeddings response missing embedding: {value}")
+    return _normalize_vector([float(item) for item in value])
+
+
+def _embedding_data_index(value: Any) -> int:
+    if not isinstance(value, dict):
+        return 0
+    try:
+        return int(value.get("index", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _voyage_input_type(task_type: str) -> str:
+    return "query" if task_type == "RETRIEVAL_QUERY" else "document"
+
+
+def _cohere_input_type(task_type: str) -> str:
+    return "search_query" if task_type == "RETRIEVAL_QUERY" else "search_document"
+
+
+def _jina_task(task_type: str) -> str:
+    return "retrieval.query" if task_type == "RETRIEVAL_QUERY" else "retrieval.passage"
+
+
+def _default_dimensions(provider: str, model: str) -> int:
+    if provider == OPENAI_PROVIDER and model == "text-embedding-3-large":
+        return 3072
+    if provider == JINA_PROVIDER and model == "jina-embeddings-v4":
+        return 2048
+    return DEFAULT_DIMENSIONS[provider]
+
+
 def _api_key(env_name: str) -> str:
     value = os.environ.get(env_name)
     if not value:
@@ -1364,13 +1568,22 @@ def _auto_embedding_provider() -> str:
         return GEMINI_PROVIDER
     if os.environ.get("OPENAI_API_KEY"):
         return OPENAI_PROVIDER
+    if os.environ.get("VOYAGE_API_KEY"):
+        return VOYAGE_PROVIDER
+    if os.environ.get("COHERE_API_KEY"):
+        return COHERE_PROVIDER
+    if os.environ.get("MISTRAL_API_KEY"):
+        return MISTRAL_PROVIDER
+    if os.environ.get("JINA_API_KEY"):
+        return JINA_PROVIDER
     if os.environ.get("OPENAI_COMPATIBLE_API_KEY") and os.environ.get(
         OPENAI_COMPATIBLE_BASE_URL_ENV
     ):
         return OPENAI_COMPATIBLE_PROVIDER
     raise RuntimeError(
         "no production embedding API key found. Set GEMINI_API_KEY, OPENAI_API_KEY, "
-        f"or OPENAI_COMPATIBLE_API_KEY plus {OPENAI_COMPATIBLE_BASE_URL_ENV}, "
+        "VOYAGE_API_KEY, COHERE_API_KEY, MISTRAL_API_KEY, JINA_API_KEY, or "
+        f"OPENAI_COMPATIBLE_API_KEY plus {OPENAI_COMPATIBLE_BASE_URL_ENV}, "
         "or explicitly pass --provider local_hash for an offline diagnostic index."
     )
 

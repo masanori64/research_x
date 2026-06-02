@@ -24,6 +24,22 @@ from research_x.playwright_auth import (
 from research_x.runner import run_experiment
 from research_x.tweets import run_tweet_job, run_tweet_stage_job
 
+MEMORY_EMBEDDING_PROVIDER_CHOICES = [
+    "auto",
+    "local_hash",
+    "openai",
+    "gemini",
+    "voyage",
+    "cohere",
+    "mistral",
+    "jina",
+    "openai_compatible",
+]
+MEMORY_EMBEDDING_PROVIDER_OR_LATEST_CHOICES = [
+    "latest",
+    *MEMORY_EMBEDDING_PROVIDER_CHOICES,
+]
+
 
 def main(argv: list[str] | None = None) -> int:
     _configure_stdio()
@@ -300,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_parser.add_argument(
         "--provider",
         default="auto",
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_embedding_parser.add_argument("--model", default=None)
     memory_embedding_parser.add_argument("--dimensions", type=int, default=None)
@@ -323,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_estimate_parser.add_argument(
         "--provider",
         default="auto",
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_embedding_estimate_parser.add_argument("--model", default=None)
     memory_embedding_estimate_parser.add_argument("--dimensions", type=int, default=None)
@@ -357,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_coverage_parser.add_argument(
         "--provider",
         default="latest",
-        choices=["latest", "auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_OR_LATEST_CHOICES,
         help="embedding provider to inspect; latest uses the newest existing index",
     )
     memory_embedding_coverage_parser.add_argument("--model", default=None)
@@ -437,10 +453,10 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument(
         "--semantic-provider",
         default=None,
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
         help=(
-            "optional semantic provider: auto, local_hash, openai, gemini, "
-            "or openai_compatible"
+            "optional semantic provider: auto, local_hash, openai, gemini, voyage, "
+            "cohere, mistral, jina, or openai_compatible"
         ),
     )
     memory_search_parser.add_argument("--semantic-model", default=None)
@@ -468,7 +484,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument(
         "--semantic-provider",
         default=None,
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_evidence_parser.add_argument("--semantic-model", default=None)
     memory_evidence_parser.add_argument("--semantic-dimensions", type=int, default=None)
@@ -490,7 +506,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_context_parser.add_argument(
         "--semantic-provider",
         default=None,
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_context_parser.add_argument("--semantic-model", default=None)
     memory_context_parser.add_argument("--semantic-dimensions", type=int, default=None)
@@ -539,7 +555,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_answer_parser.add_argument(
         "--semantic-provider",
         default=None,
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_answer_parser.add_argument("--semantic-model", default=None)
     memory_answer_parser.add_argument("--semantic-dimensions", type=int, default=None)
@@ -603,7 +619,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_workflow_parser.add_argument(
         "--semantic-provider",
         default=None,
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_workflow_parser.add_argument("--semantic-model", default=None)
     memory_workflow_parser.add_argument("--semantic-dimensions", type=int, default=None)
@@ -861,7 +877,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_eval_parser.add_argument(
         "--semantic-provider",
         default=None,
-        choices=["auto", "local_hash", "openai", "gemini", "openai_compatible"],
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
     )
     memory_eval_parser.add_argument("--semantic-model", default=None)
     memory_eval_parser.add_argument("--semantic-dimensions", type=int, default=None)

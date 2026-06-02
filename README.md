@@ -516,7 +516,7 @@ memory build-derived      Build place_card, author_profile, ticker_event, and to
 memory build-relations    Build explicit graph/relation edges.
 memory judge-relations    Judge supports/contradicts edges from freshness candidates.
 memory embedding-estimate Estimate selected docs, batches, tokens, and optional input cost.
-memory build-embeddings   Build versioned semantic indexes with OpenAI/Gemini/OpenAI-compatible or diagnostic local_hash.
+memory build-embeddings   Build versioned semantic indexes with cloud providers or diagnostic local_hash.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory embedding-coverage Show embedding coverage/staleness by doc_type.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
@@ -556,6 +556,8 @@ uv run python -m research_x memory build-embeddings `
   --dimensions 768 `
   --embedding-profile general_memory `
   --text-template-version memory-doc-embedding-v1
+# Native provider choices include openai, gemini, voyage, cohere, mistral, jina,
+# openai_compatible, and diagnostic local_hash.
 # For OpenAI-compatible embedding APIs, pass a full embeddings endpoint as --base-url.
 # Example:
 # uv run python -m research_x memory build-embeddings `

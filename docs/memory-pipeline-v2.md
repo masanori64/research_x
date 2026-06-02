@@ -214,6 +214,9 @@ Implementation impact:
 
 - `memory_embeddings` now keys rows by provider, model, dimensions, embedding profile, and text
   template version.
+- Native candidate embedding providers include OpenAI, Gemini, Voyage, Cohere, Mistral, Jina, and
+  OpenAI-compatible endpoints. They are production-capable provider adapters, but only evaluation
+  can promote a provider/profile into the default retrieval path.
 - `openai_compatible` embedding providers are production-capable when a full embeddings endpoint,
   model, dimensions, and API-key env var are supplied explicitly; they are not auto-guessed unless
   `OPENAI_COMPATIBLE_API_KEY` and `OPENAI_COMPATIBLE_EMBEDDINGS_URL` are both set.
@@ -441,6 +444,10 @@ Sources checked:
 - Text/table retrieval benchmark: https://arxiv.org/abs/2604.01733
 - Anthropic Contextual Retrieval: https://www.anthropic.com/engineering/contextual-retrieval
 - RAGRouter-Bench: https://arxiv.org/abs/2602.00296
+- Voyage embeddings API: https://docs.voyageai.com/reference/embeddings-api-1
+- Cohere Embed API v2: https://docs.cohere.com/v2/reference/embed
+- Mistral embeddings API: https://docs.mistral.ai/api/endpoint/embeddings
+- Jina Embeddings API: https://jina.ai/en-US/embeddings/
 
 ## Non-Negotiable Invariants
 

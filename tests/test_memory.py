@@ -809,6 +809,12 @@ def test_embedding_build_rejects_wrong_vector_dimensions(tmp_path: Path, monkeyp
 def test_embedding_auto_requires_production_api_key(monkeypatch) -> None:
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
+    monkeypatch.delenv("COHERE_API_KEY", raising=False)
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    monkeypatch.delenv("JINA_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_EMBEDDINGS_URL", raising=False)
 
     try:
         embeddings.resolve_embedding_spec(provider="auto")
@@ -2022,6 +2028,145 @@ def test_openai_compatible_embedding_request_uses_custom_endpoint(monkeypatch) -
     }
 
 
+def test_voyage_embedding_request_uses_retrieval_input_type(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
+
+    monkeypatch.setenv("VOYAGE_API_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    spec = embeddings.resolve_embedding_spec(
+        provider="voyage",
+        model="voyage-3.5",
+        dimensions=3,
+    )
+    vector = embeddings._VoyageEmbedder(spec).embed_texts(  # noqa: SLF001
+        ["robot learning"],
+        task_type="RETRIEVAL_QUERY",
+    )[0]
+
+    assert vector
+    assert captured["url"] == "https://api.voyageai.com/v1/embeddings"
+    assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["payload"] == {
+        "model": "voyage-3.5",
+        "input": ["robot learning"],
+        "input_type": "query",
+        "truncation": True,
+        "output_dtype": "float",
+        "output_dimension": 3,
+    }
+
+
+def test_cohere_embedding_request_uses_v2_embed_shape(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        return {"embeddings": {"float": [[0.1, 0.2, 0.3]]}}
+
+    monkeypatch.setenv("COHERE_API_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    spec = embeddings.resolve_embedding_spec(
+        provider="cohere",
+        model="embed-v4.0",
+        dimensions=3,
+    )
+    vector = embeddings._CohereEmbedder(spec).embed_texts(  # noqa: SLF001
+        ["robot learning"],
+        task_type="RETRIEVAL_DOCUMENT",
+    )[0]
+
+    assert vector
+    assert captured["url"] == "https://api.cohere.com/v2/embed"
+    assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["payload"] == {
+        "model": "embed-v4.0",
+        "texts": ["robot learning"],
+        "input_type": "search_document",
+        "embedding_types": ["float"],
+        "truncate": "END",
+        "output_dimension": 3,
+    }
+
+
+def test_mistral_embedding_request_uses_output_dimension(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
+
+    monkeypatch.setenv("MISTRAL_API_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    spec = embeddings.resolve_embedding_spec(
+        provider="mistral",
+        model="mistral-embed",
+        dimensions=3,
+    )
+    vector = embeddings._MistralEmbedder(spec).embed_texts(  # noqa: SLF001
+        ["robot learning"],
+        task_type="RETRIEVAL_DOCUMENT",
+    )[0]
+
+    assert vector
+    assert captured["url"] == "https://api.mistral.ai/v1/embeddings"
+    assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["payload"] == {
+        "model": "mistral-embed",
+        "input": ["robot learning"],
+        "encoding_format": "float",
+        "output_dimension": 3,
+    }
+
+
+def test_jina_embedding_request_sets_retrieval_task(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["headers"] = headers
+        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
+
+    monkeypatch.setenv("JINA_API_KEY", "fake-key")
+    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
+
+    spec = embeddings.resolve_embedding_spec(
+        provider="jina",
+        model="jina-embeddings-v3",
+        dimensions=3,
+    )
+    vector = embeddings._JinaEmbedder(spec).embed_texts(  # noqa: SLF001
+        ["robot learning"],
+        task_type="RETRIEVAL_QUERY",
+    )[0]
+
+    assert vector
+    assert captured["url"] == "https://api.jina.ai/v1/embeddings"
+    assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["payload"] == {
+        "model": "jina-embeddings-v3",
+        "input": ["robot learning"],
+        "task": "retrieval.query",
+        "embedding_type": "float",
+        "normalized": True,
+        "truncate": True,
+        "dimensions": 3,
+    }
+
+
 def test_embedding_post_json_uses_retry_after(monkeypatch) -> None:
     calls = []
     sleeps = []
@@ -2097,6 +2242,23 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "768",
                 "--batch-size",
                 "2",
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "memory",
+                "embedding-estimate",
+                "--db",
+                str(db_path),
+                "--provider",
+                "voyage",
+                "--dimensions",
+                "1024",
+                "--limit",
+                "1",
             ]
         )
         == 0
