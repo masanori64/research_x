@@ -428,6 +428,9 @@ Implementation impact:
   detects fusion regressions against the strongest case-level arm, applies a conservative promotion
   verdict, then reports source-bundle-level RRF fusion without changing the production
   `memory search` ranking path.
+- Portfolio semantic arms default to `mode=semantic_only`, so provider candidates are tested as
+  independent retrieval engines before fusion. Use `mode=hybrid` when the experiment is specifically
+  about the existing local hybrid search with one provider added.
 - Candidate engines need stable names, provider/model/profile/template metadata, route weights,
   rank positions, and bundle restoration metadata.
 - Eval must compare at least: lexical-only, lexical+relations+derived, one production provider,
@@ -439,7 +442,9 @@ Implementation impact:
   document views, relations, query routing, or reranking before adding provider complexity.
 - `guarded_rrf` is the default portfolio fusion mode. Raw RRF is still available for comparison,
   but semantic-only candidates are deferred unless lexical retrieval also found the bundle or enough
-  independent arms agree. This preserves entry breadth while making fusion regressions visible.
+  independent arms agree. Lexical-backed bundles keep lexical-arm order, so semantic providers can
+  add coverage without silently reordering exact/metadata hits. This preserves entry breadth while
+  making fusion regressions visible.
 
 Sources checked:
 

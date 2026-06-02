@@ -50,6 +50,46 @@ def build_evidence_bundle(
     return {"query": query, "query_plan": plan.as_dict(), "hits": hits}
 
 
+def build_evidence_hits_for_doc_ids(
+    db_path: str | Path,
+    query: str,
+    doc_ids: tuple[str, ...],
+    *,
+    score_by_doc_id: dict[str, float] | None = None,
+    metadata_by_doc_id: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    if not doc_ids:
+        return []
+    path = Path(db_path)
+    placeholders = ",".join("?" for _ in doc_ids)
+    order = {doc_id: index for index, doc_id in enumerate(doc_ids)}
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            f"""
+            SELECT
+                doc_id, doc_type, source_tweet_id, account_id,
+                author_screen_name, title, compact_text, metadata_json
+            FROM memory_documents
+            WHERE doc_id IN ({placeholders})
+            """,
+            doc_ids,
+        ).fetchall()
+        sorted_rows = sorted(rows, key=lambda row: order.get(str(row["doc_id"]), 10**9))
+        return [
+            _hit(
+                conn,
+                query=query,
+                result=_memory_result_from_row(
+                    row,
+                    score_by_doc_id=score_by_doc_id or {},
+                    metadata_by_doc_id=metadata_by_doc_id or {},
+                ),
+            )
+            for row in sorted_rows
+        ]
+
+
 def evidence_bundle_json(bundle: dict[str, Any]) -> str:
     return json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True)
 
@@ -81,6 +121,31 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
             "derived": derived,
         },
     }
+
+
+def _memory_result_from_row(
+    row: sqlite3.Row,
+    *,
+    score_by_doc_id: dict[str, float],
+    metadata_by_doc_id: dict[str, dict[str, Any]],
+) -> MemorySearchResult:
+    doc_id = str(row["doc_id"])
+    metadata = _loads_json(row["metadata_json"])
+    metadata.update(metadata_by_doc_id.get(doc_id, {}))
+    return MemorySearchResult(
+        doc_id=doc_id,
+        doc_type=str(row["doc_type"]),
+        source_tweet_id=row["source_tweet_id"],
+        account_id=row["account_id"],
+        author_screen_name=row["author_screen_name"],
+        title=str(row["title"] or ""),
+        compact_text=str(row["compact_text"] or ""),
+        score=float(score_by_doc_id.get(doc_id, 0.0)),
+        match_method=str(metadata.get("retrieval_method") or "semantic_only"),
+        matched_terms=tuple(metadata.get("matched_terms") or ()),
+        score_components=dict(metadata.get("rank_score_components") or {}),
+        metadata=metadata,
+    )
 
 
 def _why_relevant(query: str, result: MemorySearchResult) -> str:

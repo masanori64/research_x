@@ -943,7 +943,8 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help=(
             "candidate semantic arm as key=value CSV, e.g. "
-            "provider=local_hash,dimensions=64,name=hash64,weight=1.0; repeatable"
+            "provider=local_hash,dimensions=64,name=hash64,mode=semantic_only,"
+            "weight=1.0; repeatable"
         ),
     )
     memory_portfolio_eval_parser.add_argument("--json", action="store_true")

@@ -152,8 +152,8 @@ Implemented behavior:
 - stored eval run listing/detail commands for post-run inspection;
 - experimental `memory portfolio-eval` comparison for lexical-only and candidate semantic arms,
   with per-arm case verdicts, arm summaries, conservative promotion verdicts, and
-  fusion-regression detection plus guarded/source-bundle-level RRF fusion metadata that does not
-  alter production search ranking;
+  fusion-regression detection plus guarded/source-bundle-level RRF fusion metadata; candidate arms
+  support `semantic_only` and `hybrid` modes without altering production search ranking;
 - machine-readable question-type coverage targets so evals cover recall, set, aggregation,
   comparison, multi-hop, temporal, abstention, citation, multilingual, media, preference, and
   exploratory-map cases instead of only the first concrete examples;

@@ -22,6 +22,7 @@ from research_x.memory.embeddings import (
     estimate_memory_embedding_build,
 )
 from research_x.memory.evals import (
+    EvalCase,
     list_memory_eval_runs,
     load_eval_cases,
     load_memory_eval_run,
@@ -503,6 +504,7 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
     assert result.status == "ok"
     assert not result.fusion_regressed
     assert {arm.name for arm in result.arms} == {"lexical", "hash64", "hash32"}
+    assert {arm.mode for arm in result.arms} == {"lexical", "semantic_only"}
     assert {arm.case_status for arm in result.arms} == {"ok"}
     assert {summary.name for summary in report.arm_summaries} == {
         "lexical",
@@ -532,10 +534,21 @@ def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
         raise AssertionError("portfolio semantic spec should reject unknown fields")
 
 
+def test_memory_portfolio_semantic_spec_accepts_arm_modes() -> None:
+    semantic_only = parse_portfolio_semantic_spec("provider=local_hash,dimensions=64")
+    hybrid = parse_portfolio_semantic_spec(
+        "provider=local_hash,dimensions=64,mode=hybrid"
+    )
+
+    assert semantic_only.mode == "semantic_only"
+    assert hybrid.mode == "hybrid"
+
+
 def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
     lexical_arm = memory_portfolio.PortfolioArmResult(
         name="lexical",
         status="ok",
+        mode="lexical",
         provider=None,
         model=None,
         dimensions=None,
@@ -550,6 +563,7 @@ def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
     semantic_arm = memory_portfolio.PortfolioArmResult(
         name="hash256",
         status="ok",
+        mode="semantic_only",
         provider="local_hash",
         model="local-hash-v1",
         dimensions=256,
@@ -599,6 +613,28 @@ def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
 
     assert raw_rrf[0].doc_id == "tweet:semantic"
     assert guarded[0].doc_id == "tweet:lexical"
+
+
+def test_memory_portfolio_preferred_doc_type_checks_bundle_doc_types() -> None:
+    case = EvalCase(
+        query="event",
+        required_any_terms=(),
+        preferred_doc_types=("tweet_doc",),
+    )
+    hit = memory_portfolio.PortfolioHit(
+        rank=1,
+        bundle_key="tweet:1",
+        doc_id="media:1",
+        doc_type="media_doc",
+        tweet_id="1",
+        score=1.0,
+        title="media representative",
+        compact_text="media representative",
+        contributions=(),
+        metadata={"portfolio_doc_types": ["media_doc", "tweet_doc"]},
+    )
+
+    assert memory_portfolio._preferred_doc_type_found(case, [hit])  # noqa: SLF001
 
 
 def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
