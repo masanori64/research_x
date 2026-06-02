@@ -947,6 +947,16 @@ def main(argv: list[str] | None = None) -> int:
             "weight=1.0; repeatable"
         ),
     )
+    memory_portfolio_eval_parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help=(
+            "add candidate semantic arms from a named retrieval/evidence strategy, "
+            "for example general_memory, jp_multilingual, learning_long, "
+            "code_technical, or media_text_bridge; repeatable"
+        ),
+    )
     memory_portfolio_eval_parser.add_argument("--json", action="store_true")
     memory_portfolio_eval_parser.add_argument(
         "--strict",
@@ -975,6 +985,42 @@ def main(argv: list[str] | None = None) -> int:
         help="list memory-search question types used to broaden eval coverage",
     )
     memory_question_types_parser.add_argument("--json", action="store_true")
+    memory_retrieval_strategies_parser = memory_subparsers.add_parser(
+        "retrieval-strategies",
+        help="list route/retrieval/evidence strategies for portfolio experiments",
+    )
+    memory_retrieval_strategies_parser.add_argument("--query", default=None)
+    memory_retrieval_strategies_parser.add_argument(
+        "--question-type",
+        action="append",
+        default=[],
+        help="filter/recommend strategies by question type; repeatable",
+    )
+    memory_retrieval_strategies_parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help="show specific strategy id; repeatable",
+    )
+    memory_retrieval_strategies_parser.add_argument("--json", action="store_true")
+    memory_embedding_strategies_parser = memory_subparsers.add_parser(
+        "embedding-strategies",
+        help="deprecated alias of retrieval-strategies",
+    )
+    memory_embedding_strategies_parser.add_argument("--query", default=None)
+    memory_embedding_strategies_parser.add_argument(
+        "--question-type",
+        action="append",
+        default=[],
+        help="filter/recommend strategies by question type; repeatable",
+    )
+    memory_embedding_strategies_parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help="show specific strategy id; repeatable",
+    )
+    memory_embedding_strategies_parser.add_argument("--json", action="store_true")
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -2382,12 +2428,17 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             portfolio_eval_json,
             run_portfolio_eval,
         )
+        from research_x.memory.retrieval_strategy import semantic_spec_strings_for_strategies
 
         cases = load_eval_cases(args.cases) if args.cases else None
+        semantic_spec_values = [
+            *args.semantic_spec,
+            *semantic_spec_strings_for_strategies(tuple(args.strategy)),
+        ]
         report = run_portfolio_eval(
             args.db,
             cases=cases,
-            semantic_specs=parse_portfolio_semantic_specs(args.semantic_spec),
+            semantic_specs=parse_portfolio_semantic_specs(semantic_spec_values),
             limit=args.limit,
             arm_limit=args.arm_limit,
             rrf_k=args.rrf_k,
@@ -2419,6 +2470,23 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         from research_x.memory.question_types import format_question_types, question_types_json
 
         print(question_types_json() if args.json else format_question_types())
+        return 0
+    if args.memory_command in {"retrieval-strategies", "embedding-strategies"}:
+        from research_x.memory.retrieval_strategy import (
+            format_retrieval_strategies,
+            retrieval_strategies_json,
+        )
+
+        kwargs = {
+            "query": args.query,
+            "question_types": tuple(args.question_type),
+            "strategy_ids": tuple(args.strategy),
+        }
+        print(
+            retrieval_strategies_json(**kwargs)
+            if args.json
+            else format_retrieval_strategies(**kwargs)
+        )
         return 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")
 

@@ -158,6 +158,12 @@ Implemented behavior:
   normalizes provider names, blocks diagnostic `local_hash` from promotion, filters semantic-only
   false-premise noise through strong machine anchors, and keeps date-like terms out of hard anchor
   filters so recall is not narrowed by source-format differences;
+- `memory retrieval-strategies` exposes route/retrieval/evidence/semantic candidate spaces with
+  adoption, modality, implementation status, and portfolio-eligibility metadata. It keeps
+  non-embedding candidates such as contextual BM25, reranking, claim verification, freshness
+  lineage, exact anchors, and relation engines visible beside semantic provider arms;
+- `memory portfolio-eval --strategy` can add the eligible semantic arms from those broader
+  strategies without changing the production retrieval path;
 - machine-readable question-type coverage targets so evals cover recall, set, aggregation,
   comparison, multi-hop, temporal, abstention, citation, multilingual, media, preference, and
   exploratory-map cases instead of only the first concrete examples;

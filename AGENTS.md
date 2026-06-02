@@ -74,8 +74,11 @@ uv run python -m research_x notify --message "作業が終了しました"
 
 ## Parallel Work
 
-When a task can be split into independent parts, the user permits optional sub-agent use. If the
-user asks to use sub-agents, or if a goal phase has independent research/review/test tracks, spawn an
+Do not spawn sub-agents unless the current conversation explicitly permits sub-agent use. If the
+current conversation says sub-agents are banned or paused, compensate with local code inspection,
+parallel shell reads, web research, and focused review loops instead.
+
+When sub-agent use is explicitly permitted and a task can be split into independent parts, use an
 appropriate number of sub-agents instead of defaulting to one. Use sub-agents for work that can
 proceed without touching the same files or otherwise conflicting with active work in the repository.
 
@@ -96,3 +99,9 @@ waiting would stall implementation. When sub-agents finish, integrate their find
 decision, then close them unless another immediate follow-up needs their retained context. Completed
 sub-agents left open consume the limited parallel-agent slots and can prevent new agents from being
 created.
+
+If a completed sub-agent result is too shallow, too generic, or misses an important axis, the parent
+agent may send a follow-up task to that same agent before closing it. The follow-up must name the
+specific missing axis or counterargument to investigate, rather than asking for a broad repeat of the
+same work. Do not treat the first sub-agent answer as sufficient when the task requires strong
+research quality and the returned evidence does not yet justify the decision.

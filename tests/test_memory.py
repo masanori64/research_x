@@ -47,6 +47,10 @@ from research_x.memory.reader import (
     extract_url_to_context,
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
+from research_x.memory.retrieval_strategy import (
+    retrieval_strategies_as_dicts,
+    semantic_spec_strings_for_strategies,
+)
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.search import search_memory, strong_anchor_terms_for_query
 from research_x.memory.source_kinds import classify_external_source_kind
@@ -330,7 +334,7 @@ def test_memory_embedding_estimate_reports_selection_and_cost(tmp_path: Path) ->
     estimate = estimate_memory_embedding_build(
         db_path,
         provider="gemini",
-        model="gemini-embedding-2",
+        model="gemini-embedding-001",
         dimensions=768,
         batch_size=2,
         price_per_million_input_tokens=0.15,
@@ -568,6 +572,45 @@ def test_memory_portfolio_semantic_spec_normalizes_provider() -> None:
     spec = parse_portfolio_semantic_spec("provider=LOCAL-HASH,dimensions=64")
 
     assert spec.provider == "local_hash"
+
+
+def test_memory_retrieval_strategies_expose_non_embedding_and_semantic_candidates() -> None:
+    strategies = retrieval_strategies_as_dicts(
+        query="日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して"
+    )
+    ids = {strategy["strategy_id"] for strategy in strategies}
+    baseline = next(
+        strategy
+        for strategy in strategies
+        if strategy["strategy_id"] == "baseline_hybrid_foundation"
+    )
+    baseline_candidates = {candidate["name"] for candidate in baseline["candidates"]}
+    specs = semantic_spec_strings_for_strategies(
+        ("jp_multilingual", "learning_long", "code_technical")
+    )
+
+    assert "baseline_hybrid_foundation" in ids
+    assert "general_memory" in ids
+    assert "jp_multilingual" in ids
+    assert "learning_long" in ids
+    assert "contextual_bm25" in ids
+    assert "relation_engine" in baseline_candidates
+    assert any("model=voyage-4" in spec for spec in specs)
+    assert any("profile=jp_multilingual" in spec for spec in specs)
+    assert any("profile=learning_long" in spec for spec in specs)
+    assert any("provider=mistral" in spec for spec in specs)
+
+
+def test_memory_retrieval_strategies_keep_native_media_deferred() -> None:
+    strategies = retrieval_strategies_as_dicts(strategy_ids=("media_text_bridge",))
+    media = strategies[0]
+    candidates = {candidate["name"]: candidate for candidate in media["candidates"]}
+    specs = semantic_spec_strings_for_strategies(("media_text_bridge",))
+
+    assert candidates["gemini_native_multimodal"]["portfolio_eligible"] is False
+    assert candidates["gemini_native_multimodal"]["status"] == "deferred_native_media"
+    assert any("provider=cohere" in spec for spec in specs)
+    assert all("native_multimodal_media" not in spec for spec in specs)
 
 
 def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
@@ -2741,6 +2784,26 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         == 0
     )
     assert main(["memory", "question-types"]) == 0
+    assert main(["memory", "retrieval-strategies", "--query", "英語論文 強化学習"]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "portfolio-eval",
+                "--db",
+                str(db_path),
+                "--cases",
+                str(cli_eval_cases),
+                "--limit",
+                "1",
+                "--arm-limit",
+                "2",
+                "--strategy",
+                "general_memory",
+            ]
+        )
+        == 0
+    )
 
     output = (
         external_output_start
@@ -2759,6 +2822,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     assert "reader_extract" in output
     assert "llm_context" in output
     assert "single_fact_conditioned" in output
+    assert "general_memory" in output
     assert "memory://fake-external-search" in output
 
 

@@ -530,6 +530,7 @@ memory eval               Route-oriented memory checks.
 memory eval-runs          List stored eval runs.
 memory eval-show          Show one stored eval run and case-level results.
 memory question-types     List question-type coverage targets for memory evals.
+memory retrieval-strategies Show retrieval/evidence/semantic candidate spaces for experiments.
 memory export-corpus2skill Export JSONL or a corpus.jsonl/manifest bundle for Corpus2Skill.
 ```
 
@@ -546,13 +547,13 @@ uv run python -m research_x memory judge-relations `
 uv run python -m research_x memory embedding-estimate `
   --db runs/x_data.sqlite3 `
   --provider gemini `
-  --model gemini-embedding-2 `
+  --model gemini-embedding-001 `
   --dimensions 768 `
   --batch-size 64
 uv run python -m research_x memory build-embeddings `
   --db runs/x_data.sqlite3 `
   --provider gemini `
-  --model gemini-embedding-2 `
+  --model gemini-embedding-001 `
   --dimensions 768 `
   --embedding-profile general_memory `
   --text-template-version memory-doc-embedding-v1
@@ -570,8 +571,16 @@ uv run python -m research_x memory build-embeddings `
 uv run python -m research_x memory embedding-coverage `
   --db runs/x_data.sqlite3 `
   --provider gemini `
-  --model gemini-embedding-2 `
+  --model gemini-embedding-001 `
   --dimensions 768
+uv run python -m research_x memory retrieval-strategies `
+  --query "日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して"
+uv run python -m research_x memory portfolio-eval `
+  --db runs/x_data.sqlite3 `
+  --strategy general_memory `
+  --strategy jp_multilingual `
+  --limit 5 `
+  --arm-limit 20
 uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
 uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `

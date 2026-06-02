@@ -852,7 +852,7 @@ local source lookup
   -> answer with freshness status
 ```
 
-## Embedding Policy
+## Retrieval Portfolio And Embedding Policy
 
 Initial production policy:
 
@@ -860,6 +860,7 @@ Initial production policy:
 2. Keep FTS/exact/metadata/relation scoring active.
 3. Improve document views and chunk text before adding many vector spaces.
 4. Add profile-specific embeddings only after evals show the broad index is failing.
+5. Treat non-embedding strategies as first-class candidates, not as weaker fallback paths.
 
 The embedding spec includes:
 
@@ -875,14 +876,151 @@ source_doc_hash
 `task_prompt_version` is still a future extension for providers that expose prompt/task variants
 that need versioned routing beyond the current document/query task type.
 
-Candidate profiles:
+Candidate strategies:
 
+- `baseline_hybrid_foundation`
+- `contextual_bm25`
+- `rerank_stage`
+- `claim_citation_verification`
+- `freshness_lineage`
 - `general_memory`
-- `place_recall`
-- `author_stance`
-- `ticker_event`
-- `technical_learning`
-- `media_context`
+- `jp_multilingual`
+- `learning_long`
+- `code_technical`
+- `media_text_bridge`
+- `exact_metadata_first` (non-embedding guard for places, tickers, dates, handles, URLs)
+
+2026-06-02 decision note:
+
+Decision:
+
+- do not frame the next design as "single embedding vs multiple embedding spaces";
+- compare provider/model strengths, fielded FTS, exact-anchor engines, relation engines,
+  contextual BM25, source-bundle restoration, rerankers, claim-level citation verification,
+  freshness/version lineage, learned sparse retrieval, late interaction, and native multimodal
+  retrieval as peer design inputs;
+- keep the current production bias toward local hybrid search plus one broad text embedding until a
+  route-level eval proves another path stronger;
+- preserve wider entry points by recording candidate kind, modality, route role, adoption status,
+  document scope, provider/model/dimension, and promotion/rejection gates;
+- pass only current text-search-compatible semantic candidates to `portfolio-eval`; non-semantic
+  candidates remain visible as design/eval targets until their execution arms are implemented;
+- keep native multimodal candidates visible but deferred until media input and citation restoration
+  contracts exist.
+
+Rationale:
+
+- primary sources support named vectors, multiple vector fields, multimodal vectors, sparse+dense
+  hybrid search, RRF-style fusion, reranking, and contextual retrieval, but they also show that each
+  extra representation must be queried, fused, and audited explicitly;
+- model/provider score scales are not directly comparable, so final ranking must preserve
+  contribution metadata and use rank fusion or a reranker instead of raw score averaging;
+- SQLite FTS5 still has underused headroom through field weighting and exact-anchor behavior, so
+  dense-provider complexity should not be used to cover exact lookup defects;
+- reranking over a restored evidence bundle is often a higher-value next test than adding another
+  persistent vector space, because it can improve context precision without fragmenting indexes;
+- contextual BM25/doc2query-style hints can improve lexical recall, but generated retrieval text
+  must stay search-only and cannot become evidence;
+- citation presence does not prove claim support, so answer-time claim verification is a separate
+  evidence-quality layer;
+- dynamic X/Web evidence needs version/freshness lineage, not only semantic similarity;
+- benchmark papers and practitioner reports do not show a universal winner across domains, so
+  local route-level eval is the promotion gate.
+
+Rejected shortcuts:
+
+- revive the old static "model X is best for category Y" table as a production rule;
+- run every provider/profile on every query by default;
+- embed images natively before media hits can be restored to tweet/media citations;
+- solve exact entity/date/place misses by adding dense providers before fixing FTS, metadata,
+  derived cards, and relations.
+- let a single source, benchmark, blog post, or model claim determine the architecture without
+  checking local query types, context budgets, and citation behavior.
+- add GraphRAG, RAPTOR, Corpus2Skill, or provider answer engines as citation-ready evidence.
+
+Implementation impact:
+
+- `memory retrieval-strategies` is the candidate-space registry and recommendation view;
+- `memory embedding-strategies` is only a compatibility alias;
+- `memory portfolio-eval --strategy <id>` adds only portfolio-eligible semantic candidates from
+  a broader retrieval/evidence strategy;
+- production `memory search/context/workflow` still uses explicit provider/profile inputs until
+  strategy-specific routing and context/citation evals are implemented;
+- native multimodal, rerank, contextual BM25, claim verification, and lineage candidates stay
+  documented with status/preconditions instead of being silently dropped.
+
+Decision process:
+
+1. check the current proposal against primary and secondary sources, including counterarguments;
+2. check provider/model strengths and weaknesses as reusable design inputs, not as fixed winners;
+3. compare the gathered material against additional local design options such as document views,
+   lexical/hybrid retrieval, reranking, relations, context bundles, and native multimodal routing;
+4. implement only the part that survives that comparison;
+5. audit, test, and loop until no narrowed entry point or unsupported shortcut remains for the
+   current milestone.
+
+Primary/secondary references:
+
+- Milvus multi-vector hybrid search:
+  <https://milvus.io/docs/multi-vector-search.md>
+- Qdrant named vectors:
+  <https://qdrant.tech/documentation/manage-data/points/>
+- Weaviate named vectors and hybrid search:
+  <https://docs.weaviate.io/weaviate/concepts/search/vector-search>
+- Azure AI Search RRF scoring:
+  <https://learn.microsoft.com/en-us/azure/search/hybrid-search-ranking>
+- Elasticsearch RRF:
+  <https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion/>
+- SQLite FTS5:
+  <https://www.sqlite.org/fts5.html>
+- Anthropic Contextual Retrieval:
+  <https://www.anthropic.com/engineering/contextual-retrieval>
+- OpenAI embeddings:
+  <https://platform.openai.com/docs/guides/embeddings>
+- Gemini API embeddings:
+  <https://ai.google.dev/gemini-api/docs/embeddings>
+- Voyage embeddings:
+  <https://docs.voyageai.com/docs/embeddings>
+- Voyage rerankers:
+  <https://docs.voyageai.com/docs/reranker>
+- Cohere Embed v4:
+  <https://docs.cohere.com/docs/cohere-embed>
+- Cohere rerankers:
+  <https://docs.cohere.com/docs/reranking>
+- Jina embeddings v5 text:
+  <https://jina.ai/models/jina-embeddings-v5-text-small>
+- Qwen3 Embedding:
+  <https://github.com/QwenLM/Qwen3-Embedding>
+- FActScore:
+  <https://arxiv.org/abs/2305.14251>
+- VersionRAG:
+  <https://arxiv.org/abs/2510.08109>
+- FRESCO:
+  <https://arxiv.org/abs/2604.14227>
+- MTEB:
+  <https://arxiv.org/abs/2210.07316>
+- BEIR:
+  <https://arxiv.org/abs/2104.08663>
+
+Current strategy classification:
+
+- implemented baseline: `baseline_hybrid_foundation` with FTS, LIKE, metadata, semantic when
+  explicitly configured, relation expansion, RRF metadata, and source-bundle restoration;
+- high-value non-embedding next candidates: `contextual_bm25`, `rerank_stage`,
+  `claim_citation_verification`, and `freshness_lineage`;
+- cheap broad text baseline: `general_memory` candidates such as Gemini embedding or OpenAI small;
+- Japanese/cross-lingual recall: `jp_multilingual` challengers such as Voyage/Jina/Gemini;
+- long-form learning and concept maps: `learning_long` challengers such as Voyage, OpenAI large,
+  or Jina;
+- code/API/repository material: `code_technical` challengers such as Mistral or Voyage code
+  embeddings, only for route-specific evals;
+- media/OCR/caption routes: `media_text_bridge` challengers only after media docs expose
+  citation-ready OCR, caption, alt text, or VLM text;
+- exact entities, dates, tickers, handles, and places: keep FTS/metadata/relations/derived cards as
+  the guardrail before adding dense-provider complexity.
+
+Use `memory retrieval-strategies` to inspect these profiles and
+`memory portfolio-eval --strategy <id>` to add the candidate semantic arms to the comparison gate.
 
 Risk:
 
