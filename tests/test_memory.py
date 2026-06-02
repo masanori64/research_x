@@ -22,6 +22,7 @@ from research_x.memory.embeddings import (
     estimate_memory_embedding_build,
 )
 from research_x.memory.evals import (
+    DEFAULT_EVAL_CASES,
     EvalCase,
     list_memory_eval_runs,
     load_eval_cases,
@@ -47,7 +48,7 @@ from research_x.memory.reader import (
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.schema import ensure_memory_schema
-from research_x.memory.search import search_memory
+from research_x.memory.search import search_memory, strong_anchor_terms_for_query
 from research_x.memory.source_kinds import classify_external_source_kind
 from research_x.memory.workflow import plan_workflow_route, run_memory_workflow, workflow_json
 
@@ -99,6 +100,15 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
     finance_plan = build_query_plan("5/29のキオクシアの株価急騰")
     assert "5/29" in finance_plan.exact_terms
     assert "キオクシア" in finance_plan.exact_terms
+    assert "5/29" not in strong_anchor_terms_for_query("5/29のキオクシアの株価急騰")
+    assert not strong_anchor_terms_for_query("2026年5月29日のキオクシア")
+    assert not strong_anchor_terms_for_query("2026.05.29のキオクシア")
+    assert "1755992165371789312" in strong_anchor_terms_for_query(
+        "tweet 1755992165371789312 を出して"
+    )
+    assert "ZZZ_NO_SUCH_TOPIC_6f3a" in strong_anchor_terms_for_query(
+        "保存したはずのZZZ_NO_SUCH_TOPIC_6f3aを出して"
+    )
     current_plan = build_query_plan("昔保存した技術情報が今も正しいか確認したい")
     assert "freshness" in current_plan.intents
     assert current_plan.prefers_recent is True
@@ -503,17 +513,27 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
 
     assert result.status == "ok"
     assert not result.fusion_regressed
-    assert {arm.name for arm in result.arms} == {"lexical", "hash64", "hash32"}
-    assert {arm.mode for arm in result.arms} == {"lexical", "semantic_only"}
-    assert {arm.case_status for arm in result.arms} == {"ok"}
-    assert {summary.name for summary in report.arm_summaries} == {
-        "lexical",
+    assert {arm.name for arm in result.arms} == {
+        "fts_only",
+        "local_hybrid",
         "hash64",
         "hash32",
     }
-    assert all(summary.ok == 1 for summary in report.arm_summaries)
+    assert {arm.mode for arm in result.arms} == {
+        "fts_only",
+        "local_hybrid",
+        "semantic_only",
+    }
+    assert {arm.name: arm.case_status for arm in result.arms}["local_hybrid"] == "ok"
+    assert {summary.name for summary in report.arm_summaries} == {
+        "fts_only",
+        "local_hybrid",
+        "hash64",
+        "hash32",
+    }
     assert report.verdict.status == "hold"
     assert not report.verdict.promotable
+    assert any("diagnostic embedding providers" in blocker for blocker in report.verdict.blockers)
     assert any("does not beat" in blocker for blocker in report.verdict.blockers)
     assert result.fused_hits
     assert result.fused_hits[0].bundle_key.startswith("tweet:")
@@ -522,7 +542,7 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
         for hit in result.fused_hits
         for contribution in hit.contributions
     }
-    assert {"lexical", "hash64", "hash32"}.issubset(contribution_arms)
+    assert {"local_hybrid", "hash64", "hash32"}.issubset(contribution_arms)
 
 
 def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
@@ -544,11 +564,17 @@ def test_memory_portfolio_semantic_spec_accepts_arm_modes() -> None:
     assert hybrid.mode == "hybrid"
 
 
+def test_memory_portfolio_semantic_spec_normalizes_provider() -> None:
+    spec = parse_portfolio_semantic_spec("provider=LOCAL-HASH,dimensions=64")
+
+    assert spec.provider == "local_hash"
+
+
 def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
     lexical_arm = memory_portfolio.PortfolioArmResult(
-        name="lexical",
+        name="local_hybrid",
         status="ok",
-        mode="lexical",
+        mode="local_hybrid",
         provider=None,
         model=None,
         dimensions=None,
@@ -635,6 +661,101 @@ def test_memory_portfolio_preferred_doc_type_checks_bundle_doc_types() -> None:
     )
 
     assert memory_portfolio._preferred_doc_type_found(case, [hit])  # noqa: SLF001
+
+
+def test_memory_portfolio_strict_blocks_diagnostic_provider(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    assert (
+        main(
+            [
+                "memory",
+                "portfolio-eval",
+                "--db",
+                str(db_path),
+                "--semantic-spec",
+                "provider=local_hash,dimensions=64,name=hash64",
+                "--limit",
+                "1",
+                "--arm-limit",
+                "2",
+                "--strict",
+            ]
+        )
+        == 2
+    )
+
+
+def test_memory_portfolio_abstention_case_accepts_no_hits(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    case = EvalCase(
+        query="保存したはずのZZZ_NO_SUCH_TOPIC_6f3aを出して。なければないと言って",
+        required_any_terms=("ZZZ_NO_SUCH_TOPIC_6f3a",),
+        question_type="abstention_false_premise",
+        expected_stop_reasons=("no_local_evidence",),
+        min_hit_score=0.0,
+    )
+
+    report = run_portfolio_eval(
+        db_path,
+        cases=(case,),
+        semantic_specs=(
+            parse_portfolio_semantic_spec(
+                "provider=local_hash,dimensions=64,name=hash64"
+            ),
+        ),
+        limit=3,
+        arm_limit=5,
+    )
+    result = report.cases[0]
+
+    assert result.status == "ok"
+    assert result.fused_hits == ()
+    assert all(arm.case_status == "ok" for arm in result.arms)
+
+
+def test_memory_portfolio_required_term_gap_is_review_only_for_unanswerable_cases() -> None:
+    hit = memory_portfolio.PortfolioHit(
+        rank=1,
+        bundle_key="tweet:1",
+        doc_id="tweet:1",
+        doc_type="tweet_doc",
+        tweet_id="1",
+        score=1.0,
+        title="unrelated",
+        compact_text="unrelated saved item",
+        contributions=(),
+        metadata={},
+    )
+    answerable = EvalCase(
+        query="robot",
+        required_any_terms=("robot",),
+        question_type="single_fact_conditioned",
+    )
+    conditionally_answerable = EvalCase(
+        query="同じ話で反対意見や矛盾している保存投稿はある？",
+        required_any_terms=("反対", "矛盾"),
+        question_type="contradiction_support",
+        expected_stop_reasons=("external_context_needed", "no_local_evidence"),
+    )
+
+    answerable_notes = memory_portfolio._case_notes(answerable, [hit])  # noqa: SLF001
+    conditional_notes = memory_portfolio._case_notes(  # noqa: SLF001
+        conditionally_answerable,
+        [hit],
+    )
+
+    assert memory_portfolio._case_status(answerable, answerable_notes, [hit]) == "fail"  # noqa: SLF001
+    assert (  # noqa: SLF001
+        memory_portfolio._case_status(conditionally_answerable, conditional_notes, [hit])
+        == "needs_review"
+    )
 
 
 def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
@@ -1732,6 +1853,13 @@ def test_memory_question_type_catalog_is_machine_readable() -> None:
     assert "abstention_false_premise" in ids
     assert len(ids) == len(set(ids))
     assert all(row["required_capabilities"] for row in rows)
+
+
+def test_memory_default_eval_cases_cover_question_catalog() -> None:
+    expected = set(known_question_type_ids())
+    covered = {case.question_type for case in DEFAULT_EVAL_CASES}
+
+    assert covered == expected
 
 
 def test_memory_answer_gemini_provider_uses_openai_compatible_chat(

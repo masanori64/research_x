@@ -951,7 +951,10 @@ def main(argv: list[str] | None = None) -> int:
     memory_portfolio_eval_parser.add_argument(
         "--strict",
         action="store_true",
-        help="return a non-zero exit code when any portfolio case is not ok",
+        help=(
+            "return a non-zero exit code when cases fail, candidate arms error, "
+            "or promotion blockers remain"
+        ),
     )
     memory_eval_runs_parser = memory_subparsers.add_parser(
         "eval-runs",
@@ -2392,7 +2395,10 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             min_agreement=args.min_agreement,
         )
         print(portfolio_eval_json(report) if args.json else format_portfolio_eval(report))
-        return 2 if args.strict and any(case.status != "ok" for case in report.cases) else 0
+        strict_failed = any(case.status != "ok" for case in report.cases) or bool(
+            report.verdict.blockers
+        )
+        return 2 if args.strict and strict_failed else 0
     if args.memory_command == "eval-runs":
         from research_x.memory.evals import eval_runs_json, format_eval_runs, list_memory_eval_runs
 

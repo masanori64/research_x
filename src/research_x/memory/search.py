@@ -128,7 +128,7 @@ def search_memory(
                     plan=plan,
                 )
             )
-        seed_candidates = _merge_candidates(raw_rows)
+        seed_candidates = _filter_anchor_candidates(_merge_candidates(raw_rows), plan)
         raw_rows.extend(
             _with_engine_contributions(
                 _relation_expansion_search(
@@ -142,7 +142,7 @@ def search_memory(
                 plan=plan,
             )
         )
-        candidates = _merge_candidates(raw_rows)
+        candidates = _filter_anchor_candidates(_merge_candidates(raw_rows), plan)
         doc_ids = tuple(candidate["doc_id"] for candidate in candidates)
         tweet_ids = tuple(
             str(candidate["source_tweet_id"])
@@ -182,6 +182,59 @@ def search_memory(
             semantic_hit=semantic_by_doc.get(str(candidate["doc_id"])),
             semantic_rerank_rank=semantic_rerank_ranks.get(str(candidate["doc_id"])),
             semantic_weight=semantic_weight,
+        )
+        for candidate in candidates
+    ]
+    results.sort(key=lambda result: (result.score, _date_sort_value(result.metadata)), reverse=True)
+    return tuple(results[:resolved_limit])
+
+
+def search_memory_fts_only(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int = 10,
+    doc_type: str | None = None,
+    account: str | None = None,
+) -> tuple[MemorySearchResult, ...]:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    resolved_limit = max(1, limit)
+    plan = build_query_plan(query)
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        if memory_document_count(conn) == 0:
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
+        candidates = _filter_anchor_candidates(
+            _merge_candidates(
+                _with_engine_contributions(
+                    _fts_search(
+                        conn,
+                        plan,
+                        limit=max(resolved_limit * 8, 50),
+                        doc_type=doc_type,
+                        account=account,
+                    ),
+                    "fts",
+                    plan=plan,
+                )
+            ),
+            plan,
+        )
+        latest_observed_at = _latest_observed_at(conn)
+    results = [
+        _result_from_candidate(
+            candidate,
+            plan=plan,
+            feedback_score=0.0,
+            bookmark_account_count=0,
+            relation_counts={},
+            latest_observed_at=latest_observed_at,
+            semantic_hit=None,
+            semantic_rerank_rank=None,
+            semantic_weight=0.0,
         )
         for candidate in candidates
     ]
@@ -230,6 +283,17 @@ def format_search_results(
             )
         )
     return "\n\n".join(blocks)
+
+
+def strong_anchor_terms_for_query(query: str) -> tuple[str, ...]:
+    return _strong_anchor_terms(build_query_plan(query))
+
+
+def text_matches_any_anchor(anchors: tuple[str, ...], *values: Any) -> bool:
+    if not anchors:
+        return True
+    text_blob = _searchable_text(*(str(value or "") for value in values))
+    return any(_term_in_text(anchor, text_blob) for anchor in anchors)
 
 
 def _fts_search(
@@ -452,6 +516,53 @@ def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row["_engine_contributions"] = existing.get("_engine_contributions", [])
             merged[doc_id] = row
     return list(merged.values())
+
+
+def _filter_anchor_candidates(
+    candidates: list[dict[str, Any]],
+    plan: QueryPlan,
+) -> list[dict[str, Any]]:
+    anchors = _strong_anchor_terms(plan)
+    if not anchors:
+        return candidates
+    return [candidate for candidate in candidates if _candidate_has_anchor(candidate, anchors)]
+
+
+def _strong_anchor_terms(plan: QueryPlan) -> tuple[str, ...]:
+    anchors = []
+    for term in plan.exact_terms:
+        if _is_strong_anchor_term(term):
+            anchors.append(term)
+    return tuple(anchors)
+
+
+def _is_strong_anchor_term(term: str) -> bool:
+    cleaned = term.strip()
+    folded = cleaned.casefold()
+    if cleaned.startswith(("@", "#")) and len(cleaned) >= 3:
+        return True
+    if "://" in cleaned or folded.startswith("www."):
+        return True
+    if cleaned.isdigit() and len(cleaned) >= 12:
+        return True
+    has_digit = any(char.isdigit() for char in cleaned)
+    has_ascii_alpha = any("a" <= char <= "z" for char in folded)
+    if len(cleaned) >= 6 and has_digit and has_ascii_alpha:
+        return True
+    return len(cleaned) >= 10 and has_ascii_alpha and any(
+        char in folded for char in ("_", ".", ":")
+    )
+
+
+def _candidate_has_anchor(candidate: dict[str, Any], anchors: tuple[str, ...]) -> bool:
+    text_blob = _searchable_text(
+        str(candidate.get("title") or ""),
+        str(candidate.get("body") or ""),
+        str(candidate.get("compact_text") or ""),
+        str(candidate.get("author_screen_name") or ""),
+        str(candidate.get("metadata_json") or ""),
+    )
+    return any(_term_in_text(anchor, text_blob) for anchor in anchors)
 
 
 def _method_priority(method: str) -> int:

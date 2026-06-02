@@ -5,9 +5,26 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from research_x.memory.embeddings import semantic_search_memory
+from research_x.memory.embeddings import (
+    LoadedSemanticIndex,
+    load_semantic_index,
+    semantic_search_loaded_index,
+    semantic_search_memory,
+)
 from research_x.memory.evals import DEFAULT_EVAL_CASES, EvalCase
-from research_x.memory.evidence import build_evidence_bundle, build_evidence_hits_for_doc_ids
+from research_x.memory.evidence import (
+    build_evidence_bundle,
+    build_evidence_hits_for_doc_ids,
+    build_evidence_hits_from_results,
+)
+from research_x.memory.search import (
+    search_memory_fts_only,
+    strong_anchor_terms_for_query,
+    text_matches_any_anchor,
+)
+
+DIAGNOSTIC_EMBEDDING_PROVIDERS = {"local_hash"}
+BASELINE_ARM_NAMES = {"fts_only", "local_hybrid", "lexical"}
 
 
 @dataclass(frozen=True)
@@ -118,9 +135,10 @@ class PortfolioEvalReport:
 
 def parse_portfolio_semantic_spec(value: str) -> PortfolioSemanticSpec:
     fields = _parse_fields(value)
-    provider = fields.pop("provider", None)
-    if not provider:
+    raw_provider = fields.pop("provider", None)
+    if not raw_provider:
         raise ValueError("portfolio semantic spec requires provider=...")
+    provider = _resolve_provider(raw_provider)
     aliases = {
         "profile": "embedding_profile",
         "template": "text_template_version",
@@ -182,6 +200,7 @@ def run_portfolio_eval(
 ) -> PortfolioEvalReport:
     resolved_cases = cases or DEFAULT_EVAL_CASES
     resolved_fusion_mode = _resolve_fusion_mode(fusion_mode)
+    semantic_index_cache = _load_semantic_indexes(db_path, semantic_specs)
     parameters = {
         "limit": max(1, limit),
         "arm_limit": max(1, arm_limit),
@@ -200,6 +219,7 @@ def run_portfolio_eval(
             rrf_k=max(1.0, float(rrf_k)),
             fusion_mode=resolved_fusion_mode,
             min_agreement=max(1, min_agreement),
+            semantic_index_cache=semantic_index_cache,
         )
         for case in resolved_cases
     )
@@ -264,6 +284,31 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
     return "\n".join(lines)
 
 
+def _load_semantic_indexes(
+    db_path: str | Path,
+    semantic_specs: tuple[PortfolioSemanticSpec, ...],
+) -> dict[str, LoadedSemanticIndex | str]:
+    indexes: dict[str, LoadedSemanticIndex | str] = {}
+    for index, spec in enumerate(semantic_specs, start=1):
+        if spec.mode != "semantic_only":
+            continue
+        name = spec.name or _semantic_arm_name(spec, index=index)
+        try:
+            indexes[name] = load_semantic_index(
+                db_path,
+                provider=None if spec.provider == "auto" else spec.provider,
+                model=spec.model,
+                dimensions=spec.dimensions,
+                embedding_profile=spec.embedding_profile,
+                text_template_version=spec.text_template_version,
+                api_key_env=spec.api_key_env,
+                base_url=spec.base_url,
+            )
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            indexes[name] = _compact_error(str(exc))
+    return indexes
+
+
 def _run_case(
     db_path: str | Path,
     *,
@@ -274,12 +319,25 @@ def _run_case(
     rrf_k: float,
     fusion_mode: str,
     min_agreement: int,
+    semantic_index_cache: dict[str, LoadedSemanticIndex | str],
 ) -> PortfolioCaseResult:
     arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]] = []
-    arm_payloads.append(_run_arm(db_path, case.query, name="lexical", spec=None, limit=arm_limit))
+    arm_payloads.append(_run_fts_only_arm(db_path, case.query, limit=arm_limit))
+    arm_payloads.append(
+        _run_arm(db_path, case.query, name="local_hybrid", spec=None, limit=arm_limit)
+    )
     for index, spec in enumerate(semantic_specs, start=1):
         name = spec.name or _semantic_arm_name(spec, index=index)
-        arm_payloads.append(_run_arm(db_path, case.query, name=name, spec=spec, limit=arm_limit))
+        arm_payloads.append(
+            _run_arm(
+                db_path,
+                case.query,
+                name=name,
+                spec=spec,
+                limit=arm_limit,
+                semantic_index_cache=semantic_index_cache,
+            )
+        )
     arm_payloads = _evaluate_arms(case, arm_payloads, limit=limit)
     fused_hits = _fuse_hits(
         arm_payloads,
@@ -289,7 +347,7 @@ def _run_case(
         min_agreement=min_agreement,
     )
     notes = _case_notes(case, fused_hits)
-    status = _case_status(notes, fused_hits)
+    status = _case_status(case, notes, fused_hits)
     best_arm = _best_case_arm(tuple(arm for arm, _hits in arm_payloads))
     best_arm_status = best_arm.case_status if best_arm else None
     fusion_improved = _status_strength(status) > _status_strength(best_arm_status)
@@ -318,15 +376,20 @@ def _run_arm(
     name: str,
     spec: PortfolioSemanticSpec | None,
     limit: int,
+    semantic_index_cache: dict[str, LoadedSemanticIndex | str] | None = None,
 ) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
     try:
         if spec and spec.mode == "semantic_only":
+            cached = (semantic_index_cache or {}).get(name)
+            if isinstance(cached, str):
+                raise RuntimeError(cached)
             return _run_semantic_only_arm(
                 db_path,
                 query,
                 name=name,
                 spec=spec,
                 limit=limit,
+                index=cached if isinstance(cached, LoadedSemanticIndex) else None,
             )
         bundle = build_evidence_bundle(
             db_path,
@@ -345,7 +408,7 @@ def _run_arm(
         arm = PortfolioArmResult(
             name=name,
             status="ok",
-            mode=spec.mode if spec else "lexical",
+            mode=spec.mode if spec else "local_hybrid",
             provider=spec.provider if spec else None,
             model=spec.model if spec else None,
             dimensions=spec.dimensions if spec else None,
@@ -362,13 +425,57 @@ def _run_arm(
         arm = PortfolioArmResult(
             name=name,
             status="error",
-            mode=spec.mode if spec else "lexical",
+            mode=spec.mode if spec else "local_hybrid",
             provider=spec.provider if spec else None,
             model=spec.model if spec else None,
             dimensions=spec.dimensions if spec else None,
             embedding_profile=spec.embedding_profile if spec else None,
             text_template_version=spec.text_template_version if spec else None,
             weight=spec.weight if spec else 1.0,
+            hit_count=0,
+            top_doc_ids=(),
+            top_bundle_keys=(),
+            error=_compact_error(str(exc)),
+        )
+        return arm, []
+
+
+def _run_fts_only_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        results = search_memory_fts_only(db_path, query, limit=limit)
+        hits = build_evidence_hits_from_results(db_path, query, results)
+        arm = PortfolioArmResult(
+            name="fts_only",
+            status="ok",
+            mode="fts_only",
+            provider=None,
+            model=None,
+            dimensions=None,
+            embedding_profile=None,
+            text_template_version=None,
+            weight=1.0,
+            hit_count=len(hits),
+            top_doc_ids=tuple(str(hit.get("doc_id") or "") for hit in hits[:5]),
+            top_bundle_keys=tuple(_bundle_key(hit) for hit in hits[:5]),
+            error=None,
+        )
+        return arm, hits
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        arm = PortfolioArmResult(
+            name="fts_only",
+            status="error",
+            mode="fts_only",
+            provider=None,
+            model=None,
+            dimensions=None,
+            embedding_profile=None,
+            text_template_version=None,
+            weight=1.0,
             hit_count=0,
             top_doc_ids=(),
             top_bundle_keys=(),
@@ -384,19 +491,23 @@ def _run_semantic_only_arm(
     name: str,
     spec: PortfolioSemanticSpec,
     limit: int,
+    index: LoadedSemanticIndex | None = None,
 ) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
-    semantic_hits = semantic_search_memory(
-        db_path,
-        query,
-        provider=None if spec.provider == "auto" else spec.provider,
-        model=spec.model,
-        dimensions=spec.dimensions,
-        embedding_profile=spec.embedding_profile,
-        text_template_version=spec.text_template_version,
-        api_key_env=spec.api_key_env,
-        base_url=spec.base_url,
-        limit=limit,
-    )
+    if index is not None:
+        semantic_hits = semantic_search_loaded_index(index, query, limit=limit)
+    else:
+        semantic_hits = semantic_search_memory(
+            db_path,
+            query,
+            provider=None if spec.provider == "auto" else spec.provider,
+            model=spec.model,
+            dimensions=spec.dimensions,
+            embedding_profile=spec.embedding_profile,
+            text_template_version=spec.text_template_version,
+            api_key_env=spec.api_key_env,
+            base_url=spec.base_url,
+            limit=limit,
+        )
     metadata_by_doc_id = {
         hit.doc_id: {
             "retrieval_method": "semantic_only",
@@ -433,6 +544,7 @@ def _run_semantic_only_arm(
         score_by_doc_id={hit.doc_id: hit.similarity for hit in semantic_hits},
         metadata_by_doc_id=metadata_by_doc_id,
     )
+    hits = _filter_raw_hits_by_query_anchors(query, hits)
     arm = PortfolioArmResult(
         name=name,
         status="ok",
@@ -449,6 +561,29 @@ def _run_semantic_only_arm(
         error=None,
     )
     return arm, hits
+
+
+def _filter_raw_hits_by_query_anchors(
+    query: str,
+    hits: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    anchors = strong_anchor_terms_for_query(query)
+    if not anchors:
+        return hits
+    return [hit for hit in hits if _raw_hit_matches_anchors(hit, anchors)]
+
+
+def _raw_hit_matches_anchors(hit: dict[str, Any], anchors: tuple[str, ...]) -> bool:
+    return text_matches_any_anchor(
+        anchors,
+        hit.get("doc_id"),
+        hit.get("tweet_id"),
+        hit.get("title"),
+        hit.get("compact_text"),
+        json.dumps(hit.get("matched_terms") or (), ensure_ascii=False, sort_keys=True),
+        json.dumps(hit.get("metadata") or {}, ensure_ascii=False, sort_keys=True),
+        json.dumps(hit.get("evidence") or {}, ensure_ascii=False, sort_keys=True),
+    )
 
 
 def _evaluate_arms(
@@ -478,7 +613,7 @@ def _evaluate_arms(
             (
                 replace(
                     arm,
-                    case_status=_case_status(notes, arm_hits),
+                    case_status=_case_status(case, notes, arm_hits),
                     case_notes=tuple(notes),
                     required_terms_found=_required_terms_found(case, arm_hits),
                     preferred_doc_type_found=_preferred_doc_type_found(case, arm_hits),
@@ -614,13 +749,13 @@ def _apply_fusion_guard(
     deferred: list[tuple[str, dict[str, Any]]] = []
     for item in ranked:
         _bundle_key, bucket = item
-        if _lexical_contribution_rank(bucket) is not None:
+        if _baseline_contribution_rank(bucket) is not None:
             lexical_backed.append(item)
         elif _passes_guard(bucket, min_agreement=min_agreement):
             agreed.append(item)
         else:
             deferred.append(item)
-    lexical_backed.sort(key=lambda item: _lexical_contribution_rank(item[1]) or 10**9)
+    lexical_backed.sort(key=lambda item: _baseline_contribution_rank(item[1]) or 10**9)
     return lexical_backed + agreed + deferred
 
 
@@ -631,14 +766,14 @@ def _passes_guard(bucket: dict[str, Any], *, min_agreement: int) -> bool:
         for contribution in contributions
         if isinstance(contribution, dict)
     }
-    return "lexical" in arm_names or len(arm_names) >= min_agreement
+    return bool(arm_names.intersection(BASELINE_ARM_NAMES)) or len(arm_names) >= min_agreement
 
 
-def _lexical_contribution_rank(bucket: dict[str, Any]) -> int | None:
+def _baseline_contribution_rank(bucket: dict[str, Any]) -> int | None:
     ranks = [
         int(contribution.get("rank") or 10**9)
         for contribution in bucket.get("contributions") or ()
-        if isinstance(contribution, dict) and contribution.get("arm") == "lexical"
+        if isinstance(contribution, dict) and contribution.get("arm") in BASELINE_ARM_NAMES
     ]
     return min(ranks) if ranks else None
 
@@ -657,9 +792,15 @@ def _resolve_arm_mode(value: str | None) -> str:
     return normalized
 
 
+def _resolve_provider(value: str) -> str:
+    return value.strip().lower().replace("-", "_")
+
+
 def _case_notes(case: EvalCase, hits: list[PortfolioHit]) -> list[str]:
     notes: list[str] = []
     if not hits:
+        if _case_allows_no_hits(case):
+            return ["expected no local evidence"]
         return ["no hits"]
     if case.required_any_terms and not _required_terms_found(case, hits):
         notes.append("required term family missing")
@@ -670,10 +811,23 @@ def _case_notes(case: EvalCase, hits: list[PortfolioHit]) -> list[str]:
     return notes
 
 
-def _case_status(notes: list[str], hits: list[PortfolioHit]) -> str:
-    if not hits or "required term family missing" in notes:
+def _case_status(case: EvalCase, notes: list[str], hits: list[PortfolioHit]) -> str:
+    if not hits:
+        return "ok" if _case_allows_no_hits(case) else "fail"
+    if "required term family missing" in notes and not _case_allows_evidence_gap(case):
         return "fail"
     return "ok" if not notes else "needs_review"
+
+
+def _case_allows_no_hits(case: EvalCase) -> bool:
+    return case.min_hit_score <= 0.0 and "no_local_evidence" in case.expected_stop_reasons
+
+
+def _case_allows_evidence_gap(case: EvalCase) -> bool:
+    return any(
+        reason in case.expected_stop_reasons
+        for reason in ("no_local_evidence", "external_context_needed")
+    )
 
 
 def _best_case_arm(arms: tuple[PortfolioArmResult, ...]) -> PortfolioArmResult | None:
@@ -741,11 +895,26 @@ def _promotion_verdict(
     semantic_specs: tuple[PortfolioSemanticSpec, ...],
 ) -> PortfolioPromotionVerdict:
     fused_counts = _case_status_counts(case.status for case in cases)
-    baseline = _summary_by_name(arm_summaries, "lexical")
+    baseline = _summary_by_name(arm_summaries, "local_hybrid")
     best_single = _best_single_arm(arm_summaries)
     blockers: list[str] = []
     if not semantic_specs:
         blockers.append("no candidate semantic arms were configured")
+    diagnostic_specs = [
+        spec.provider for spec in semantic_specs if spec.provider in DIAGNOSTIC_EMBEDDING_PROVIDERS
+    ]
+    if diagnostic_specs:
+        blockers.append(
+            "diagnostic embedding providers cannot be promoted: "
+            + ", ".join(sorted(set(diagnostic_specs)))
+        )
+    hybrid_specs = [spec.name or spec.provider for spec in semantic_specs if spec.mode == "hybrid"]
+    if hybrid_specs:
+        blockers.append(
+            "hybrid semantic arms are comparison-only until provider score calibration "
+            "is explicit: "
+            + ", ".join(sorted(set(hybrid_specs)))
+        )
     if not cases:
         blockers.append("no eval cases were run")
     if fused_counts["fail"]:

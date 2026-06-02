@@ -74,6 +74,36 @@ DEFAULT_EVAL_CASES = (
         expected_route="quote_context",
     ),
     EvalCase(
+        query="根拠tweetと引用元を明示して説明して",
+        required_any_terms=("根拠", "tweet", "引用元", "引用", "quote"),
+        question_type="citation_required",
+        preferred_doc_types=("quote_tree_doc", "bookmark_doc", "tweet_doc"),
+        required_feature="quote_context",
+        expected_route="quote_context",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="AさんとBさんのAI観の違いを保存投稿の見解から比較して",
+        required_any_terms=("AI", "違い", "比較", "見解", "発言"),
+        question_type="comparison",
+        preferred_doc_types=("author_profile", "bookmark_doc", "tweet_doc"),
+        expected_route="author_stance",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="同じ話で反対意見や矛盾している保存投稿はある？",
+        required_any_terms=("反対", "矛盾", "同じ話", "contradict", "support"),
+        question_type="contradiction_support",
+        preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        expected_route="current_fact_check",
+        expected_stop_reasons=(
+            "external_context_needed",
+            "no_local_evidence",
+            "enough_evidence",
+        ),
+        min_hit_score=0.5,
+    ),
+    EvalCase(
         query="同じテーマで古くなった情報と新しい情報を比較して",
         required_any_terms=("古い", "新しい", "最近", "更新"),
         question_type="temporal_freshness",
@@ -90,6 +120,14 @@ DEFAULT_EVAL_CASES = (
         preferred_doc_types=("media_doc", "bookmark_doc"),
         required_feature="media_context",
         expected_route="media_context",
+    ),
+    EvalCase(
+        query="日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して",
+        required_any_terms=("English", "paper", "docs", "強化学習", "資料"),
+        question_type="multilingual_source",
+        preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
+        expected_route="learning_map",
+        min_hit_score=0.5,
     ),
     EvalCase(
         query="イベント系で日付が近いものだけ出して",
@@ -117,6 +155,22 @@ DEFAULT_EVAL_CASES = (
         required_feature="recent",
         expected_route="learning_map",
         min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="強化学習、ロボット、ネットワークを勉強順に整理して",
+        required_any_terms=("強化学習", "ロボット", "ネットワーク", "勉強", "整理"),
+        question_type="exploratory_map",
+        preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
+        expected_route="learning_map",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="保存したはずのZZZ_NO_SUCH_TOPIC_6f3aを出して。なければないと言って",
+        required_any_terms=("ZZZ_NO_SUCH_TOPIC_6f3a",),
+        question_type="abstention_false_premise",
+        expected_route="local_memory_search",
+        expected_stop_reasons=("no_local_evidence",),
+        min_hit_score=0.0,
     ),
 )
 
@@ -551,11 +605,25 @@ def _evaluate_case(
             f"{', '.join(case.expected_stop_reasons)}, got {workflow.stop_reason}"
         )
     if not hits:
-        notes.append("no hits")
+        expected_no_evidence = (
+            workflow.stop_reason == "no_local_evidence"
+            and "no_local_evidence" in case.expected_stop_reasons
+        )
+        if expected_no_evidence:
+            notes.append("expected no local evidence")
+            status = "ok"
+            if any(
+                note.startswith("route mismatch") or note.startswith("stop reason mismatch")
+                for note in notes
+            ):
+                status = "fail"
+        else:
+            notes.append("no hits")
+            status = "fail"
         return MemoryEvalResult(
             query=case.query,
             question_type=case.question_type,
-            status="fail",
+            status=status,
             route=workflow.route,
             expected_route=case.expected_route,
             stop_reason=workflow.stop_reason,

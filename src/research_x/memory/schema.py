@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 
+from research_x.memory.document_hashes import (
+    memory_document_embedding_text_hash,
+    memory_document_source_hash,
+)
+
 
 def ensure_memory_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -16,6 +21,8 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             body TEXT,
             compact_text TEXT,
             metadata_json TEXT,
+            source_doc_hash TEXT,
+            embedding_text_hash TEXT,
             created_at TEXT,
             observed_at TEXT,
             updated_at TEXT
@@ -314,6 +321,7 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_workflow_steps(workflow_id, step_index);
         """
     )
+    _migrate_memory_documents(conn)
     _migrate_memory_feedback(conn)
     _migrate_memory_embeddings(conn)
     conn.execute(
@@ -328,6 +336,44 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
 
 def memory_document_count(conn: sqlite3.Connection) -> int:
     return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])
+
+
+def _migrate_memory_documents(conn: sqlite3.Connection) -> None:
+    columns = _column_names(conn, "memory_documents")
+    if "source_doc_hash" not in columns:
+        conn.execute("ALTER TABLE memory_documents ADD COLUMN source_doc_hash TEXT")
+    if "embedding_text_hash" not in columns:
+        conn.execute("ALTER TABLE memory_documents ADD COLUMN embedding_text_hash TEXT")
+    rows = conn.execute(
+        """
+        SELECT
+            doc_id, title, body, compact_text, metadata_json,
+            source_doc_hash, embedding_text_hash
+        FROM memory_documents
+        WHERE source_doc_hash IS NULL
+           OR embedding_text_hash IS NULL
+        """
+    ).fetchall()
+    for row in rows:
+        doc = {
+            "doc_id": row[0],
+            "title": row[1],
+            "body": row[2],
+            "compact_text": row[3],
+            "metadata_json": row[4],
+        }
+        conn.execute(
+            """
+            UPDATE memory_documents
+            SET source_doc_hash = ?, embedding_text_hash = ?
+            WHERE doc_id = ?
+            """,
+            (
+                memory_document_source_hash(doc),
+                memory_document_embedding_text_hash(doc),
+                doc["doc_id"],
+            ),
+        )
 
 
 def _migrate_memory_feedback(conn: sqlite3.Connection) -> None:

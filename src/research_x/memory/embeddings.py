@@ -18,6 +18,11 @@ from typing import Any
 
 import numpy as np
 
+from research_x.memory.document_hashes import (
+    memory_document_embedding_text,
+    memory_document_source_hash,
+    text_hash,
+)
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
 LOCAL_HASH_PROVIDER = "local_hash"
@@ -155,6 +160,13 @@ class SemanticScore:
     dimensions: int
     embedding_profile: str
     text_template_version: str
+
+
+@dataclass(frozen=True)
+class LoadedSemanticIndex:
+    spec: EmbeddingSpec
+    doc_ids: tuple[str, ...]
+    matrix: Any
 
 
 def resolve_embedding_spec(
@@ -335,13 +347,87 @@ def semantic_search_memory(
         expected_rows = _embedding_document_count(conn, doc_type=doc_type, account=account)
         if expected_rows and len(rows) < expected_rows:
             raise RuntimeError(
-                "semantic index is incomplete for the requested scope: "
+                "semantic index is incomplete or stale for the requested scope: "
                 f"{len(rows)}/{expected_rows} documents indexed for "
                 f"{spec.provider}/{spec.model} dims={spec.dimensions}"
             )
     hits = _semantic_hits_from_rows(rows, query_vector=query_vector)
     hits.sort(key=lambda hit: hit.similarity, reverse=True)
     return tuple(hits[: max(1, limit)])
+
+
+def load_semantic_index(
+    db_path: str | Path,
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+    dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
+    api_key_env: str | None = None,
+    base_url: str | None = None,
+    doc_type: str | None = None,
+    account: str | None = None,
+) -> LoadedSemanticIndex:
+    path = Path(db_path)
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        spec = _resolve_available_spec(
+            conn,
+            provider=provider,
+            model=model,
+            dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
+            api_key_env=api_key_env,
+            base_url=base_url,
+        )
+        rows = _embedding_rows(conn, spec=spec, doc_type=doc_type, account=account)
+        expected_rows = _embedding_document_count(conn, doc_type=doc_type, account=account)
+        if expected_rows and len(rows) < expected_rows:
+            raise RuntimeError(
+                "semantic index is incomplete or stale for the requested scope: "
+                f"{len(rows)}/{expected_rows} documents indexed for "
+                f"{spec.provider}/{spec.model} dims={spec.dimensions}"
+            )
+    matrix = _semantic_matrix_from_rows(rows, dimensions=spec.dimensions)
+    return LoadedSemanticIndex(
+        spec=spec,
+        doc_ids=tuple(str(row["doc_id"]) for row in rows),
+        matrix=matrix,
+    )
+
+
+def semantic_search_loaded_index(
+    index: LoadedSemanticIndex,
+    query: str,
+    *,
+    limit: int = 50,
+) -> tuple[SemanticHit, ...]:
+    if not index.doc_ids:
+        return ()
+    query_vector = _embedder(index.spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
+    query_array = np.asarray(query_vector[: index.spec.dimensions], dtype=np.float32)
+    scores = index.matrix @ query_array
+    resolved_limit = min(max(1, limit), len(index.doc_ids))
+    if resolved_limit < len(index.doc_ids):
+        candidate_indices = np.argpartition(scores, -resolved_limit)[-resolved_limit:]
+        ranked_indices = candidate_indices[np.argsort(scores[candidate_indices])[::-1]]
+    else:
+        ranked_indices = np.argsort(scores)[::-1]
+    return tuple(
+        SemanticHit(
+            doc_id=index.doc_ids[int(row_index)],
+            similarity=float(scores[int(row_index)]),
+            provider=index.spec.provider,
+            model=index.spec.model,
+            dimensions=index.spec.dimensions,
+            embedding_profile=index.spec.embedding_profile,
+            text_template_version=index.spec.text_template_version,
+        )
+        for row_index in ranked_indices
+    )
 
 
 def semantic_scores_for_doc_ids(
@@ -377,7 +463,7 @@ def semantic_scores_for_doc_ids(
         rows = _embedding_rows_for_doc_ids(conn, spec=spec, doc_ids=doc_ids)
         if len(rows) < len(set(doc_ids)):
             raise RuntimeError(
-                "semantic index is incomplete for the candidate set: "
+                "semantic index is incomplete or stale for the candidate set: "
                 f"{len(rows)}/{len(set(doc_ids))} documents indexed for "
                 f"{spec.provider}/{spec.model} dims={spec.dimensions}"
             )
@@ -1014,6 +1100,8 @@ def _embedding_rows(
           AND e.dimensions = ?
           AND e.embedding_profile = ?
           AND e.text_template_version = ?
+          AND e.source_doc_hash = d.source_doc_hash
+          AND e.embedded_text_hash = d.embedding_text_hash
         {' '.join(filters)}
         """,
         params,
@@ -1052,11 +1140,14 @@ def _embedding_rows_for_doc_ids(
             e.doc_id, e.provider, e.model, e.dimensions,
             e.embedding_profile, e.text_template_version, e.embedding
         FROM memory_embeddings e
+        JOIN memory_documents d ON d.doc_id = e.doc_id
         WHERE e.provider = ?
           AND e.model = ?
           AND e.dimensions = ?
           AND e.embedding_profile = ?
           AND e.text_template_version = ?
+          AND e.source_doc_hash = d.source_doc_hash
+          AND e.embedded_text_hash = d.embedding_text_hash
           AND e.doc_id IN ({placeholders})
         """,
         (
@@ -1082,8 +1173,7 @@ def _semantic_hits_from_rows(
     hits: list[SemanticHit] = []
     batch_size = max(1, min(10000, len(rows)))
     for batch in _chunks(rows, batch_size):
-        blobs = b"".join(row["embedding"] for row in batch)
-        matrix = np.frombuffer(blobs, dtype="<f4").reshape(len(batch), dimensions)
+        matrix = _semantic_matrix_from_rows(batch, dimensions=dimensions)
         scores = matrix @ query
         for row, score in zip(batch, scores, strict=True):
             hits.append(
@@ -1098,6 +1188,13 @@ def _semantic_hits_from_rows(
                 )
             )
     return hits
+
+
+def _semantic_matrix_from_rows(rows: list[sqlite3.Row], *, dimensions: int):
+    if not rows:
+        return np.empty((0, dimensions), dtype=np.float32)
+    blobs = b"".join(row["embedding"] for row in rows)
+    return np.frombuffer(blobs, dtype="<f4").reshape(len(rows), dimensions).copy()
 
 
 def _resolve_available_spec(
@@ -1401,32 +1498,11 @@ def _upsert_embedding(
 
 
 def _embedding_text(row: sqlite3.Row) -> str:
-    metadata = _compact_metadata(row["metadata_json"])
-    compact_text = row["compact_text"] or ""
-    body = row["body"] or ""
-    body_extra = body[:1200] if compact_text not in body else ""
-    text = "\n".join(
-        part
-        for part in (
-            row["title"] or "",
-            compact_text,
-            body_extra,
-            metadata,
-        )
-        if part
-    )
-    return text[:2400]
+    return memory_document_embedding_text(row)
 
 
 def _source_doc_hash(row: sqlite3.Row) -> str:
-    payload = {
-        "doc_id": row["doc_id"],
-        "title": row["title"],
-        "compact_text": row["compact_text"],
-        "body": row["body"],
-        "metadata_json": row["metadata_json"],
-    }
-    return _text_hash(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return memory_document_source_hash(row)
 
 
 def _compact_metadata(value: str | None) -> str:
@@ -1447,7 +1523,7 @@ def _compact_metadata(value: str | None) -> str:
 
 
 def _text_hash(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return text_hash(text)
 
 
 def _rough_input_token_count(text: str) -> int:

@@ -445,6 +445,19 @@ Implementation impact:
   independent arms agree. Lexical-backed bundles keep lexical-arm order, so semantic providers can
   add coverage without silently reordering exact/metadata hits. This preserves entry breadth while
   making fusion regressions visible.
+- The implemented portfolio arms are separated as `fts_only`, `local_hybrid`, `semantic_only`, and
+  optional `hybrid`. `local_hash` is diagnostic-only after provider-name normalization and can never
+  clear promotion gates, even if it wins sample cases.
+- Semantic-only candidates must pass strong machine-anchor filters when a query contains a hard
+  identifier such as a URL, handle, long tweet/user id, or unknown synthetic token. Date-like terms
+  such as `5/29`, `2026年5月29日`, or `2026.05.29` stay as search/ranking terms, not hard filters,
+  because hard date matching can destroy recall across source formats.
+- False-premise cases with explicit `no_local_evidence` expectations can succeed with no hits. If
+  weak evidence appears instead, the case is reviewable unless it is an answerable route that should
+  have matched required terms.
+- Semantic indexes are current only when the embedding row still matches both the source document
+  hash and the embedding-text hash. Stale rows are excluded from semantic search/eval instead of
+  being treated as fallback candidates.
 
 Sources checked:
 

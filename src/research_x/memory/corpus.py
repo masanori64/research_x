@@ -8,6 +8,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.document_hashes import (
+    memory_document_embedding_text_hash,
+    memory_document_source_hash,
+)
 from research_x.memory.relations import BUILDER_RELATION_TYPES
 from research_x.memory.schema import ensure_memory_schema
 
@@ -461,13 +465,23 @@ def _media_documents(conn: sqlite3.Connection) -> list[MemoryDocument]:
 
 
 def _insert_document(conn: sqlite3.Connection, document: MemoryDocument) -> None:
+    metadata_json = json.dumps(document.metadata, ensure_ascii=False, sort_keys=True)
+    hash_row = {
+        "doc_id": document.doc_id,
+        "title": document.title,
+        "body": document.body,
+        "compact_text": document.compact_text,
+        "metadata_json": metadata_json,
+    }
     conn.execute(
         """
         INSERT INTO memory_documents (
             doc_id, doc_type, source_tweet_id, account_id, author_screen_name,
-            title, body, compact_text, metadata_json, created_at, observed_at, updated_at
+            title, body, compact_text, metadata_json,
+            source_doc_hash, embedding_text_hash,
+            created_at, observed_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(doc_id) DO UPDATE SET
             doc_type=excluded.doc_type,
             source_tweet_id=excluded.source_tweet_id,
@@ -477,6 +491,8 @@ def _insert_document(conn: sqlite3.Connection, document: MemoryDocument) -> None
             body=excluded.body,
             compact_text=excluded.compact_text,
             metadata_json=excluded.metadata_json,
+            source_doc_hash=excluded.source_doc_hash,
+            embedding_text_hash=excluded.embedding_text_hash,
             created_at=excluded.created_at,
             observed_at=excluded.observed_at,
             updated_at=excluded.updated_at
@@ -490,7 +506,9 @@ def _insert_document(conn: sqlite3.Connection, document: MemoryDocument) -> None
             document.title,
             document.body,
             document.compact_text,
-            json.dumps(document.metadata, ensure_ascii=False, sort_keys=True),
+            metadata_json,
+            memory_document_source_hash(hash_row),
+            memory_document_embedding_text_hash(hash_row),
             document.created_at,
             document.observed_at,
             document.updated_at,

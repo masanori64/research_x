@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from research_x.memory.document_hashes import (
+    memory_document_embedding_text_hash,
+    memory_document_source_hash,
+)
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
 DERIVED_DOC_TYPES = ("place_card", "author_profile", "ticker_event", "topic_thread")
@@ -747,13 +751,23 @@ def _derived_doc_ids(conn: sqlite3.Connection, kinds: tuple[str, ...]) -> tuple[
 
 
 def _insert_document(conn: sqlite3.Connection, document: DerivedDocument) -> None:
+    metadata_json = json.dumps(document.metadata, ensure_ascii=False, sort_keys=True)
+    hash_row = {
+        "doc_id": document.doc_id,
+        "title": document.title,
+        "body": document.body,
+        "compact_text": document.compact_text,
+        "metadata_json": metadata_json,
+    }
     conn.execute(
         """
         INSERT INTO memory_documents (
             doc_id, doc_type, source_tweet_id, account_id, author_screen_name,
-            title, body, compact_text, metadata_json, created_at, observed_at, updated_at
+            title, body, compact_text, metadata_json,
+            source_doc_hash, embedding_text_hash,
+            created_at, observed_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             document.doc_id,
@@ -764,7 +778,9 @@ def _insert_document(conn: sqlite3.Connection, document: DerivedDocument) -> Non
             document.title,
             document.body,
             document.compact_text,
-            json.dumps(document.metadata, ensure_ascii=False, sort_keys=True),
+            metadata_json,
+            memory_document_source_hash(hash_row),
+            memory_document_embedding_text_hash(hash_row),
             document.created_at,
             document.observed_at,
             document.updated_at,

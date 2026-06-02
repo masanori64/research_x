@@ -90,6 +90,19 @@ def build_evidence_hits_for_doc_ids(
         ]
 
 
+def build_evidence_hits_from_results(
+    db_path: str | Path,
+    query: str,
+    results: tuple[MemorySearchResult, ...],
+) -> list[dict[str, Any]]:
+    if not results:
+        return []
+    path = Path(db_path)
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        return [_hit(conn, query=query, result=result) for result in results]
+
+
 def evidence_bundle_json(bundle: dict[str, Any]) -> str:
     return json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True)
 
