@@ -500,6 +500,7 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
     result = report.cases[0]
 
     assert result.status == "ok"
+    assert not result.fusion_regressed
     assert {arm.name for arm in result.arms} == {"lexical", "hash64", "hash32"}
     assert {arm.case_status for arm in result.arms} == {"ok"}
     assert {summary.name for summary in report.arm_summaries} == {

@@ -93,6 +93,10 @@ class PortfolioCaseResult:
     question_type: str
     status: str
     notes: tuple[str, ...]
+    best_arm_name: str | None
+    best_arm_status: str | None
+    fusion_improved: bool
+    fusion_regressed: bool
     arms: tuple[PortfolioArmResult, ...]
     fused_hits: tuple[PortfolioHit, ...]
     required_terms_found: bool
@@ -223,6 +227,11 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
         arm_statuses = ",".join(
             f"{arm.name}:{arm.case_status or arm.status}" for arm in case.arms
         )
+        comparison = ""
+        if case.fusion_regressed:
+            comparison = f" regressed_from={case.best_arm_name}:{case.best_arm_status}"
+        elif case.fusion_improved:
+            comparison = f" improved_over={case.best_arm_name}:{case.best_arm_status}"
         lines.append(
             " ".join(
                 [
@@ -231,7 +240,7 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
                     f"top={top}",
                     f"arms={len(case.arms)}",
                     f"arm_status={arm_statuses}",
-                    f"query={case.query}",
+                    f"query={case.query}{comparison}",
                 ]
             )
         )
@@ -258,11 +267,19 @@ def _run_case(
     fused_hits = _fuse_hits(arm_payloads, limit=limit, rrf_k=rrf_k)
     notes = _case_notes(case, fused_hits)
     status = _case_status(notes, fused_hits)
+    best_arm = _best_case_arm(tuple(arm for arm, _hits in arm_payloads))
+    best_arm_status = best_arm.case_status if best_arm else None
+    fusion_improved = _status_strength(status) > _status_strength(best_arm_status)
+    fusion_regressed = _status_strength(status) < _status_strength(best_arm_status)
     return PortfolioCaseResult(
         query=case.query,
         question_type=case.question_type,
         status=status,
         notes=tuple(notes),
+        best_arm_name=best_arm.name if best_arm else None,
+        best_arm_status=best_arm_status,
+        fusion_improved=fusion_improved,
+        fusion_regressed=fusion_regressed,
         arms=tuple(arm for arm, _hits in arm_payloads),
         fused_hits=tuple(fused_hits),
         required_terms_found=_required_terms_found(case, fused_hits),
@@ -481,6 +498,21 @@ def _case_status(notes: list[str], hits: list[PortfolioHit]) -> str:
     return "ok" if not notes else "needs_review"
 
 
+def _best_case_arm(arms: tuple[PortfolioArmResult, ...]) -> PortfolioArmResult | None:
+    if not arms:
+        return None
+    return max(arms, key=lambda arm: _status_strength(arm.case_status or arm.status))
+
+
+def _status_strength(status: str | None) -> int:
+    return {
+        "ok": 3,
+        "needs_review": 2,
+        "fail": 1,
+        "error": 0,
+    }.get(status or "", -1)
+
+
 def _arm_summaries(cases: tuple[PortfolioCaseResult, ...]) -> tuple[PortfolioArmSummary, ...]:
     buckets: dict[str, dict[str, Any]] = {}
     for case in cases:
@@ -538,6 +570,11 @@ def _promotion_verdict(
         blockers.append("no eval cases were run")
     if fused_counts["fail"]:
         blockers.append(f"fused result has {fused_counts['fail']} failing case(s)")
+    regressed_cases = sum(1 for case in cases if case.fusion_regressed)
+    if regressed_cases:
+        blockers.append(
+            f"fused result regressed on {regressed_cases} case(s) against the best arm"
+        )
     if any(summary.error for summary in arm_summaries):
         errored = ", ".join(
             f"{summary.name}:{summary.error}" for summary in arm_summaries if summary.error
