@@ -240,4 +240,49 @@ def _bookmark_adapters(
                 "max_scroll_steps": max_scroll_steps,
             },
         ),
+        AdapterConfig(
+            "camoufox",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "patchright",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "rebrowser_playwright",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "rebrowser_patches",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "scrapy",
+            options={
+                "storage_state": storage_state_text,
+                "render_fallback": True,
+                "request_timeout_seconds": 45,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
     )

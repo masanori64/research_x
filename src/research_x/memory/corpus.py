@@ -254,14 +254,19 @@ def _tweet_documents(conn: sqlite3.Connection) -> list[MemoryDocument]:
     ).fetchall()
     labels = _labels_by_tweet(conn)
     media = _media_count_by_tweet(conn)
+    collection_kinds = _collection_kinds_by_tweet(conn)
     result = []
     for row in rows:
         tweet_id = str(row["tweet_id"])
         label_values = labels.get(tweet_id, ())
+        kind_values = collection_kinds.get(tweet_id) or (
+            (str(row["collection_kind"]),) if row["collection_kind"] else ()
+        )
         metadata = {
             "url": row["url"],
             "role": row["role"],
             "collection_kind": row["collection_kind"],
+            "collection_kinds": kind_values,
             "labels": label_values,
             "media_count": media.get(tweet_id, 0),
         }
@@ -290,6 +295,31 @@ def _tweet_documents(conn: sqlite3.Connection) -> list[MemoryDocument]:
             )
         )
     return result
+
+
+def _collection_kinds_by_tweet(conn: sqlite3.Connection) -> dict[str, tuple[str, ...]]:
+    if not _table_exists(conn, "collection_items"):
+        return {}
+    rows = conn.execute(
+        """
+        SELECT tweet_id, collection_kind
+        FROM collection_items
+        WHERE collection_kind IS NOT NULL
+        ORDER BY tweet_id, collection_kind
+        """
+    ).fetchall()
+    grouped: dict[str, set[str]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["tweet_id"]), set()).add(str(row["collection_kind"]))
+    return {tweet_id: tuple(sorted(kinds)) for tweet_id, kinds in grouped.items()}
+
+
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table,),
+    ).fetchone()
+    return row is not None
 
 
 def _bookmark_documents(conn: sqlite3.Connection) -> list[MemoryDocument]:

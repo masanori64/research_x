@@ -175,6 +175,25 @@ def test_bookmark_exhaustive_adapters_do_not_use_smoke_limits(tmp_path) -> None:
         EXHAUSTIVE_BOOKMARK_MAX_PAGES
     )
     assert by_id["gallery_dl_bookmarks"].options["exhaustive"] is True
+    assert tuple(adapter.adapter_id for adapter in adapters) == (
+        "twscrape_raw",
+        "twikit",
+        "x_web_graphql_bookmarks",
+        "gallery_dl_bookmarks",
+        "playwright_network_bookmarks",
+        "playwright",
+        "scrapling",
+        "crawl4ai",
+        "camoufox",
+        "patchright",
+        "rebrowser_playwright",
+        "rebrowser_patches",
+        "scrapy",
+    )
+    assert by_id["camoufox"].options["max_scroll_steps"] == 1000
+    assert by_id["patchright"].options["max_scroll_steps"] == 1000
+    assert by_id["rebrowser_playwright"].options["max_scroll_steps"] == 1000
+    assert by_id["scrapy"].options["max_scroll_steps"] == 1000
 
 
 def test_write_netscape_cookies_from_playwright_state(tmp_path) -> None:

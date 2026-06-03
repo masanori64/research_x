@@ -1,4 +1,5 @@
 from research_x.adapters.base import NotConfiguredAdapter
+from research_x.adapters.browser_variant_adapters import _BrowserVariantSettings
 from research_x.adapters.registry import build_adapter, known_adapter_ids
 from research_x.adapters.url_tools import status_items_from_text, target_to_x_url
 from research_x.contracts import AcquisitionTarget, AdapterConfig, OutcomeStatus, TargetKind
@@ -62,3 +63,25 @@ def test_rebrowser_patches_is_explicit_patchset_marker() -> None:
 
     assert outcome.status == OutcomeStatus.NOT_CONFIGURED
     assert outcome.metadata["delegated_runtime"] == "rebrowser_playwright"
+
+
+def test_browser_variant_settings_do_not_patch_playwright_core_by_default() -> None:
+    settings = _BrowserVariantSettings.from_config(
+        AdapterConfig(
+            "camoufox",
+            options={
+                "storage_state": "state.json",
+                "max_scroll_steps": 25,
+                "scroll_pause_ms": 250,
+            },
+        )
+    )
+
+    assert settings.max_scroll_steps == 25
+    assert settings.scroll_pause_ms == 250
+    assert settings.patch_playwright_core is False
+
+    opt_in = _BrowserVariantSettings.from_config(
+        AdapterConfig("camoufox", options={"patch_playwright_core": True})
+    )
+    assert opt_in.patch_playwright_core is True

@@ -39,7 +39,12 @@ def test_bookmarks_chain_uses_non_official_cursor_providers_first() -> None:
             "twscrape_raw",
             "x_web_graphql_bookmarks",
             "gallery_dl_bookmarks",
+            "playwright_network_bookmarks",
             "crawl4ai",
+            "camoufox",
+            "patchright",
+            "rebrowser_playwright",
+            "rebrowser_patches",
         ),
     )
 
@@ -48,8 +53,13 @@ def test_bookmarks_chain_uses_non_official_cursor_providers_first() -> None:
         "twikit",
         "x_web_graphql_bookmarks",
         "gallery_dl_bookmarks",
+        "playwright_network_bookmarks",
         "playwright",
         "crawl4ai",
+        "camoufox",
+        "patchright",
+        "rebrowser_playwright",
+        "rebrowser_patches",
         "scrapy",
     )
 
@@ -99,6 +109,32 @@ def test_run_pipeline_can_stop_after_first_success_even_under_limit(tmp_path) ->
 
     assert results[0].status == PipelineStatus.OK
     assert len(results[0].items) == 20
+
+
+def test_run_pipeline_uses_target_level_max_concurrency(tmp_path) -> None:
+    config = parse_config(
+        {
+            "experiment": {"name": "pipeline-concurrent-targets"},
+            "run": {"max_concurrency": 2},
+            "targets": [
+                {"kind": "search", "value": "hello", "limit": 1},
+                {"kind": "profile", "value": "@alice", "limit": 1},
+            ],
+            "adapters": [{"id": "synthetic", "enabled": True, "count": 2}],
+        }
+    )
+
+    results = run_pipeline(
+        config,
+        tmp_path / "run",
+        storage_state=tmp_path / "missing_state.json",
+        min_successful_providers=1,
+    )
+
+    assert [result.target.value for result in results] == ["hello", "@alice"]
+    assert [result.metadata["max_concurrency"] for result in results] == [2, 2]
+    evidence_files = sorted((tmp_path / "run" / "evidence").glob("*.json"))
+    assert len(evidence_files) == 2
 
 
 def test_run_pipeline_treats_cursor_exhaustion_as_complete(tmp_path, monkeypatch) -> None:
