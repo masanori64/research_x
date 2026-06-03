@@ -362,9 +362,11 @@ is useful for tests and wiring, while Serper is available as an optional Google 
 uv run python -m research_x memory external-search `
   --db runs/x_data.sqlite3 `
   --query "北千住 ピザ" `
-  --provider fake `
-  --no-store
+  --provider fake
 ```
+
+Fake providers default to no-store. Add `--store --allow-fixture-provider` only when intentionally
+writing deterministic fixture rows to a test DB.
 
 For Serper, set `SERPER_API_KEY` and switch `--provider serper`. Serper results are URL discovery
 signals, not citation-ready evidence; reader/extract or LLM-context providers must produce grounded
@@ -428,9 +430,9 @@ uv run python -m research_x memory extract-url `
   --provider http
 ```
 
-Use `--provider fake --no-store` for deterministic no-network tests, or add
-`--allow-fixture-provider` when intentionally writing fixture rows to a test DB. The HTTP reader
-stores extracted text as external context, while raw HTML is not stored in the DB.
+Use `--provider fake` for deterministic no-network dry runs. Add
+`--store --allow-fixture-provider` only when intentionally writing fixture rows to a test DB. The
+HTTP reader stores extracted text as external context, while raw HTML is not stored in the DB.
 
 To combine local X evidence and extracted external context in one bundle, pass a stored
 external-search run to `memory context`:
@@ -468,6 +470,7 @@ uv run python -m research_x memory answer `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店を教えて" `
   --answer-provider fake `
+  --store `
   --allow-fixture-provider
 ```
 

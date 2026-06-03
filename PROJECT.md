@@ -142,8 +142,8 @@ Implemented behavior:
   provider;
 - normalized external discovery run/item storage in the SQLite DB;
 - reader/extract provider contract with no-network fake provider and basic HTTP reader;
-- CLI fixture-provider guard so fake external/search/reader/answer rows require explicit opt-in
-  before being stored;
+- CLI fixture-provider guard so fake external/search/reader/answer rows default to no-store and
+  require explicit opt-in before being stored;
 - X browser storage state and exported cookie files reject empty or expired session cookies before
   treating an account as usable;
 - external URL extraction into tool call, context chunk, and citation annotation rows;
