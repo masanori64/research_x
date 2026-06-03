@@ -6,6 +6,16 @@ Adapter source URLs, readiness notes, blockers, and source-backed evidence live 
 `src/research_x/adapters/catalog.py`. Keep this file focused on operational provider chaining,
 auth/session handling, shared store behavior, and current smoke expectations.
 
+Memory-search architecture belongs in `docs/memory-pipeline-v2.md`. Acquisition output is raw
+evidence for that pipeline: do not replace stored tweets, bookmarks, media, quote edges, provider
+runs, or raw payloads with labels, summaries, embeddings, or answers.
+
+Provider-chain decisions use the same decision quality rule as memory-search decisions. Inspect the
+repo state first; when the answer is uncertain, check primary sources before secondary/community
+sources, treat search results as evidence inputs rather than automatic truth, compare alternatives
+against the user's goal and local data shape, and loop again when the evaluation exposes a new
+uncertainty.
+
 ## Provider Roles
 
 | Provider | Pipeline role |

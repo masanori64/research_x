@@ -30,8 +30,9 @@ The repository has two phases:
 
 2. **Local AI memory search, next project**  
    Build a local, user-specific search tool over the collected X DB. This should behave more like
-   an AI-callable local research tool than a simple viewer: compact evidence bundles, hybrid
-   retrieval, Corpus2Skill navigation, freshness/obsolete handling, and feedback-driven growth.
+   an AI-callable local research tool than a simple viewer: compact evidence bundles,
+   Evidence/Skill/Workflow-first routing, Corpus2Skill navigation, freshness/obsolete handling,
+   real API embedding recall arms, and feedback-driven growth.
 
 This README describes the current acquisition base accurately so future agents can work from it
 without losing context.
@@ -321,16 +322,19 @@ The detailed architecture source is [docs/memory-pipeline-v2.md](docs/memory-pip
 The implementation checklist is [PROJECT.md](PROJECT.md).
 
 The current `research_x.memory` package is the lower retrieval foundation, not disposable work. The
-next phase keeps the raw X DB, `memory_documents`, FTS, production embeddings, relations, evidence,
-audit, feedback, and evals, then adds explicit context chunks, citations, answer artifacts, and
-workflow traces above them.
+next phase keeps the raw X DB, `memory_documents`, FTS, real API embedding support, relations,
+evidence, audit, feedback, and evals, then keeps context chunks, citations, answer artifacts, and
+workflow traces above them. Embeddings are recall arms in a workflow-gated portfolio, not the center
+of the system.
 
 Target architecture:
 
 ```text
 Raw X DB
   -> Normalized / Derived Views
-  -> Retrieval Engines
+  -> Relations / Source Bundles
+  -> Corpus2Skill / Skill Navigation Hints
+  -> Workflow-Gated Adaptive Portfolio
   -> LLM-Ready Context Chunks
   -> Citation Metadata
   -> Bounded Workflows / Orchestrator
@@ -502,11 +506,13 @@ transport type `external_web` is retained as metadata. Local X chunks remain `lo
 Do not start by deleting or refactoring acquisition code. The memory-search layer should treat the
 current store as its source of truth.
 
-Semantic indexes are versioned artifacts, not anonymous vectors. `memory_embeddings` tracks
-provider, model, dimensions, `embedding_profile`, `text_template_version`, `embedded_text_hash`,
-and `source_doc_hash`; the default profile/template is `general_memory` /
-`memory-doc-embedding-v1`. Use `memory embedding-coverage` after derived-document rebuilds to see
-which document types are missing or stale before running semantic evals.
+Semantic indexes are versioned artifacts, not anonymous vectors. Real API embedding providers are
+optional recall arms; diagnostic `local_hash` is only for wiring tests and is blocked by strict
+production audit. `memory_embeddings` tracks provider, model, dimensions, `embedding_profile`,
+`text_template_version`, `embedded_text_hash`, and `source_doc_hash`; the broad semantic
+profile/template is `general_memory` / `memory-doc-embedding-v1` when an embedding arm is built.
+Use `memory embedding-coverage` after derived-document rebuilds to see which document types are
+missing or stale before running semantic evals.
 
 Memory command surface:
 
@@ -516,7 +522,7 @@ memory build-derived      Build place_card, author_profile, ticker_event, and to
 memory build-relations    Build explicit graph/relation edges.
 memory judge-relations    Judge supports/contradicts edges from freshness candidates.
 memory embedding-estimate Estimate selected docs, batches, tokens, and optional input cost.
-memory build-embeddings   Build versioned semantic indexes with cloud providers or diagnostic local_hash.
+memory build-embeddings   Build versioned semantic indexes with real API providers; local_hash is diagnostic only.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory embedding-coverage Show embedding coverage/staleness by doc_type.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
@@ -558,7 +564,7 @@ uv run python -m research_x memory build-embeddings `
   --embedding-profile general_memory `
   --text-template-version memory-doc-embedding-v1
 # Native provider choices include openai, gemini, voyage, cohere, mistral, jina,
-# openai_compatible, and diagnostic local_hash.
+# openai_compatible. local_hash is diagnostic-only and not a production candidate.
 # For OpenAI-compatible embedding APIs, pass a full embeddings endpoint as --base-url.
 # Example:
 # uv run python -m research_x memory build-embeddings `
@@ -623,6 +629,12 @@ corpus is useful, for example `--doc-type topic_thread --doc-type author_profile
 fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
 semantic indexes, missing embedding source hashes, V2 orphan rows, invalid V2 JSON/enums, and other
 states that should not be treated as production evidence.
+
+Decision rule: when changing retrieval, provider, embedding, Corpus2Skill, or workflow behavior,
+do not accept the first plausible option. Inspect the repo, check primary then secondary sources
+when needed, treat sources as inputs rather than automatic truth, compare alternatives against the
+user's goal and local data shape, and record only durable conclusions in
+`docs/memory-pipeline-v2.md`.
 
 Feedback is stored with query terms and detected intents, so a `wrong_topic` or `useful` judgment
 affects similar future searches more strongly than unrelated ones. Add `--route` to `memory

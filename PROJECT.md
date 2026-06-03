@@ -29,6 +29,13 @@ AI agent search the user's accumulated X bookmarks/tweets like a local web-resea
 preserving provenance, account-specific bookmark ownership, quote/media context, and the user's
 subjective interests.
 
+Top-level direction:
+
+- Evidence/Skill/Workflow first.
+- Real API embeddings are optional recall arms, not the production center.
+- Corpus2Skill is a navigation map and route hint, not citation-ready evidence.
+- Bounded workflows choose tools; open-ended agent loops are not the default path.
+
 Core invariant:
 
 ```text
@@ -112,8 +119,8 @@ Implemented behavior:
 - deterministic query planning and local hybrid ranking;
 - Japanese entity/date preservation in query plans and relation-expanded retrieval candidates;
 - query/intent-aware feedback capture and ranking influence;
-- OpenAI/Gemini/Voyage/Cohere/Mistral/Jina/OpenAI-compatible production-capable embedding
-  providers;
+- OpenAI/Gemini/Voyage/Cohere/Mistral/Jina/OpenAI-compatible real API embedding providers for
+  optional recall arms;
 - explicit diagnostic-only `local_hash` embeddings;
 - embedding indexes tracked by provider, model, dimensions, profile, text template, and source
   document hash;
@@ -189,26 +196,28 @@ Known limitation:
 - `memory evidence` remains legacy-compatible; use `memory context` and `memory extract-url` for
   chunk/citation objects;
 - `older_same_author_label` is only a weak stale candidate, not proof of obsolescence;
-- production semantic quality requires a real production-capable embedding index, not `local_hash`.
+- semantic recall-arm quality requires real API embedding indexes, not `local_hash`;
+- the overall evidence pipeline must remain useful through exact/FTS/metadata, relations,
+  Corpus2Skill navigation, source bundles, and bounded workflows even when no embedding arm is
+  active.
 
-## Next Milestone: V2 Evidence Objects
+## Next Milestone: Evidence/Skill/Workflow First Alignment
 
-Move from local retrieval output to the V2 evidence architecture without deleting the current memory
-foundation.
-
-First schema objects:
-
-```text
-search_runs
-tool_calls
-context_chunks
-citation_annotations
-answer_runs
-workflow_runs
-workflow_steps
-```
+Realign the already-built V2 foundation so it does not drift into an embedding-centered pipeline.
 
 Implementation checklist:
+
+- [ ] Update strategy defaults so `general_memory` is not always selected merely because a query
+      exists.
+- [ ] Add or expose `corpus2skill_navigation`, `bounded_workflow_orchestration`, and
+      `api_embedding_portfolio` as strategy concepts without treating generated maps as evidence.
+- [ ] Make `portfolio-eval` compare non-vector evidence paths, source-bundle restoration, workflow
+      routing, and real API embedding arms under the same route-level cases.
+- [ ] Keep `local_hash` diagnostic-only and blocked from promotion.
+- [ ] Run real API embedding estimates/builds only after the workflow-gated strategy surface is
+      aligned.
+
+## Completed V2 Evidence Objects
 
 - [x] Add schema for search/tool runs, context chunks, citations, answer runs, and workflow traces.
 - [x] Keep all existing memory commands working while adding the new tables.
@@ -216,7 +225,7 @@ Implementation checklist:
 - [x] Add route-level eval cases for place recall, ticker/company events, author stance, stale fact
       checks, quote context, duplicate bookmarks, and broad learning maps.
 - [x] Add a question-type catalog and attach question types to eval cases before changing retrieval
-      fusion or production embedding providers.
+      fusion or real API embedding recall arms.
 - [x] Add derived document builders for `place_card`, `author_profile`, `ticker_event`, and
       `topic_thread`.
 - [x] Add an external evidence provider interface with a no-network fake provider first.
@@ -238,16 +247,14 @@ research_x memory cite
 
 ## Later Milestones
 
-- Add an experimental Adaptive Evidence Portfolio/eval contract before promoting multi-provider
-  embeddings. It should compare lexical-only, relations/derived views, one production embedding
-  provider, candidate multi-provider RRF, and source-bundle-restored context under the same cases.
-- Run production embedding rebuild/eval for the chosen provider and template on the real DB.
-- Add profile-specific or provider-specific embeddings only after route evals show the broad
-  `general_memory` index plus FTS/metadata/relations/derived views is not enough.
+- Run real API embedding rebuild/eval for selected provider/profile/template arms on the real DB.
+- Add profile-specific or provider-specific embeddings only after route evals show that
+  evidence-first retrieval, Corpus2Skill navigation, source bundles, relations, and the broad
+  semantic arm are not enough.
 - Run AI/judge-assisted `supports` and `contradicts` relation passes on the real DB, then evaluate
   whether the extra edges improve currentness/fact-check routes.
-- Run the exported Corpus2Skill bundle through the OSS compiler and evaluate it as a navigation map,
-  not as the source of final evidence.
+- Run the exported Corpus2Skill bundle through the OSS compiler and evaluate it as a navigation
+  map/route hint, not as the source of final evidence.
 - Add external Web evidence providers only behind explicit provider roles and audit logs.
 
 ## Implementation Rules
@@ -261,3 +268,6 @@ research_x memory cite
 - Never stage `.secrets/` or `runs/`.
 - Do not create new Markdown design files for memory-search; update
   `docs/memory-pipeline-v2.md` instead.
+- When a decision is not obvious, inspect the repo, search primary then secondary sources as needed,
+  treat sources as evidence inputs, evaluate alternatives against the user's goal and local data
+  shape, and loop until the decision is justified.

@@ -17,7 +17,8 @@ Keep:
 - the raw X acquisition database as the source of truth;
 - `memory_documents` as a rebuildable searchable corpus;
 - SQLite FTS and metadata search;
-- production embedding support, with `local_hash` only as diagnostic wiring;
+- real API embedding provider support as optional recall arms, with `local_hash` only as diagnostic
+  wiring;
 - `memory_relations` for quote/media/bookmark/freshness context;
 - `memory evidence`, `memory audit`, `memory eval`, and feedback.
 
@@ -34,7 +35,9 @@ The final system is:
 ```text
 Raw Sources
   -> Normalized / Derived Views
-  -> Retrieval Engines
+  -> Evidence Relations / Source Bundles
+  -> Corpus2Skill / Skill Navigation Hints
+  -> Workflow-Gated Adaptive Portfolio
   -> LLM-Ready Context Chunks
   -> Citation Metadata
   -> Bounded Workflows / Orchestrator
@@ -63,6 +66,18 @@ Keep the design surface small.
 - When changing the design, update this file first, then adjust `PROJECT.md` only if the milestone
   order changed.
 - Prefer appending a short decision note here over scattering partial plans through new files.
+
+Decision discipline:
+
+- do not accept a design just because one source, benchmark, or implementation path looks plausible;
+- inspect the current repo and existing decisions before changing direction;
+- when a material uncertainty remains, search primary sources first and secondary/community sources
+  when primary sources are incomplete;
+- treat search results as inputs to judgment, not as the answer itself;
+- compare alternatives against the user's goal, local X data shape, provenance, token efficiency,
+  cost, operational reliability, and failure modes;
+- if that evaluation reveals another unresolved question, repeat the search/evaluation loop before
+  recording a decision.
 
 ## Research Inputs Behind This Design
 
@@ -207,8 +222,9 @@ Decision:
   vector attached to a document.
 - Store `source_doc_hash` beside `embedded_text_hash` so audits can distinguish a stale source view
   from a stale embedding text template.
-- Keep `general_memory` and `memory-doc-embedding-v1` as the default production profile/template;
-  add domain-specific profiles only when route evals show they are needed.
+- Keep `general_memory` and `memory-doc-embedding-v1` as the default broad semantic profile/template
+  when a real API embedding arm is explicitly built. Do not make that arm the default top-level
+  workflow route without eval evidence.
 
 Implementation impact:
 
@@ -279,9 +295,10 @@ Decision:
 - Interpret Corpus2Skill's "no embeddings/vector DB at serve time" claim narrowly. The compiler still
   embeds and clusters documents offline; the serve-time change is that the agent navigates files and
   fetches documents by ID instead of querying a live vector index.
-- Keep one broad production `general_memory` embedding profile as the default. Add route/domain
-  profiles only when evals show that broad embeddings plus FTS/exact/metadata/relation retrieval and
-  derived document views miss relevant evidence.
+- Keep one broad `general_memory` embedding profile as the default broad semantic arm when a real API
+  embedding index is built. Add route/domain profiles only when evals show that evidence-first
+  retrieval, derived views, relations, Corpus2Skill navigation, and the broad semantic arm miss
+  relevant evidence.
 - When multiple embedding profiles or retrieval engines are active, treat them as separate candidate
   engines. Combine ranked lists with explicit engine names, component ranks/scores, route weights,
   and rank-level fusion such as RRF; do not directly compare raw cosine, BM25, or model-specific
@@ -320,7 +337,8 @@ Rejected alternatives:
 
 Implementation impact:
 
-- Keep `general_memory` / `memory-doc-embedding-v1` as the normal production semantic index.
+- Keep `general_memory` / `memory-doc-embedding-v1` as the normal broad semantic arm, not as the
+  top-level pipeline center.
 - If a route-specific profile is proposed, add route evals that prove recall or ranking improvement
   and report coverage/staleness by provider, model, dimensions, profile, and template.
 - Persist per-engine contributions in search/workflow artifacts so a fused result can be audited.
@@ -352,7 +370,7 @@ Primary sources checked:
 Decision:
 
 - Add a machine-readable question-type catalog before widening retrieval fusion or adding more
-  production embedding providers.
+  retrieval providers or real API embedding recall arms.
 - Treat the user's concrete examples as seed cases, not as the full task surface.
 - Keep the current route planner/eval behavior intact while tagging eval cases with question types.
 
@@ -382,8 +400,9 @@ Sources used:
 Decision:
 
 - Do not implement "run every embedding provider and fuse everything" as the production default.
-- Keep single broad production embedding plus FTS, metadata, relations, and derived documents as the
-  baseline that any multi-provider design must beat.
+- Keep evidence-first retrieval, source-bundle restoration, FTS, metadata, relations, derived
+  documents, and a broad semantic arm when built as the baseline that any multi-provider design must
+  beat.
 - Treat multiple providers as an `Adaptive Evidence Portfolio`: provider-specific embeddings are
   challenger or specialist retrieval engines, selected by route and eval evidence, not a permanent
   fanout.
@@ -413,7 +432,8 @@ Rationale:
 Rejected alternatives:
 
 - Always querying OpenAI, Gemini, Voyage, Jina, Cohere, and Mistral at runtime.
-- Declaring multi-provider embeddings superior before a single-provider production baseline exists.
+- Declaring multi-provider embeddings superior before an evidence-first baseline and at least one
+  real API semantic arm are measured.
 - Treating provider agreement as truth. Agreement is a ranking signal only; final evidence still
   comes from context chunks and citations.
 - Treating provider disagreement as an automatic answer-expansion signal. Disagreement should first
@@ -484,8 +504,8 @@ Sources checked:
    care about?" questions.
 7. Every rebuildable index must be auditable for coverage, staleness, and diagnostic-only fallbacks.
 8. Every agentic workflow must log steps, inputs, outputs, and stop reason.
-9. Domain-specific embeddings are added only when evaluation shows that one broad production index
-   plus document-view routing is insufficient.
+9. Domain-specific embeddings are added only when evaluation shows that evidence-first routing and
+   the broad real API semantic arm, when built, are insufficient.
 10. Query answers must separate evidence-backed facts from model inference.
 
 ## Layer 0: Raw Sources
@@ -552,8 +572,8 @@ Required local engines:
 - exact lookup: tweet IDs, URLs, author handles, dates, labels;
 - FTS5 lexical search;
 - metadata filters: account, bookmark/tweet kind, date range, author, doc type;
-- production semantic search: OpenAI/Gemini/OpenAI-compatible or another production embedding
-  provider;
+- real API semantic recall arms: OpenAI/Gemini/Voyage/Cohere/Mistral/Jina/OpenAI-compatible
+  providers when enabled by a workflow route or explicit eval;
 - relation expansion: quotes, media, duplicate bookmarks, freshness candidates;
 - feedback-aware ranking.
 
@@ -852,15 +872,27 @@ local source lookup
   -> answer with freshness status
 ```
 
-## Retrieval Portfolio And Embedding Policy
+## Evidence / Skill / Workflow First Retrieval Policy
 
 Initial production policy:
 
-1. Build one broad production embedding index for the current `memory_documents`.
-2. Keep FTS/exact/metadata/relation scoring active.
-3. Improve document views and chunk text before adding many vector spaces.
-4. Add profile-specific embeddings only after evals show the broad index is failing.
-5. Treat non-embedding strategies as first-class candidates, not as weaker fallback paths.
+1. Preserve raw evidence, derived document views, exact/FTS/metadata search, relations, source
+   bundles, Corpus2Skill navigation hints, and bounded workflow traces as the top-level system.
+2. Use real API embeddings as optional recall arms inside a workflow-gated adaptive portfolio.
+   `local_hash` is diagnostic wiring only and is never a production or promotion candidate.
+3. Route exact, date, URL, account, bookmark, ticker, place, quote, and media-expansion questions
+   through non-vector evidence first.
+4. Allow ambiguous semantic, cross-lingual, learning-map, author-stance, and media-text routes to
+   run real API embedding arms in parallel with non-vector engines when the workflow gate decides
+   they are useful.
+5. Never put OpenAI, Gemini, Voyage, Jina, Cohere, Mistral, or OpenAI-compatible vectors into one
+   shared vector space. Treat each provider/model/profile/dimension as a separate candidate engine.
+6. Fuse candidate lists with rank-level methods such as RRF, route weighting, or bounded reranking;
+   do not average raw scores from unrelated engines.
+7. Before context or answer generation, restore every candidate hit to its source bundle: original
+   tweet, quoted tweet, media, author, bookmark ownership, external source, and relation metadata.
+8. Corpus2Skill is a navigation map and skill-routing hint. It is not citation-ready evidence unless
+   the workflow opens source documents and turns them into context chunks with citations.
 
 The embedding spec includes:
 
@@ -879,16 +911,69 @@ that need versioned routing beyond the current document/query task type.
 Candidate strategies:
 
 - `baseline_hybrid_foundation`
+- `corpus2skill_navigation`
+- `bounded_workflow_orchestration`
 - `contextual_bm25`
 - `rerank_stage`
 - `claim_citation_verification`
 - `freshness_lineage`
+- `api_embedding_portfolio`
 - `general_memory`
 - `jp_multilingual`
 - `learning_long`
 - `code_technical`
 - `media_text_bridge`
 - `exact_metadata_first` (non-embedding guard for places, tickers, dates, handles, URLs)
+
+2026-06-03 decision note:
+
+Decision:
+
+- restore the top-level architecture to Evidence/Skill/Workflow first;
+- keep real API embeddings, including multi-provider embeddings, as candidate recall arms rather
+  than the system center;
+- use a workflow-gated adaptive portfolio instead of a blanket "non-vector first" rule or a blanket
+  "run every embedding provider" rule;
+- route exact/structured questions through FTS, metadata, relations, derived cards, and source
+  bundles first;
+- allow semantic, cross-lingual, learning-map, author-stance, and media-text questions to run real
+  API embedding arms in parallel when the route planner predicts they add recall;
+- keep Corpus2Skill as a navigation/skill map and Agentic RAG as bounded orchestration with logs and
+  stop reasons;
+- require every fused result to return to source bundles and citation-ready context chunks before
+  answer generation.
+
+Rationale:
+
+- Corpus2Skill's strength is navigation, not replacing exact evidence lookup in a heterogeneous
+  personal X database;
+- Azure/Qdrant-style hybrid retrieval supports parallel candidate engines and rank-level fusion,
+  but also confirms that raw scores from different engines are not directly comparable;
+- AgenticRAG-style orchestration reduces dependence on a fixed single-shot candidate set, but the
+  reliability risks require bounded workflows, typed steps, and stop reasons;
+- the user's data contains exact author/date/URL/bookmark/media signals that dense retrieval can
+  hide, so non-vector evidence remains a first-class path;
+- the user's learning and cross-lingual questions can benefit from real API embeddings, so
+  embeddings should not be removed or delayed globally.
+
+Rejected shortcuts:
+
+- treating a single broad embedding index as the production objective;
+- treating Corpus2Skill as a complete replacement for retrieval, context chunks, or citations;
+- running every provider on every query by default;
+- mixing vectors from different providers or profiles into one distance space;
+- using generated navigation summaries, labels, or answers as source truth.
+
+Implementation impact:
+
+- strategy registries should default to evidence/skill/workflow routes, not `general_memory`;
+- `api_embedding_portfolio` should expand real API semantic candidates only when explicitly
+  requested or when a workflow route calls for semantic recall;
+- `portfolio-eval` should compare lexical, relation/source-bundle, Corpus2Skill navigation hints,
+  workflow routing, and real API embedding arms under the same route-level cases;
+- `local_hash` remains diagnostic and must be blocked from promotion;
+- docs and runbooks should say "semantic arm quality requires real API embeddings" rather than
+  "the whole production pipeline requires an embedding index."
 
 2026-06-02 decision note:
 
@@ -899,8 +984,9 @@ Decision:
   contextual BM25, source-bundle restoration, rerankers, claim-level citation verification,
   freshness/version lineage, learned sparse retrieval, late interaction, and native multimodal
   retrieval as peer design inputs;
-- keep the current production bias toward local hybrid search plus one broad text embedding until a
-  route-level eval proves another path stronger;
+- keep the current production bias toward local evidence, exact/FTS/metadata search, relations,
+  source-bundle restoration, and bounded workflows; real API embedding arms must prove their value
+  through route-level evals;
 - preserve wider entry points by recording candidate kind, modality, route role, adoption status,
   document scope, provider/model/dimension, and promotion/rejection gates;
 - pass only current text-search-compatible semantic candidates to `portfolio-eval`; non-semantic
@@ -1006,12 +1092,15 @@ Current strategy classification:
 
 - implemented baseline: `baseline_hybrid_foundation` with FTS, LIKE, metadata, semantic when
   explicitly configured, relation expansion, RRF metadata, and source-bundle restoration;
-- high-value non-embedding next candidates: `contextual_bm25`, `rerank_stage`,
+- workflow-first next candidates: `corpus2skill_navigation`, `bounded_workflow_orchestration`,
+  source-bundle restoration, and route-gated portfolio selection;
+- high-value evidence candidates: `contextual_bm25`, `rerank_stage`,
   `claim_citation_verification`, and `freshness_lineage`;
-- cheap broad text baseline: `general_memory` candidates such as Gemini embedding or OpenAI small;
-- Japanese/cross-lingual recall: `jp_multilingual` challengers such as Voyage/Jina/Gemini;
-- long-form learning and concept maps: `learning_long` challengers such as Voyage, OpenAI large,
-  or Jina;
+- real API embedding recall arms: `api_embedding_portfolio`, `general_memory`, `jp_multilingual`,
+  `learning_long`, `code_technical`, and `media_text_bridge`;
+- Japanese/cross-lingual recall: route-gated challengers such as Voyage/Jina/Gemini;
+- long-form learning and concept maps: route-gated challengers such as Voyage, OpenAI large,
+  Jina, Corpus2Skill maps, topic threads, and relation expansion;
 - code/API/repository material: `code_technical` challengers such as Mistral or Voyage code
   embeddings, only for route-specific evals;
 - media/OCR/caption routes: `media_text_bridge` challengers only after media docs expose
@@ -1027,8 +1116,10 @@ Risk:
 - scores across embedding profiles are not directly comparable;
 - routing errors can hide good evidence;
 - profile proliferation increases cost and rebuild complexity.
+- workflow gates can under-call embeddings when semantic recall is needed, or over-call them when
+  exact evidence is already enough.
 
-Therefore profile splitting must be evaluation-driven, not assumption-driven.
+Therefore portfolio routing and profile splitting must be evaluation-driven, not assumption-driven.
 
 ## Corpus2Skill Position
 
@@ -1160,7 +1251,8 @@ memory audit            -> rebuild/index health gate
 
 What may need refactoring later:
 
-- production embedding quality still needs real provider indexes and route evals over the real DB.
+- semantic recall-arm quality still needs real API provider indexes and route evals over the real
+  DB; the overall evidence pipeline must remain useful without embeddings.
 - `memory_documents` now includes derived cards from `memory build-derived`; future derived types
   should keep the same provenance and rebuild behavior.
 - `memory evidence` remains a legacy-compatible hit bundle; new AI callers should prefer
@@ -1194,8 +1286,13 @@ What should not be deleted:
 8. Add answer artifacts and answer-specific citation annotations.
 9. Add workflow routing and workflow traces.
 10. Expand evals to route-level cases.
-11. Add and evaluate production embedding rebuilds for the selected provider/profile/template.
-12. Integrate Corpus2Skill OSS export/navigation as a map after evals show stable search behavior.
+11. Align strategy defaults with Evidence/Skill/Workflow first so `general_memory` is not selected
+    merely because a query exists.
+12. Integrate Corpus2Skill OSS export/navigation as a map and route hint, not as citation-ready
+    evidence.
+13. Add and evaluate real API embedding recall arms as separate candidate engines.
+14. Promote an embedding provider/profile only when route-level evals show improvement after
+    source-bundle restoration and citation checks.
 
 ## Deletion / Rewrite Policy
 
@@ -1223,5 +1320,7 @@ Not safe to rewrite without migration:
 - Search provider behavior changes over time, so provider metadata and run timestamps are required.
 - Generated summaries can create false stability; summaries must remain derived artifacts.
 - Domain-specific vector profiles can improve recall but can also hide evidence if routing fails.
+- Real API embeddings add cost, provider drift, quota, and privacy constraints; they must be
+  measured as recall arms rather than assumed to be the production center.
 - Agentic workflows can spend tokens without improving answers; every workflow needs a stop reason
   and eval coverage.

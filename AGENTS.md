@@ -25,6 +25,11 @@ For the memory-search project, read `docs/memory-pipeline-v2.md` before making d
 the current source of truth for the AI-callable evidence pipeline. `PROJECT.md` tracks the
 implementation milestones, and `README.md` is the high-level repository reference.
 
+The memory-search architecture is Evidence/Skill/Workflow first. Real API embeddings are optional
+recall arms inside a workflow-gated portfolio, not the top-level system objective. Diagnostic
+`local_hash` embeddings are wiring checks only and must not be treated as production evidence or a
+promotion candidate.
+
 Do not create additional memory-architecture Markdown files unless the user explicitly asks. Update
 the existing source-of-truth file instead, so Codex does not have to scan a spreading design surface.
 
@@ -42,6 +47,24 @@ When research changes a design decision, add a short dated decision note to the 
 instead of creating a new Markdown file. A good decision note states: decision, rationale, rejected
 alternatives, implementation impact, and source links. Avoid duplicating the same design text across
 multiple files.
+
+## Decision Quality
+
+Do not make architecture or provider decisions just because one plausible source, benchmark, or
+implementation path appears. First evaluate whether the decision itself is justified.
+
+When an important decision is uncertain:
+
+1. inspect the repo state and current source-of-truth documents;
+2. search primary sources first, then secondary/community sources if primary sources are
+   insufficient;
+3. treat search results as evidence inputs, not as automatic truth;
+4. compare alternatives against the user's goal, local data shape, cost, reliability, provenance,
+   token efficiency, and failure modes;
+5. if the evaluation exposes a new uncertainty, repeat the search/evaluation loop before deciding.
+
+Record only durable conclusions in Markdown. Keep transient exploration out of the docs unless it
+changes a design decision.
 
 ## Git Publish Policy
 
@@ -64,6 +87,16 @@ Do not stop merely because one phase was committed if the goal still has remaini
 to the next aligned phase. Do not redefine completion around the work already done; verify the
 current state against the stated goal before considering it complete.
 
+For long goals that may hit session or token limits, leave the project resumable before the limit is
+reached: commit and push completed phases, keep uncommitted changes small, and make the next action
+visible in `PROJECT.md` only when the milestone itself changes. On resume, check `git status`,
+`PROJECT.md`, `docs/memory-pipeline-v2.md`, and the active goal before choosing the next phase.
+
+Continue autonomously until the goal is complete or a real human-intervention gate is reached.
+Human-intervention gates are limited to API keys, billing or external-service contracts,
+irreversible deletion, secret handling, legal/ToS-sensitive choices, explicit user stop/pause
+messages, or high-impact design choices that remain unresolved after the decision-quality loop.
+
 ## Completion Notification
 
 At the end of every work session, run:
@@ -74,9 +107,9 @@ uv run python -m research_x notify --message "作業が終了しました"
 
 ## Parallel Work
 
-Do not spawn sub-agents unless the current conversation explicitly permits sub-agent use. If the
-current conversation says sub-agents are banned or paused, compensate with local code inspection,
-parallel shell reads, web research, and focused review loops instead.
+Use the latest explicit user instruction for sub-agent permission. Do not spawn sub-agents when the
+current conversation bans or pauses them; compensate with local code inspection, parallel shell
+reads, web research, and focused review loops instead.
 
 When sub-agent use is explicitly permitted and a task can be split into independent parts, use an
 appropriate number of sub-agents instead of defaulting to one. Use sub-agents for work that can
