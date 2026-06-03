@@ -428,8 +428,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_judge_relations_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store judged supports/contradicts edges and tool-call audit rows",
+        default=None,
+        help=(
+            "store judged supports/contradicts edges and tool-call audit rows; "
+            "defaults to no-store for fake providers"
+        ),
     )
     memory_judge_relations_parser.add_argument(
         "--allow-fixture-provider",
@@ -535,8 +538,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_context_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store the search run, context chunks, and citation annotations",
+        default=None,
+        help=(
+            "store the search run, context chunks, and citation annotations; "
+            "defaults to no-store when a fake external provider is used"
+        ),
     )
     memory_context_parser.add_argument(
         "--allow-fixture-provider",
@@ -597,8 +603,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_answer_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store the search run, context chunks, answer, and answer citations",
+        default=None,
+        help=(
+            "store the search run, context chunks, answer, and answer citations; "
+            "defaults to no-store for fake providers"
+        ),
     )
     memory_answer_parser.add_argument(
         "--allow-fixture-provider",
@@ -703,8 +712,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_workflow_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store workflow run, steps, context, and optional answer artifacts",
+        default=None,
+        help=(
+            "store workflow run, steps, context, and optional answer artifacts; "
+            "defaults to no-store for fake providers"
+        ),
     )
     memory_workflow_parser.add_argument(
         "--allow-fixture-provider",
@@ -733,8 +745,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_external_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store the normalized external run/items in the memory DB",
+        default=None,
+        help=(
+            "store the normalized external run/items in the memory DB; "
+            "defaults to no-store for fake providers"
+        ),
     )
     memory_external_parser.add_argument(
         "--allow-fixture-provider",
@@ -768,8 +783,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_extract_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store tool call, context chunk, and citation annotation rows",
+        default=None,
+        help=(
+            "store tool call, context chunk, and citation annotation rows; "
+            "defaults to no-store for fake providers"
+        ),
     )
     memory_extract_parser.add_argument(
         "--allow-fixture-provider",
@@ -811,8 +829,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_llm_context_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="store tool call, external context chunks, and citation annotations",
+        default=None,
+        help=(
+            "store tool call, external context chunks, and citation annotations; "
+            "defaults to no-store for fake providers"
+        ),
     )
     memory_llm_context_parser.add_argument(
         "--allow-fixture-provider",
@@ -943,7 +964,8 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help=(
             "candidate semantic arm as key=value CSV, e.g. "
-            "provider=local_hash,dimensions=64,name=hash64,mode=semantic_only,"
+            "provider=gemini,model=gemini-embedding-001,dimensions=768,"
+            "profile=general_memory,name=gemini_general,mode=semantic_only,"
             "weight=1.0; repeatable"
         ),
     )
@@ -1969,10 +1991,11 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             relation_judge_summary_json,
         )
 
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
         _require_fixture_provider_opt_in(
             provider=args.provider,
             role="relation judge",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         summary = judge_memory_relations(
@@ -1989,7 +2012,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             min_confidence=args.min_confidence,
             prompt_version=args.prompt_version,
             timeout_seconds=args.timeout_seconds,
-            store=args.store,
+            store=store,
         )
         print(
             relation_judge_summary_json(summary)
@@ -2047,10 +2070,14 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
     if args.memory_command == "context":
         from research_x.memory.context import build_context_bundle, context_bundle_json
 
+        store = _resolve_fixture_sensitive_store(
+            args.store,
+            args.external_provider if args.external_run_id else None,
+        )
         _require_fixture_provider_opt_in(
             provider=args.external_provider if args.external_run_id else None,
             role="reader/extract",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         bundle = build_context_bundle(
@@ -2075,23 +2102,28 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             external_timeout_seconds=args.external_timeout_seconds,
             external_user_agent=args.external_user_agent,
             external_max_bytes=args.external_max_bytes,
-            store=args.store,
+            store=store,
         )
         print(context_bundle_json(bundle))
         return 0
     if args.memory_command == "answer":
         from research_x.memory.answer import answer_json, build_memory_answer
 
+        store = _resolve_fixture_sensitive_store(
+            args.store,
+            args.answer_provider,
+            args.external_provider if args.external_run_id else None,
+        )
         _require_fixture_provider_opt_in(
             provider=args.answer_provider,
             role="answer",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         _require_fixture_provider_opt_in(
             provider=args.external_provider if args.external_run_id else None,
             role="reader/extract",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         answer = build_memory_answer(
@@ -2124,7 +2156,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             prompt_version=args.prompt_version,
             max_context_chunks=args.max_context_chunks,
             max_context_chars=args.max_context_chars,
-            store=args.store,
+            store=store,
         )
         print(answer_json(answer))
         return 0
@@ -2135,16 +2167,26 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             workflow_json,
         )
 
+        store = _resolve_fixture_sensitive_store(
+            args.store,
+            args.answer_provider if args.answer_provider != "none" else None,
+            args.external_provider if args.external_run_id else None,
+            (
+                args.llm_context_provider
+                if args.llm_context_provider != "none"
+                else None
+            ),
+        )
         _require_fixture_provider_opt_in(
             provider=args.answer_provider if args.answer_provider != "none" else None,
             role="answer",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         _require_fixture_provider_opt_in(
             provider=args.external_provider if args.external_run_id else None,
             role="reader/extract",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         _require_fixture_provider_opt_in(
@@ -2154,7 +2196,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
                 else None
             ),
             role="llm-context",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         workflow = run_memory_workflow(
@@ -2206,17 +2248,18 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             max_context_chunks=args.max_context_chunks,
             max_context_chars=args.max_context_chars,
             max_steps=args.max_steps,
-            store=args.store,
+            store=store,
         )
         print(workflow_json(workflow) if args.json else format_workflow(workflow))
         return 1 if workflow.status == "error" else 0
     if args.memory_command == "external-search":
         from research_x.memory.external import external_evidence_json, search_external_evidence
 
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
         _require_fixture_provider_opt_in(
             provider=args.provider,
             role="external-search",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         bundle = search_external_evidence(
@@ -2230,7 +2273,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             language=args.language,
             location=args.location,
             timeout_seconds=args.timeout_seconds,
-            store=args.store,
+            store=store,
         )
         print(external_evidence_json(bundle))
         return 0
@@ -2245,10 +2288,11 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             raise ValueError("pass --url or --external-run-id")
         if args.url and args.external_run_id:
             raise ValueError("pass only one of --url or --external-run-id")
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
         _require_fixture_provider_opt_in(
             provider=args.provider,
             role="reader/extract",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         if args.external_run_id:
@@ -2262,7 +2306,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
                 timeout_seconds=args.timeout_seconds,
                 user_agent=args.user_agent,
                 max_bytes=args.max_bytes,
-                store=args.store,
+                store=store,
             )
             print(reader_context_json(bundles))
             return 0
@@ -2276,17 +2320,18 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             timeout_seconds=args.timeout_seconds,
             user_agent=args.user_agent,
             max_bytes=args.max_bytes,
-            store=args.store,
+            store=store,
         )
         print(reader_context_json(bundle))
         return 0
     if args.memory_command == "llm-context":
         from research_x.memory.llm_context import fetch_llm_context_to_context, llm_context_json
 
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
         _require_fixture_provider_opt_in(
             provider=args.provider,
             role="llm-context",
-            store=args.store,
+            store=store,
             allow=args.allow_fixture_provider,
         )
         bundle = fetch_llm_context_to_context(
@@ -2309,7 +2354,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             goggles=args.goggles,
             max_chars_per_source=args.max_chars_per_source,
             timeout_seconds=args.timeout_seconds,
-            store=args.store,
+            store=store,
         )
         print(llm_context_json(bundle))
         return 0
@@ -2507,6 +2552,15 @@ def _require_fixture_provider_opt_in(
         "Pass --no-store for a dry wiring check, or pass --allow-fixture-provider "
         "when intentionally writing fixture rows to a test DB."
     )
+
+
+def _resolve_fixture_sensitive_store(
+    raw_store: bool | None,
+    *providers: str | None,
+) -> bool:
+    if raw_store is not None:
+        return raw_store
+    return not any(provider == "fake" for provider in providers if provider)
 
 
 def _configure_stdio() -> None:

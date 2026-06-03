@@ -467,22 +467,21 @@ def semantic_scores_for_doc_ids(
                 f"{len(rows)}/{len(set(doc_ids))} documents indexed for "
                 f"{spec.provider}/{spec.model} dims={spec.dimensions}"
             )
+    dimensions = spec.dimensions
+    query_array = np.asarray(query_vector[:dimensions], dtype=np.float32)
+    matrix = _semantic_matrix_from_rows(rows, dimensions=dimensions)
+    scores = matrix @ query_array
     return {
         row["doc_id"]: SemanticScore(
             doc_id=row["doc_id"],
-            similarity=float(
-                cosine_similarity(
-                    query_vector,
-                    unpack_embedding_array(row["embedding"], int(row["dimensions"])),
-                )
-            ),
+            similarity=float(score),
             provider=row["provider"],
             model=row["model"],
             dimensions=int(row["dimensions"]),
             embedding_profile=row["embedding_profile"],
             text_template_version=row["text_template_version"],
         )
-        for row in rows
+        for row, score in zip(rows, scores, strict=True)
     }
 
 
@@ -746,34 +745,6 @@ def summary_as_dict(summary: EmbeddingBuildSummary) -> dict[str, Any]:
 
 def pack_embedding(vector: list[float]) -> bytes:
     return struct.pack(f"<{len(vector)}f", *vector)
-
-
-def unpack_embedding(value: bytes, dimensions: int) -> list[float]:
-    if len(value) != dimensions * 4:
-        raise ValueError(
-            f"embedding blob size mismatch: got {len(value)} bytes for {dimensions} dimensions"
-        )
-    return list(struct.unpack(f"<{dimensions}f", value))
-
-
-def unpack_embedding_array(value: bytes, dimensions: int):
-    if len(value) != dimensions * 4:
-        raise ValueError(
-            f"embedding blob size mismatch: got {len(value)} bytes for {dimensions} dimensions"
-        )
-    return np.frombuffer(value, dtype="<f4")
-
-
-def cosine_similarity(left, right) -> float:
-    length = min(len(left), len(right))
-    if length == 0:
-        return 0.0
-    dot = sum(left[index] * right[index] for index in range(length))
-    left_norm = math.sqrt(sum(left[index] * left[index] for index in range(length)))
-    right_norm = math.sqrt(sum(right[index] * right[index] for index in range(length)))
-    if not left_norm or not right_norm:
-        return 0.0
-    return dot / (left_norm * right_norm)
 
 
 class _LocalHashEmbedder:

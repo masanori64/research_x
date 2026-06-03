@@ -581,7 +581,7 @@ def test_memory_portfolio_semantic_spec_normalizes_provider() -> None:
     assert spec.provider == "local_hash"
 
 
-def test_memory_retrieval_strategies_expose_non_embedding_and_semantic_candidates() -> None:
+def test_memory_retrieval_strategies_auto_keeps_semantic_challengers_explicit() -> None:
     strategies = retrieval_strategies_as_dicts(
         query="日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して"
     )
@@ -601,8 +601,10 @@ def test_memory_retrieval_strategies_expose_non_embedding_and_semantic_candidate
     assert "general_memory" not in ids
     assert "corpus2skill_navigation" in ids
     assert "bounded_workflow_orchestration" in ids
-    assert "jp_multilingual" in ids
-    assert "learning_long" in ids
+    assert "jp_multilingual" not in ids
+    assert "learning_long" not in ids
+    assert "code_technical" not in ids
+    assert "media_text_bridge" not in ids
     assert "contextual_bm25" in ids
     assert "relation_engine" in baseline_candidates
     assert any("model=voyage-4" in spec for spec in specs)
@@ -2904,10 +2906,10 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "fake",
             ]
         )
-        == 1
+        == 0
     )
     captured = capsys.readouterr()
-    assert "diagnostic-only" in captured.err
+    assert "memory://fake-external-search" in captured.out
     assert (
         main(
             [
@@ -2921,10 +2923,10 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "fake",
             ]
         )
-        == 1
+        == 0
     )
     captured = capsys.readouterr()
-    assert "diagnostic-only" in captured.err
+    assert "fake-llm-context" in captured.out
     assert "Traceback" not in captured.err
     with sqlite3.connect(db_path) as conn:
         tables = conn.execute(
@@ -2943,11 +2945,36 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "北千住 ピザ",
                 "--provider",
                 "fake",
-                "--no-store",
+                "--store",
             ]
         )
-        == 0
+        == 1
     )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
+    assert "Traceback" not in captured.err
+
+    assert (
+        main(
+            [
+                "memory",
+                "llm-context",
+                "--db",
+                str(db_path),
+                "--query",
+                "ロボット",
+                "--provider",
+                "fake",
+                "--store",
+            ]
+        )
+        == 1
+    )
+    captured = capsys.readouterr()
+    assert "diagnostic-only" in captured.err
+
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
     assert (
         main(
             [
@@ -2959,6 +2986,7 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "ロボット",
                 "--answer-provider",
                 "fake",
+                "--store",
             ]
         )
         == 1
@@ -2976,6 +3004,7 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 "ロボット 今も正しい？",
                 "--llm-context-provider",
                 "fake",
+                "--store",
             ]
         )
         == 1
@@ -2991,6 +3020,7 @@ def test_memory_cli_requires_fixture_opt_in_for_stored_fake_provider(
                 str(db_path),
                 "--provider",
                 "fake",
+                "--store",
             ]
         )
         == 1

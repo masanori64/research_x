@@ -1362,12 +1362,6 @@ def _jsonl_count(path: Path) -> int:
         return sum(1 for _ in handle)
 
 
-def _media_file_count(path: Path) -> int:
-    if not path.exists():
-        return 0
-    return sum(1 for candidate in path.glob("*/*") if candidate.is_file())
-
-
 def _cursor_state(out_dir: Path) -> dict[str, Any]:
     path = out_dir / "bookmark_pages" / "x_web_graphql_cursor_state.json"
     if not path.exists():
@@ -1388,27 +1382,6 @@ def _media_progress(out_dir: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return value if isinstance(value, dict) else {}
-
-
-def _estimate_media_total_from_items(path: Path) -> int:
-    try:
-        from research_x.x_store import _add_media
-
-        media: dict[str, dict[str, Any]] = {}
-        with path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                if not line.strip():
-                    continue
-                row = json.loads(line)
-                if not isinstance(row, dict):
-                    continue
-                source_id = str(row.get("source_id") or "")
-                raw = row.get("raw")
-                if source_id and isinstance(raw, dict):
-                    _add_media(media, source_id, raw)
-        return len(media)
-    except Exception:  # noqa: BLE001 - progress fallback should never break status page.
-        return 0
 
 
 def _estimated_remaining_seconds(job: AppJob, *, done: int, remaining: int) -> float | None:

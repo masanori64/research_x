@@ -869,19 +869,6 @@ async def _has_visible_locator(page, selectors: tuple[str, ...]) -> bool:
     return await _first_visible_locator(page, selectors, 0.5) is not None
 
 
-async def _fill_first_visible(
-    page,
-    selectors: tuple[str, ...],
-    value: str,
-    description: str,
-) -> None:
-    locator = await _first_visible_locator(page, selectors, 12)
-    if locator is None:
-        await _raise_if_hard_challenge(page)
-        raise RuntimeError(f"Could not find visible X login {description} field.")
-    await locator.fill(value)
-
-
 async def _set_first_visible_input(
     page,
     selectors: tuple[str, ...],
