@@ -851,6 +851,19 @@ def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:
     assert any("only local_hash embeddings" in warning for warning in report.warnings)
 
 
+def test_memory_audit_allows_evidence_first_without_embeddings(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    report = audit_memory_db(db_path)
+
+    assert report.documents == 5
+    assert not report.warnings
+    assert main(["memory", "audit", "--db", str(db_path), "--strict"]) == 0
+
+
 def test_memory_audit_accepts_openai_compatible_embeddings_as_production(
     tmp_path: Path,
     monkeypatch,

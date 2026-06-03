@@ -648,10 +648,6 @@ def _warnings(
             "stored answer artifacts need review or regeneration: "
             f"{review_answers}"
         )
-    if not specs and documents:
-        warnings.append(
-            "no embeddings found; run memory build-embeddings with a production provider"
-        )
     production_specs = [
         spec
         for spec in specs

@@ -191,8 +191,8 @@ Implemented behavior:
 - `memory build-derived` command that adds rebuildable `place_card`, `author_profile`,
   `ticker_event`, and `topic_thread` documents without replacing raw X records, while preserving full source
   provenance even when card bodies are compact;
-- strict audit/eval gates for missing indexes, orphan rows, diagnostic-only embeddings, partial
-  semantic indexes, missing embedding source hashes, V2 evidence graph orphans, invalid V2
+- strict audit/eval gates for required/configured index problems, orphan rows,
+  diagnostic-only embeddings, partial semantic indexes, missing embedding source hashes, V2 evidence graph orphans, invalid V2
   JSON/enums, stored fake/fixture artifacts, answer artifacts that need review, weak retrieval
   behavior, and no-store answer/citation wiring.
 
@@ -206,7 +206,7 @@ Known limitation:
   Corpus2Skill navigation, source bundles, and bounded workflows even when no embedding arm is
   active.
 
-## Next Milestone: Evidence/Skill/Workflow First Alignment
+## Completed Milestone: Evidence/Skill/Workflow First Alignment
 
 Realign the already-built V2 foundation so it does not drift into an embedding-centered pipeline.
 
@@ -219,8 +219,21 @@ Implementation checklist:
 - [x] Make `portfolio-eval` compare non-vector evidence paths, source-bundle restoration, workflow
       routing, and real API embedding arms under the same route-level cases.
 - [x] Keep `local_hash` diagnostic-only and blocked from promotion.
-- [ ] Run real API embedding estimates/builds only after the workflow-gated strategy surface is
+- [x] Stop before real API embedding estimates/builds until the workflow-gated strategy surface is
       aligned.
+
+## Next Milestone: Real API Embedding Arm Evaluation
+
+The workflow-gated strategy surface is aligned. The next implementation/evaluation phase is to run
+real API embedding estimates, build selected provider/profile arms, and compare them against the
+evidence-first baselines.
+
+Stop condition before this milestone starts:
+
+- API keys and target provider/profile choices must be explicit.
+- Estimated cost and document coverage must be reviewed before writing real embedding rows.
+- `api_embedding_portfolio` remains explicit; do not auto-expand it from normal workflow routes
+  until a separate policy and implementation change is made.
 
 ## Completed V2 Evidence Objects
 

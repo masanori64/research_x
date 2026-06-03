@@ -30,7 +30,7 @@ The repository has two phases:
    Collect profile/search/url tweets and logged-in bookmarks, preserve raw evidence, normalize
    tweet/media/quote relationships, and keep account-specific bookmark membership in one local DB.
 
-2. **Local AI memory search, next project**  
+2. **Local AI memory search, active project**
    Build a local, user-specific search tool over the collected X DB. This should behave more like
    an AI-callable local research tool than a simple viewer: compact evidence bundles,
    Evidence/Skill/Workflow-first routing, Corpus2Skill navigation, freshness/obsolete handling,
@@ -317,14 +317,14 @@ uv run python -m research_x progress `
   --no-open-browser
 ```
 
-## Next Project: AI-Callable Memory Search
+## Active Project: AI-Callable Memory Search
 
-The next major branch builds an AI-callable, user-specific evidence system over the existing X DB.
+This branch builds an AI-callable, user-specific evidence system over the existing X DB.
 The detailed architecture source is [docs/memory-pipeline-v2.md](docs/memory-pipeline-v2.md).
 The implementation checklist is [PROJECT.md](PROJECT.md).
 
 The current `research_x.memory` package is the lower retrieval foundation, not disposable work. The
-next phase keeps the raw X DB, `memory_documents`, FTS, real API embedding support, relations,
+active project keeps the raw X DB, `memory_documents`, FTS, real API embedding support, relations,
 evidence, audit, feedback, and evals, then keeps context chunks, citations, answer artifacts, and
 workflow traces above them. Embeddings are recall arms in a workflow-gated portfolio, not the center
 of the system.
@@ -525,9 +525,13 @@ memory build-relations    Build explicit graph/relation edges.
 memory judge-relations    Judge supports/contradicts edges from freshness candidates.
 memory embedding-estimate Estimate selected docs, batches, tokens, and optional input cost.
 memory build-embeddings   Build versioned semantic indexes with real API providers; local_hash is diagnostic only.
+memory embedding-specs    Print resolved embedding provider/model/profile/template specs.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory embedding-coverage Show embedding coverage/staleness by doc_type.
+memory relations          Inspect relation edges for selected documents.
+memory plan               Show query planning output.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
+memory evidence           Legacy-compatible evidence bundle output.
 memory context            Build LLM-ready chunks and citation metadata.
 memory external-search    URL discovery provider role, fake or Serper.
 memory extract-url        Reader/extract provider role, fake or HTTP.
@@ -542,7 +546,7 @@ memory retrieval-strategies Show retrieval/evidence/semantic candidate spaces fo
 memory export-corpus2skill Export JSONL or a corpus.jsonl/manifest bundle for Corpus2Skill.
 ```
 
-Production memory runbook:
+Evidence-first local runbook:
 
 ```powershell
 uv run python -m research_x memory build-corpus --db runs/x_data.sqlite3
@@ -552,6 +556,38 @@ uv run python -m research_x memory judge-relations `
   --db runs/x_data.sqlite3 `
   --provider gemini `
   --model gemini-2.5-flash
+uv run python -m research_x memory retrieval-strategies `
+  --query "日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して"
+uv run python -m research_x memory portfolio-eval `
+  --db runs/x_data.sqlite3 `
+  --limit 5 `
+  --arm-limit 20
+uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
+uv run python -m research_x memory eval `
+  --db runs/x_data.sqlite3 `
+  --strict
+uv run python -m research_x memory eval `
+  --db runs/x_data.sqlite3 `
+  --cases examples/memory_eval_cases.jsonl `
+  --store `
+  --strict
+uv run python -m research_x memory export-corpus2skill `
+  --db runs/x_data.sqlite3 `
+  --bundle-dir runs/corpus2skill_x_memory
+uv run python -m research_x memory context `
+  --db runs/x_data.sqlite3 `
+  --query "北千住で保存したピザ店"
+uv run python -m research_x memory workflow `
+  --db runs/x_data.sqlite3 `
+  --query "昔保存したこの技術情報、今も正しい？" `
+  --llm-context-provider brave `
+  --llm-context-search-lang ja `
+  --llm-context-country JP
+```
+
+Optional real API embedding arm evaluation:
+
+```powershell
 uv run python -m research_x memory embedding-estimate `
   --db runs/x_data.sqlite3 `
   --provider gemini `
@@ -588,24 +624,12 @@ uv run python -m research_x memory portfolio-eval `
   --strategy api_embedding_portfolio `
   --limit 5 `
   --arm-limit 20
-uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict
-uv run python -m research_x memory eval `
-  --db runs/x_data.sqlite3 `
-  --semantic-provider auto `
-  --strict
 uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `
   --cases examples/memory_eval_cases.jsonl `
   --semantic-provider auto `
   --store `
   --strict
-uv run python -m research_x memory export-corpus2skill `
-  --db runs/x_data.sqlite3 `
-  --bundle-dir runs/corpus2skill_x_memory
-uv run python -m research_x memory context `
-  --db runs/x_data.sqlite3 `
-  --query "北千住で保存したピザ店" `
-  --semantic-provider auto
 uv run python -m research_x memory answer `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店を教えて" `
@@ -623,13 +647,16 @@ uv run python -m research_x memory workflow `
   --answer-model gemini-2.5-flash
 ```
 
+Do not treat the optional embedding section as the default production path. Run estimates and
+coverage first, then compare the explicit `api_embedding_portfolio` against evidence-first arms.
+
 Add one or more `--doc-type` values to `memory export-corpus2skill` when a narrower navigation-map
 corpus is useful, for example `--doc-type topic_thread --doc-type author_profile`.
 
 `fake` providers are for deterministic wiring tests only. `memory audit --strict` flags stored
 fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
-semantic indexes, missing embedding source hashes, V2 orphan rows, invalid V2 JSON/enums, and other
-states that should not be treated as production evidence.
+configured semantic indexes, missing embedding source hashes, V2 orphan rows, invalid V2
+JSON/enums, and other states that should not be treated as production evidence.
 
 Decision rule: when changing retrieval, provider, embedding, Corpus2Skill, or workflow behavior,
 do not accept the first plausible option. Inspect the repo, check primary then secondary sources

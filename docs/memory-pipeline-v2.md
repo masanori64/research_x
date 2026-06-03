@@ -1,6 +1,7 @@
 # AI-Callable Memory Search Pipeline V2
 
-This document is the implementation-facing target architecture for the next phase of `research_x`.
+This document is the implementation-facing target architecture for the active memory-search work in
+`research_x`.
 It supersedes the older "single local memory search layer" framing in favor of a layered evidence
 system.
 
@@ -576,8 +577,9 @@ Current evaluation rule:
 
 - Default strategy selection must start from evidence, skill navigation, source bundles, and bounded
   workflow routing, not from general_memory.
-- `api_embedding_portfolio` may expand real API semantic candidates only when explicitly requested
-  or when the workflow route calls for semantic recall.
+- `api_embedding_portfolio` expands real API semantic candidates only when explicitly requested in
+  the current implementation. Automatic workflow-triggered semantic portfolio expansion is a later
+  policy/implementation step, not current behavior.
 - portfolio-eval compares lexical, relation/source-bundle, Corpus2Skill navigation hints,
   workflow routing, and optional real API embedding arms under the same route-level cases.
 - local_hash remains diagnostic and must be blocked from promotion.
@@ -769,26 +771,22 @@ What should not be deleted:
 - local app/bookmark/tweet acquisition flow;
 - existing memory CLI commands, unless replaced by compatible wrappers.
 
-## Implementation Order
+## Remaining Implementation Order
 
-1. Document this V2 design and keep existing code stable.
-2. Add schema for tool/search runs, context chunks, citations, and answer runs.
-3. Refactor evidence output so local hits and citations are explicit.
-4. Add derived view builders for `place_card`, `author_profile`, `ticker_event`, and
-   `topic_thread`.
-5. Add external evidence provider interface, initially with a no-network fake/test provider.
-6. Add reader/extract providers and normalize extracted URL text into context chunks.
-7. Add Brave LLM Context provider only after storage/retention/rate-limit handling is explicit.
-8. Add answer artifacts and answer-specific citation annotations.
-9. Add workflow routing and workflow traces.
-10. Expand evals to route-level cases.
-11. Align strategy defaults with Evidence/Skill/Workflow first so `general_memory` is not selected
-    merely because a query exists.
-12. Integrate Corpus2Skill OSS export/navigation as a map and route hint, not as citation-ready
-    evidence.
-13. Add and evaluate real API embedding recall arms as separate candidate engines.
-14. Promote an embedding provider/profile only when route-level evals show improvement after
-    source-bundle restoration and citation checks.
+The V2 foundation through schema, context chunks, citations, answers, workflow traces, route-level
+evals, strategy defaults, Corpus2Skill export/navigation, and portfolio comparison is implemented.
+Do not repeat those phases unless a verification step finds a regression.
+
+Next work order:
+
+1. Estimate real API embedding cost and coverage for explicit provider/profile candidates.
+2. Build selected real API embedding arms only after the estimate is accepted.
+3. Run route-level portfolio evals against evidence-first, source-bundle, workflow, and semantic
+   arms.
+4. Promote an embedding provider/profile only when route-level evals show improvement after
+   source-bundle restoration and citation checks.
+5. Add automatic workflow-triggered semantic portfolio expansion only as a separate policy and
+   implementation change after explicit evals justify it.
 
 ## Deletion / Rewrite Policy
 

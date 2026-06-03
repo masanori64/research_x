@@ -912,7 +912,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_portfolio_eval_parser = memory_subparsers.add_parser(
         "portfolio-eval",
         help=(
-            "compare lexical, single-provider, and candidate semantic arms "
+            "compare lexical, source-bundle, workflow, and candidate semantic arms "
             "without promoting multi-provider search to production"
         ),
     )
