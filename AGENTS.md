@@ -41,12 +41,14 @@ Keep Markdown stable and sparse:
 - `README.md`: high-level human/repository reference and implemented CLI surface.
 - `PROJECT.md`: short milestone tracker only.
 - `docs/memory-pipeline-v2.md`: detailed memory/search architecture and decision notes.
+- `docs/memory-pipeline-archive.md`: indexed historical notes; inspect the index first and read
+  only targeted sections when prior research is needed.
 - `docs/pipeline.md`: acquisition/auth/provider pipeline details.
 
-When research changes a design decision, add a short dated decision note to the existing source file
-instead of creating a new Markdown file. A good decision note states: decision, rationale, rejected
-alternatives, implementation impact, and source links. Avoid duplicating the same design text across
-multiple files.
+When research changes a design decision, add the durable current conclusion to
+`docs/memory-pipeline-v2.md`. Move superseded or bulky historical notes to
+`docs/memory-pipeline-archive.md` only when they would otherwise bloat the active source. Avoid
+duplicating the same design text across multiple files.
 
 ## Decision Quality
 

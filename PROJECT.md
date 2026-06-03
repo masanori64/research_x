@@ -18,6 +18,8 @@ what is done, what is next, and which commands are expected to work.
 - `PROJECT.md`: memory-search implementation checklist.
 - `docs/memory-pipeline-v2.md`: single detailed source of truth for the AI-callable evidence
   pipeline.
+- `docs/memory-pipeline-archive.md`: indexed historical decision archive; read only targeted
+  sections when prior research is needed.
 - `docs/pipeline.md`: acquisition/auth/provider pipeline details.
 
 Do not add new memory-architecture Markdown files unless the user explicitly asks.

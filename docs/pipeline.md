@@ -6,9 +6,11 @@ Adapter source URLs, readiness notes, blockers, and source-backed evidence live 
 `src/research_x/adapters/catalog.py`. Keep this file focused on operational provider chaining,
 auth/session handling, shared store behavior, and current smoke expectations.
 
-Memory-search architecture belongs in `docs/memory-pipeline-v2.md`. Acquisition output is raw
-evidence for that pipeline: do not replace stored tweets, bookmarks, media, quote edges, provider
-runs, or raw payloads with labels, summaries, embeddings, or answers.
+Memory-search architecture belongs in `docs/memory-pipeline-v2.md`. Historical memory-search
+decisions live in `docs/memory-pipeline-archive.md`; use the archive index and read only targeted
+sections when prior research is needed. Acquisition output is raw evidence for that pipeline: do not
+replace stored tweets, bookmarks, media, quote edges, provider runs, or raw payloads with labels,
+summaries, embeddings, or answers.
 
 Provider-chain decisions use the same decision quality rule as memory-search decisions. Inspect the
 repo state first; when the answer is uncertain, check primary sources before secondary/community
