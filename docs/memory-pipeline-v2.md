@@ -528,6 +528,8 @@ Initial production policy:
    bundles, Corpus2Skill navigation hints, and bounded workflow traces as the top-level system.
 2. Use real API embeddings as optional recall arms inside a workflow-gated adaptive portfolio.
    `local_hash` is diagnostic wiring only and is never a production or promotion candidate.
+   Rerank, reader/extract, OCR, and managed-RAG references are separate provider lanes, not
+   embedding substitutes.
 3. Route exact, date, URL, account, bookmark, ticker, place, quote, and media-expansion questions
    through non-vector evidence first.
 4. Allow ambiguous semantic, cross-lingual, learning-map, author-stance, and media-text routes to
@@ -581,7 +583,8 @@ Current evaluation rule:
   the current implementation. Automatic workflow-triggered semantic portfolio expansion is a later
   policy/implementation step, not current behavior.
 - portfolio-eval compares lexical, relation/source-bundle, Corpus2Skill navigation hints,
-  workflow routing, and optional real API embedding arms under the same route-level cases.
+  workflow routing, optional real API embedding arms, and explicit bounded rerank arms under the
+  same route-level cases.
 - local_hash remains diagnostic and must be blocked from promotion.
 - Semantic arm quality requires real API embeddings; the whole evidence pipeline must not depend on
   an embedding index being present.
@@ -596,6 +599,11 @@ Current strategy classification:
   `claim_citation_verification`, and `freshness_lineage`;
 - real API embedding recall arms: `api_embedding_portfolio`, `general_memory`, `jp_multilingual`,
   `learning_long`, `code_technical`, and `media_text_bridge`;
+- rerank arms: Voyage `rerank-2.5`, Cohere `rerank-v4.0-pro` /
+  `rerank-v4.0-fast`, and Jina `jina-reranker-v3`, always after source-bundle restoration and
+  never as a first-stage source of truth;
+- reader/OCR/media arms: Jina Reader for URL/PDF extraction and Mistral `mistral-ocr-latest` for
+  future media/PDF text extraction contracts;
 - Japanese/cross-lingual recall: route-gated challengers such as Voyage/Jina/Gemini;
 - long-form learning and concept maps: route-gated challengers such as Voyage, OpenAI large,
   Jina, Corpus2Skill maps, topic threads, and relation expansion;
@@ -603,11 +611,15 @@ Current strategy classification:
   embeddings, only for route-specific evals;
 - media/OCR/caption routes: `media_text_bridge` challengers only after media docs expose
   citation-ready OCR, caption, alt text, or VLM text;
+- Gemini text embedding uses `gemini-embedding-001` for runnable Gemini API text tests.
+  `gemini-embedding-2` remains deferred/unconfirmed in this repo, while Google native multimodal
+  embedding is tracked as Vertex AI `multimodalembedding@001` and requires GCP auth/project/location.
 - exact entities, dates, tickers, handles, and places: keep FTS/metadata/relations/derived cards as
   the guardrail before adding dense-provider complexity.
 
 Use `memory retrieval-strategies` to inspect these profiles and
-`memory portfolio-eval --strategy <id>` to add the candidate semantic arms to the comparison gate.
+`memory portfolio-eval --strategy <id>` to add eligible candidate semantic or rerank arms to the
+comparison gate.
 
 Risk:
 

@@ -19,6 +19,7 @@ from research_x.memory.evidence import (
     build_evidence_hits_from_results,
 )
 from research_x.memory.query import build_query_plan
+from research_x.memory.rerank import rerank_hits
 from research_x.memory.search import (
     search_memory_fts_only,
     strong_anchor_terms_for_query,
@@ -50,6 +51,18 @@ class PortfolioSemanticSpec:
     base_url: str | None = None
     weight: float = 1.0
     candidates: int = 80
+
+
+@dataclass(frozen=True)
+class PortfolioRerankerSpec:
+    provider: str
+    name: str | None = None
+    model: str | None = None
+    top_n: int = 5
+    candidate_limit: int = 20
+    api_key_env: str | None = None
+    base_url: str | None = None
+    weight: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -197,11 +210,61 @@ def parse_portfolio_semantic_specs(
     return tuple(parse_portfolio_semantic_spec(value) for value in values)
 
 
+def parse_portfolio_reranker_spec(value: str) -> PortfolioRerankerSpec:
+    fields = _parse_fields(value)
+    raw_provider = fields.pop("provider", None)
+    if not raw_provider:
+        raise ValueError("portfolio reranker spec requires provider=...")
+    provider = _resolve_provider(raw_provider)
+    aliases = {
+        "api_key": "api_key_env",
+        "key_env": "api_key_env",
+        "url": "base_url",
+        "limit": "candidate_limit",
+        "candidates": "candidate_limit",
+    }
+    normalized = {aliases.get(key, key): raw for key, raw in fields.items()}
+    allowed = {
+        "name",
+        "model",
+        "top_n",
+        "candidate_limit",
+        "api_key_env",
+        "base_url",
+        "weight",
+    }
+    unknown = sorted(set(normalized) - allowed)
+    if unknown:
+        raise ValueError(f"unknown portfolio reranker spec field(s): {', '.join(unknown)}")
+    return PortfolioRerankerSpec(
+        provider=provider,
+        name=normalized.get("name"),
+        model=normalized.get("model"),
+        top_n=_optional_int(normalized.get("top_n"), name="top_n") or 5,
+        candidate_limit=_optional_int(
+            normalized.get("candidate_limit"), name="candidate_limit"
+        )
+        or 20,
+        api_key_env=normalized.get("api_key_env"),
+        base_url=normalized.get("base_url"),
+        weight=_optional_float(normalized.get("weight"), name="weight") or 1.0,
+    )
+
+
+def parse_portfolio_reranker_specs(
+    values: list[str] | tuple[str, ...] | None,
+) -> tuple[PortfolioRerankerSpec, ...]:
+    if not values:
+        return ()
+    return tuple(parse_portfolio_reranker_spec(value) for value in values)
+
+
 def run_portfolio_eval(
     db_path: str | Path,
     *,
     cases: tuple[EvalCase, ...] | None = None,
     semantic_specs: tuple[PortfolioSemanticSpec, ...] = (),
+    reranker_specs: tuple[PortfolioRerankerSpec, ...] = (),
     limit: int = 5,
     arm_limit: int = 20,
     rrf_k: float = 60.0,
@@ -218,12 +281,14 @@ def run_portfolio_eval(
         "fusion_mode": resolved_fusion_mode,
         "min_agreement": max(1, min_agreement),
         "semantic_specs": [asdict(spec) for spec in semantic_specs],
+        "reranker_specs": [asdict(spec) for spec in reranker_specs],
     }
     results = tuple(
         _run_case(
             db_path,
             case=case,
             semantic_specs=semantic_specs,
+            reranker_specs=reranker_specs,
             limit=max(1, limit),
             arm_limit=max(1, arm_limit),
             rrf_k=max(1.0, float(rrf_k)),
@@ -237,7 +302,7 @@ def run_portfolio_eval(
     return PortfolioEvalReport(
         cases=results,
         arm_summaries=arm_summaries,
-        verdict=_promotion_verdict(results, arm_summaries, semantic_specs),
+        verdict=_promotion_verdict(results, arm_summaries, semantic_specs, reranker_specs),
         parameters=parameters,
     )
 
@@ -249,7 +314,9 @@ def portfolio_eval_json(report: PortfolioEvalReport) -> str:
 def format_portfolio_eval(report: PortfolioEvalReport) -> str:
     lines = [
         "portfolio-eval: "
-        f"cases={len(report.cases)} semantic_specs={len(report.parameters['semantic_specs'])}"
+        f"cases={len(report.cases)} "
+        f"semantic_specs={len(report.parameters['semantic_specs'])} "
+        f"reranker_specs={len(report.parameters.get('reranker_specs', []))}"
     ]
     lines.append(
         "verdict: "
@@ -324,6 +391,7 @@ def _run_case(
     *,
     case: EvalCase,
     semantic_specs: tuple[PortfolioSemanticSpec, ...],
+    reranker_specs: tuple[PortfolioRerankerSpec, ...],
     limit: int,
     arm_limit: int,
     rrf_k: float,
@@ -351,6 +419,19 @@ def _run_case(
                 spec=spec,
                 limit=arm_limit,
                 semantic_index_cache=semantic_index_cache,
+            )
+        )
+    for index, spec in enumerate(reranker_specs, start=1):
+        arm_payloads.append(
+            _run_reranker_arm(
+                case.query,
+                arm_payloads,
+                name=spec.name or _reranker_arm_name(spec, index=index),
+                spec=spec,
+                limit=limit,
+                rrf_k=rrf_k,
+                fusion_mode=fusion_mode,
+                min_agreement=min_agreement,
             )
         )
     arm_payloads = _evaluate_arms(case, arm_payloads, limit=limit)
@@ -447,6 +528,88 @@ def _run_arm(
             embedding_profile=spec.embedding_profile if spec else None,
             text_template_version=spec.text_template_version if spec else None,
             weight=spec.weight if spec else 1.0,
+            hit_count=0,
+            top_doc_ids=(),
+            top_bundle_keys=(),
+            error=_compact_error(str(exc)),
+        )
+        return arm, []
+
+
+def _run_reranker_arm(
+    query: str,
+    arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]],
+    *,
+    name: str,
+    spec: PortfolioRerankerSpec,
+    limit: int,
+    rrf_k: float,
+    fusion_mode: str,
+    min_agreement: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        candidate_hits = _raw_hits_from_portfolio_hits(
+            _fuse_hits(
+                arm_payloads,
+                limit=max(limit, spec.candidate_limit),
+                rrf_k=rrf_k,
+                fusion_mode=fusion_mode,
+                min_agreement=min_agreement,
+            )
+        )
+        report = rerank_hits(
+            query,
+            candidate_hits[: max(1, spec.candidate_limit)],
+            provider=spec.provider,
+            model=spec.model,
+            top_n=spec.top_n,
+            api_key_env=spec.api_key_env,
+            base_url=spec.base_url,
+        )
+        by_bundle = {
+            hit.get("portfolio_bundle_key") or _bundle_key(hit): hit
+            for hit in candidate_hits
+        }
+        reranked_hits = []
+        for result in report.results:
+            hit = dict(by_bundle.get(result.bundle_key) or {})
+            if not hit:
+                continue
+            metadata = dict(hit.get("metadata") or {})
+            metadata["rerank"] = result.as_dict()
+            hit["metadata"] = metadata
+            hit["score"] = float(result.score)
+            score_components = dict(hit.get("score_components") or {})
+            score_components[f"rerank:{spec.provider}"] = float(result.score)
+            hit["score_components"] = score_components
+            reranked_hits.append(hit)
+        arm = PortfolioArmResult(
+            name=name,
+            status="ok",
+            mode="rerank",
+            provider=spec.provider,
+            model=report.model,
+            dimensions=None,
+            embedding_profile=None,
+            text_template_version=None,
+            weight=spec.weight,
+            hit_count=len(reranked_hits),
+            top_doc_ids=tuple(str(hit.get("doc_id") or "") for hit in reranked_hits[:5]),
+            top_bundle_keys=tuple(_bundle_key(hit) for hit in reranked_hits[:5]),
+            error=None,
+        )
+        return arm, reranked_hits
+    except (RuntimeError, ValueError) as exc:
+        arm = PortfolioArmResult(
+            name=name,
+            status="error",
+            mode="rerank",
+            provider=spec.provider,
+            model=spec.model,
+            dimensions=None,
+            embedding_profile=None,
+            text_template_version=None,
+            weight=spec.weight,
             hit_count=0,
             top_doc_ids=(),
             top_bundle_keys=(),
@@ -869,6 +1032,28 @@ def _portfolio_hits_from_raw_hits(
     return portfolio_hits
 
 
+def _raw_hits_from_portfolio_hits(hits: list[PortfolioHit]) -> list[dict[str, Any]]:
+    raw_hits = []
+    for hit in hits:
+        metadata = dict(hit.metadata)
+        evidence = metadata.get("evidence") if isinstance(metadata.get("evidence"), dict) else {}
+        raw_hits.append(
+            {
+                "doc_id": hit.doc_id,
+                "doc_type": hit.doc_type,
+                "tweet_id": hit.tweet_id,
+                "score": hit.score,
+                "title": hit.title,
+                "compact_text": hit.compact_text,
+                "metadata": metadata,
+                "evidence": evidence,
+                "score_components": metadata.get("rank_score_components") or {},
+                "portfolio_bundle_key": hit.bundle_key,
+            }
+        )
+    return raw_hits
+
+
 def _fuse_hits(
     arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]],
     *,
@@ -1107,13 +1292,14 @@ def _promotion_verdict(
     cases: tuple[PortfolioCaseResult, ...],
     arm_summaries: tuple[PortfolioArmSummary, ...],
     semantic_specs: tuple[PortfolioSemanticSpec, ...],
+    reranker_specs: tuple[PortfolioRerankerSpec, ...],
 ) -> PortfolioPromotionVerdict:
     fused_counts = _case_status_counts(case.status for case in cases)
     baseline = _summary_by_name(arm_summaries, "local_hybrid")
     best_single = _best_single_arm(arm_summaries)
     blockers: list[str] = []
-    if not semantic_specs:
-        blockers.append("no candidate semantic arms were configured")
+    if not semantic_specs and not reranker_specs:
+        blockers.append("no candidate semantic or reranker arms were configured")
     diagnostic_specs = [
         spec.provider for spec in semantic_specs if spec.provider in DIAGNOSTIC_EMBEDDING_PROVIDERS
     ]
@@ -1146,9 +1332,9 @@ def _promotion_verdict(
     if best_single and not _fused_beats_single(fused_counts, best_single):
         blockers.append(f"fused result does not beat best single arm: {best_single.name}")
     promotable = not blockers
-    if not semantic_specs:
-        status = "insufficient_semantic_arms"
-        reason = "configure at least one candidate semantic arm before promotion can be judged"
+    if not semantic_specs and not reranker_specs:
+        status = "insufficient_candidate_arms"
+        reason = "configure at least one candidate semantic or reranker arm before promotion"
     elif promotable:
         status = "promote_candidate"
         reason = "fused portfolio beats the strongest single arm with no blockers"
@@ -1299,6 +1485,13 @@ def _semantic_arm_name(spec: PortfolioSemanticSpec, *, index: int) -> str:
         parts.append(spec.embedding_profile)
     if spec.dimensions:
         parts.append(str(spec.dimensions))
+    return ":".join(parts)
+
+
+def _reranker_arm_name(spec: PortfolioRerankerSpec, *, index: int) -> str:
+    parts = [f"rerank{index}", spec.provider]
+    if spec.model:
+        parts.append(spec.model)
     return ":".join(parts)
 
 

@@ -526,7 +526,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_context_parser.add_argument(
         "--external-provider",
-        choices=["fake", "http"],
+        choices=["fake", "http", "jina"],
         default="fake",
         help="reader/extract provider for --external-run-id",
     )
@@ -578,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_answer_parser.add_argument(
         "--external-provider",
-        choices=["fake", "http"],
+        choices=["fake", "http", "jina"],
         default="fake",
         help="reader/extract provider for --external-run-id",
     )
@@ -645,7 +645,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_workflow_parser.add_argument(
         "--external-provider",
-        choices=["fake", "http"],
+        choices=["fake", "http", "jina"],
         default="http",
         help="reader/extract provider for --external-run-id",
     )
@@ -769,7 +769,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_extract_parser.add_argument(
         "--provider",
-        choices=["fake", "http"],
+        choices=["fake", "http", "jina"],
         default="fake",
         help="reader/extract provider; fake is deterministic and no-network",
     )
@@ -970,6 +970,16 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     memory_portfolio_eval_parser.add_argument(
+        "--reranker-spec",
+        action="append",
+        default=[],
+        help=(
+            "candidate rerank arm as key=value CSV, e.g. "
+            "provider=cohere,model=rerank-v4.0-pro,name=cohere_v4,top_n=5,"
+            "candidate_limit=20; repeatable"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument(
         "--strategy",
         action="append",
         default=[],
@@ -1045,6 +1055,35 @@ def main(argv: list[str] | None = None) -> int:
         help="show specific strategy id; repeatable",
     )
     memory_embedding_strategies_parser.add_argument("--json", action="store_true")
+    memory_rerank_parser = memory_subparsers.add_parser(
+        "rerank",
+        help="rerank restored evidence-bundle candidates with fake or real reranker providers",
+    )
+    memory_rerank_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_rerank_parser.add_argument("--query", required=True)
+    memory_rerank_parser.add_argument("--limit", type=int, default=20)
+    memory_rerank_parser.add_argument("--top-n", type=int, default=5)
+    memory_rerank_parser.add_argument(
+        "--provider",
+        choices=["fake", "voyage", "cohere", "jina"],
+        default="fake",
+    )
+    memory_rerank_parser.add_argument("--model", default=None)
+    memory_rerank_parser.add_argument("--api-key-env", default=None)
+    memory_rerank_parser.add_argument("--base-url", default=None)
+    memory_rerank_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_rerank_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="store reranker tool-call metadata; defaults to no-store for fake providers",
+    )
+    memory_rerank_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    memory_rerank_parser.add_argument("--json", action="store_true")
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -2471,21 +2510,30 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         from research_x.memory.evals import load_eval_cases
         from research_x.memory.portfolio import (
             format_portfolio_eval,
+            parse_portfolio_reranker_specs,
             parse_portfolio_semantic_specs,
             portfolio_eval_json,
             run_portfolio_eval,
         )
-        from research_x.memory.retrieval_strategy import semantic_spec_strings_for_strategies
+        from research_x.memory.retrieval_strategy import (
+            reranker_spec_strings_for_strategies,
+            semantic_spec_strings_for_strategies,
+        )
 
         cases = load_eval_cases(args.cases) if args.cases else None
         semantic_spec_values = [
             *args.semantic_spec,
             *semantic_spec_strings_for_strategies(tuple(args.strategy)),
         ]
+        reranker_spec_values = [
+            *args.reranker_spec,
+            *reranker_spec_strings_for_strategies(tuple(args.strategy)),
+        ]
         report = run_portfolio_eval(
             args.db,
             cases=cases,
             semantic_specs=parse_portfolio_semantic_specs(semantic_spec_values),
+            reranker_specs=parse_portfolio_reranker_specs(reranker_spec_values),
             limit=args.limit,
             arm_limit=args.arm_limit,
             rrf_k=args.rrf_k,
@@ -2497,6 +2545,34 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             report.verdict.blockers
         )
         return 2 if args.strict and strict_failed else 0
+    if args.memory_command == "rerank":
+        from research_x.memory.rerank import (
+            format_rerank_report,
+            rerank_evidence_query,
+            rerank_report_json,
+        )
+
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="reranker",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        report = rerank_evidence_query(
+            args.db,
+            args.query,
+            provider=args.provider,
+            model=args.model,
+            limit=args.limit,
+            top_n=args.top_n,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            timeout_seconds=args.timeout_seconds,
+            store=store,
+        )
+        print(rerank_report_json(report) if args.json else format_rerank_report(report))
+        return 0
     if args.memory_command == "eval-runs":
         from research_x.memory.evals import eval_runs_json, format_eval_runs, list_memory_eval_runs
 

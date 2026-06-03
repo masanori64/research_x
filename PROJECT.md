@@ -176,6 +176,12 @@ Implemented behavior:
   lineage, exact anchors, and relation engines visible beside semantic provider arms;
 - `memory portfolio-eval --strategy` can add the eligible semantic arms from those broader
   strategies without changing the production retrieval path;
+- `memory portfolio-eval --strategy rerank_stage` can add eligible reranker arms as separate
+  non-index candidates, keeping rerank scores as provider-specific contribution metadata rather
+  than mixing them with embedding similarity scores;
+- `memory rerank` provides a fake-first reranker contract and real-provider entry points for
+  Voyage `rerank-2.5`, Cohere `rerank-v4.0-pro` / `rerank-v4.0-fast`, and Jina
+  `jina-reranker-v3`;
 - machine-readable question-type coverage targets so evals cover recall, set, aggregation,
   comparison, multi-hop, temporal, abstention, citation, multilingual, media, preference, and
   exploratory-map cases instead of only the first concrete examples;
@@ -218,20 +224,25 @@ Implementation checklist:
       `api_embedding_portfolio` as strategy concepts without treating generated maps as evidence.
 - [x] Make `portfolio-eval` compare non-vector evidence paths, source-bundle restoration, workflow
       routing, and real API embedding arms under the same route-level cases.
+- [x] Split real API candidates into embedding, rerank, and reader/OCR/media lanes before running
+      paid API builds.
+- [x] Add fake-first reranker provider wiring and keep real rerank providers behind explicit eval
+      or command selection.
 - [x] Keep `local_hash` diagnostic-only and blocked from promotion.
 - [x] Stop before real API embedding estimates/builds until the workflow-gated strategy surface is
       aligned.
 
-## Next Milestone: Real API Embedding Arm Evaluation
+## Next Milestone: Real API Embedding And Rerank Arm Evaluation
 
 The workflow-gated strategy surface is aligned. The next implementation/evaluation phase is to run
-real API embedding estimates, build selected provider/profile arms, and compare them against the
-evidence-first baselines.
+real API embedding estimates, build selected provider/profile arms, run bounded rerank arms, and
+compare them against the evidence-first baselines.
 
 Stop condition before this milestone starts:
 
 - API keys and target provider/profile choices must be explicit.
 - Estimated cost and document coverage must be reviewed before writing real embedding rows.
+- Rerank providers must run on restored bounded source bundles, not raw semantic hits.
 - `api_embedding_portfolio` remains explicit; do not auto-expand it from normal workflow routes
   until a separate policy and implementation change is made.
 

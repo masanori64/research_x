@@ -7,6 +7,7 @@ from pathlib import Path
 from research_x.cli import main
 from research_x.memory import embeddings
 from research_x.memory import portfolio as memory_portfolio
+from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import build_memory_answer
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import build_context_bundle
@@ -36,6 +37,7 @@ from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.portfolio import (
+    parse_portfolio_reranker_spec,
     parse_portfolio_semantic_spec,
     run_portfolio_eval,
 )
@@ -47,7 +49,9 @@ from research_x.memory.reader import (
     extract_url_to_context,
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
+from research_x.memory.rerank import rerank_evidence_query, rerank_hits
 from research_x.memory.retrieval_strategy import (
+    reranker_spec_strings_for_strategies,
     retrieval_strategies_as_dicts,
     semantic_spec_strings_for_strategies,
 )
@@ -638,14 +642,30 @@ def test_memory_retrieval_strategy_semantic_specs_are_deduped() -> None:
     assert len(specs) == len(set(specs))
 
 
+def test_memory_retrieval_strategy_reranker_specs_are_explicit() -> None:
+    strategies = retrieval_strategies_as_dicts(strategy_ids=("rerank_stage",))
+    candidates = {candidate["name"]: candidate for candidate in strategies[0]["candidates"]}
+    specs = reranker_spec_strings_for_strategies(("rerank_stage",))
+
+    assert "voyage_rerank_2_5" in candidates
+    assert candidates["cohere_rerank_v4_0_pro"]["model"] == "rerank-v4.0-pro"
+    assert candidates["cohere_rerank_v4_0_fast"]["model"] == "rerank-v4.0-fast"
+    assert candidates["jina_reranker_v3"]["model"] == "jina-reranker-v3"
+    assert any("provider=voyage" in spec and "model=rerank-2.5" in spec for spec in specs)
+    assert any("provider=cohere" in spec and "model=rerank-v4.0-pro" in spec for spec in specs)
+    assert any("provider=jina" in spec and "model=jina-reranker-v3" in spec for spec in specs)
+
+
 def test_memory_retrieval_strategies_keep_native_media_deferred() -> None:
     strategies = retrieval_strategies_as_dicts(strategy_ids=("media_text_bridge",))
     media = strategies[0]
     candidates = {candidate["name"]: candidate for candidate in media["candidates"]}
     specs = semantic_spec_strings_for_strategies(("media_text_bridge",))
 
-    assert candidates["gemini_native_multimodal"]["portfolio_eligible"] is False
-    assert candidates["gemini_native_multimodal"]["status"] == "deferred_native_media"
+    assert candidates["gemini_embedding_2_unconfirmed"]["portfolio_eligible"] is False
+    assert candidates["gemini_embedding_2_unconfirmed"]["status"] == "unconfirmed_deferred"
+    assert candidates["vertex_multimodal_embedding_001"]["provider"] == "vertex_ai"
+    assert candidates["mistral_ocr_latest"]["candidate_kind"] == "ocr"
     assert any("provider=cohere" in spec for spec in specs)
     assert all("native_multimodal_media" not in spec for spec in specs)
 
@@ -719,6 +739,90 @@ def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
 
     assert raw_rrf[0].doc_id == "tweet:semantic"
     assert guarded[0].doc_id == "tweet:lexical"
+
+
+def test_memory_rerank_fake_provider_stores_tool_call(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    report = rerank_evidence_query(
+        db_path,
+        "強化学習 ロボット",
+        provider="fake",
+        limit=5,
+        top_n=2,
+        store=True,
+    )
+
+    assert report.tool_call_id
+    assert report.results
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT provider, provider_role, action, output_json
+            FROM memory_tool_calls
+            WHERE tool_call_id = ?
+            """,
+            (report.tool_call_id,),
+        ).fetchone()
+    assert row[0] == "fake"
+    assert row[1] == "reranker"
+    assert row[2] == "rerank"
+    assert json.loads(row[3])["results"][0]["provider"] == "fake"
+
+
+def test_memory_rerank_real_provider_payloads(monkeypatch) -> None:
+    captured = []
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured.append((url, payload, headers))
+        return {"results": [{"index": 0, "relevance_score": 0.9}]}
+
+    monkeypatch.setenv("COHERE_API_KEY", "cohere-key")
+    monkeypatch.setenv("JINA_API_KEY", "jina-key")
+    monkeypatch.setenv("VOYAGE_API_KEY", "voyage-key")
+    monkeypatch.setattr(memory_rerank, "_post_json", fake_post_json)
+    hits = [
+        {
+            "doc_id": "doc:1",
+            "doc_type": "tweet_doc",
+            "tweet_id": "1",
+            "title": "robot",
+            "compact_text": "強化学習 ロボット",
+            "metadata": {},
+            "evidence": {},
+        }
+    ]
+
+    rerank_hits("強化学習", hits, provider="cohere", model="rerank-v4.0-pro")
+    rerank_hits("強化学習", hits, provider="jina", model="jina-reranker-v3")
+    rerank_hits("強化学習", hits, provider="voyage", model="rerank-2.5")
+
+    assert captured[0][0] == "https://api.cohere.com/v2/rerank"
+    assert captured[0][1]["top_n"] == 5
+    assert captured[1][0] == "https://api.jina.ai/v1/rerank"
+    assert isinstance(captured[1][1]["documents"][0], dict)
+    assert captured[2][0] == "https://api.voyageai.com/v1/rerank"
+    assert captured[2][1]["top_k"] == 5
+
+
+def test_memory_portfolio_eval_accepts_fake_reranker_arm(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    report = run_portfolio_eval(
+        db_path,
+        cases=(DEFAULT_EVAL_CASES[0],),
+        reranker_specs=(parse_portfolio_reranker_spec("provider=fake,name=fake_rerank"),),
+        limit=3,
+        arm_limit=5,
+    )
+
+    arm_names = {arm.name for arm in report.cases[0].arms}
+    assert "fake_rerank" in arm_names
+    assert report.parameters["reranker_specs"]
 
 
 def test_memory_portfolio_preferred_doc_type_checks_bundle_doc_types() -> None:
@@ -2178,6 +2282,40 @@ def test_reader_extract_http_provider_normalizes_html(
     assert bundle.context_chunk["provider"] == "http"
     assert bundle.context_chunk["source_kind"] == "secondary"
     assert bundle.citation_annotation["evidence_status"] == "fact"
+
+
+def test_reader_extract_jina_provider_uses_reader_endpoint(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    captured = {}
+
+    def fake_read_url(url, *, timeout_seconds, user_agent, max_bytes, extra_headers=None):
+        captured["url"] = url
+        captured["headers"] = extra_headers or {}
+        return HttpResponse(
+            final_url=url,
+            status_code=200,
+            content_type="text/plain",
+            body=b"Jina extracted markdown for pizza.",
+        )
+
+    monkeypatch.setenv("JINA_API_KEY", "jina-key")
+    monkeypatch.setattr("research_x.memory.reader._read_url", fake_read_url)
+
+    bundle = extract_url_to_context(
+        db_path,
+        "https://example.com/pizza",
+        provider="jina",
+        title="Pizza",
+    )
+
+    assert captured["url"] == "https://r.jina.ai/https://example.com/pizza"
+    assert captured["headers"]["Authorization"] == "Bearer jina-key"
+    assert bundle.provider == "jina"
+    assert bundle.page.url == "https://example.com/pizza"
+    assert "Jina extracted markdown" in bundle.page.text
 
 
 def test_reader_extract_external_run_uses_stored_urls(tmp_path: Path) -> None:

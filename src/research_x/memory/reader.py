@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import os
 import re
 import sqlite3
 import urllib.error
@@ -162,6 +163,60 @@ class HttpReaderProvider:
             content_type=response.content_type,
             retrieved_at=_utc_now(),
             metadata=metadata,
+        )
+
+
+class JinaReaderProvider:
+    provider_id = "jina"
+    provider_role = FETCH_AGENT_ROLE
+
+    def __init__(
+        self,
+        *,
+        timeout_seconds: float = 30.0,
+        user_agent: str = DEFAULT_USER_AGENT,
+        max_bytes: int = 2_000_000,
+        endpoint_base: str = "https://r.jina.ai",
+    ) -> None:
+        self.timeout_seconds = timeout_seconds
+        self.user_agent = user_agent
+        self.max_bytes = max(1024, max_bytes)
+        self.endpoint_base = endpoint_base.rstrip("/")
+
+    def extract(
+        self,
+        url: str,
+        *,
+        query: str | None,
+        title: str | None,
+        max_chars: int,
+    ) -> ReaderPage:
+        endpoint = f"{self.endpoint_base}/{url}"
+        headers: dict[str, str] = {}
+        api_key = os.environ.get("JINA_API_KEY")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        response = _read_url(
+            endpoint,
+            timeout_seconds=self.timeout_seconds,
+            user_agent=self.user_agent,
+            max_bytes=self.max_bytes,
+            extra_headers=headers,
+        )
+        _extracted_title, text = _extract_text(response.body, response.content_type)
+        return ReaderPage(
+            url=url,
+            title=title or _domain(url) or url,
+            text=_compact_text(text, limit=max_chars),
+            status_code=response.status_code,
+            content_type=response.content_type or "text/plain; provider=jina",
+            retrieved_at=_utc_now(),
+            metadata={
+                "reader_endpoint": response.final_url,
+                "query": query,
+                "truncated_bytes": response.truncated,
+                "uses_api_key": bool(api_key),
+            },
         )
 
 
@@ -528,6 +583,12 @@ def _provider(
             user_agent=user_agent,
             max_bytes=max_bytes,
         )
+    if provider_id in {"jina", "jina_reader"}:
+        return JinaReaderProvider(
+            timeout_seconds=timeout_seconds,
+            user_agent=user_agent,
+            max_bytes=max_bytes,
+        )
     raise ValueError(f"unknown reader provider: {provider}")
 
 
@@ -537,11 +598,18 @@ def _read_url(
     timeout_seconds: float,
     user_agent: str,
     max_bytes: int,
+    extra_headers: dict[str, str] | None = None,
 ) -> HttpResponse:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         raise ValueError(f"unsupported URL scheme for reader provider: {parsed.scheme}")
-    request = urllib.request.Request(url, headers={"User-Agent": user_agent})
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": user_agent,
+            **(extra_headers or {}),
+        },
+    )
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
             body = response.read(max_bytes + 1)

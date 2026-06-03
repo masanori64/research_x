@@ -537,7 +537,7 @@ memory search             Hybrid retrieval with lexical, metadata, relation expa
 memory evidence           Legacy-compatible evidence bundle output.
 memory context            Build LLM-ready chunks and citation metadata.
 memory external-search    URL discovery provider role, fake or Serper.
-memory extract-url        Reader/extract provider role, fake or HTTP.
+memory extract-url        Reader/extract provider role, fake, HTTP, or Jina Reader.
 memory llm-context        Pre-extracted Web context provider role, fake or Brave.
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
@@ -546,6 +546,7 @@ memory eval-runs          List stored eval runs.
 memory eval-show          Show one stored eval run and case-level results.
 memory question-types     List question-type coverage targets for memory evals.
 memory retrieval-strategies Show retrieval/evidence/semantic candidate spaces for experiments.
+memory rerank             Rerank restored evidence candidates with fake, Voyage, Cohere, or Jina.
 memory export-corpus2skill Export JSONL or a corpus.jsonl/manifest bundle for Corpus2Skill.
 ```
 
@@ -627,6 +628,16 @@ uv run python -m research_x memory portfolio-eval `
   --strategy api_embedding_portfolio `
   --limit 5 `
   --arm-limit 20
+uv run python -m research_x memory portfolio-eval `
+  --db runs/x_data.sqlite3 `
+  --strategy rerank_stage `
+  --limit 5 `
+  --arm-limit 20
+uv run python -m research_x memory rerank `
+  --db runs/x_data.sqlite3 `
+  --query "強化学習 ロボット" `
+  --provider fake `
+  --no-store
 uv run python -m research_x memory eval `
   --db runs/x_data.sqlite3 `
   --cases examples/memory_eval_cases.jsonl `
@@ -652,6 +663,14 @@ uv run python -m research_x memory workflow `
 
 Do not treat the optional embedding section as the default production path. Run estimates and
 coverage first, then compare the explicit `api_embedding_portfolio` against evidence-first arms.
+The runnable first-pass text arms are Gemini `gemini-embedding-001`, OpenAI
+`text-embedding-3-small` / `text-embedding-3-large`, Voyage `voyage-4` /
+`voyage-4-large`, Jina `jina-embeddings-v5-text-small`, Cohere `embed-v4.0`,
+and Mistral `mistral-embed`. Rerank arms are separate: Voyage `rerank-2.5`,
+Cohere `rerank-v4.0-pro` / `rerank-v4.0-fast`, and Jina `jina-reranker-v3`.
+Keep Gemini `gemini-embedding-2` deferred until the stable Gemini API model contract is confirmed;
+Google native multimodal embedding is tracked as a Vertex AI `multimodalembedding@001`
+reference that needs GCP project/location/auth, not a plain Gemini API key.
 
 Add one or more `--doc-type` values to `memory export-corpus2skill` when a narrower navigation-map
 corpus is useful, for example `--doc-type topic_thread --doc-type author_profile`.

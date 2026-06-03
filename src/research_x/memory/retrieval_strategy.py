@@ -53,6 +53,21 @@ class PortfolioCandidate:
             )
         )
 
+    def reranker_spec(self) -> str:
+        if self.candidate_kind != "reranker" or not self.portfolio_eligible:
+            raise ValueError(f"{self.name} is not eligible for portfolio reranker specs")
+        if not (self.provider and self.model):
+            raise ValueError(f"{self.name} is missing reranker provider/model")
+        return ",".join(
+            (
+                f"provider={self.provider}",
+                f"model={self.model}",
+                f"name={self.name}",
+                f"top_n={self.candidates}",
+                f"weight={self.weight:g}",
+            )
+        )
+
 
 @dataclass(frozen=True)
 class RetrievalStrategy:
@@ -77,7 +92,12 @@ class RetrievalStrategy:
                 candidate.semantic_spec()
                 for candidate in self.candidates
                 if candidate.candidate_kind == "semantic" and candidate.portfolio_eligible
-            ]
+            ],
+            "reranker_specs": [
+                candidate.reranker_spec()
+                for candidate in self.candidates
+                if candidate.candidate_kind == "reranker" and candidate.portfolio_eligible
+            ],
         }
 
 
@@ -199,6 +219,25 @@ COHERE_V4_MEDIA_TEXT = PortfolioCandidate(
     purpose="Media-derived text recall arm after OCR/caption/VLM text exists.",
     preconditions=("media_doc must include OCR/caption/alt_text or VLM text.",),
     source_refs=("Cohere Embed v4 docs",),
+)
+VOYAGE_CONTEXT_3_LEARNING = PortfolioCandidate(
+    name="voyage_context_3_learning",
+    candidate_kind="contextual_embedding",
+    provider="voyage",
+    model="voyage-context-3",
+    dimensions=1024,
+    embedding_profile="learning_contextual",
+    vector_space_kind="contextual_dense",
+    status="needs_contextual_chunk_implementation",
+    purpose=(
+        "Contextual chunk embedding candidate for topic/thread bundles where chunk-level "
+        "vectors need surrounding document context."
+    ),
+    preconditions=(
+        "Group source-bundle chunks by parent document before embedding.",
+        "Store contextual input hashes separately from standard embedding text hashes.",
+    ),
+    source_refs=("Voyage contextualized chunk embeddings docs",),
 )
 
 
@@ -498,20 +537,49 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 candidate_kind="reranker",
                 provider="voyage",
                 model="rerank-2.5",
-                status="needs_implementation",
+                candidates=5,
+                portfolio_eligible=True,
+                status="needs_real_api_eval",
                 purpose="Multilingual long-context reranker over restored evidence bundles.",
                 preconditions=("Restore quote/media/author/bookmark bundle before rerank.",),
                 source_refs=("Voyage reranker docs",),
             ),
             PortfolioCandidate(
-                name="cohere_rerank_v3_5",
+                name="cohere_rerank_v4_0_pro",
                 candidate_kind="reranker",
                 provider="cohere",
-                model="rerank-v3.5",
-                status="needs_implementation",
-                purpose="Production reranker candidate for metadata-rich evidence bundles.",
+                model="rerank-v4.0-pro",
+                candidates=5,
+                portfolio_eligible=True,
+                status="needs_real_api_eval",
+                purpose="High-quality production reranker candidate for metadata-rich bundles.",
                 preconditions=("Rerank only bounded top-k candidates.",),
                 source_refs=("Cohere rerank docs",),
+            ),
+            PortfolioCandidate(
+                name="cohere_rerank_v4_0_fast",
+                candidate_kind="reranker",
+                provider="cohere",
+                model="rerank-v4.0-fast",
+                candidates=5,
+                weight=0.95,
+                portfolio_eligible=True,
+                status="needs_real_api_eval",
+                purpose="Lower-latency Cohere reranker candidate for bounded bundles.",
+                preconditions=("Rerank only bounded top-k candidates.",),
+                source_refs=("Cohere rerank docs",),
+            ),
+            PortfolioCandidate(
+                name="jina_reranker_v3",
+                candidate_kind="reranker",
+                provider="jina",
+                model="jina-reranker-v3",
+                candidates=5,
+                portfolio_eligible=True,
+                status="needs_real_api_eval",
+                purpose="Multilingual listwise reranker candidate for restored bundles.",
+                preconditions=("Rerank only bounded top-k candidates.",),
+                source_refs=("Jina reranker v3 docs",),
             ),
             PortfolioCandidate(
                 name="qwen3_local_reranker",
@@ -529,7 +597,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             "Must store provider/model/prompt/version and per-candidate score metadata.",
         ),
         rejection_gate=("Reject if first-stage recall is the real failure.",),
-        source_refs=("Cohere rerank docs", "Voyage reranker docs", "BERT reranking"),
+        source_refs=("Cohere rerank docs", "Voyage reranker docs", "Jina reranker docs"),
     ),
     RetrievalStrategy(
         strategy_id="claim_citation_verification",
@@ -696,6 +764,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         candidates=(
             VOYAGE4_LARGE_LEARNING,
             OPENAI_LARGE_LEARNING,
+            VOYAGE_CONTEXT_3_LEARNING,
             PortfolioCandidate(
                 name="jina_v5_text_learning",
                 candidate_kind="semantic",
@@ -796,7 +865,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 source_refs=("Jina embeddings v5 omni",),
             ),
             PortfolioCandidate(
-                name="gemini_native_multimodal",
+                name="gemini_embedding_2_unconfirmed",
                 candidate_kind="semantic",
                 provider="gemini",
                 model="gemini-embedding-2",
@@ -806,10 +875,10 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 vector_space_kind="multimodal_dense",
                 route_role="deferred_media_recall",
                 portfolio_eligible=False,
-                status="deferred_native_media",
+                status="unconfirmed_deferred",
                 purpose=(
-                    "Represents the native image/video/audio idea. Deferred until the repo "
-                    "has raw media embedding input contracts and citation restoration."
+                    "Former Gemini native multimodal idea. Keep deferred until a stable Gemini "
+                    "API model id and modality contract are verified."
                 ),
                 preconditions=(
                     "Confirm public API model id and modality contract.",
@@ -819,6 +888,47 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 ),
                 source_refs=("Gemini Embedding 2 paper", "Google Gemini API embeddings docs"),
             ),
+            PortfolioCandidate(
+                name="vertex_multimodal_embedding_001",
+                candidate_kind="media_embedding",
+                provider="vertex_ai",
+                model="multimodalembedding@001",
+                dimensions=1408,
+                embedding_profile="native_multimodal_media",
+                modality="native_multimodal",
+                vector_space_kind="multimodal_dense",
+                route_role="deferred_media_recall",
+                portfolio_eligible=False,
+                status="deferred_gcp_vertex_auth_required",
+                purpose=(
+                    "Google Vertex AI native multimodal embedding reference for image/text/video "
+                    "search; not available through a plain Gemini API key."
+                ),
+                preconditions=(
+                    "Configure GCP project, location, and Vertex auth.",
+                    "Implement raw media input handling and media citation restoration.",
+                ),
+                source_refs=("Vertex AI multimodal embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="mistral_ocr_latest",
+                candidate_kind="ocr",
+                provider="mistral",
+                model="mistral-ocr-latest",
+                modality="pdf_or_image",
+                route_role="media_to_citation_text",
+                portfolio_eligible=False,
+                status="needs_media_ocr_contract",
+                purpose=(
+                    "Convert PDF/image/screenshot media into citation-ready text before "
+                    "media_text_bridge or normal text retrieval."
+                ),
+                preconditions=(
+                    "Define media file input, OCR output hashes, and source URL/local path "
+                    "citation mapping.",
+                ),
+                source_refs=("Mistral OCR docs",),
+            ),
         ),
         promotion_gate=(
             "Must improve media_grounded cases with citations pointing to original tweet/media.",
@@ -827,7 +937,12 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         rejection_gate=(
             "Reject if OCR/caption quality, not embedding model, is the limiting factor.",
         ),
-        source_refs=("Cohere Embed v4 docs", "Jina embeddings v5 omni", "Gemini Embedding 2"),
+        source_refs=(
+            "Cohere Embed v4 docs",
+            "Jina embeddings v5 omni",
+            "Vertex AI multimodal embeddings docs",
+            "Mistral OCR docs",
+        ),
     ),
     RetrievalStrategy(
         strategy_id="exact_metadata_first",
@@ -959,6 +1074,21 @@ def semantic_spec_strings_for_strategies(strategy_ids: tuple[str, ...]) -> tuple
             if candidate.candidate_kind != "semantic" or not candidate.portfolio_eligible:
                 continue
             spec = candidate.semantic_spec()
+            if spec in seen:
+                continue
+            seen.add(spec)
+            specs.append(spec)
+    return tuple(specs)
+
+
+def reranker_spec_strings_for_strategies(strategy_ids: tuple[str, ...]) -> tuple[str, ...]:
+    specs: list[str] = []
+    seen: set[str] = set()
+    for strategy in select_retrieval_strategies(strategy_ids=strategy_ids):
+        for candidate in strategy.candidates:
+            if candidate.candidate_kind != "reranker" or not candidate.portfolio_eligible:
+                continue
+            spec = candidate.reranker_spec()
             if spec in seen:
                 continue
             seen.add(spec)
