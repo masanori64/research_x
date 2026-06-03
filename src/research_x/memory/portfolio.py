@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.context import build_context_bundle
 from research_x.memory.embeddings import (
     LoadedSemanticIndex,
     load_semantic_index,
@@ -17,14 +18,23 @@ from research_x.memory.evidence import (
     build_evidence_hits_for_doc_ids,
     build_evidence_hits_from_results,
 )
+from research_x.memory.query import build_query_plan
 from research_x.memory.search import (
     search_memory_fts_only,
     strong_anchor_terms_for_query,
     text_matches_any_anchor,
 )
+from research_x.memory.workflow import plan_workflow_route, run_memory_workflow
 
 DIAGNOSTIC_EMBEDDING_PROVIDERS = {"local_hash"}
-BASELINE_ARM_NAMES = {"fts_only", "local_hybrid", "lexical"}
+BASELINE_ARM_NAMES = {
+    "fts_only",
+    "local_hybrid",
+    "lexical",
+    "corpus2skill_navigation",
+    "source_bundle_context",
+    "workflow_route",
+}
 
 
 @dataclass(frozen=True)
@@ -324,6 +334,11 @@ def _run_case(
     arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]] = []
     arm_payloads.append(_run_fts_only_arm(db_path, case.query, limit=arm_limit))
     arm_payloads.append(
+        _run_corpus2skill_navigation_arm(db_path, case.query, limit=arm_limit)
+    )
+    arm_payloads.append(_run_source_bundle_context_arm(db_path, case.query, limit=arm_limit))
+    arm_payloads.append(_run_workflow_route_arm(db_path, case.query, limit=arm_limit))
+    arm_payloads.append(
         _run_arm(db_path, case.query, name="local_hybrid", spec=None, limit=arm_limit)
     )
     for index, spec in enumerate(semantic_specs, start=1):
@@ -482,6 +497,205 @@ def _run_fts_only_arm(
             error=_compact_error(str(exc)),
         )
         return arm, []
+
+
+def _run_corpus2skill_navigation_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        route_plan = plan_workflow_route(build_query_plan(query))
+        hits: list[dict[str, Any]] = []
+        for doc_type in route_plan.recommended_doc_types:
+            bundle = build_evidence_bundle(
+                db_path,
+                query,
+                limit=limit,
+                doc_type=doc_type,
+            )
+            hits.extend(bundle["hits"])
+        hits = _annotate_hits(
+            _dedupe_raw_hits(hits),
+            {
+                "portfolio_non_vector_arm": "corpus2skill_navigation",
+                "workflow_route": route_plan.route,
+                "recommended_doc_types": list(route_plan.recommended_doc_types),
+                "navigation_source": "corpus2skill_export_boundary",
+            },
+        )
+        return (
+            _arm_from_hits(
+                "corpus2skill_navigation",
+                hits,
+                mode="navigation_map",
+                weight=0.85,
+            ),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "corpus2skill_navigation",
+            mode="navigation_map",
+            error=str(exc),
+            weight=0.85,
+        )
+
+
+def _run_source_bundle_context_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        bundle = build_context_bundle(db_path, query, limit=limit, store=False)
+        hits = _annotate_hits(
+            list(bundle.retrieved_hits),
+            {
+                "portfolio_non_vector_arm": "source_bundle_context",
+                "context_run_id": bundle.run_id,
+                "context_chunk_count": len(bundle.context_chunks),
+                "citation_count": len(bundle.citation_annotations),
+            },
+        )
+        return (
+            _arm_from_hits(
+                "source_bundle_context",
+                hits,
+                mode="source_bundle_context",
+                weight=1.05,
+            ),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "source_bundle_context",
+            mode="source_bundle_context",
+            error=str(exc),
+            weight=1.05,
+        )
+
+
+def _run_workflow_route_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        workflow = run_memory_workflow(db_path, query, limit=limit, max_steps=2, store=False)
+        hits = list(workflow.context_bundle.retrieved_hits) if workflow.context_bundle else []
+        hits = _annotate_hits(
+            hits,
+            {
+                "portfolio_non_vector_arm": "workflow_route",
+                "workflow_id": workflow.workflow_id,
+                "workflow_route": workflow.route,
+                "workflow_status": workflow.status,
+                "workflow_stop_reason": workflow.stop_reason,
+                "workflow_step_count": len(workflow.steps),
+            },
+        )
+        status = "ok" if workflow.context_bundle is not None else workflow.status
+        return (
+            _arm_from_hits(
+                "workflow_route",
+                hits,
+                mode="bounded_workflow",
+                status=status,
+                error=None if status != "error" else workflow.stop_reason,
+                weight=1.05,
+            ),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "workflow_route",
+            mode="bounded_workflow",
+            error=str(exc),
+            weight=1.05,
+        )
+
+
+def _arm_from_hits(
+    name: str,
+    hits: list[dict[str, Any]],
+    *,
+    mode: str,
+    status: str = "ok",
+    error: str | None = None,
+    weight: float = 1.0,
+) -> PortfolioArmResult:
+    return PortfolioArmResult(
+        name=name,
+        status=status,
+        mode=mode,
+        provider=None,
+        model=None,
+        dimensions=None,
+        embedding_profile=None,
+        text_template_version=None,
+        weight=weight,
+        hit_count=len(hits),
+        top_doc_ids=tuple(str(hit.get("doc_id") or "") for hit in hits[:5]),
+        top_bundle_keys=tuple(_bundle_key(hit) for hit in hits[:5]),
+        error=_compact_error(error) if error else None,
+    )
+
+
+def _errored_nonsemantic_arm(
+    name: str,
+    *,
+    mode: str,
+    error: str,
+    weight: float,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    return (
+        PortfolioArmResult(
+            name=name,
+            status="error",
+            mode=mode,
+            provider=None,
+            model=None,
+            dimensions=None,
+            embedding_profile=None,
+            text_template_version=None,
+            weight=weight,
+            hit_count=0,
+            top_doc_ids=(),
+            top_bundle_keys=(),
+            error=_compact_error(error),
+        ),
+        [],
+    )
+
+
+def _dedupe_raw_hits(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for hit in hits:
+        key = _bundle_key(hit)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(hit)
+    return deduped
+
+
+def _annotate_hits(
+    hits: list[dict[str, Any]],
+    metadata: dict[str, Any],
+) -> list[dict[str, Any]]:
+    annotated: list[dict[str, Any]] = []
+    for hit in hits:
+        item = dict(hit)
+        item_metadata = dict(item.get("metadata") or {})
+        item_metadata.update(metadata)
+        item["metadata"] = item_metadata
+        annotated.append(item)
+    return annotated
 
 
 def _run_semantic_only_arm(

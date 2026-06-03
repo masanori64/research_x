@@ -576,10 +576,10 @@ Current evaluation rule:
 
 - Default strategy selection must start from evidence, skill navigation, source bundles, and bounded
   workflow routing, not from general_memory.
-- pi_embedding_portfolio may expand real API semantic candidates only when explicitly requested
+- `api_embedding_portfolio` may expand real API semantic candidates only when explicitly requested
   or when the workflow route calls for semantic recall.
-- portfolio-eval should compare lexical, relation/source-bundle, Corpus2Skill navigation hints,
-  workflow routing, and real API embedding arms under the same route-level cases.
+- portfolio-eval compares lexical, relation/source-bundle, Corpus2Skill navigation hints,
+  workflow routing, and optional real API embedding arms under the same route-level cases.
 - local_hash remains diagnostic and must be blocked from promotion.
 - Semantic arm quality requires real API embeddings; the whole evidence pipeline must not depend on
   an embedding index being present.

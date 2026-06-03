@@ -163,6 +163,9 @@ Implemented behavior:
   with per-arm case verdicts, arm summaries, conservative promotion verdicts, and
   fusion-regression detection plus guarded/source-bundle-level RRF fusion metadata; candidate arms
   support `semantic_only` and `hybrid` modes without altering production search ranking;
+- `memory portfolio-eval` also compares non-vector arms for Corpus2Skill-style navigation,
+  source-bundle/context restoration, bounded workflow routing, and local hybrid retrieval before
+  any real API embedding arm can be promoted;
 - portfolio eval now separates `fts_only`, `local_hybrid`, `semantic_only`, and `hybrid` arms,
   normalizes provider names, blocks diagnostic `local_hash` from promotion, filters semantic-only
   false-premise noise through strong machine anchors, and keeps date-like terms out of hard anchor
@@ -209,13 +212,13 @@ Realign the already-built V2 foundation so it does not drift into an embedding-c
 
 Implementation checklist:
 
-- [ ] Update strategy defaults so `general_memory` is not always selected merely because a query
+- [x] Update strategy defaults so `general_memory` is not always selected merely because a query
       exists.
-- [ ] Add or expose `corpus2skill_navigation`, `bounded_workflow_orchestration`, and
+- [x] Add or expose `corpus2skill_navigation`, `bounded_workflow_orchestration`, and
       `api_embedding_portfolio` as strategy concepts without treating generated maps as evidence.
-- [ ] Make `portfolio-eval` compare non-vector evidence paths, source-bundle restoration, workflow
+- [x] Make `portfolio-eval` compare non-vector evidence paths, source-bundle restoration, workflow
       routing, and real API embedding arms under the same route-level cases.
-- [ ] Keep `local_hash` diagnostic-only and blocked from promotion.
+- [x] Keep `local_hash` diagnostic-only and blocked from promotion.
 - [ ] Run real API embedding estimates/builds only after the workflow-gated strategy surface is
       aligned.
 

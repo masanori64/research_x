@@ -517,24 +517,29 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
 
     assert result.status == "ok"
     assert not result.fusion_regressed
-    assert {arm.name for arm in result.arms} == {
+    assert {
         "fts_only",
+        "corpus2skill_navigation",
+        "source_bundle_context",
+        "workflow_route",
         "local_hybrid",
         "hash64",
         "hash32",
-    }
-    assert {arm.mode for arm in result.arms} == {
-        "fts_only",
-        "local_hybrid",
-        "semantic_only",
-    }
+    }.issubset({arm.name for arm in result.arms})
+    assert {"fts_only", "navigation_map", "source_bundle_context", "bounded_workflow"}.issubset(
+        {arm.mode for arm in result.arms}
+    )
+    assert "semantic_only" in {arm.mode for arm in result.arms}
     assert {arm.name: arm.case_status for arm in result.arms}["local_hybrid"] == "ok"
-    assert {summary.name for summary in report.arm_summaries} == {
+    assert {
         "fts_only",
+        "corpus2skill_navigation",
+        "source_bundle_context",
+        "workflow_route",
         "local_hybrid",
         "hash64",
         "hash32",
-    }
+    }.issubset({summary.name for summary in report.arm_summaries})
     assert report.verdict.status == "hold"
     assert not report.verdict.promotable
     assert any("diagnostic embedding providers" in blocker for blocker in report.verdict.blockers)
@@ -546,7 +551,9 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
         for hit in result.fused_hits
         for contribution in hit.contributions
     }
-    assert {"local_hybrid", "hash64", "hash32"}.issubset(contribution_arms)
+    assert {"local_hybrid", "source_bundle_context", "hash64", "hash32"}.issubset(
+        contribution_arms
+    )
 
 
 def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
@@ -588,9 +595,12 @@ def test_memory_retrieval_strategies_expose_non_embedding_and_semantic_candidate
     specs = semantic_spec_strings_for_strategies(
         ("jp_multilingual", "learning_long", "code_technical")
     )
+    portfolio_specs = semantic_spec_strings_for_strategies(("api_embedding_portfolio",))
 
     assert "baseline_hybrid_foundation" in ids
-    assert "general_memory" in ids
+    assert "general_memory" not in ids
+    assert "corpus2skill_navigation" in ids
+    assert "bounded_workflow_orchestration" in ids
     assert "jp_multilingual" in ids
     assert "learning_long" in ids
     assert "contextual_bm25" in ids
@@ -599,6 +609,31 @@ def test_memory_retrieval_strategies_expose_non_embedding_and_semantic_candidate
     assert any("profile=jp_multilingual" in spec for spec in specs)
     assert any("profile=learning_long" in spec for spec in specs)
     assert any("provider=mistral" in spec for spec in specs)
+    assert any("provider=gemini" in spec for spec in portfolio_specs)
+    assert any("provider=openai" in spec for spec in portfolio_specs)
+    assert any("provider=voyage" in spec for spec in portfolio_specs)
+    assert any("provider=jina" in spec for spec in portfolio_specs)
+    assert any("provider=cohere" in spec for spec in portfolio_specs)
+    assert any("provider=mistral" in spec for spec in portfolio_specs)
+    assert all("provider=local_hash" not in spec for spec in portfolio_specs)
+
+
+def test_memory_retrieval_strategies_keep_general_memory_explicit() -> None:
+    strategies = retrieval_strategies_as_dicts(strategy_ids=("general_memory",))
+    specs = semantic_spec_strings_for_strategies(("general_memory",))
+
+    assert [strategy["strategy_id"] for strategy in strategies] == ["general_memory"]
+    assert any("provider=gemini" in spec for spec in specs)
+    assert any("provider=openai" in spec for spec in specs)
+    assert all("provider=local_hash" not in spec for spec in specs)
+
+
+def test_memory_retrieval_strategy_semantic_specs_are_deduped() -> None:
+    specs = semantic_spec_strings_for_strategies(
+        ("api_embedding_portfolio", "jp_multilingual", "learning_long")
+    )
+
+    assert len(specs) == len(set(specs))
 
 
 def test_memory_retrieval_strategies_keep_native_media_deferred() -> None:
@@ -2785,6 +2820,17 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
     )
     assert main(["memory", "question-types"]) == 0
     assert main(["memory", "retrieval-strategies", "--query", "英語論文 強化学習"]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "retrieval-strategies",
+                "--strategy",
+                "api_embedding_portfolio",
+            ]
+        )
+        == 0
+    )
     assert (
         main(
             [

@@ -585,8 +585,7 @@ uv run python -m research_x memory retrieval-strategies `
   --query "日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して"
 uv run python -m research_x memory portfolio-eval `
   --db runs/x_data.sqlite3 `
-  --strategy general_memory `
-  --strategy jp_multilingual `
+  --strategy api_embedding_portfolio `
   --limit 5 `
   --arm-limit 20
 uv run python -m research_x memory audit --db runs/x_data.sqlite3 --strict

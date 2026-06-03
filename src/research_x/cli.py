@@ -953,8 +953,10 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help=(
             "add candidate semantic arms from a named retrieval/evidence strategy, "
-            "for example general_memory, jp_multilingual, learning_long, "
-            "code_technical, or media_text_bridge; repeatable"
+            "for example api_embedding_portfolio, general_memory, jp_multilingual, "
+            "learning_long, code_technical, or media_text_bridge; repeatable. "
+            "Non-semantic strategies such as corpus2skill_navigation and "
+            "bounded_workflow_orchestration intentionally add no semantic arms"
         ),
     )
     memory_portfolio_eval_parser.add_argument("--json", action="store_true")

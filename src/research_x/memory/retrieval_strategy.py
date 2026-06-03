@@ -191,6 +191,278 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         source_refs=("Anthropic Contextual Retrieval", "doc2query", "HyDE"),
     ),
     RetrievalStrategy(
+        strategy_id="corpus2skill_navigation",
+        label="Corpus2Skill navigation map and route hints",
+        stage="navigation layer",
+        adoption="workflow_hint_not_evidence",
+        purpose=(
+            "Expose the Corpus2Skill export/compile boundary as a skill/navigation surface. "
+            "It can suggest routes, concepts, and missing-neighbor searches, but final context "
+            "must return to source documents and citation chunks."
+        ),
+        question_types=(
+            "exploratory_map",
+            "set_recall",
+            "multi_hop_evidence",
+            "personal_preference",
+        ),
+        intents=("technology", "science", "author", "food", "event"),
+        routes=("learning_map", "author_stance", "place_recall", "local_memory_search"),
+        doc_types=(
+            "topic_thread",
+            "author_profile",
+            "bookmark_doc",
+            "tweet_doc",
+            "place_card",
+        ),
+        candidates=(
+            PortfolioCandidate(
+                name="corpus2skill_export_bundle",
+                candidate_kind="navigation_map",
+                status="implemented_export_boundary",
+                route_role="route_hint",
+                purpose=(
+                    "Use exported corpus/manifest as a compact map for route selection and "
+                    "concept discovery; never cite the map itself as fact evidence."
+                ),
+                preconditions=(
+                    "Compile/evaluate outside this repo before promoting as a route hint.",
+                    "Restore original source bundle before context or citation generation.",
+                ),
+                source_refs=("Corpus2Skill",),
+            ),
+        ),
+        promotion_gate=(
+            "Must improve exploratory-map or learning-map route choice while citations still "
+            "point to source chunks.",
+            "Generated skills/maps must remain derived navigation metadata, not evidence.",
+        ),
+        rejection_gate=(
+            "Reject if normal topic_thread, relation, or FTS routes already recover the needed "
+            "source bundle.",
+        ),
+        source_refs=("Corpus2Skill",),
+    ),
+    RetrievalStrategy(
+        strategy_id="bounded_workflow_orchestration",
+        label="bounded workflow tool routing with stop reasons",
+        stage="workflow control plane",
+        adoption="always_on_control_surface",
+        purpose=(
+            "Keep query planning, route selection, tool calls, stop reasons, and evidence "
+            "assembly as the center of the pipeline. Retrieval arms are tools selected by "
+            "workflow, not the definition of memory quality."
+        ),
+        question_types=(
+            "single_fact_conditioned",
+            "set_recall",
+            "aggregation_count_rank",
+            "comparison",
+            "multi_hop_evidence",
+            "temporal_freshness",
+            "false_premise_abstention",
+            "citation_required",
+            "multilingual_source",
+            "media_grounded",
+            "exploratory_map",
+        ),
+        intents=("food", "finance", "technology", "science", "author", "event", "media"),
+        routes=(
+            "local_memory_search",
+            "place_recall",
+            "company_event",
+            "author_stance",
+            "learning_map",
+            "current_fact_check",
+            "external_context",
+            "media_context",
+        ),
+        doc_types=("context_chunk", "citation_annotation", "workflow_trace"),
+        candidates=(
+            PortfolioCandidate(
+                name="bounded_route_planner",
+                candidate_kind="workflow_orchestrator",
+                status="implemented_foundation",
+                route_role="control_plane",
+                purpose=(
+                    "Select exact/FTS/relation/external/context/embedding tools by route and "
+                    "record stop reasons before answer generation."
+                ),
+                source_refs=("ADW", "agentic workflow", "MCP"),
+            ),
+        ),
+        promotion_gate=(
+            "Every new retrieval provider must enter through an auditable workflow route.",
+            "Open-ended agent loops must not replace bounded stop reasons.",
+        ),
+        notes=(
+            "This strategy intentionally emits no semantic arm; it governs when arms are used.",
+        ),
+        source_refs=("ADW", "MCP", "GraphRAG"),
+    ),
+    RetrievalStrategy(
+        strategy_id="api_embedding_portfolio",
+        label="real API embedding portfolio candidates",
+        stage="explicit recall-arm portfolio",
+        adoption="eval_only_explicit",
+        purpose=(
+            "Collect the real API embedding arms into one explicit strategy for portfolio "
+            "evaluation. Providers stay in separate vector spaces and are fused only by "
+            "rank/route contribution after source-bundle restoration."
+        ),
+        question_types=(
+            "multilingual_source",
+            "learning_map",
+            "exploratory_map",
+            "multi_hop_evidence",
+            "code_or_api_lookup",
+            "media_grounded",
+        ),
+        intents=("technology", "science", "media", "author"),
+        routes=("learning_map", "local_memory_search", "media_context", "current_fact_check"),
+        doc_types=("tweet_doc", "bookmark_doc", "topic_thread", "media_doc", "quote_tree_doc"),
+        candidates=(
+            PortfolioCandidate(
+                name="gemini001_general_text",
+                candidate_kind="semantic",
+                provider="gemini",
+                model="gemini-embedding-001",
+                dimensions=768,
+                embedding_profile="general_memory",
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Gemini real API text recall arm for broad memory cases.",
+                source_refs=("Google Gemini API embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="openai_small_general",
+                candidate_kind="semantic",
+                provider="openai",
+                model="text-embedding-3-small",
+                dimensions=1536,
+                embedding_profile="general_memory",
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Cheap real API baseline recall arm for full-corpus indexing.",
+                source_refs=("OpenAI embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="voyage4_multilingual",
+                candidate_kind="semantic",
+                provider="voyage",
+                model="voyage-4",
+                dimensions=1024,
+                embedding_profile="jp_multilingual",
+                candidates=120,
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Japanese/cross-lingual semantic recall challenger.",
+                source_refs=("Voyage embeddings docs", "MTEB/MMTEB"),
+            ),
+            PortfolioCandidate(
+                name="jina_v5_text_multilingual",
+                candidate_kind="semantic",
+                provider="jina",
+                model="jina-embeddings-v5-text-small",
+                dimensions=1024,
+                embedding_profile="jp_multilingual",
+                candidates=120,
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Long-context multilingual text recall challenger.",
+                source_refs=("Jina embeddings v5 text docs",),
+            ),
+            PortfolioCandidate(
+                name="voyage4_large_learning",
+                candidate_kind="semantic",
+                provider="voyage",
+                model="voyage-4-large",
+                dimensions=1024,
+                embedding_profile="learning_long",
+                candidates=140,
+                weight=1.1,
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="High-capacity concept and learning-map recall challenger.",
+                source_refs=("Voyage embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="openai_large_learning",
+                candidate_kind="semantic",
+                provider="openai",
+                model="text-embedding-3-large",
+                dimensions=3072,
+                embedding_profile="learning_long",
+                candidates=140,
+                weight=1.05,
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="High-capacity text recall arm for concept-heavy cases.",
+                source_refs=("OpenAI embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="mistral_text_code_docs",
+                candidate_kind="semantic",
+                provider="mistral",
+                model="mistral-embed",
+                dimensions=1024,
+                embedding_profile="code_technical",
+                candidates=100,
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Technical/API/documentation recall challenger.",
+                source_refs=("Mistral embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="voyage_code_3",
+                candidate_kind="semantic",
+                provider="voyage",
+                model="voyage-code-3",
+                dimensions=1024,
+                embedding_profile="code_technical",
+                candidates=100,
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Code-specialist recall challenger for repository/API docs.",
+                source_refs=("Voyage embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="cohere_v4_media_text",
+                candidate_kind="semantic",
+                provider="cohere",
+                model="embed-v4.0",
+                dimensions=1536,
+                embedding_profile="media_text_bridge",
+                candidates=120,
+                modality="text_from_media",
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                purpose="Media-derived text recall arm after OCR/caption/VLM text exists.",
+                preconditions=("media_doc must include OCR/caption/alt_text or VLM text.",),
+                source_refs=("Cohere Embed v4 docs",),
+            ),
+        ),
+        promotion_gate=(
+            "No provider/vector space can promote without route-level portfolio wins over "
+            "lexical, relation, and workflow-gated baselines.",
+            "Fusion must use rank/route contribution and then restore parent source bundles.",
+            "Diagnostic providers such as local_hash are excluded from this strategy.",
+        ),
+        rejection_gate=(
+            "Reject provider fanout if document views, relations, reranking, or workflow routing "
+            "solve the miss with less complexity.",
+        ),
+        source_refs=(
+            "OpenAI embeddings docs",
+            "Google Gemini API embeddings docs",
+            "Voyage embeddings docs",
+            "Jina embeddings v5 text",
+            "Cohere Embed v4 docs",
+            "Mistral embeddings docs",
+            "Azure AI Search RRF",
+        ),
+    ),
+    RetrievalStrategy(
         strategy_id="rerank_stage",
         label="bounded rerank after source-bundle restoration",
         stage="high-value non-index challenger",
@@ -306,12 +578,12 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
     ),
     RetrievalStrategy(
         strategy_id="general_memory",
-        label="broad text semantic baseline",
-        stage="first production semantic index",
-        adoption="default_semantic_candidate",
+        label="broad real API text semantic recall arm",
+        stage="explicit semantic recall candidate",
+        adoption="eval_only_explicit",
         purpose=(
-            "Build one stable broad text embedding space before adding provider fanout. "
-            "This keeps production explainable while still making challenger spaces measurable."
+            "Test one stable broad text embedding space as an optional recall arm. It is not "
+            "the production center; exact/FTS/metadata/relations/workflow remain the default."
         ),
         question_types=(
             "single_fact_conditioned",
@@ -350,8 +622,8 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             ),
         ),
         promotion_gate=(
-            "Promote exactly one production text index only after portfolio-eval beats "
-            "fts_only/local_hybrid without route regression.",
+            "Promote a broad text recall arm only after portfolio-eval beats evidence-first "
+            "baselines without route regression.",
             "Preserve source-bundle restoration before answer generation.",
         ),
         rejection_gate=(
@@ -563,7 +835,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         ),
         promotion_gate=(
             "Only promote on code/API/documentation route evals.",
-            "Must not replace the broad general_memory index.",
+            "Must not replace the evidence/workflow baseline or broad semantic recall arm.",
         ),
         rejection_gate=("Reject if regular learning_long or fielded FTS wins.",),
         source_refs=("Mistral embeddings docs", "Voyage embeddings docs"),
@@ -774,12 +1046,16 @@ def format_retrieval_strategies(
 
 def semantic_spec_strings_for_strategies(strategy_ids: tuple[str, ...]) -> tuple[str, ...]:
     specs: list[str] = []
+    seen: set[str] = set()
     for strategy in select_retrieval_strategies(strategy_ids=strategy_ids):
-        specs.extend(
-            candidate.semantic_spec()
-            for candidate in strategy.candidates
-            if candidate.candidate_kind == "semantic" and candidate.portfolio_eligible
-        )
+        for candidate in strategy.candidates:
+            if candidate.candidate_kind != "semantic" or not candidate.portfolio_eligible:
+                continue
+            spec = candidate.semantic_spec()
+            if spec in seen:
+                continue
+            seen.add(spec)
+            specs.append(spec)
     return tuple(specs)
 
 
@@ -798,7 +1074,8 @@ def select_retrieval_strategies(
     selected: list[RetrievalStrategy] = [
         _strategy_by_id("baseline_hybrid_foundation"),
         _strategy_by_id("exact_metadata_first"),
-        _strategy_by_id("general_memory"),
+        _strategy_by_id("corpus2skill_navigation"),
+        _strategy_by_id("bounded_workflow_orchestration"),
     ]
     target_question_types = set(question_types)
     intents: set[str] = set()
@@ -818,8 +1095,11 @@ def select_retrieval_strategies(
             target_question_types.add("multilingual_source")
         if any(term in normalized_query for term in ("api", "github", "コード", "実装", "cli")):
             target_question_types.add("code_or_api_lookup")
+    explicit_only = {"api_embedding_portfolio", "general_memory"}
     for strategy in DEFAULT_RETRIEVAL_STRATEGIES[1:]:
         if strategy.strategy_id in {item.strategy_id for item in selected}:
+            continue
+        if strategy.strategy_id in explicit_only:
             continue
         if target_question_types.intersection(strategy.question_types) or intents.intersection(
             strategy.intents
