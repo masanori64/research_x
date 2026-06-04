@@ -475,6 +475,23 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="show managed RAG reference rows as enabled reference lanes",
     )
+    memory_api_lane_estimate_parser.add_argument(
+        "--include-latest-ocr",
+        action="store_true",
+        help="also estimate mistral-ocr-latest; default estimates the fixed OCR model only",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--ocr-scope",
+        choices=["none", "sample", "all"],
+        default="sample",
+        help="OCR cost scope; all is expensive and must be explicit",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--ocr-limit",
+        type=int,
+        default=100,
+        help="media item cap used when --ocr-scope sample",
+    )
     memory_api_lane_estimate_parser.add_argument("--reader-url-limit", type=int, default=100)
     memory_api_lane_estimate_parser.add_argument("--reader-max-chars", type=int, default=4000)
     memory_api_lane_estimate_parser.add_argument("--rerank-query-count", type=int, default=5)
@@ -2406,6 +2423,9 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             args.db,
             include_optional_context3=args.include_optional_context3,
             include_reference_managed_rag=args.include_reference_managed_rag,
+            include_latest_ocr=args.include_latest_ocr,
+            ocr_scope=args.ocr_scope,
+            ocr_limit=args.ocr_limit,
             reader_url_limit=args.reader_url_limit,
             reader_max_chars=args.reader_max_chars,
             rerank_query_count=args.rerank_query_count,

@@ -334,6 +334,9 @@ def build_api_lane_estimate_report(
     *,
     include_optional_context3: bool = False,
     include_reference_managed_rag: bool = False,
+    include_latest_ocr: bool = False,
+    ocr_scope: str = "sample",
+    ocr_limit: int = 100,
     reader_url_limit: int = 100,
     reader_max_chars: int = 4000,
     rerank_query_count: int = 5,
@@ -363,7 +366,15 @@ def build_api_lane_estimate_report(
             reader_max_chars=reader_max_chars,
         )
     )
-    rows.extend(_ocr_rows(db_path, max_file_bytes=max_file_bytes))
+    rows.extend(
+        _ocr_rows(
+            db_path,
+            max_file_bytes=max_file_bytes,
+            scope=ocr_scope,
+            limit=ocr_limit,
+            include_latest=include_latest_ocr,
+        )
+    )
     rows.extend(
         _managed_rag_rows(
             db_path,
@@ -378,6 +389,7 @@ def build_api_lane_estimate_report(
         "unpriced_rows": len(rows) - len(priced_rows),
         "estimated_priced_cost_usd": round(total_priced_cost, 6),
         "by_lane": _totals_by_lane(rows),
+        "recommended_plans": _recommended_plans(rows),
     }
     return ApiLaneEstimateReport(
         db_path=str(Path(db_path)),
@@ -401,6 +413,10 @@ def build_api_lane_estimate_report(
             (
                 "Jina Reader and OCR estimates are upper/lower bounds because URL output "
                 "size and PDF pages vary."
+            ),
+            (
+                "OCR defaults to a small sampled estimate; full OCR over all media requires "
+                "--ocr-scope all."
             ),
             (
                 "Managed RAG references are not local X DB replacements and are costed only "
@@ -431,6 +447,18 @@ def format_api_lane_estimate(report: ApiLaneEstimateReport) -> str:
         lines.append(
             f"  {lane}: rows={summary['rows']} priced={summary['priced_rows']} cost~=${cost:.6f}"
         )
+    lines.append("recommended_plans:")
+    for plan in report.totals["recommended_plans"]:
+        cost = plan.get("estimated_cost_usd")
+        cost_text = "unpriced" if cost is None else f"${float(cost):.6f}"
+        lines.append(
+            "  - "
+            f"{plan['plan_id']}: rows={plan['rows']} cost~={cost_text} "
+            f"status={plan['status']}"
+        )
+        lines.append(f"    purpose: {plan['purpose']}")
+        if plan.get("notes"):
+            lines.append(f"    notes: {plan['notes']}")
     lines.append("rows:")
     for row in report.rows:
         cost = "unpriced" if row.estimated_cost_usd is None else f"${row.estimated_cost_usd:.6f}"
@@ -456,7 +484,7 @@ def _text_embedding_rows(
 ) -> tuple[ApiLaneEstimateRow, ...]:
     arms = [
         _TextArm(
-            "embedding",
+            "embedding_general_memory",
             "gemini_embedding_2_text",
             "gemini",
             "gemini-embedding-2",
@@ -466,7 +494,7 @@ def _text_embedding_rows(
             SOURCE_GEMINI_PRICING,
         ),
         _TextArm(
-            "embedding",
+            "embedding_general_memory",
             "openai_small_general",
             "openai",
             "text-embedding-3-small",
@@ -476,7 +504,7 @@ def _text_embedding_rows(
             SOURCE_OPENAI_PRICING,
         ),
         _TextArm(
-            "embedding",
+            "embedding_learning_long",
             "openai_large_learning",
             "openai",
             "text-embedding-3-large",
@@ -487,7 +515,7 @@ def _text_embedding_rows(
             status="eval_challenger",
         ),
         _TextArm(
-            "embedding",
+            "embedding_jp_multilingual",
             "voyage4_multilingual",
             "voyage",
             "voyage-4",
@@ -497,7 +525,7 @@ def _text_embedding_rows(
             SOURCE_VOYAGE_MODELS,
         ),
         _TextArm(
-            "embedding",
+            "embedding_learning_long",
             "voyage4_large_learning",
             "voyage",
             "voyage-4-large",
@@ -508,7 +536,7 @@ def _text_embedding_rows(
             status="eval_challenger",
         ),
         _TextArm(
-            "embedding",
+            "embedding_code_technical",
             "voyage_code_3",
             "voyage",
             "voyage-code-3",
@@ -519,7 +547,7 @@ def _text_embedding_rows(
             status="route_specific",
         ),
         _TextArm(
-            "contextual_embedding",
+            "embedding_contextual_learning",
             "voyage_context_4_learning",
             "voyage",
             "voyage-context-4",
@@ -534,7 +562,7 @@ def _text_embedding_rows(
             ),
         ),
         _TextArm(
-            "embedding",
+            "embedding_jp_multilingual",
             "jina_v5_text_multilingual",
             "jina",
             "jina-embeddings-v5-text-small",
@@ -544,7 +572,7 @@ def _text_embedding_rows(
             SOURCE_JINA_MODELS,
         ),
         _TextArm(
-            "embedding",
+            "embedding_media_text_bridge",
             "jina_v5_omni_text_bridge",
             "jina",
             "jina-embeddings-v5-omni-small",
@@ -559,7 +587,7 @@ def _text_embedding_rows(
             ),
         ),
         _TextArm(
-            "embedding",
+            "embedding_media_text_bridge",
             "cohere_v4_media_text",
             "cohere",
             "embed-v4.0",
@@ -575,7 +603,7 @@ def _text_embedding_rows(
             ),
         ),
         _TextArm(
-            "embedding",
+            "embedding_code_technical",
             "mistral_codestral_embed",
             "mistral",
             "codestral-embed-2505",
@@ -590,7 +618,7 @@ def _text_embedding_rows(
     if include_optional_context3:
         arms.append(
             _TextArm(
-                "contextual_embedding",
+                "embedding_contextual_learning",
                 "voyage_context_3_learning_compare",
                 "voyage",
                 "voyage-context-3",
@@ -837,7 +865,14 @@ def _reader_rows(
     )
 
 
-def _ocr_rows(db_path: str | Path, *, max_file_bytes: int) -> tuple[ApiLaneEstimateRow, ...]:
+def _ocr_rows(
+    db_path: str | Path,
+    *,
+    max_file_bytes: int,
+    scope: str,
+    limit: int,
+    include_latest: bool,
+) -> tuple[ApiLaneEstimateRow, ...]:
     estimate = estimate_media_embedding_build(
         db_path,
         provider="gemini",
@@ -846,34 +881,54 @@ def _ocr_rows(db_path: str | Path, *, max_file_bytes: int) -> tuple[ApiLaneEstim
         embedding_profile="native_multimodal_media",
         max_file_bytes=max_file_bytes,
     )
-    page_lower_bound = estimate.selected
+    full_page_lower_bound = estimate.selected
+    normalized_scope = scope.strip().lower().replace("-", "_")
+    if normalized_scope not in {"none", "sample", "all"}:
+        raise ValueError("ocr_scope must be one of: none, sample, all")
+    if normalized_scope == "none":
+        page_lower_bound = 0
+        status_suffix = "not_selected"
+    elif normalized_scope == "sample":
+        page_lower_bound = min(full_page_lower_bound, max(0, limit))
+        status_suffix = "sample_estimate"
+    else:
+        page_lower_bound = full_page_lower_bound
+        status_suffix = "full_lower_bound"
+    model_rows = [("mistral_ocr_2512", "mistral-ocr-2512", "fixed_eval_candidate")]
+    if include_latest:
+        model_rows.append(("mistral_ocr_latest", "mistral-ocr-latest", "latest_alias_optional"))
     return tuple(
         ApiLaneEstimateRow(
-            lane="ocr",
+            lane="media_to_text_ocr",
             name=name,
             provider="mistral",
             model=model,
             operation="ocr",
-            status=status,
+            status=f"{status}:{status_suffix}",
             selected_units=page_lower_bound,
             unit="page_lower_bound",
             estimated_cost_usd=page_lower_bound * (3.0 / 1_000),
-            cost_basis="selected local image/PDF media counted as at least one OCR page each",
+            cost_basis=(
+                "OCR selected media counted as at least one OCR page each; "
+                f"scope={normalized_scope}"
+            ),
             source_url=SOURCE_MISTRAL_PRICING,
             notes=(
                 "OCR is media-to-text evidence preparation, not native vector recall. "
-                "PDF page counts can make actual cost higher than this lower bound."
+                "Default is sampled because OCR all-media is expensive. "
+                "PDF page counts can make actual full cost higher than this lower bound."
             ),
             extra={
+                "ocr_scope": normalized_scope,
+                "ocr_limit": max(0, limit),
                 "media_selected": estimate.selected,
+                "full_page_lower_bound": full_page_lower_bound,
+                "full_cost_lower_bound_usd": full_page_lower_bound * (3.0 / 1_000),
                 "by_mime_type": estimate.by_mime_type,
                 "fixed_model": model == "mistral-ocr-2512",
             },
         )
-        for name, model, status in (
-            ("mistral_ocr_2512", "mistral-ocr-2512", "fixed_eval_candidate"),
-            ("mistral_ocr_latest", "mistral-ocr-latest", "latest_alias_optional"),
-        )
+        for name, model, status in model_rows
     )
 
 
@@ -1020,6 +1075,177 @@ def _totals_by_lane(rows: list[ApiLaneEstimateRow]) -> dict[str, dict[str, Any]]
     for bucket in totals.values():
         bucket["estimated_priced_cost_usd"] = round(bucket["estimated_priced_cost_usd"], 6)
     return totals
+
+
+def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
+    row_by_name = {row.name: row for row in rows}
+    plans = [
+        _plan_from_names(
+            "objective_fit_router_baseline",
+            "recommended_first_pass",
+            (
+                "Build the broad answer-correctness foundation: general semantic recall, bounded "
+                "rerank, limited URL Reader grounding, and sampled OCR calibration. Add route "
+                "expansions only when the input needs them."
+            ),
+            (
+                "This is the default performance shape: not cheapest, not all-in. It maximizes "
+                "the chance of correct answers without prebuilding every specialist lane."
+            ),
+            row_by_name,
+            (
+                "gemini_embedding_2_text",
+                "openai_small_general",
+                "voyage_rerank_2_5",
+                "cohere_rerank_v4_0_fast",
+                "jina_reranker_v3",
+                "jina_reader_extract",
+                "mistral_ocr_2512",
+            ),
+        ),
+        _plan_from_names(
+            "jp_multilingual_route",
+            "route_expansion",
+            (
+                "Use when the question needs Japanese/cross-lingual semantic recall, translated "
+                "terms, or mixed-language saved sources."
+            ),
+            "Incremental route expansion; do not run for exact-anchor-only questions.",
+            row_by_name,
+            ("voyage4_multilingual", "jina_v5_text_multilingual"),
+        ),
+        _plan_from_names(
+            "learning_long_route",
+            "route_expansion",
+            (
+                "Use when the answer requires concept synthesis, academic/technical threads, "
+                "or multi-hop learning-map evidence."
+            ),
+            "Adds high-capacity and contextual recall only for concept-heavy questions.",
+            row_by_name,
+            ("openai_large_learning", "voyage4_large_learning", "voyage_context_4_learning"),
+        ),
+        _plan_from_names(
+            "code_technical_route",
+            "route_expansion",
+            (
+                "Use when the input asks for code, APIs, repositories, implementation details, "
+                "or technical documentation recall."
+            ),
+            "Specialist code/documentation embeddings should not replace broad memory recall.",
+            row_by_name,
+            ("voyage_code_3", "mistral_codestral_embed"),
+        ),
+        _plan_from_names(
+            "media_grounded_route",
+            "route_expansion",
+            (
+                "Use when the answer depends on images/PDFs/media context. First retrieve media, "
+                "then OCR/caption only the candidate set needed for citation-ready content."
+            ),
+            "This is a targeted media path, not full OCR over every saved image.",
+            row_by_name,
+            (
+                "jina_v5_omni_text_bridge",
+                "cohere_v4_media_text",
+                "gemini_embedding_2_native_media",
+                "mistral_ocr_2512",
+            ),
+        ),
+    ]
+    context3 = row_by_name.get("voyage_context_3_learning_compare")
+    if context3 is not None:
+        plans.append(
+            {
+                "plan_id": "optional_voyage_context3_comparison",
+                "status": "comparison_only",
+                "rows": 1,
+                "estimated_cost_usd": context3.estimated_cost_usd,
+                "purpose": (
+                    "Compare older contextual embedding behavior against voyage-context-4; "
+                    "do not include in the first performance pass unless there is a regression."
+                ),
+                "notes": context3.notes,
+            }
+        )
+    ocr = row_by_name.get("mistral_ocr_2512")
+    if ocr is not None:
+        full_pages = int(ocr.extra.get("full_page_lower_bound", 0) or 0)
+        full_cost = float(ocr.extra.get("full_cost_lower_bound_usd", 0.0) or 0.0)
+        plans.append(
+            {
+                "plan_id": "targeted_media_ocr_after_recall",
+                "status": "recommended_media_evidence_path",
+                "rows": 1,
+                "estimated_cost_usd": ocr.estimated_cost_usd,
+                "purpose": (
+                    "Use native media embedding and media_text_bridge recall to select likely "
+                    "useful media first, then OCR only the candidate set needed for citation-ready "
+                    "image/PDF content evidence."
+                ),
+                "notes": (
+                    f"Full OCR lower-bound would be {full_pages} pages / ${full_cost:.6f}; "
+                    "that is intentionally not part of the default performance core."
+                ),
+            }
+        )
+        plans.append(
+            {
+                "plan_id": "full_ocr_lower_bound",
+                "status": "expensive_explicit_only",
+                "rows": 1,
+                "estimated_cost_usd": full_cost,
+                "purpose": (
+                    "Price full OCR over every selected media item. Use only after targeted OCR "
+                    "is proven insufficient for media-grounded evals."
+                ),
+                "notes": (
+                    "PDF page counts can make real full OCR cost higher than this lower "
+                    "bound."
+                ),
+            }
+        )
+    latest_ocr = row_by_name.get("mistral_ocr_latest")
+    if latest_ocr is not None:
+        plans.append(
+            {
+                "plan_id": "optional_latest_ocr_alias",
+                "status": "latest_tracking_only",
+                "rows": 1,
+                "estimated_cost_usd": latest_ocr.estimated_cost_usd,
+                "purpose": (
+                    "Track the latest OCR alias only when model drift is intentionally being "
+                    "measured. It is not part of repeatable performance eval."
+                ),
+                "notes": latest_ocr.notes,
+            }
+        )
+    return plans
+
+
+def _plan_from_names(
+    plan_id: str,
+    status: str,
+    purpose: str,
+    notes: str,
+    row_by_name: dict[str, ApiLaneEstimateRow],
+    names: tuple[str, ...],
+) -> dict[str, Any]:
+    selected = [row_by_name[name] for name in names if name in row_by_name]
+    return {
+        "plan_id": plan_id,
+        "status": status,
+        "rows": len(selected),
+        "estimated_cost_usd": _sum_cost(selected),
+        "purpose": purpose,
+        "notes": notes,
+        "row_names": tuple(row.name for row in selected),
+        "lanes": tuple(sorted({row.lane for row in selected})),
+    }
+
+
+def _sum_cost(rows: list[ApiLaneEstimateRow]) -> float:
+    return round(sum(float(row.estimated_cost_usd or 0.0) for row in rows), 6)
 
 
 def _utc_now() -> str:

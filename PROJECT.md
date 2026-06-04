@@ -264,6 +264,11 @@ Implementation checklist:
       real-provider call sites before full paid API evaluation.
 - [x] Add full preflight `api-lane-estimate` for the planned embedding, rerank, URL Reader,
       OCR, native media, and managed-RAG reference lanes without spending API tokens.
+- [x] Split embedding estimates by workflow role instead of treating all text embeddings as one
+      generic lane; keep OCR as sampled media-to-text evidence preparation by default.
+- [x] Add `objective_fit_router_baseline` and route-expansion recommendations so the first pass
+      optimizes answer correctness for the input objective without overbuilding every specialist
+      lane by default.
 - [x] Add checked default API price seeding, with Cohere v4 prices marked as secondary estimates
       when the public primary source confirms billing basis but not a plain unit table.
 - [x] Add `test-diagnose` so slow or hanging pytest units can be isolated without dropping

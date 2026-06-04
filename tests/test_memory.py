@@ -905,13 +905,30 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
 
     assert rows["gemini_embedding_2_text"].estimated_cost_usd is not None
     assert rows["cohere_v4_media_text"].status == "secondary_priced_estimate"
+    assert rows["cohere_v4_media_text"].lane == "embedding_media_text_bridge"
+    assert rows["voyage4_multilingual"].lane == "embedding_jp_multilingual"
+    assert rows["mistral_codestral_embed"].lane == "embedding_code_technical"
     assert rows["cohere_rerank_v4_0_pro"].estimated_cost_usd == 0.005
     assert rows["jina_reader_extract"].extra["discovered_external_urls"] == 2
     assert rows["jina_reader_extract"].estimated_cost_usd is not None
-    assert rows["mistral_ocr_2512"].estimated_cost_usd is not None
+    assert rows["mistral_ocr_2512"].lane == "media_to_text_ocr"
+    assert rows["mistral_ocr_2512"].selected_units == 1
     assert rows["voyage_context_4_learning"].status == "contract_required_lower_bound"
+    assert rows["voyage_context_4_learning"].lane == "embedding_contextual_learning"
     assert rows["voyage_context_3_learning_compare"].status == "older_comparison_lower_bound"
     assert rows["openai_file_search_vector_stores"].estimated_cost_usd is None
+    plans = {plan["plan_id"]: plan for plan in report.totals["recommended_plans"]}
+    assert plans["objective_fit_router_baseline"]["status"] == "recommended_first_pass"
+    assert (
+        plans["objective_fit_router_baseline"]["estimated_cost_usd"]
+        < report.totals["estimated_priced_cost_usd"]
+    )
+    assert "gemini_embedding_2_text" in plans["objective_fit_router_baseline"]["row_names"]
+    assert "voyage4_multilingual" in plans["jp_multilingual_route"]["row_names"]
+    assert "voyage_context_4_learning" in plans["learning_long_route"]["row_names"]
+    assert "mistral_codestral_embed" in plans["code_technical_route"]["row_names"]
+    assert "gemini_embedding_2_native_media" in plans["media_grounded_route"]["row_names"]
+    assert plans["full_ocr_lower_bound"]["status"] == "expensive_explicit_only"
 
 
 def test_memory_api_lane_estimate_cli_and_price_seed(
@@ -942,6 +959,7 @@ def test_memory_api_lane_estimate_cli_and_price_seed(
     output = capsys.readouterr().out
     assert "seeded default API prices" in output
     assert "cohere_v4_media_text" in output
+    assert "objective_fit_router_baseline" in output
     assert "managed_rag_reference/openai_file_search_vector_stores" in output
     with sqlite3.connect(db_path) as conn:
         rows = conn.execute(
@@ -954,6 +972,26 @@ def test_memory_api_lane_estimate_cli_and_price_seed(
         ).fetchall()
     assert ("cohere", "embed-v4.0", "embedding", "input_token", 0.00000012) in rows
     assert ("cohere", "rerank-v4.0-pro", "rerank", "call", 0.0025) in rows
+
+
+def test_memory_api_lane_estimate_ocr_requires_explicit_full_scope(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    default_report = build_api_lane_estimate_report(db_path)
+    all_report = build_api_lane_estimate_report(
+        db_path,
+        ocr_scope="all",
+        include_latest_ocr=True,
+    )
+    default_rows = {row.name: row for row in default_report.rows}
+    all_rows = {row.name: row for row in all_report.rows}
+
+    assert default_rows["mistral_ocr_2512"].selected_units == 0
+    assert "mistral_ocr_latest" not in default_rows
+    assert all_rows["mistral_ocr_2512"].selected_units >= 0
+    assert "mistral_ocr_latest" in all_rows
 
 
 def test_memory_discover_external_urls_filters_x_sources(tmp_path: Path) -> None:

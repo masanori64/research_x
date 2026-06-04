@@ -637,8 +637,10 @@ Current strategy classification:
   source-bundle restoration, and route-gated portfolio selection;
 - high-value evidence candidates: `contextual_bm25`, `rerank_stage`,
   `claim_citation_verification`, and `freshness_lineage`;
-- real API embedding recall arms: `api_embedding_portfolio`, `general_memory`, `jp_multilingual`,
-  `learning_long`, `code_technical`, and `media_text_bridge`;
+- real API embedding recall arms are role-specific, not one generic text bucket:
+  `embedding_general_memory`, `embedding_jp_multilingual`, `embedding_learning_long`,
+  `embedding_contextual_learning`, `embedding_code_technical`, and
+  `embedding_media_text_bridge`;
 - rerank arms: Voyage `rerank-2.5`, Cohere `rerank-v4.0-pro` /
   `rerank-v4.0-fast`, and Jina `jina-reranker-v3`, always after source-bundle restoration and
   never as a first-stage source of truth;
@@ -662,6 +664,9 @@ Current strategy classification:
 - Jina `jina-embeddings-v5-omni-small` can enter the text portfolio only as a text-only
   `media_text_bridge` candidate over OCR/caption/alt_text/VLM text. Native image/PDF URL or file
   ingestion remains a separate media evidence contract.
+- OCR is not a recall arm. It is an evidence-preparation lane that turns image/PDF media into
+  citation-ready text. Because all-media OCR can dominate cost, `api-lane-estimate` defaults to a
+  sampled OCR scope and requires `--ocr-scope all` for full lower-bound pricing.
 - Managed RAG systems such as OpenAI File Search and Gemini File Search are reference lanes only.
   They may compare UX and citation behavior but must not replace local raw X evidence, account
   ownership, or source-bundle restoration.
@@ -681,6 +686,24 @@ Risk:
   exact evidence is already enough.
 
 Therefore portfolio routing and profile splitting must be evaluation-driven, not assumption-driven.
+
+Objective-fit performance priority:
+
+- The upper architecture is a constraint, not the scoring objective. The objective is performance:
+  the correct, useful answer for the user's input with enough evidence and no unsupported claims.
+  Quantitative metrics such as route recall, citation precision, answer usefulness, and abstention
+  correctness are instruments for that objective, not the objective itself.
+- Do not remove strong provider arms merely because a simpler local route exists. Keep strong arms
+  as challengers, measure their contribution, and promote them when evals win.
+- Do not run every strong arm by default merely because it might help. Choose arms by query route
+  and answer objective, then expand only when evals or failure analysis show missing evidence.
+- OCR should not be skipped for cost alone. Use native media recall and media-text retrieval to
+  target OCR where it can improve media-grounded evidence, then expand OCR scope only when targeted
+  OCR underperforms.
+- `memory api-lane-estimate` exposes `objective_fit_router_baseline` as the first-pass plan and
+  route expansions such as `jp_multilingual_route`, `learning_long_route`,
+  `code_technical_route`, and `media_grounded_route`. It separates comparison/high-cost options
+  such as older contextual embeddings, latest OCR alias tracking, and full OCR lower-bound pricing.
 
 ## API Budget Guard
 
@@ -724,7 +747,7 @@ Use these commands before and during real API experiments:
 uv run python -m research_x memory api-budget status --db runs/x_data.sqlite3
 uv run python -m research_x memory api-budget set --db runs/x_data.sqlite3 --max-run-usd 1
 uv run python -m research_x memory api-budget seed-default-prices --db runs/x_data.sqlite3
-uv run python -m research_x memory api-lane-estimate --db runs/x_data.sqlite3
+uv run python -m research_x memory api-lane-estimate --db runs/x_data.sqlite3 --ocr-scope sample
 uv run python -m research_x memory api-usage --db runs/x_data.sqlite3 --today
 uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 8767
 ```

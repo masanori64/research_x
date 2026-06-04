@@ -623,11 +623,21 @@ uv run python -m research_x memory api-budget seed-default-prices --db runs/x_da
 uv run python -m research_x memory api-lane-estimate `
   --db runs/x_data.sqlite3 `
   --include-optional-context3 `
+  --ocr-scope sample `
+  --ocr-limit 100 `
   --reader-url-limit 100 `
   --rerank-query-count 5 `
   --rerank-candidate-limit 20
 uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 8767
 ```
+
+`memory api-lane-estimate` also prints `recommended_plans`. The first-pass recommendation is
+`objective_fit_router_baseline`: broad semantic recall, bounded rerank, limited Reader extraction,
+and sampled OCR calibration. Route expansions such as `jp_multilingual_route`,
+`learning_long_route`, `code_technical_route`, and `media_grounded_route` are added when the
+question needs them. Full OCR over all media is shown separately as an expensive explicit-only
+option, because native media recall should select candidate media before OCR creates
+citation-ready image/PDF text.
 
 ```powershell
 uv run python -m research_x memory embedding-estimate `
@@ -701,13 +711,19 @@ uv run python -m research_x memory workflow `
 
 Do not treat the optional embedding section as the default production path. Run estimates and
 coverage first, then compare the explicit `api_embedding_portfolio` against evidence-first arms.
-The runnable first-pass text arms are Gemini `gemini-embedding-2`, OpenAI
-`text-embedding-3-small` / `text-embedding-3-large`, Voyage `voyage-4` /
-`voyage-4-large`, Voyage `voyage-code-3`, Voyage `voyage-context-4` as a contextual
-contract-required lower-bound, Jina `jina-embeddings-v5-text-small` /
-`jina-embeddings-v5-omni-small` for text-only/media-text bridge evaluation, Cohere
-`embed-v4.0`, and Mistral `codestral-embed-2505`. Rerank arms are separate: Voyage `rerank-2.5`,
-Cohere `rerank-v4.0-pro` / `rerank-v4.0-fast`, and Jina `jina-reranker-v3`.
+The embedding arms are role-specific, not interchangeable "just text" indexes:
+
+- `embedding_general_memory`: Gemini `gemini-embedding-2`, OpenAI `text-embedding-3-small`;
+- `embedding_jp_multilingual`: Voyage `voyage-4`, Jina `jina-embeddings-v5-text-small`;
+- `embedding_learning_long`: OpenAI `text-embedding-3-large`, Voyage `voyage-4-large`;
+- `embedding_contextual_learning`: Voyage `voyage-context-4` as a contextual contract-required
+  lower-bound;
+- `embedding_code_technical`: Voyage `voyage-code-3`, Mistral `codestral-embed-2505`;
+- `embedding_media_text_bridge`: Jina `jina-embeddings-v5-omni-small` text-only media bridge and
+  Cohere `embed-v4.0`.
+
+Rerank arms are separate: Voyage `rerank-2.5`, Cohere `rerank-v4.0-pro` /
+`rerank-v4.0-fast`, and Jina `jina-reranker-v3`.
 Gemini `gemini-embedding-001` remains a legacy comparison option, not the preferred first pass.
 Gemini Embedding 2 native multimodal use is available through the explicit media contract and
 `native_multimodal_media` strategy. It remains outside automatic workflow routes until eval proves
@@ -715,8 +731,10 @@ that media hits restore cleanly and do not become unsupported image-content clai
 `multimodalembedding@001` remains a separate reference that needs GCP project/location/auth, not a
 plain Gemini API key.
 Reader/OCR/reference lanes are also visible in `memory api-lane-estimate`: Jina Reader for URL
-extraction, Mistral `mistral-ocr-2512` / `mistral-ocr-latest` for OCR lower-bound estimates, and
-OpenAI/Gemini managed File Search as reference-only lanes.
+extraction, Mistral `mistral-ocr-2512` as the fixed OCR candidate, optional
+`mistral-ocr-latest`, and OpenAI/Gemini managed File Search as reference-only lanes. OCR is
+expensive over all saved media, so the estimate defaults to a sampled scope. Use `--ocr-scope all`
+only when intentionally pricing full OCR.
 
 Native Gemini Embedding 2 media evaluation uses a separate media contract, not
 `memory_embeddings`:
