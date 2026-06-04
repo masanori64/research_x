@@ -555,6 +555,46 @@ text_template_version
 source_doc_hash
 ```
 
+Native media embeddings use a separate contract from text embeddings. Text embeddings index
+`memory_documents` and are current only when `source_doc_hash` and `embedding_text_hash` match the
+document row. Raw media embeddings index saved local media files and are current only when the
+media file hash and media metadata hash match:
+
+```text
+media_id
+doc_id = media:<media_id>
+source_tweet_id
+provider
+model
+dimensions
+embedding_profile
+input_template_version
+mime_type
+local_path
+media_url
+media_file_hash
+media_metadata_hash
+input_parts_json
+```
+
+The first native media embedding provider is Gemini `gemini-embedding-2`, with
+`embedding_profile=native_multimodal_media`, `dimensions=1536`, and
+`input_template_version=gemini-media-input-v1`. Initial media inputs are local image/PDF files only:
+`image/jpeg`, `image/png`, `image/webp`, and `application/pdf`. Missing files, zero-byte files,
+unsupported MIME types, and files over the configured byte limit are skipped and must appear in
+coverage output.
+
+Media evidence has three levels:
+
+- `raw_media_match`: a vector match against a media file. This is a candidate signal only.
+- `media_source_evidence`: the hit restored to `media_id`, source tweet, media URL/local path,
+  bookmark account, author, quote relation, and source bundle metadata.
+- `media_content_evidence`: OCR, caption, or VLM text exists as citation-ready context chunks and
+  can support claims about image/PDF content.
+
+Raw Gemini media embedding hits must default to `unconfirmed_media_match`. They cannot support
+image-content claims until OCR/caption/VLM text is available as context chunks.
+
 `task_prompt_version` is still a future extension for providers that expose prompt/task variants
 that need versioned routing beyond the current document/query task type.
 
@@ -613,8 +653,8 @@ Current strategy classification:
   citation-ready OCR, caption, alt text, or VLM text;
 - Gemini text embedding uses `gemini-embedding-2` for runnable Gemini API text tests. It is
   confirmed as a Gemini API model, so `gemini-embedding-001` is legacy comparison only.
-  Native Gemini Embedding 2 multimodal use remains deferred until this repo can pass raw media
-  inputs, store media vector hashes, and restore tweet/media citations from media hits. Vertex AI
+- Native Gemini Embedding 2 multimodal use is implemented through the separate
+  `native_multimodal_media` contract, not `api_embedding_portfolio`. Vertex AI
   `multimodalembedding@001` remains a separate GCP auth/project/location reference.
 - exact entities, dates, tickers, handles, and places: keep FTS/metadata/relations/derived cards as
   the guardrail before adding dense-provider complexity.

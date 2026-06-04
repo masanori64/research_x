@@ -21,6 +21,7 @@ or old source links. Do not scan the whole archive by default.
 | Question-type coverage and eval task variety | 2026-06-01: Question-Type Coverage Before More Retrieval Changes |
 | Adaptive Evidence Portfolio, multi-provider embedding cautions, source-bundle fusion | 2026-06-02: Adaptive Evidence Portfolio Beats Naive Multi-Provider Embeddings |
 | Evidence/Skill/Workflow first, API embedding portfolio, workflow-gated adaptive routing | Archived Retrieval Portfolio Decision Notes |
+| Gemini Embedding 2 media evidence contract | Active source: docs/memory-pipeline-v2.md |
 
 ## Decision Notes
 

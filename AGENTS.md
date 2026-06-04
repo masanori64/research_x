@@ -30,6 +30,12 @@ recall arms inside a workflow-gated portfolio, not the top-level system objectiv
 `local_hash` embeddings are wiring checks only and must not be treated as production evidence or a
 promotion candidate.
 
+For Gemini Embedding 2, keep text recall and native media recall as separate contracts. Text
+embedding uses `memory_embeddings`; raw image/PDF/video/audio embedding must use a media-specific
+contract that can restore `media_id -> tweet_id -> source bundle -> citation` before it can be
+eligible for workflow promotion. A raw media vector match is a candidate signal, not image-content
+evidence unless OCR/caption/VLM text has been turned into citation-ready context chunks.
+
 Do not create additional memory-architecture Markdown files unless the user explicitly asks. Update
 the existing source-of-truth file instead, so Codex does not have to scan a spreading design surface.
 

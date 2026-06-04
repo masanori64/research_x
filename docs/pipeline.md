@@ -12,6 +12,12 @@ sections when prior research is needed. Acquisition output is raw evidence for t
 replace stored tweets, bookmarks, media, quote edges, provider runs, or raw payloads with labels,
 summaries, embeddings, or answers.
 
+For native media recall, acquisition remains responsible only for preserving media provenance:
+`media_id`, `tweet_id`, `url`, `local_path`, `download_status`, and raw downloadable media when
+available. Gemini Embedding 2 media vectors are built later by the memory pipeline from saved local
+files and must restore back to the original tweet/media source bundle before they can be used as
+evidence.
+
 Provider-chain decisions use the same decision quality rule as memory-search decisions. Inspect the
 repo state first; when the answer is uncertain, check primary sources before secondary/community
 sources, treat search results as evidence inputs rather than automatic truth, compare alternatives

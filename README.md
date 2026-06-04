@@ -531,6 +531,10 @@ memory build-embeddings   Build versioned semantic indexes with real API provide
 memory embedding-specs    Print resolved embedding provider/model/profile/template specs.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory embedding-coverage Show embedding coverage/staleness by doc_type.
+memory media-embedding-estimate Estimate saved media files, staleness, skips, and API calls for native media embeddings.
+memory build-media-embeddings Build native media embeddings for local image/PDF media files.
+memory media-embedding-coverage Show native media embedding coverage by mime/status.
+memory media-search        Search native media embeddings and restore source bundles.
 memory relations          Inspect relation edges for selected documents.
 memory plan               Show query planning output.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
@@ -672,6 +676,42 @@ Gemini `gemini-embedding-001` remains a legacy comparison option, not the prefer
 Gemini Embedding 2 native multimodal use remains deferred until raw media input hashes and
 tweet/media citation restoration are implemented. Vertex AI `multimodalembedding@001` remains a
 separate reference that needs GCP project/location/auth, not a plain Gemini API key.
+
+Native Gemini Embedding 2 media evaluation uses a separate media contract, not
+`memory_embeddings`:
+
+```powershell
+uv run python -m research_x memory media-embedding-estimate `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 1536 `
+  --embedding-profile native_multimodal_media
+uv run python -m research_x memory build-media-embeddings `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 1536 `
+  --embedding-profile native_multimodal_media `
+  --limit 1
+uv run python -m research_x memory media-embedding-coverage `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 1536 `
+  --embedding-profile native_multimodal_media
+uv run python -m research_x memory media-search `
+  --db runs/x_data.sqlite3 `
+  --query "保存した画像付きの技術資料" `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 1536 `
+  --embedding-profile native_multimodal_media
+```
+
+Media hits are restored as `media_source_evidence`: `media_id -> tweet_id -> tweet/media/bookmark
+bundle`. They are not `media_content_evidence` unless OCR, caption, or VLM text exists as
+citation-ready context.
 
 Add one or more `--doc-type` values to `memory export-corpus2skill` when a narrower navigation-map
 corpus is useful, for example `--doc-type topic_thread --doc-type author_profile`.
