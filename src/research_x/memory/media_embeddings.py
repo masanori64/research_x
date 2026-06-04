@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.embeddings import (
     _api_key,
     _gemini_model_name,
@@ -511,12 +512,22 @@ class GeminiMediaEmbedder:
 
     def _embed_request(self, request: dict[str, Any]) -> list[float]:
         model_name = _gemini_model_name(self.spec.model)
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url
             or f"https://generativelanguage.googleapis.com/v1beta/{model_name}:batchEmbedContents",
             {"requests": [request]},
             headers={"x-goog-api-key": self.api_key},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="media_embedding",
+            budget_units=api_units(
+                calls=3,
+                retries=2,
+                input_tokens=rough_text_tokens(request),
+                media_bytes=_request_media_bytes(request),
+                documents=1,
+            ),
         )
         embeddings = response.get("embeddings")
         if not isinstance(embeddings, list) or not embeddings:
@@ -862,6 +873,49 @@ def _gemini_text_embedding_request(
         "content": {"parts": [{"text": text}]},
         "embedContentConfig": {"outputDimensionality": spec.dimensions},
     }
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    budget_provider: str,
+    budget_model: str,
+    budget_operation: str,
+    budget_units: dict[str, int | float],
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role="embedding",
+        operation=budget_operation,
+        units=budget_units,
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def _request_media_bytes(request: dict[str, Any]) -> int:
+    parts = request.get("content", {}).get("parts", [])
+    total = 0
+    if isinstance(parts, list):
+        for part in parts:
+            if not isinstance(part, dict):
+                continue
+            inline = part.get("inlineData") or part.get("inline_data")
+            if isinstance(inline, dict):
+                data = inline.get("data")
+                if isinstance(data, str):
+                    total += len(data) * 3 // 4
+    return total
 
 
 def _media_context_text(row: sqlite3.Row) -> str:

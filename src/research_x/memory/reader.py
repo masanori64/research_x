@@ -15,6 +15,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Protocol
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.source_kinds import (
     EXTERNAL_WEB_MEDIUM,
@@ -196,13 +197,22 @@ class JinaReaderProvider:
         api_key = os.environ.get("JINA_API_KEY")
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        response = _read_url(
-            endpoint,
-            timeout_seconds=self.timeout_seconds,
-            user_agent=self.user_agent,
-            max_bytes=self.max_bytes,
-            extra_headers=headers,
-        )
+        with budgeted_api_call(
+            provider=self.provider_id,
+            model="reader",
+            provider_role=self.provider_role,
+            operation="reader_extract",
+            units=api_units(calls=1, input_tokens=rough_text_tokens({"url": url, "query": query})),
+            request_payload={"url": url, "query": query, "max_chars": max_chars},
+            metadata={"endpoint": endpoint, "uses_api_key": bool(api_key)},
+        ):
+            response = _read_url(
+                endpoint,
+                timeout_seconds=self.timeout_seconds,
+                user_agent=self.user_agent,
+                max_bytes=self.max_bytes,
+                extra_headers=headers,
+            )
         _extracted_title, text = _extract_text(response.body, response.content_type)
         return ReaderPage(
             url=url,

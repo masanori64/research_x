@@ -295,6 +295,57 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(workflow_id) REFERENCES memory_workflow_runs(workflow_id)
         );
 
+        CREATE TABLE IF NOT EXISTS memory_api_budget_policies (
+            policy_id TEXT PRIMARY KEY,
+            enabled INTEGER NOT NULL,
+            max_run_usd REAL,
+            max_day_usd REAL,
+            max_month_usd REAL,
+            max_run_calls INTEGER,
+            max_day_calls INTEGER,
+            max_run_input_tokens INTEGER,
+            max_run_media_bytes INTEGER,
+            unknown_price_action TEXT NOT NULL,
+            kill_switch_enabled INTEGER NOT NULL,
+            metadata_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_api_usage_events (
+            event_id TEXT PRIMARY KEY,
+            run_id TEXT,
+            job_id TEXT,
+            policy_id TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            provider_role TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            status TEXT NOT NULL,
+            units_json TEXT NOT NULL,
+            estimated_cost_usd REAL NOT NULL,
+            actual_cost_usd REAL,
+            request_hash TEXT,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            error TEXT,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_api_price_catalog (
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            unit TEXT NOT NULL,
+            usd_per_unit REAL NOT NULL,
+            source_url TEXT,
+            checked_at TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(provider, model, operation, unit)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_memory_documents_doc_type
             ON memory_documents(doc_type);
         CREATE INDEX IF NOT EXISTS idx_memory_documents_source_tweet
@@ -347,11 +398,18 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_workflow_runs(query, started_at);
         CREATE INDEX IF NOT EXISTS idx_memory_workflow_steps_workflow
             ON memory_workflow_steps(workflow_id, step_index);
+        CREATE INDEX IF NOT EXISTS idx_memory_api_usage_run
+            ON memory_api_usage_events(run_id, started_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_api_usage_provider
+            ON memory_api_usage_events(provider, model, operation, started_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_api_usage_status
+            ON memory_api_usage_events(status, started_at);
         """
     )
     _migrate_memory_documents(conn)
     _migrate_memory_feedback(conn)
     _migrate_memory_embeddings(conn)
+    _ensure_default_api_budget_policy(conn)
     conn.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider_model
@@ -504,3 +562,37 @@ def _primary_key_columns(conn: sqlite3.Connection, table: str) -> list[str]:
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
     keyed = [(int(row[5]), str(row[1])) for row in rows if int(row[5]) > 0]
     return [name for _, name in sorted(keyed)]
+
+
+def _ensure_default_api_budget_policy(conn: sqlite3.Connection) -> None:
+    import json
+    from datetime import UTC, datetime
+
+    exists = conn.execute(
+        """
+        SELECT 1
+        FROM memory_api_budget_policies
+        WHERE policy_id = 'default'
+        LIMIT 1
+        """
+    ).fetchone()
+    if exists:
+        return
+    now = datetime.now(tz=UTC).isoformat()
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO memory_api_budget_policies (
+            policy_id, enabled, max_run_usd, max_day_usd, max_month_usd,
+            max_run_calls, max_day_calls, max_run_input_tokens, max_run_media_bytes,
+            unknown_price_action, kill_switch_enabled, metadata_json, created_at, updated_at
+        )
+        VALUES (
+            'default', 1, 1.0, 5.0, 25.0,
+            NULL, NULL, NULL, NULL,
+            'block', 0, ?, ?, ?
+        )
+        """,
+        (json.dumps({"warning_fraction": 0.8}, sort_keys=True), now, now),
+    )
+    if conn.in_transaction:
+        conn.commit()

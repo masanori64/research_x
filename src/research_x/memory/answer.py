@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.context import (
     CitationAnnotation,
     ContextBundle,
@@ -252,11 +253,19 @@ class OpenAICompatibleAnswerProvider:
             ),
             "temperature": 0.1,
         }
-        raw = _post_json(
+        raw = _post_json_budgeted(
             f"{self.base_url}/chat/completions",
             payload,
             headers={"Authorization": f"Bearer {api_key}"},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model=self.model,
+            budget_units=api_units(
+                calls=3,
+                retries=2,
+                input_tokens=rough_text_tokens(payload),
+                documents=len(chunks),
+            ),
         )
         answer_text = _extract_chat_text(raw)
         return GeneratedAnswer(
@@ -864,6 +873,69 @@ def _extract_chat_text(raw: dict[str, Any]) -> str:
 
 
 def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    retries: int = 3,
+    budget_provider: str | None = None,
+    budget_model: str | None = None,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    def send() -> dict[str, Any]:
+        return _post_json_unbudgeted(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+        )
+
+    if budget_provider is None and budget_model is None and budget_units is None:
+        return send()
+    with budgeted_api_call(
+        provider=budget_provider or "unknown",
+        model=budget_model or str(payload.get("model") or "unknown"),
+        provider_role=ANSWER_ENGINE_ROLE,
+        operation="answer",
+        units=budget_units or api_units(calls=retries, retries=max(0, retries - 1)),
+        request_payload=payload,
+        metadata={"url": url, "max_attempts": retries},
+    ):
+        return send()
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    retries: int = 3,
+    budget_provider: str,
+    budget_model: str,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role=ANSWER_ENGINE_ROLE,
+        operation="answer",
+        units=budget_units or api_units(calls=retries, retries=max(0, retries - 1)),
+        request_payload=payload,
+        metadata={"url": url, "max_attempts": retries},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+        )
+
+
+def _post_json_unbudgeted(
     url: str,
     payload: dict[str, Any],
     *,

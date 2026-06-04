@@ -260,6 +260,10 @@ Implementation checklist:
       profile-specific prefixing.
 - [x] Add media-grounded eval cases and promotion gates before native media search can enter
       normal workflow routes.
+- [x] Add local API budget policies, usage ledger, kill switch, CLI/app monitoring, and guarded
+      real-provider call sites before full paid API evaluation.
+- [x] Add `test-diagnose` so slow or hanging pytest units can be isolated without dropping
+      coverage from the normal verification pipeline.
 
 Stop condition before this milestone starts:
 
@@ -317,6 +321,8 @@ research_x memory cite
 
 - Use `uv run python ...`, `uv run pytest ...`, and
   `uv run ruff check src\research_x tests`.
+- If pytest is slow or appears stuck, use `uv run python -m research_x test-diagnose ...`
+  to isolate the slow file/test before changing behavior or dropping coverage.
 - Keep acquisition modules stable unless a memory feature needs a clearly scoped read-only helper.
 - Add tests next to each new memory module.
 - Prefer SQLite tables and explicit contracts before adding frameworks.

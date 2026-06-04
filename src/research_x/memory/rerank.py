@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.schema import ensure_memory_schema
 
@@ -167,11 +168,14 @@ class VoyageRerankProvider:
             "top_k": max(1, top_n),
             "truncation": True,
         }
-        response = _post_json(
+        response = _post_json_budgeted(
             self.base_url,
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model=self.model,
+            budget_units=_rerank_api_units(query, documents, retries=3),
         )
         return _results_from_response(
             response.get("data") or response.get("results"),
@@ -211,11 +215,14 @@ class CohereRerankProvider:
             "documents": [document.text for document in documents],
             "top_n": max(1, top_n),
         }
-        response = _post_json(
+        response = _post_json_budgeted(
             self.base_url,
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model=self.model,
+            budget_units=_rerank_api_units(query, documents, retries=3),
         )
         return _results_from_response(
             response.get("results"),
@@ -255,11 +262,14 @@ class JinaRerankProvider:
             "documents": [{"text": document.text} for document in documents],
             "top_n": max(1, top_n),
         }
-        response = _post_json(
+        response = _post_json_budgeted(
             self.base_url,
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model=self.model,
+            budget_units=_rerank_api_units(query, documents, retries=3),
         )
         return _results_from_response(
             response.get("results"),
@@ -568,6 +578,69 @@ def _post_json(
     headers: dict[str, str],
     timeout_seconds: float,
     retries: int = 3,
+    budget_provider: str | None = None,
+    budget_model: str | None = None,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    def send() -> dict[str, Any]:
+        return _post_json_unbudgeted(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+        )
+
+    if budget_provider is None and budget_model is None and budget_units is None:
+        return send()
+    with budgeted_api_call(
+        provider=budget_provider or "unknown",
+        model=budget_model or str(payload.get("model") or "unknown"),
+        provider_role=RERANK_PROVIDER_ROLE,
+        operation="rerank",
+        units=budget_units or api_units(calls=retries, retries=max(0, retries - 1)),
+        request_payload=payload,
+        metadata={"url": url, "max_attempts": retries},
+    ):
+        return send()
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    retries: int = 3,
+    budget_provider: str,
+    budget_model: str,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role=RERANK_PROVIDER_ROLE,
+        operation="rerank",
+        units=budget_units or api_units(calls=retries, retries=max(0, retries - 1)),
+        request_payload=payload,
+        metadata={"url": url, "max_attempts": retries},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+        )
+
+
+def _post_json_unbudgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    retries: int = 3,
 ) -> dict[str, Any]:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
@@ -595,6 +668,23 @@ def _post_json(
             last_error = exc
         time.sleep(_retry_sleep_seconds(last_error, attempt=attempt))
     raise RuntimeError(f"rerank API failed: {last_error}")
+
+
+def _rerank_api_units(
+    query: str,
+    documents: tuple[RerankInputDocument, ...],
+    *,
+    retries: int,
+) -> dict[str, int | float]:
+    processed_tokens = rough_text_tokens(query) * len(documents) + sum(
+        rough_text_tokens(document.text) for document in documents
+    )
+    return api_units(
+        calls=retries,
+        retries=max(0, retries - 1),
+        input_tokens=processed_tokens,
+        documents=len(documents),
+    )
 
 
 def _retry_sleep_seconds(error: Exception | None, *, attempt: int) -> float:

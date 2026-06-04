@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.schema import ensure_memory_schema
 
 INDEX_PROVIDER_ROLE = "index_provider"
@@ -152,11 +153,18 @@ class SerperSearchProvider:
             payload["location"] = self.location
 
         retrieved_at = _utc_now()
-        raw = _post_json(
+        raw = _post_json_budgeted(
             self.endpoint,
             payload,
             headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model="serper-search",
+            budget_units=api_units(
+                calls=1,
+                input_tokens=rough_text_tokens(payload),
+                documents=resolved_limit,
+            ),
         )
         items = _serper_items(raw, limit=resolved_limit)
         return _bundle(
@@ -350,6 +358,65 @@ def _serper_items(raw: dict[str, Any], *, limit: int) -> tuple[ExternalEvidenceI
 
 
 def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    budget_provider: str | None = None,
+    budget_model: str | None = None,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    def send() -> dict[str, Any]:
+        return _post_json_unbudgeted(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+        )
+
+    if budget_provider is None and budget_model is None and budget_units is None:
+        return send()
+    with budgeted_api_call(
+        provider=budget_provider or "unknown",
+        model=budget_model or "unknown",
+        provider_role=INDEX_PROVIDER_ROLE,
+        operation="external_search",
+        units=budget_units or api_units(calls=1),
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return send()
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    budget_provider: str,
+    budget_model: str,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role=INDEX_PROVIDER_ROLE,
+        operation="external_search",
+        units=budget_units or api_units(calls=1),
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def _post_json_unbudgeted(
     url: str,
     payload: dict[str, Any],
     *,

@@ -20,6 +20,7 @@ from research_x.bookmark_classifier import (
     write_label_outputs,
 )
 from research_x.contracts import XItem, utc_now
+from research_x.memory.api_budget import BUDGET_EXHAUSTED_STATUS
 from research_x.x_store import write_label_store_outputs
 
 LABEL_SCOPE_BOOKMARKS = "bookmarks"
@@ -715,6 +716,10 @@ def _classify_adaptive(
         error_message = right.error_message or left.error_message
     elif left.status == "quota_exhausted" or right.status == "quota_exhausted":
         status = "quota_exhausted"
+        error_type = right.error_type or left.error_type
+        error_message = right.error_message or left.error_message
+    elif left.status == BUDGET_EXHAUSTED_STATUS or right.status == BUDGET_EXHAUSTED_STATUS:
+        status = BUDGET_EXHAUSTED_STATUS
         error_type = right.error_type or left.error_type
         error_message = right.error_message or left.error_message
     elif left.status in {"ok", "empty"} and right.status in {"ok", "empty"}:

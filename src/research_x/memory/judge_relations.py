@@ -19,6 +19,7 @@ from research_x.memory.answer import (
     _json_hash,
     _post_json,
 )
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
 
 RELATION_JUDGE_ROLE = "answer_engine"
@@ -177,11 +178,19 @@ class OpenAICompatibleRelationJudgeProvider:
             "messages": _judge_messages(candidates, prompt_version=prompt_version),
             "temperature": 0,
         }
-        raw = _post_json(
+        raw = _post_json_budgeted(
             f"{self.base_url}/chat/completions",
             payload,
             headers={"Authorization": f"Bearer {_api_key(self.api_key_env)}"},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model=self.model,
+            budget_units=api_units(
+                calls=3,
+                retries=2,
+                input_tokens=rough_text_tokens(payload),
+                documents=len(candidates),
+            ),
         )
         raw_hash = _json_hash(raw)
         parsed = _extract_json_object(_extract_chat_text(raw))
@@ -706,6 +715,33 @@ def _combined_doc_text(body: Any, compact: Any) -> str:
         if text and text not in parts:
             parts.append(text)
     return "\n".join(parts)
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    budget_provider: str,
+    budget_model: str,
+    budget_units: dict[str, int | float],
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role=RELATION_JUDGE_ROLE,
+        operation="relation_judge",
+        units=budget_units,
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+        )
 
 
 def _truncate(text: str, max_chars: int) -> str:

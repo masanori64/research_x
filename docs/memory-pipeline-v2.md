@@ -673,6 +673,55 @@ Risk:
 
 Therefore portfolio routing and profile splitting must be evaluation-driven, not assumption-driven.
 
+## API Budget Guard
+
+All paid or quota-limited provider calls must pass through the local API budget guard before an
+HTTP request is sent.
+
+Guarded provider roles include:
+
+- classifier;
+- embedding;
+- media embedding;
+- reranker;
+- answer engine;
+- relation judge;
+- external search / index provider;
+- LLM-context provider;
+- reader/extract provider when it uses a paid provider such as Jina;
+- future OCR and managed-RAG providers.
+
+The guard stores a local usage ledger in:
+
+- `memory_api_budget_policies`;
+- `memory_api_usage_events`;
+- `memory_api_price_catalog`.
+
+Default policy is intentionally conservative:
+
+- run cap: 1 USD;
+- day cap: 5 USD;
+- month cap: 25 USD;
+- unknown price action: block;
+- kill switch: off by default, but when enabled it blocks the next paid API call before HTTP.
+
+Unknown prices are not treated as free. A provider/model/operation/unit must have a price catalog
+entry, or the command must explicitly pass `--allow-unpriced-api`; that override is recorded in the
+ledger. Local/fake providers and diagnostic `local_hash` do not create billable events.
+
+Use these commands before and during real API experiments:
+
+```powershell
+uv run python -m research_x memory api-budget status --db runs/x_data.sqlite3
+uv run python -m research_x memory api-budget set --db runs/x_data.sqlite3 --max-run-usd 1
+uv run python -m research_x memory api-usage --db runs/x_data.sqlite3 --today
+uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 8767
+```
+
+The app also shows run/day/month budget status, recent events, and a kill-switch control. Provider
+dashboards remain the billing source of truth; the local ledger is a pre-request safety guard and
+operational monitor.
+
 ## Corpus2Skill Position
 
 Corpus2Skill is useful as a stable navigation layer.

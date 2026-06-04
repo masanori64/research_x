@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.source_kinds import (
     EXTERNAL_WEB_MEDIUM,
@@ -146,11 +147,18 @@ class BraveLLMContextProvider:
         max_chars_per_source: int,
     ) -> tuple[tuple[LLMContextSource, ...], str | None, dict[str, Any]]:
         payload = {"q": query, **parameters}
-        raw = _post_json(
+        raw = _post_json_budgeted(
             self.endpoint,
             payload,
             headers={"X-Subscription-Token": _api_key(self.api_key_env)},
             timeout_seconds=self.timeout_seconds,
+            budget_provider=self.provider_id,
+            budget_model="llm-context",
+            budget_units=api_units(
+                calls=1,
+                input_tokens=rough_text_tokens(payload),
+                documents=int(parameters.get("count") or 0),
+            ),
         )
         sources = _sources_from_brave_response(raw, max_chars_per_source=max_chars_per_source)
         return sources, _json_hash(raw), {"grounding_keys": sorted(raw.get("grounding") or {})}
@@ -578,6 +586,65 @@ def _chunk_text(*, query: str, source: LLMContextSource) -> str:
 
 
 def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    budget_provider: str | None = None,
+    budget_model: str | None = None,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    def send() -> dict[str, Any]:
+        return _post_json_unbudgeted(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+        )
+
+    if budget_provider is None and budget_model is None and budget_units is None:
+        return send()
+    with budgeted_api_call(
+        provider=budget_provider or "unknown",
+        model=budget_model or "unknown",
+        provider_role=LLM_CONTEXT_ROLE,
+        operation="llm_context",
+        units=budget_units or api_units(calls=1),
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return send()
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    budget_provider: str,
+    budget_model: str,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role=LLM_CONTEXT_ROLE,
+        operation="llm_context",
+        units=budget_units or api_units(calls=1),
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def _post_json_unbudgeted(
     url: str,
     payload: dict[str, Any],
     *,

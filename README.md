@@ -59,6 +59,12 @@ uv run pytest
 uv run ruff check src\research_x tests
 ```
 
+When pytest is slow or appears stuck, isolate the slow unit instead of guessing:
+
+```powershell
+uv run python -m research_x test-diagnose tests\test_memory.py --mode tests --timeout-seconds 60 --stop-on-fail
+```
+
 ## Main CLI Surfaces
 
 ```text
@@ -76,6 +82,7 @@ progress        Start a standalone live progress monitor for an output directory
 notify          Play/speak a local completion notification.
 adapters        List provider catalog and source-backed adapter notes.
 memory          Build/search/audit the AI-callable local evidence layer.
+test-diagnose   Run pytest in bounded units to find slow or hanging tests.
 ```
 
 ## Providers
@@ -545,6 +552,9 @@ memory extract-url        Reader/extract provider role, fake, HTTP, or Jina Read
 memory llm-context        Pre-extracted Web context provider role, fake or Brave.
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
+memory api-budget         Inspect/change local API budget policy and kill switch.
+memory api-usage          Show API usage ledger events and estimated local spend.
+memory api-watch          Start a lightweight API budget monitor page.
 memory eval               Route-oriented memory checks.
 memory eval-runs          List stored eval runs.
 memory eval-show          Show one stored eval run and case-level results.
@@ -594,6 +604,29 @@ uv run python -m research_x memory workflow `
 ```
 
 Optional real API embedding arm evaluation:
+
+Before any paid provider call, configure and inspect the local API budget guard. Unknown prices are
+blocked by default, so add explicit price rows before full builds.
+Replace `<checked_usd_per_input_token>` with the current provider price after checking the linked
+official pricing page.
+
+```powershell
+uv run python -m research_x memory api-budget status --db runs/x_data.sqlite3
+uv run python -m research_x memory api-budget set `
+  --db runs/x_data.sqlite3 `
+  --max-run-usd 1 `
+  --max-day-usd 5 `
+  --max-month-usd 25
+uv run python -m research_x memory api-budget price-set `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --operation embedding `
+  --unit input_tokens `
+  --usd-per-unit <checked_usd_per_input_token> `
+  --source-url "https://ai.google.dev/gemini-api/docs/pricing"
+uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 8767
+```
 
 ```powershell
 uv run python -m research_x memory embedding-estimate `

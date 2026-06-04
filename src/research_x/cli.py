@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -39,6 +40,49 @@ MEMORY_EMBEDDING_PROVIDER_OR_LATEST_CHOICES = [
     "latest",
     *MEMORY_EMBEDDING_PROVIDER_CHOICES,
 ]
+
+
+def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--api-budget-policy",
+        default="default",
+        help="API budget policy id used for paid API calls",
+    )
+    parser.add_argument(
+        "--api-run-id",
+        default=None,
+        help="run id used to group API usage ledger events",
+    )
+    parser.add_argument(
+        "--max-run-usd",
+        type=float,
+        default=None,
+        help="temporary run-level USD cap override for this command",
+    )
+    parser.add_argument(
+        "--allow-unpriced-api",
+        action="store_true",
+        help="allow paid API calls even when provider/model price is not in the local catalog",
+    )
+
+
+def _api_budget_for_args(args: argparse.Namespace):
+    if not hasattr(args, "api_budget_policy"):
+        return contextlib.nullcontext()
+    db_path = getattr(args, "db", None) or "runs/x_data.sqlite3"
+    from research_x.memory.api_budget import api_budget_context
+
+    return api_budget_context(
+        db_path=db_path,
+        policy_id=args.api_budget_policy,
+        run_id=args.api_run_id,
+        max_run_usd_override=args.max_run_usd,
+        allow_unpriced_api=args.allow_unpriced_api,
+        metadata={
+            "cli_command": getattr(args, "command", None),
+            "memory_command": getattr(args, "memory_command", None),
+        },
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -198,6 +242,7 @@ def main(argv: list[str] | None = None) -> int:
         default=False,
         help="finish the job immediately when the classifier returns quota/rate-limit 429",
     )
+    _add_api_budget_options(label_existing_parser)
 
     app_parser = subparsers.add_parser(
         "app",
@@ -253,11 +298,163 @@ def main(argv: list[str] | None = None) -> int:
         help="open the progress page in the default browser",
     )
 
+    test_diagnose_parser = subparsers.add_parser(
+        "test-diagnose",
+        help="run pytest in bounded units to identify slow or hanging tests",
+    )
+    test_diagnose_parser.add_argument(
+        "targets",
+        nargs="*",
+        help="pytest target files or nodeids; default is tests",
+    )
+    test_diagnose_parser.add_argument(
+        "--mode",
+        choices=["files", "tests"],
+        default="files",
+        help="run each target as a file/unit, or collect and run each test nodeid separately",
+    )
+    test_diagnose_parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=120.0,
+        help="maximum seconds for each diagnostic pytest unit",
+    )
+    test_diagnose_parser.add_argument(
+        "--collect-timeout-seconds",
+        type=float,
+        default=60.0,
+        help="maximum seconds for pytest collection in --mode tests",
+    )
+    test_diagnose_parser.add_argument(
+        "--pytest-arg",
+        action="append",
+        default=[],
+        help="extra argument appended to each pytest unit; repeatable",
+    )
+    test_diagnose_parser.add_argument(
+        "--max-output-chars",
+        type=int,
+        default=4000,
+        help="stdout/stderr tail kept for each non-passing unit",
+    )
+    test_diagnose_parser.add_argument(
+        "--stop-on-fail",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="stop after the first failed or timed-out unit",
+    )
+    test_diagnose_parser.add_argument("--json", action="store_true")
+
     memory_parser = subparsers.add_parser(
         "memory",
         help="build and query the local AI-callable memory search layer",
     )
     memory_subparsers = memory_parser.add_subparsers(dest="memory_command", required=True)
+    memory_api_budget_parser = memory_subparsers.add_parser(
+        "api-budget",
+        help="inspect or change local API budget guard settings",
+    )
+    memory_api_budget_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_subparsers = memory_api_budget_parser.add_subparsers(
+        dest="api_budget_command",
+        required=True,
+    )
+    memory_api_budget_status_parser = memory_api_budget_subparsers.add_parser(
+        "status",
+        help="show API budget policy, usage, and recent events",
+    )
+    memory_api_budget_status_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_status_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_status_parser.add_argument("--run-id", default=None)
+    memory_api_budget_status_parser.add_argument("--json", action="store_true")
+    memory_api_budget_set_parser = memory_api_budget_subparsers.add_parser(
+        "set",
+        help="set API budget caps for a policy",
+    )
+    memory_api_budget_set_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_set_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_set_parser.add_argument("--enabled", action=argparse.BooleanOptionalAction)
+    memory_api_budget_set_parser.add_argument("--max-run-usd", type=float, default=None)
+    memory_api_budget_set_parser.add_argument("--max-day-usd", type=float, default=None)
+    memory_api_budget_set_parser.add_argument("--max-month-usd", type=float, default=None)
+    memory_api_budget_set_parser.add_argument("--max-run-calls", type=int, default=None)
+    memory_api_budget_set_parser.add_argument("--max-day-calls", type=int, default=None)
+    memory_api_budget_set_parser.add_argument("--max-run-input-tokens", type=int, default=None)
+    memory_api_budget_set_parser.add_argument("--max-run-media-bytes", type=int, default=None)
+    memory_api_budget_set_parser.add_argument(
+        "--unknown-price-action",
+        choices=["block", "allow"],
+        default=None,
+    )
+    memory_api_budget_set_parser.add_argument("--json", action="store_true")
+    memory_api_budget_stop_parser = memory_api_budget_subparsers.add_parser(
+        "stop",
+        help="enable kill switch for new paid API calls",
+    )
+    memory_api_budget_stop_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_stop_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_stop_parser.add_argument("--json", action="store_true")
+    memory_api_budget_resume_parser = memory_api_budget_subparsers.add_parser(
+        "resume",
+        help="disable kill switch for new paid API calls",
+    )
+    memory_api_budget_resume_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_resume_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_resume_parser.add_argument("--json", action="store_true")
+    memory_api_budget_price_parser = memory_api_budget_subparsers.add_parser(
+        "price-set",
+        help="register a checked provider/model price row used by budget estimates",
+    )
+    memory_api_budget_price_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_price_parser.add_argument("--provider", required=True)
+    memory_api_budget_price_parser.add_argument("--model", required=True)
+    memory_api_budget_price_parser.add_argument("--operation", required=True)
+    memory_api_budget_price_parser.add_argument(
+        "--unit",
+        required=True,
+        choices=[
+            "input_token",
+            "input_tokens",
+            "output_token",
+            "output_tokens",
+            "media_byte",
+            "media_bytes",
+            "document",
+            "documents",
+            "page",
+            "pages",
+            "call",
+            "calls",
+        ],
+    )
+    memory_api_budget_price_parser.add_argument("--usd-per-unit", type=float, required=True)
+    memory_api_budget_price_parser.add_argument("--source-url", default=None)
+    memory_api_budget_price_parser.add_argument("--checked-at", default=None)
+    memory_api_budget_price_parser.add_argument("--notes", default=None)
+
+    memory_api_usage_parser = memory_subparsers.add_parser(
+        "api-usage",
+        help="show API usage ledger rows and totals",
+    )
+    memory_api_usage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_usage_parser.add_argument("--run-id", default=None)
+    memory_api_usage_parser.add_argument("--today", action="store_true")
+    memory_api_usage_parser.add_argument("--month", action="store_true")
+    memory_api_usage_parser.add_argument("--limit", type=int, default=100)
+    memory_api_usage_parser.add_argument("--json", action="store_true")
+
+    memory_api_watch_parser = memory_subparsers.add_parser(
+        "api-watch",
+        help="serve a lightweight live API budget monitor for a DB",
+    )
+    memory_api_watch_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_watch_parser.add_argument("--host", default="127.0.0.1")
+    memory_api_watch_parser.add_argument("--port", type=int, default=8767)
+    memory_api_watch_parser.add_argument(
+        "--open-browser",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     memory_build_parser = memory_subparsers.add_parser(
         "build-corpus",
         help="build memory_documents and FTS index from the canonical X store",
@@ -331,6 +528,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_parser.add_argument("--limit", type=int, default=None)
     memory_embedding_parser.add_argument("--rebuild", action="store_true")
     memory_embedding_parser.add_argument("--progress-every", type=int, default=1000)
+    _add_api_budget_options(memory_embedding_parser)
     memory_embedding_estimate_parser = memory_subparsers.add_parser(
         "embedding-estimate",
         help="estimate documents, API batches, tokens, and optional cost for embedding builds",
@@ -439,6 +637,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_media_embedding_parser.add_argument("--mime-type", action="append", default=[])
     memory_media_embedding_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    _add_api_budget_options(memory_media_embedding_parser)
     memory_media_embedding_coverage_parser = memory_subparsers.add_parser(
         "media-embedding-coverage",
         help="show native media embedding coverage/staleness by mime and skipped reason",
@@ -484,6 +683,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_media_search_parser.add_argument("--limit", type=int, default=10)
     memory_media_search_parser.add_argument("--timeout-seconds", type=float, default=60.0)
     memory_media_search_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_media_search_parser)
     memory_relations_build_parser = memory_subparsers.add_parser(
         "build-relations",
         help="build relation edges over memory_documents",
@@ -543,6 +743,7 @@ def main(argv: list[str] | None = None) -> int:
         help="allow storing deterministic fake provider output for tests only",
     )
     memory_judge_relations_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_judge_relations_parser)
     memory_search_parser = memory_subparsers.add_parser(
         "search",
         help=(
@@ -573,6 +774,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument("--semantic-base-url", default=None)
     memory_search_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_search_parser.add_argument("--semantic-candidates", type=int, default=80)
+    _add_api_budget_options(memory_search_parser)
     memory_plan_parser = memory_subparsers.add_parser(
         "plan",
         help="explain how a natural-language memory query will be interpreted",
@@ -600,6 +802,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument("--semantic-base-url", default=None)
     memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_evidence_parser.add_argument("--semantic-candidates", type=int, default=80)
+    _add_api_budget_options(memory_evidence_parser)
     memory_context_parser = memory_subparsers.add_parser(
         "context",
         help="build LLM-ready context chunks and citation-ready metadata for a memory query",
@@ -652,6 +855,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_api_budget_options(memory_context_parser)
     memory_answer_parser = memory_subparsers.add_parser(
         "answer",
         help="build context chunks and generate a cited answer artifact",
@@ -717,6 +921,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_api_budget_options(memory_answer_parser)
     memory_workflow_parser = memory_subparsers.add_parser(
         "workflow",
         help="run a bounded memory workflow with route, steps, and stop reason",
@@ -826,6 +1031,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_api_budget_options(memory_workflow_parser)
     memory_external_parser = memory_subparsers.add_parser(
         "external-search",
         help="run an external URL-discovery provider and store normalized results",
@@ -859,6 +1065,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_api_budget_options(memory_external_parser)
     memory_extract_parser = memory_subparsers.add_parser(
         "extract-url",
         help="extract readable text from a URL or external-search run into context chunks",
@@ -897,6 +1104,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_api_budget_options(memory_extract_parser)
     memory_llm_context_parser = memory_subparsers.add_parser(
         "llm-context",
         help="fetch pre-extracted Web context for LLM grounding",
@@ -943,6 +1151,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_api_budget_options(memory_llm_context_parser)
     memory_feedback_parser = memory_subparsers.add_parser(
         "feedback",
         help="record search-result feedback for later ranking improvements",
@@ -1033,6 +1242,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="return a non-zero exit code when any eval case is not ok",
     )
+    _add_api_budget_options(memory_eval_parser)
     memory_portfolio_eval_parser = memory_subparsers.add_parser(
         "portfolio-eval",
         help=(
@@ -1103,6 +1313,7 @@ def main(argv: list[str] | None = None) -> int:
             "or promotion blockers remain"
         ),
     )
+    _add_api_budget_options(memory_portfolio_eval_parser)
     memory_eval_runs_parser = memory_subparsers.add_parser(
         "eval-runs",
         help="list stored memory eval runs",
@@ -1187,6 +1398,7 @@ def main(argv: list[str] | None = None) -> int:
         help="allow storing deterministic fake provider output for tests only",
     )
     memory_rerank_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_rerank_parser)
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -1307,6 +1519,7 @@ def main(argv: list[str] | None = None) -> int:
         default=30.0,
         help="timeout for each media download",
     )
+    _add_api_budget_options(bookmarks_parser)
 
     tweets_parser = subparsers.add_parser(
         "tweets",
@@ -1357,6 +1570,7 @@ def main(argv: list[str] | None = None) -> int:
     tweets_parser.add_argument("--categories", default=None)
     tweets_parser.add_argument("--batch-size", type=int, default=20)
     tweets_parser.add_argument("--reasoning-effort", default=None)
+    _add_api_budget_options(tweets_parser)
 
     stages_parser = subparsers.add_parser(
         "tweet-stages",
@@ -1685,26 +1899,27 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "label-existing":
         limit = None if args.all else max(1, args.limit)
-        report, classification = label_existing_items(
-            db_path=args.db,
-            account=args.account,
-            kind=args.kind,
-            limit=limit,
-            include_labeled=args.include_labeled,
-            out_dir=args.out,
-            model=args.model,
-            api_key_env=args.api_key_env,
-            categories_path=args.categories or None,
-            batch_size=args.batch_size,
-            classifier_provider=args.classifier_provider,
-            api_base_url=args.api_base_url,
-            retry_attempts=args.retry_attempts,
-            retry_base_seconds=args.retry_base_seconds,
-            request_timeout_seconds=args.request_timeout_seconds,
-            reasoning_effort=args.reasoning_effort,
-            min_request_interval_seconds=args.min_request_interval_seconds,
-            stop_on_rate_limit=args.stop_on_rate_limit,
-        )
+        with _api_budget_for_args(args):
+            report, classification = label_existing_items(
+                db_path=args.db,
+                account=args.account,
+                kind=args.kind,
+                limit=limit,
+                include_labeled=args.include_labeled,
+                out_dir=args.out,
+                model=args.model,
+                api_key_env=args.api_key_env,
+                categories_path=args.categories or None,
+                batch_size=args.batch_size,
+                classifier_provider=args.classifier_provider,
+                api_base_url=args.api_base_url,
+                retry_attempts=args.retry_attempts,
+                retry_base_seconds=args.retry_base_seconds,
+                request_timeout_seconds=args.request_timeout_seconds,
+                reasoning_effort=args.reasoning_effort,
+                min_request_interval_seconds=args.min_request_interval_seconds,
+                stop_on_rate_limit=args.stop_on_rate_limit,
+            )
         print(
             "label-existing: "
             f"{report.status} selected={report.selected_items} "
@@ -1745,6 +1960,29 @@ def main(argv: list[str] | None = None) -> int:
             open_browser=args.open_browser,
         )
         return 0
+    if args.command == "test-diagnose":
+        from research_x.test_diagnostics import (
+            diagnose_pytest,
+            format_test_diagnostic_results,
+            normalize_targets,
+            test_diagnostic_results_json,
+        )
+
+        results = diagnose_pytest(
+            targets=normalize_targets(args.targets),
+            mode=args.mode,
+            timeout_seconds=args.timeout_seconds,
+            collect_timeout_seconds=args.collect_timeout_seconds,
+            pytest_args=tuple(args.pytest_arg),
+            max_output_chars=args.max_output_chars,
+            stop_on_fail=args.stop_on_fail,
+        )
+        print(
+            test_diagnostic_results_json(results)
+            if args.json
+            else format_test_diagnostic_results(results)
+        )
+        return 0 if all(result.status == "passed" for result in results) else 2
     if args.command == "memory":
         try:
             return _handle_memory_command(args)
@@ -1893,28 +2131,29 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "bookmarks":
         limit = args.limit
         max_scroll_steps = max(args.max_scroll_steps, 1000) if args.all else args.max_scroll_steps
-        result, classification = run_bookmark_job(
-            out_dir=Path(args.out),
-            account=args.account,
-            storage_state=args.storage_state,
-            limit=limit,
-            headless=args.headless,
-            timeout_ms=args.timeout_ms,
-            max_scroll_steps=max_scroll_steps,
-            classify=args.classify,
-            model=args.model,
-            api_key_env=args.api_key_env,
-            categories_path=args.categories,
-            batch_size=args.batch_size,
-            min_successful_providers=args.min_successful_providers,
-            download_media=args.download_media,
-            media_timeout_seconds=args.media_timeout_seconds,
-            classifier_provider=args.classifier_provider,
-            api_base_url=args.api_base_url,
-            db_path=args.db,
-            exhaustive=args.all,
-            reasoning_effort=args.reasoning_effort,
-        )
+        with _api_budget_for_args(args):
+            result, classification = run_bookmark_job(
+                out_dir=Path(args.out),
+                account=args.account,
+                storage_state=args.storage_state,
+                limit=limit,
+                headless=args.headless,
+                timeout_ms=args.timeout_ms,
+                max_scroll_steps=max_scroll_steps,
+                classify=args.classify,
+                model=args.model,
+                api_key_env=args.api_key_env,
+                categories_path=args.categories,
+                batch_size=args.batch_size,
+                min_successful_providers=args.min_successful_providers,
+                download_media=args.download_media,
+                media_timeout_seconds=args.media_timeout_seconds,
+                classifier_provider=args.classifier_provider,
+                api_base_url=args.api_base_url,
+                db_path=args.db,
+                exhaustive=args.all,
+                reasoning_effort=args.reasoning_effort,
+            )
         providers = ",".join(result.providers_used) or "-"
         print(
             f"bookmarks: {result.status.value} items={len(result.items)} "
@@ -1924,29 +2163,30 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         return 1
     if args.command == "tweets":
-        result, store_summary, classification = run_tweet_job(
-            out_dir=Path(args.out),
-            kind=args.kind,
-            value=args.value,
-            account=args.account,
-            storage_state=args.storage_state,
-            limit=args.limit,
-            headless=args.headless,
-            timeout_ms=args.timeout_ms,
-            max_scroll_steps=args.max_scroll_steps,
-            min_successful_providers=args.min_successful_providers,
-            download_media=args.download_media,
-            media_timeout_seconds=args.media_timeout_seconds,
-            db_path=args.db,
-            classify=args.classify,
-            model=args.model,
-            api_key_env=args.api_key_env,
-            categories_path=args.categories,
-            batch_size=args.batch_size,
-            classifier_provider=args.classifier_provider,
-            api_base_url=args.api_base_url,
-            reasoning_effort=args.reasoning_effort,
-        )
+        with _api_budget_for_args(args):
+            result, store_summary, classification = run_tweet_job(
+                out_dir=Path(args.out),
+                kind=args.kind,
+                value=args.value,
+                account=args.account,
+                storage_state=args.storage_state,
+                limit=args.limit,
+                headless=args.headless,
+                timeout_ms=args.timeout_ms,
+                max_scroll_steps=args.max_scroll_steps,
+                min_successful_providers=args.min_successful_providers,
+                download_media=args.download_media,
+                media_timeout_seconds=args.media_timeout_seconds,
+                db_path=args.db,
+                classify=args.classify,
+                model=args.model,
+                api_key_env=args.api_key_env,
+                categories_path=args.categories,
+                batch_size=args.batch_size,
+                classifier_provider=args.classifier_provider,
+                api_base_url=args.api_base_url,
+                reasoning_effort=args.reasoning_effort,
+            )
         providers = ",".join(result.providers_used) or "-"
         db_text = f" db={store_summary.db_path}" if store_summary else ""
         print(
@@ -2016,6 +2256,104 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _handle_memory_command(args: argparse.Namespace) -> int:
+    if hasattr(args, "api_budget_policy") and not getattr(args, "_api_budget_active", False):
+        args._api_budget_active = True
+        with _api_budget_for_args(args):
+            return _handle_memory_command(args)
+    if args.memory_command == "api-budget":
+        from research_x.memory.api_budget import (
+            api_budget_status,
+            format_api_budget_status,
+            set_api_budget_policy,
+            set_api_kill_switch,
+            upsert_api_price,
+        )
+
+        if args.api_budget_command == "status":
+            status = api_budget_status(args.db, policy_id=args.policy_id, run_id=args.run_id)
+            print(
+                json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_api_budget_status(status)
+            )
+            return 0
+        if args.api_budget_command == "set":
+            status = set_api_budget_policy(
+                args.db,
+                policy_id=args.policy_id,
+                enabled=args.enabled,
+                max_run_usd=args.max_run_usd,
+                max_day_usd=args.max_day_usd,
+                max_month_usd=args.max_month_usd,
+                max_run_calls=args.max_run_calls,
+                max_day_calls=args.max_day_calls,
+                max_run_input_tokens=args.max_run_input_tokens,
+                max_run_media_bytes=args.max_run_media_bytes,
+                unknown_price_action=args.unknown_price_action,
+            )
+            print(
+                json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_api_budget_status(status)
+            )
+            return 0
+        if args.api_budget_command in {"stop", "resume"}:
+            status = set_api_kill_switch(
+                args.db,
+                policy_id=args.policy_id,
+                enabled=args.api_budget_command == "stop",
+            )
+            print(
+                json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_api_budget_status(status)
+            )
+            return 0
+        if args.api_budget_command == "price-set":
+            upsert_api_price(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                operation=args.operation,
+                unit=args.unit,
+                usd_per_unit=args.usd_per_unit,
+                source_url=args.source_url,
+                checked_at=args.checked_at,
+                notes=args.notes,
+            )
+            print(
+                "api price set: "
+                f"{args.provider}/{args.model} {args.operation} "
+                f"{args.unit}=${args.usd_per_unit}"
+            )
+            return 0
+        raise AssertionError(f"unhandled api-budget command {args.api_budget_command}")
+    if args.memory_command == "api-usage":
+        from research_x.memory.api_budget import api_usage_report, format_api_usage_report
+
+        report = api_usage_report(
+            args.db,
+            run_id=args.run_id,
+            today=args.today,
+            month=args.month,
+            limit=args.limit,
+        )
+        print(
+            json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
+            if args.json
+            else format_api_usage_report(report)
+        )
+        return 0
+    if args.memory_command == "api-watch":
+        from research_x.memory.api_budget import serve_api_watch
+
+        serve_api_watch(
+            db_path=args.db,
+            host=args.host,
+            port=args.port,
+            open_browser=args.open_browser,
+        )
+        return 0
     if args.memory_command == "build-corpus":
         from research_x.memory.corpus import build_memory_corpus, summary_as_dict
 

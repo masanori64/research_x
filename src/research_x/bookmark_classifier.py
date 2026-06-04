@@ -14,6 +14,13 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from research_x.contracts import XItem, utc_now
+from research_x.memory.api_budget import (
+    BUDGET_EXHAUSTED_STATUS,
+    ApiBudgetExceededError,
+    api_units,
+    budgeted_api_call,
+    rough_text_tokens,
+)
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 OTHER_CATEGORY_ID = "other"
@@ -163,15 +170,32 @@ def classify_bookmarks(
     try:
         for batch in _chunks(item_tuple, max(1, settings.batch_size)):
             payload = _classifier_payload(batch, settings, categories)
-            response = _post_json(
+            response = _post_json_budgeted(
                 _classifier_url(settings),
                 payload,
                 api_key=api_key,
                 timeout_seconds=settings.request_timeout_seconds,
+                budget_provider=_budget_provider_for_settings(settings),
+                budget_model=settings.model,
+                budget_units=api_units(
+                    calls=1,
+                    input_tokens=rough_text_tokens(payload),
+                    documents=len(batch),
+                ),
             )
             classifications.extend(
                 _classifications_from_response(response, batch, categories, settings.max_tags)
             )
+    except ApiBudgetExceededError as exc:
+        return BookmarkClassificationRun(
+            status=BUDGET_EXHAUSTED_STATUS,
+            model=settings.model,
+            generated_at=utc_now(),
+            classifications=tuple(classifications),
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            metadata=metadata,
+        )
     except Exception as exc:  # noqa: BLE001 - classification must not discard fetched bookmarks.
         status = "partial" if classifications else "error"
         return BookmarkClassificationRun(
@@ -456,6 +480,22 @@ def _classifier_url(settings: BookmarkClassifierSettings) -> str:
     return f"{base_url}/chat/completions"
 
 
+def _budget_provider_for_settings(settings: BookmarkClassifierSettings) -> str:
+    api_key_env = settings.api_key_env.upper()
+    base_url = (settings.api_base_url or "").lower()
+    if "GEMINI" in api_key_env or "generativelanguage.googleapis.com" in base_url:
+        return "gemini"
+    if "OPENAI" in api_key_env or "api.openai.com" in base_url:
+        return "openai"
+    if "QWEN" in api_key_env or "dashscope" in base_url:
+        return "qwen"
+    if "MOONSHOT" in api_key_env or "moonshot" in base_url:
+        return "kimi"
+    if "ZHIPU" in api_key_env or "bigmodel" in base_url:
+        return "glm"
+    return settings.provider
+
+
 def _classification_item_payload(item: XItem, batch: tuple[XItem, ...]) -> dict[str, Any]:
     return {
         "source_id": item.source_id,
@@ -568,6 +608,65 @@ def _classification_schema(categories: tuple[BookmarkCategory, ...]) -> dict[str
     }
 
 def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    api_key: str,
+    timeout_seconds: float,
+    budget_provider: str | None = None,
+    budget_model: str | None = None,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    def send() -> dict[str, Any]:
+        return _post_json_unbudgeted(
+            url,
+            payload,
+            api_key=api_key,
+            timeout_seconds=timeout_seconds,
+        )
+
+    if budget_provider is None and budget_model is None and budget_units is None:
+        return send()
+    with budgeted_api_call(
+        provider=budget_provider or "unknown",
+        model=budget_model or str(payload.get("model") or "unknown"),
+        provider_role="classifier",
+        operation="classification",
+        units=budget_units or api_units(calls=1),
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return send()
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    api_key: str,
+    timeout_seconds: float,
+    budget_provider: str,
+    budget_model: str,
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role="classifier",
+        operation="classification",
+        units=budget_units or api_units(calls=1),
+        request_payload=payload,
+        metadata={"url": url},
+    ):
+        return _post_json(
+            url,
+            payload,
+            api_key=api_key,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def _post_json_unbudgeted(
     url: str,
     payload: dict[str, Any],
     *,

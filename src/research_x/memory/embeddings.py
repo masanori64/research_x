@@ -18,6 +18,7 @@ from typing import Any
 
 import numpy as np
 
+from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
 from research_x.memory.document_hashes import (
     memory_document_embedding_text,
     memory_document_source_hash,
@@ -768,11 +769,15 @@ class _OpenAIEmbedder:
         }
         if self.spec.dimensions:
             payload["dimensions"] = self.spec.dimensions
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url or "https://api.openai.com/v1/embeddings",
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         data = response.get("data")
         if not isinstance(data, list):
@@ -804,11 +809,15 @@ class _OpenAICompatibleEmbedder:
         }
         if self.spec.dimensions:
             payload["dimensions"] = self.spec.dimensions
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url or "",
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         data = response.get("data")
         if not isinstance(data, list):
@@ -856,12 +865,16 @@ class _GeminiEmbedder:
             if config:
                 request["embedContentConfig"] = config
             requests.append(request)
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url
             or f"https://generativelanguage.googleapis.com/v1beta/{model_name}:batchEmbedContents",
             {"requests": requests},
             headers={"x-goog-api-key": self.api_key},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         embeddings = response.get("embeddings")
         if not isinstance(embeddings, list):
@@ -890,11 +903,15 @@ class _VoyageEmbedder:
         }
         if self.spec.dimensions:
             payload["output_dimension"] = self.spec.dimensions
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url or "https://api.voyageai.com/v1/embeddings",
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         return _embedding_vectors_from_data_response(response, "Voyage")
 
@@ -914,11 +931,15 @@ class _CohereEmbedder:
         }
         if self.spec.dimensions:
             payload["output_dimension"] = self.spec.dimensions
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url or "https://api.cohere.com/v2/embed",
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         embeddings_value = response.get("embeddings")
         if isinstance(embeddings_value, dict):
@@ -941,11 +962,15 @@ class _MistralEmbedder:
         }
         if self.spec.dimensions:
             payload["output_dimension"] = self.spec.dimensions
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url or "https://api.mistral.ai/v1/embeddings",
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         return _embedding_vectors_from_data_response(response, "Mistral")
 
@@ -966,11 +991,15 @@ class _JinaEmbedder:
         }
         if self.spec.dimensions:
             payload["dimensions"] = self.spec.dimensions
-        response = _post_json(
+        response = _post_json_budgeted(
             self.spec.base_url or "https://api.jina.ai/v1/embeddings",
             payload,
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout_seconds=self.spec.timeout_seconds,
+            budget_provider=self.spec.provider,
+            budget_model=self.spec.model,
+            budget_operation="embedding",
+            budget_units=_embedding_api_units(texts, retries=3),
         )
         return _embedding_vectors_from_data_response(response, "Jina")
 
@@ -1643,6 +1672,71 @@ def _post_json(
     headers: dict[str, str],
     timeout_seconds: float,
     retries: int = 3,
+    budget_provider: str | None = None,
+    budget_model: str | None = None,
+    budget_operation: str = "embedding",
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    def send() -> dict[str, Any]:
+        return _post_json_unbudgeted(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+        )
+
+    if budget_provider is None and budget_model is None and budget_units is None:
+        return send()
+    with budgeted_api_call(
+        provider=budget_provider or "unknown",
+        model=budget_model or str(payload.get("model") or "unknown"),
+        provider_role="embedding",
+        operation=budget_operation,
+        units=budget_units or api_units(calls=retries, retries=max(0, retries - 1)),
+        request_payload=payload,
+        metadata={"url": url, "max_attempts": retries},
+    ):
+        return send()
+
+
+def _post_json_budgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    retries: int = 3,
+    budget_provider: str,
+    budget_model: str,
+    budget_operation: str = "embedding",
+    budget_units: dict[str, int | float] | None = None,
+) -> dict[str, Any]:
+    with budgeted_api_call(
+        provider=budget_provider,
+        model=budget_model,
+        provider_role="embedding",
+        operation=budget_operation,
+        units=budget_units or api_units(calls=retries, retries=max(0, retries - 1)),
+        request_payload=payload,
+        metadata={"url": url, "max_attempts": retries},
+    ):
+        return _post_json(
+            url,
+            payload,
+            headers=headers,
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+        )
+
+
+def _post_json_unbudgeted(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    retries: int = 3,
 ) -> dict[str, Any]:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
@@ -1670,6 +1764,15 @@ def _post_json(
             last_error = exc
         time.sleep(_retry_sleep_seconds(last_error, attempt=attempt))
     raise RuntimeError(f"embedding API failed: {last_error}")
+
+
+def _embedding_api_units(texts: list[str], *, retries: int) -> dict[str, int | float]:
+    return api_units(
+        calls=retries,
+        retries=max(0, retries - 1),
+        input_tokens=sum(rough_text_tokens(text) for text in texts),
+        documents=len(texts),
+    )
 
 
 def _retry_sleep_seconds(error: Exception | None, *, attempt: int) -> float:

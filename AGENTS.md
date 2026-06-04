@@ -18,6 +18,16 @@ uv run ruff check src\research_x tests
 ```
 
 Keep lint targets explicit and consistent with `README.md` and `PROJECT.md`.
+If `uv run pytest` appears slow or stuck, do not keep guessing manually. Use the repository
+diagnostic runner to isolate the slow unit:
+
+```powershell
+uv run python -m research_x test-diagnose tests\test_memory.py --mode tests --timeout-seconds 60 --stop-on-fail
+```
+
+The diagnostic runner executes pytest through `uv`, bounds each file or test node, kills timed-out
+child process trees, and reports the exact slow/failed target. Use it before narrowing the suite in
+an ad hoc way.
 
 ## Project Architecture
 

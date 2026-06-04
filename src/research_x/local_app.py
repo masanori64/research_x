@@ -21,6 +21,13 @@ from research_x.accounts import normalize_account_id, resolve_account_paths, wri
 from research_x.bookmarks import run_bookmark_job
 from research_x.db_view import format_display_rows, load_display_rows
 from research_x.label_existing import LABEL_EXISTING_KINDS, label_existing_items
+from research_x.memory.api_budget import (
+    BUDGET_EXHAUSTED_STATUS,
+    api_budget_context,
+    api_budget_status,
+    format_api_budget_status,
+    set_api_kill_switch,
+)
 from research_x.playwright_auth import capture_storage_state_auto, storage_state_has_x_auth_cookies
 from research_x.progress import ProgressSnapshot, progress_snapshot
 
@@ -174,7 +181,7 @@ class CollectionApp:
             fetch_all = form.get("fetch_all") == "on"
             limit = max(1, int(form.get("limit", "100") or 100))
             api_key_env = form.get("api_key_env", "GEMINI_API_KEY") or "GEMINI_API_KEY"
-            with _temporary_classifier_env(form, api_key_env):
+            with _temporary_classifier_env(form, api_key_env), _app_api_budget_context(job, form):
                 result, classification = run_bookmark_job(
                     out_dir=job.out_dir,
                     account=job.account_id,
@@ -202,7 +209,14 @@ class CollectionApp:
                     f"providers={providers} classification={classification.status}"
                 ),
             )
-            self._set_status(job, "done", "完了")
+            if classification.status == BUDGET_EXHAUSTED_STATUS:
+                job.error = (
+                    f"{classification.error_type or 'ApiBudgetExceeded'}: "
+                    f"{classification.error_message or classification.status}"
+                )
+                self._set_status(job, BUDGET_EXHAUSTED_STATUS, "API予算上限で終了しました")
+            else:
+                self._set_status(job, "done", "完了")
             job.finished_at = time.time()
             self._apply_pending_rollback(job)
         except JobCancelled as exc:
@@ -227,7 +241,7 @@ class CollectionApp:
             if kind not in LABEL_EXISTING_KINDS:
                 raise ValueError(f"unsupported kind: {kind}")
             api_key_env = form.get("api_key_env", "GEMINI_API_KEY") or "GEMINI_API_KEY"
-            with _temporary_classifier_env(form, api_key_env):
+            with _temporary_classifier_env(form, api_key_env), _app_api_budget_context(job, form):
                 report, classification = label_existing_items(
                     db_path=job.db_path,
                     account=job.account_filter,
@@ -281,6 +295,12 @@ class CollectionApp:
                     f"{classification.error_message or classification.status}"
                 )
                 self._set_status(job, "quota_exhausted", "API quota上限で終了しました")
+            elif classification.status == BUDGET_EXHAUSTED_STATUS:
+                job.error = (
+                    f"{classification.error_type or 'ApiBudgetExceeded'}: "
+                    f"{classification.error_message or classification.status}"
+                )
+                self._set_status(job, BUDGET_EXHAUSTED_STATUS, "API予算上限で終了しました")
             elif classification.status in {"ok", "empty"}:
                 self._set_status(job, "done", "完了")
             else:
@@ -477,6 +497,11 @@ def serve_collection_app(
                     return
                 self._json(_job_status_payload(job))
                 return
+            if parsed.path == "/api/budget":
+                params = parse_qs(parsed.query)
+                db = _first(params, "db") or "runs/x_data.sqlite3"
+                self._json(api_budget_status(db))
+                return
             if parsed.path == "/results":
                 params = parse_qs(parsed.query)
                 db = _first(params, "db") or "runs/x_data.sqlite3"
@@ -495,12 +520,25 @@ def serve_collection_app(
                 "/job/cancel",
                 "/job/cancel-rollback",
                 "/job/rollback",
+                "/api/budget/stop",
+                "/api/budget/resume",
             }:
                 self.send_error(404)
                 return
             length = int(self.headers.get("content-length", "0") or "0")
             body = self.rfile.read(length).decode("utf-8", errors="replace")
             form = {key: values[-1] for key, values in parse_qs(body).items()}
+            if parsed_path in {"/api/budget/stop", "/api/budget/resume"}:
+                db = form.get("db", "runs/x_data.sqlite3") or "runs/x_data.sqlite3"
+                set_api_kill_switch(db, enabled=parsed_path.endswith("/stop"))
+                location = "/"
+                job_id = form.get("job", "")
+                if job_id:
+                    location = "/status?" + urlencode({"job": job_id})
+                self.send_response(303)
+                self.send_header("Location", location)
+                self.end_headers()
+                return
             if parsed_path in {"/job/cancel", "/job/cancel-rollback", "/job/rollback"}:
                 job_id = form.get("job", "")
                 if parsed_path == "/job/cancel":
@@ -564,10 +602,12 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
     provider_options = _provider_options("gemini")
     model_options = _model_options("gemini-2.5-flash")
     reasoning_options = _reasoning_options("low")
+    budget_panel = _api_budget_panel("runs/x_data.sqlite3")
     return _page(
         "X収集アプリ",
         f"""
         <h1>X収集アプリ</h1>
+        {budget_panel}
         {job_links}
         <form method="post" action="/run">
           <section>
@@ -641,6 +681,7 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
             <label>API key
               <input name="api_key_value" type="password" autocomplete="off">
             </label>
+            {_api_budget_form_fields()}
             <label>Categories
               <input name="categories" value="examples/bookmark_categories.toml">
             </label>
@@ -679,6 +720,7 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
           <label>API key
             <input name="api_key_value" type="password" autocomplete="off">
           </label>
+          {_api_budget_form_fields()}
           <label>Categories
             <input name="categories" value="examples/bookmark_categories.toml">
           </label>
@@ -726,6 +768,7 @@ def _status_page(job: AppJob | None) -> str:
         finished_at=job.finished_at,
     )
     progress = _progress_box(job)
+    budget_panel = _api_budget_panel(str(job.db_path), job=job)
     cursor_state = _cursor_state(job.out_dir)
     state_text = _status_label(job.status, cursor_state=cursor_state)
     elapsed = _elapsed_text(job)
@@ -764,6 +807,7 @@ def _status_page(job: AppJob | None) -> str:
         <p>out: {html.escape(str(job.out_dir))}</p>
         <p>db: {html.escape(str(job.db_path))}</p>
         {controls}
+        {budget_panel}
         {_progress_bars(snapshot)}
         {progress}
         <p>{result_link} <a href="/">新規実行</a></p>
@@ -787,6 +831,94 @@ def _results_page(*, db: str, account: str | None, kind: str, limit: int) -> str
         <pre>{html.escape(text)}</pre>
         """,
     )
+
+
+def _api_budget_form_fields() -> str:
+    return """
+            <label>API budget policy
+              <input name="api_budget_policy" value="default">
+            </label>
+            <label>Max run USD override
+              <input name="max_run_usd" type="number" step="0.01" placeholder="例: 1.00">
+            </label>
+            <label>
+              <input name="allow_unpriced_api" type="checkbox">
+              価格未登録APIも許可する（危険。台帳にはunpriced_overrideを残します）
+            </label>
+    """
+
+
+def _api_budget_panel(db_path: str, *, job: AppJob | None = None) -> str:
+    try:
+        status = api_budget_status(db_path, run_id=job.job_id if job else None)
+        summary = format_api_budget_status(status)
+    except Exception as exc:  # noqa: BLE001 - budget panel must not break app rendering.
+        summary = f"{type(exc).__name__}: {exc}"
+    escaped_db = html.escape(db_path, quote=True)
+    job_input = ""
+    if job is not None:
+        escaped_job = html.escape(job.job_id, quote=True)
+        job_input = f'<input type="hidden" name="job" value="{escaped_job}">'
+    return f"""
+        <section>
+          <h2>API予算</h2>
+          <pre id="api-budget-panel">{html.escape(summary)}</pre>
+          <div class="actions">
+            <form method="post" action="/api/budget/stop">
+              <input type="hidden" name="db" value="{escaped_db}">
+              {job_input}
+              <button class="danger" type="submit">API kill switch ON</button>
+            </form>
+            <form method="post" action="/api/budget/resume">
+              <input type="hidden" name="db" value="{escaped_db}">
+              {job_input}
+              <button type="submit">API kill switch OFF</button>
+            </form>
+          </div>
+          <script>
+          (() => {{
+            const db = {json.dumps(db_path)};
+            async function pollBudget() {{
+              try {{
+                const res = await fetch(`/api/budget?db=${{encodeURIComponent(db)}}`, {{
+                  cache: "no-store"
+                }});
+                const payload = await res.json();
+                const policy = payload.policy || {{}};
+                const usage = payload.usage || {{}};
+                const lines = [
+                  `policy: ${{policy.policy_id}} enabled=${{Boolean(policy.enabled)}} ` +
+                    `kill_switch=${{Boolean(policy.kill_switch_enabled)}} ` +
+                    `unknown_price=${{policy.unknown_price_action}}`,
+                  `run: $${{Number((usage.run || {{}}).estimated_cost_usd || 0).toFixed(6)}}` +
+                    ` calls=${{(usage.run || {{}}).calls || 0}}`,
+                  `day: $${{Number((usage.day || {{}}).estimated_cost_usd || 0).toFixed(6)}}` +
+                    ` calls=${{(usage.day || {{}}).calls || 0}}`,
+                  `month: $${{Number((usage.month || {{}}).estimated_cost_usd || 0).toFixed(6)}}` +
+                    ` calls=${{(usage.month || {{}}).calls || 0}}`,
+                  `warnings: ${{(payload.warnings || []).join("; ")}}`,
+                  "",
+                  "recent events:",
+                  ...((payload.recent_events || []).slice(0, 8).map((event) =>
+                    `${{event.status}} ${{event.provider}}/${{event.model}} ` +
+                    `${{event.operation}} ` +
+                    `cost=$${{Number(event.estimated_cost_usd || 0).toFixed(6)}} ` +
+                    `${{event.error || ""}}`
+                  ))
+                ];
+                const panel = document.getElementById("api-budget-panel");
+                if (panel) panel.textContent = lines.join("\\n");
+              }} catch (error) {{
+                const panel = document.getElementById("api-budget-panel");
+                if (panel) panel.textContent = `API budget monitor failed: ${{error}}`;
+              }}
+            }}
+            setInterval(pollBudget, 1000);
+            pollBudget();
+          }})();
+          </script>
+        </section>
+    """
 
 
 def _page(title: str, body: str) -> str:
@@ -839,6 +971,10 @@ def _job_status_payload(job: AppJob) -> dict[str, Any]:
     status = job.status
     error = job.error
     finished_at = job.finished_at
+    try:
+        budget = api_budget_status(job.db_path, run_id=job.job_id, recent_limit=10)
+    except Exception as exc:  # noqa: BLE001 - job status must remain available.
+        budget = {"error": f"{type(exc).__name__}: {exc}"}
     return {
         "job_id": job.job_id,
         "account_id": job.account_id,
@@ -857,6 +993,7 @@ def _job_status_payload(job: AppJob) -> dict[str, Any]:
         "db_backup_path": str(job.db_backup_path) if job.db_backup_path else None,
         "db_existed_at_start": job.db_existed_at_start,
         "progress": snapshot.as_dict(),
+        "api_budget": budget,
     }
 
 
@@ -1277,6 +1414,7 @@ def _status_label(status: str, *, cursor_state: dict[str, Any] | None = None) ->
         "canceling": "<span class='running'>停止要求中。現在の処理が区切れるまで待機中</span>",
         "canceled": "<span class='bad'>停止済み</span>",
         "quota_exhausted": "<span class='bad'>API quota上限で終了</span>",
+        BUDGET_EXHAUSTED_STATUS: "<span class='bad'>API予算上限で終了</span>",
         "rolled_back": "<span class='ok'>開始前DBへ復元済み</span>",
         "done": "<span class='ok'>完了</span>",
         "failed": "<span class='bad'>失敗。ログ末尾に原因があります</span>",
@@ -1416,7 +1554,14 @@ def _first(params: dict[str, list[str]], key: str) -> str:
 
 
 def _is_terminal_status(status: str) -> bool:
-    return status in {"done", "failed", "canceled", "quota_exhausted", "rolled_back"}
+    return status in {
+        "done",
+        "failed",
+        "canceled",
+        "quota_exhausted",
+        BUDGET_EXHAUSTED_STATUS,
+        "rolled_back",
+    }
 
 
 def _rollback_available(job: AppJob) -> bool:
@@ -1451,6 +1596,20 @@ def _unlink_with_retry(path: Path, *, attempts: int = 10) -> None:
 def _temporary_classifier_env(form: dict[str, str], api_key_env: str):
     api_key_value = form.get("api_key_value", "").strip()
     return _temporary_env({api_key_env: api_key_value} if api_key_value else {})
+
+
+def _app_api_budget_context(job: AppJob, form: dict[str, str]):
+    max_run_usd_text = form.get("max_run_usd", "").strip()
+    max_run_usd = float(max_run_usd_text) if max_run_usd_text else None
+    return api_budget_context(
+        db_path=job.db_path,
+        policy_id=form.get("api_budget_policy", "default") or "default",
+        run_id=job.job_id,
+        job_id=job.job_id,
+        max_run_usd_override=max_run_usd,
+        allow_unpriced_api=form.get("allow_unpriced_api") == "on",
+        metadata={"app_job": job.job_id, "account_id": job.account_id},
+    )
 
 
 @contextmanager
