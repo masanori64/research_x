@@ -964,7 +964,7 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help=(
             "candidate semantic arm as key=value CSV, e.g. "
-            "provider=gemini,model=gemini-embedding-001,dimensions=768,"
+            "provider=gemini,model=gemini-embedding-2,dimensions=768,"
             "profile=general_memory,name=gemini_general,mode=semantic_only,"
             "weight=1.0; repeatable"
         ),

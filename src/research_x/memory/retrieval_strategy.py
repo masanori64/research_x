@@ -101,16 +101,35 @@ class RetrievalStrategy:
         }
 
 
-GEMINI001_GENERAL_TEXT = PortfolioCandidate(
-    name="gemini001_general_text",
+GEMINI2_GENERAL_TEXT = PortfolioCandidate(
+    name="gemini2_general_text",
     candidate_kind="semantic",
     provider="gemini",
-    model="gemini-embedding-001",
+    model="gemini-embedding-2",
     dimensions=768,
     embedding_profile="general_memory",
     vector_space_kind="dense",
     portfolio_eligible=True,
-    purpose="Stable Gemini real API text recall arm for broad memory cases.",
+    purpose=(
+        "Gemini real API recall arm for broad memory cases. Gemini Embedding 2 is "
+        "multimodal-capable, but this arm indexes citation-ready text only."
+    ),
+    source_refs=("Google Gemini Embedding 2 GA", "Google Gemini API embeddings docs"),
+)
+GEMINI001_LEGACY_TEXT = PortfolioCandidate(
+    name="gemini001_legacy_text",
+    candidate_kind="semantic",
+    provider="gemini",
+    model="gemini-embedding-001",
+    dimensions=768,
+    embedding_profile="general_memory_legacy",
+    vector_space_kind="dense",
+    portfolio_eligible=False,
+    status="legacy_comparison_only",
+    purpose=(
+        "Legacy Gemini text embedding reference. Keep available for regression checks, "
+        "but do not include in the default real API portfolio."
+    ),
     source_refs=("Google Gemini API embeddings docs",),
 )
 OPENAI_SMALL_GENERAL = PortfolioCandidate(
@@ -488,7 +507,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         routes=("learning_map", "local_memory_search", "media_context", "current_fact_check"),
         doc_types=("tweet_doc", "bookmark_doc", "topic_thread", "media_doc", "quote_tree_doc"),
         candidates=(
-            GEMINI001_GENERAL_TEXT,
+            GEMINI2_GENERAL_TEXT,
             OPENAI_SMALL_GENERAL,
             VOYAGE4_MULTILINGUAL,
             JINA_V5_TEXT_MULTILINGUAL,
@@ -681,7 +700,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         routes=("local_memory_search", "place_recall", "author_stance", "learning_map"),
         doc_types=("tweet_doc", "bookmark_doc", "quote_tree_doc", "media_doc", "topic_thread"),
         candidates=(
-            GEMINI001_GENERAL_TEXT,
+            GEMINI2_GENERAL_TEXT,
             OPENAI_SMALL_GENERAL,
         ),
         promotion_gate=(
@@ -712,17 +731,17 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             VOYAGE4_MULTILINGUAL,
             JINA_V5_TEXT_MULTILINGUAL,
             PortfolioCandidate(
-                name="gemini001_multilingual",
+                name="gemini2_multilingual",
                 candidate_kind="semantic",
                 provider="gemini",
-                model="gemini-embedding-001",
+                model="gemini-embedding-2",
                 dimensions=1536,
                 embedding_profile="jp_multilingual",
                 candidates=120,
                 vector_space_kind="dense",
                 portfolio_eligible=True,
-                purpose="Same provider as baseline but larger text space for parity tests.",
-                source_refs=("Google Gemini API embeddings docs",),
+                purpose="Gemini Embedding 2 multilingual text recall arm for parity tests.",
+                source_refs=("Google Gemini Embedding 2 GA", "Google Gemini API embeddings docs"),
             ),
             PortfolioCandidate(
                 name="qwen3_embedding_openai_compatible",
@@ -865,7 +884,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 source_refs=("Jina embeddings v5 omni",),
             ),
             PortfolioCandidate(
-                name="gemini_embedding_2_unconfirmed",
+                name="gemini_embedding_2_native_media",
                 candidate_kind="semantic",
                 provider="gemini",
                 model="gemini-embedding-2",
@@ -875,18 +894,22 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 vector_space_kind="multimodal_dense",
                 route_role="deferred_media_recall",
                 portfolio_eligible=False,
-                status="unconfirmed_deferred",
+                status="deferred_media_contract_required",
                 purpose=(
-                    "Former Gemini native multimodal idea. Keep deferred until a stable Gemini "
-                    "API model id and modality contract are verified."
+                    "Gemini Embedding 2 native multimodal recall candidate. The model is now "
+                    "confirmed, but this repo still needs raw media input and citation "
+                    "restoration contracts before media vectors can be eligible."
                 ),
                 preconditions=(
-                    "Confirm public API model id and modality contract.",
                     "Implement raw media input handling.",
                     "Store media vector source hashes and source URLs.",
                     "Evaluate citation restoration from media hits.",
                 ),
-                source_refs=("Gemini Embedding 2 paper", "Google Gemini API embeddings docs"),
+                source_refs=(
+                    "Google Gemini Embedding 2 GA",
+                    "Gemini Embedding 2 paper",
+                    "Google Gemini API embeddings docs",
+                ),
             ),
             PortfolioCandidate(
                 name="vertex_multimodal_embedding_001",

@@ -595,13 +595,13 @@ Optional real API embedding arm evaluation:
 uv run python -m research_x memory embedding-estimate `
   --db runs/x_data.sqlite3 `
   --provider gemini `
-  --model gemini-embedding-001 `
+  --model gemini-embedding-2 `
   --dimensions 768 `
   --batch-size 64
 uv run python -m research_x memory build-embeddings `
   --db runs/x_data.sqlite3 `
   --provider gemini `
-  --model gemini-embedding-001 `
+  --model gemini-embedding-2 `
   --dimensions 768 `
   --embedding-profile general_memory `
   --text-template-version memory-doc-embedding-v1
@@ -619,7 +619,7 @@ uv run python -m research_x memory build-embeddings `
 uv run python -m research_x memory embedding-coverage `
   --db runs/x_data.sqlite3 `
   --provider gemini `
-  --model gemini-embedding-001 `
+  --model gemini-embedding-2 `
   --dimensions 768
 uv run python -m research_x memory retrieval-strategies `
   --query "日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して"
@@ -663,14 +663,15 @@ uv run python -m research_x memory workflow `
 
 Do not treat the optional embedding section as the default production path. Run estimates and
 coverage first, then compare the explicit `api_embedding_portfolio` against evidence-first arms.
-The runnable first-pass text arms are Gemini `gemini-embedding-001`, OpenAI
+The runnable first-pass text arms are Gemini `gemini-embedding-2`, OpenAI
 `text-embedding-3-small` / `text-embedding-3-large`, Voyage `voyage-4` /
 `voyage-4-large`, Jina `jina-embeddings-v5-text-small`, Cohere `embed-v4.0`,
 and Mistral `mistral-embed`. Rerank arms are separate: Voyage `rerank-2.5`,
 Cohere `rerank-v4.0-pro` / `rerank-v4.0-fast`, and Jina `jina-reranker-v3`.
-Keep Gemini `gemini-embedding-2` deferred until the stable Gemini API model contract is confirmed;
-Google native multimodal embedding is tracked as a Vertex AI `multimodalembedding@001`
-reference that needs GCP project/location/auth, not a plain Gemini API key.
+Gemini `gemini-embedding-001` remains a legacy comparison option, not the preferred first pass.
+Gemini Embedding 2 native multimodal use remains deferred until raw media input hashes and
+tweet/media citation restoration are implemented. Vertex AI `multimodalembedding@001` remains a
+separate reference that needs GCP project/location/auth, not a plain Gemini API key.
 
 Add one or more `--doc-type` values to `memory export-corpus2skill` when a narrower navigation-map
 corpus is useful, for example `--doc-type topic_thread --doc-type author_profile`.

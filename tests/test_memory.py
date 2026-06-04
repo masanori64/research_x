@@ -662,8 +662,11 @@ def test_memory_retrieval_strategies_keep_native_media_deferred() -> None:
     candidates = {candidate["name"]: candidate for candidate in media["candidates"]}
     specs = semantic_spec_strings_for_strategies(("media_text_bridge",))
 
-    assert candidates["gemini_embedding_2_unconfirmed"]["portfolio_eligible"] is False
-    assert candidates["gemini_embedding_2_unconfirmed"]["status"] == "unconfirmed_deferred"
+    assert candidates["gemini_embedding_2_native_media"]["portfolio_eligible"] is False
+    assert (
+        candidates["gemini_embedding_2_native_media"]["status"]
+        == "deferred_media_contract_required"
+    )
     assert candidates["vertex_multimodal_embedding_001"]["provider"] == "vertex_ai"
     assert candidates["mistral_ocr_latest"]["candidate_kind"] == "ocr"
     assert any("provider=cohere" in spec for spec in specs)

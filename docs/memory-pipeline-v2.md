@@ -611,9 +611,11 @@ Current strategy classification:
   embeddings, only for route-specific evals;
 - media/OCR/caption routes: `media_text_bridge` challengers only after media docs expose
   citation-ready OCR, caption, alt text, or VLM text;
-- Gemini text embedding uses `gemini-embedding-001` for runnable Gemini API text tests.
-  `gemini-embedding-2` remains deferred/unconfirmed in this repo, while Google native multimodal
-  embedding is tracked as Vertex AI `multimodalembedding@001` and requires GCP auth/project/location.
+- Gemini text embedding uses `gemini-embedding-2` for runnable Gemini API text tests. It is
+  confirmed as a Gemini API model, so `gemini-embedding-001` is legacy comparison only.
+  Native Gemini Embedding 2 multimodal use remains deferred until this repo can pass raw media
+  inputs, store media vector hashes, and restore tweet/media citations from media hits. Vertex AI
+  `multimodalembedding@001` remains a separate GCP auth/project/location reference.
 - exact entities, dates, tickers, handles, and places: keep FTS/metadata/relations/derived cards as
   the guardrail before adding dense-provider complexity.
 
