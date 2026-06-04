@@ -731,6 +731,9 @@ ObjectiveRoutePlan integration:
 OCR Evidence Quality Pipeline:
 
 - OCR is the standard sub-workflow for `media_grounded` escalation, not a loose add-on.
+- The current implementation target is no-spend completion: implement the local quality, region,
+  routing, promotion, and test contracts without calling Mistral or any other provider. Provider OCR
+  execution, including free-tier quota, remains blocked by the no-quota policy.
 - The media route flow is:
 
 ```text
@@ -761,6 +764,23 @@ media_recall
   `tweet_text_insufficient`.
 - Full OCR remains explicit-only. Expand OCR scope only when targeted OCR fails answer-correctness
   evals for media-grounded questions.
+- Local completion requirements while provider calls are frozen:
+  - `ocr-estimate` must expose media quality flags, skipped reasons, strata, and engine routes
+    without writing DB rows or calling providers.
+  - Region detection must create citation-granular regions with `bbox`, `reading_order`,
+    `region_hash`, and `source_image_hash`. The first local detector may use deterministic image
+    heuristics and whole-media fallback; it must still persist region-level evidence.
+  - Engine routing must classify `document_pdf_or_table`, `screenshot_or_ui_text`,
+    `japanese_general_image`, `manga_or_vertical_text`, and `no_text_likely`.
+  - Low confidence, empty OCR despite high text likelihood, direct media-query relevance, and
+    important routes must be marked as second-pass candidates. The second-pass contract is local
+    metadata and optional fake/local processing until provider quota is allowed.
+  - `corrected_text` and caption/VLM text are separate profiles. Corrected text may be stored as a
+    derived search helper, but raw OCR plus bbox citation remains the preferred answer evidence.
+  - `ocr-promote-chunks` must be able to promote stored OCR rows into context chunks without
+    rerunning OCR.
+  - Local optional providers such as PaddleOCR/PaddleOCR-VL/manga OCR stay behind the same provider
+    contract; adding their dependency or model execution is a separate local-provider step.
 
 ## API Budget Guard
 

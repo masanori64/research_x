@@ -784,6 +784,31 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_ocr_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_ocr_coverage_parser.add_argument("--json", action="store_true")
+    memory_ocr_promote_parser = memory_subparsers.add_parser(
+        "ocr-promote-chunks",
+        help="promote stored OCR text rows into citation-ready context chunks",
+    )
+    memory_ocr_promote_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_promote_parser.add_argument("--limit", type=int, default=None)
+    memory_ocr_promote_parser.add_argument(
+        "--include-corrected",
+        action="store_true",
+        help="also promote corrected_text helper profiles as inference chunks",
+    )
+    memory_ocr_promote_parser.add_argument("--json", action="store_true")
+    memory_ocr_second_pass_parser = memory_subparsers.add_parser(
+        "ocr-second-pass",
+        help="mark local OCR second-pass candidates and create local corrected profiles",
+    )
+    memory_ocr_second_pass_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_second_pass_parser.add_argument("--confidence-threshold", type=float, default=0.45)
+    memory_ocr_second_pass_parser.add_argument("--limit", type=int, default=None)
+    memory_ocr_second_pass_parser.add_argument(
+        "--no-corrected-profile",
+        action="store_true",
+        help="mark candidates without creating corrected_text profiles",
+    )
+    memory_ocr_second_pass_parser.add_argument("--json", action="store_true")
     memory_ocr_search_parser = memory_subparsers.add_parser(
         "ocr-search",
         help="search stored OCR evidence text and restore media bundles",
@@ -2738,6 +2763,34 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
         coverage = ocr_coverage(args.db)
         print(coverage_json(coverage) if args.json else format_coverage(coverage))
+        return 0
+    if args.memory_command == "ocr-promote-chunks":
+        from research_x.memory.ocr import (
+            format_promotion,
+            promote_ocr_chunks,
+            promotion_json,
+        )
+
+        profiles = ("raw_ocr", "caption", "vlm_caption")
+        if args.include_corrected:
+            profiles = (*profiles, "corrected_text")
+        summary = promote_ocr_chunks(args.db, limit=args.limit, include_profiles=profiles)
+        print(promotion_json(summary) if args.json else format_promotion(summary))
+        return 0
+    if args.memory_command == "ocr-second-pass":
+        from research_x.memory.ocr import (
+            format_second_pass,
+            mark_ocr_second_pass_candidates,
+            second_pass_json,
+        )
+
+        summary = mark_ocr_second_pass_candidates(
+            args.db,
+            confidence_threshold=args.confidence_threshold,
+            limit=args.limit,
+            create_corrected_profile=not args.no_corrected_profile,
+        )
+        print(second_pass_json(summary) if args.json else format_second_pass(summary))
         return 0
     if args.memory_command == "ocr-search":
         from research_x.memory.ocr import format_search, ocr_search, search_json

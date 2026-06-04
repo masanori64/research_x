@@ -53,8 +53,10 @@ from research_x.memory.objective_routes import plan_objective_routes
 from research_x.memory.ocr import (
     build_ocr_evidence,
     estimate_ocr_evidence,
+    mark_ocr_second_pass_candidates,
     ocr_coverage,
     ocr_search,
+    promote_ocr_chunks,
 )
 from research_x.memory.portfolio import (
     parse_portfolio_reranker_spec,
@@ -862,6 +864,71 @@ def test_memory_ocr_blocks_provider_quota_calls(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="provider OCR API use is frozen"):
         build_ocr_evidence(db_path, provider="mistral", limit=1)
+
+
+def test_memory_ocr_quality_regions_second_pass_and_promote(tmp_path: Path) -> None:
+    from PIL import Image
+
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "screen.png"
+    Image.new("RGB", (900, 900), color="white").save(media_path)
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE media
+            SET local_path = ?, content_type = ?, alt_text = ?
+            WHERE media_id = ?
+            """,
+            (str(media_path), "image/png", "スクショ 画面 文字", "media-1"),
+        )
+
+    before_regions = _count_table(db_path, "memory_ocr_regions")
+    estimate = estimate_ocr_evidence(db_path, limit=10)
+    after_regions = _count_table(db_path, "memory_ocr_regions")
+    summary = build_ocr_evidence(db_path, provider="fake", limit=3)
+    second_pass = mark_ocr_second_pass_candidates(db_path)
+    promotion = promote_ocr_chunks(
+        db_path,
+        include_profiles=("raw_ocr", "caption", "vlm_caption", "corrected_text"),
+    )
+    coverage = ocr_coverage(db_path)
+
+    assert before_regions == after_regions == 0
+    assert estimate.selected >= 3
+    assert "screenshot_or_ui" in estimate.by_strata
+    assert estimate.by_quality_flag["text_density:high"] >= 3
+    assert summary.processed == 3
+    assert summary.second_pass_candidates == 3
+    assert second_pass.candidates == 3
+    assert second_pass.corrected_profiles == 3
+    assert promotion.promoted_chunks >= 3
+    assert coverage.by_text_profile["raw_ocr"] == 3
+    assert coverage.by_text_profile["corrected_text"] == 3
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT reading_order, bbox_json, crop_path, detector_version
+            FROM memory_ocr_regions
+            ORDER BY reading_order
+            """
+        ).fetchall()
+        raw_text, corrected_parent = conn.execute(
+            """
+            SELECT raw_ocr_text, parent_text_id
+            FROM memory_ocr_texts
+            WHERE text_profile = 'corrected_text'
+            LIMIT 1
+            """
+        ).fetchone()
+    assert [row[0] for row in rows] == [0, 1, 2]
+    assert all(json.loads(row[1])["type"].endswith("band") for row in rows)
+    assert all(row[2] for row in rows)
+    assert all(Path(row[2]).exists() for row in rows)
+    assert all(row[3] == "ocr-local-region-v1" for row in rows)
+    assert "Fake OCR text" in raw_text
+    assert corrected_parent
 
 
 def test_memory_objective_routes_and_ocr_cli(tmp_path: Path, capsys) -> None:
@@ -3720,6 +3787,12 @@ def _write_cases(tmp_path: Path, cases: list[dict]) -> Path:
     path = tmp_path / "cases.json"
     path.write_text(json.dumps({"cases": cases}, ensure_ascii=False), encoding="utf-8")
     return path
+
+
+def _count_table(db_path: Path, table: str) -> int:
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
 
 
 def _seed_derived_source_rows(db_path: Path) -> None:

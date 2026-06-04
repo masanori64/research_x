@@ -549,6 +549,8 @@ memory objective-routes    Plan primary/fallback/escalation objective routes.
 memory ocr-estimate        Estimate stratified OCR evidence candidates without provider calls.
 memory build-ocr-evidence  Build OCR evidence rows and citation-ready chunks.
 memory ocr-coverage        Show OCR evidence and promoted OCR chunk coverage.
+memory ocr-promote-chunks  Promote stored OCR rows into citation-ready context chunks.
+memory ocr-second-pass     Mark local second-pass OCR candidates and corrected profiles.
 memory ocr-search          Search stored OCR evidence and restore media bundles.
 memory relations          Inspect relation edges for selected documents.
 memory plan               Show query planning output.
@@ -670,11 +672,19 @@ uv run python -m research_x memory build-ocr-evidence `
   --db runs/x_data.sqlite3 `
   --provider fake `
   --limit 10
+uv run python -m research_x memory ocr-second-pass --db runs/x_data.sqlite3
+uv run python -m research_x memory ocr-promote-chunks --db runs/x_data.sqlite3
 uv run python -m research_x memory ocr-coverage --db runs/x_data.sqlite3
 uv run python -m research_x memory ocr-search `
   --db runs/x_data.sqlite3 `
   --query "OCRで読める保存画像"
 ```
+
+The no-spend OCR path now includes local media quality profiling, deterministic text-region
+bboxes, derived crop files when images are readable, reading order, engine-route selection,
+second-pass candidate metadata, corrected-text helper profiles, and chunk promotion from already
+stored OCR rows. These contracts do not call OCR providers. Mistral/PaddleOCR/VLM execution remains
+behind the no-quota policy or a future explicit local-provider step.
 
 The following provider-calling examples are implementation references only while the no-quota freeze
 is active. Do not execute them until the user explicitly permits provider quota use.

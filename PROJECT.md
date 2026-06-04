@@ -279,6 +279,9 @@ Implementation checklist:
       evidence.
 - [x] Update docs before code for the no-quota provider freeze and for Plan Mode implementation
       plans.
+- [x] Complete the no-spend OCR quality implementation: local media quality profiling,
+      deterministic region/crop contract, reading order, engine routing, second-pass metadata,
+      corrected-text profile storage, and `ocr-promote-chunks` without provider calls.
 
 Stop condition before this milestone starts:
 

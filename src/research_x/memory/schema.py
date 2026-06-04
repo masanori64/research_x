@@ -340,14 +340,17 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             source_tweet_id TEXT,
             page_index INTEGER NOT NULL,
             region_index INTEGER NOT NULL,
+            reading_order INTEGER NOT NULL DEFAULT 0,
             bbox_json TEXT NOT NULL,
             region_hash TEXT NOT NULL,
             source_image_hash TEXT NOT NULL,
             local_path TEXT NOT NULL,
+            crop_path TEXT NOT NULL DEFAULT '',
             mime_type TEXT NOT NULL,
             quality_flags_json TEXT NOT NULL,
             strata_json TEXT NOT NULL,
             engine_route TEXT NOT NULL,
+            detector_version TEXT NOT NULL DEFAULT 'ocr-local-region-v1',
             status TEXT NOT NULL,
             created_at TEXT NOT NULL,
             metadata_json TEXT NOT NULL,
@@ -362,6 +365,8 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             provider TEXT NOT NULL,
             model TEXT NOT NULL,
             ocr_profile TEXT NOT NULL,
+            text_profile TEXT NOT NULL DEFAULT 'raw_ocr',
+            parent_text_id TEXT,
             raw_ocr_text TEXT NOT NULL,
             normalized_text TEXT NOT NULL,
             corrected_text TEXT,
@@ -369,6 +374,9 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             evidence_status TEXT NOT NULL,
             source_image_hash TEXT NOT NULL,
             region_hash TEXT NOT NULL,
+            quality_flags_json TEXT NOT NULL DEFAULT '{}',
+            second_pass_status TEXT NOT NULL DEFAULT 'not_needed',
+            second_pass_reason TEXT,
             created_at TEXT NOT NULL,
             metadata_json TEXT NOT NULL,
             FOREIGN KEY(ocr_run_id) REFERENCES memory_ocr_runs(ocr_run_id),
@@ -486,6 +494,8 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_ocr_texts(media_id, evidence_status);
         CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_region
             ON memory_ocr_texts(region_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_profile
+            ON memory_ocr_texts(text_profile, second_pass_status);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_run
             ON memory_api_usage_events(run_id, started_at);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_provider
@@ -497,6 +507,7 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
     _migrate_memory_documents(conn)
     _migrate_memory_feedback(conn)
     _migrate_memory_embeddings(conn)
+    _migrate_memory_ocr(conn)
     _ensure_default_api_budget_policy(conn)
     conn.execute(
         """
@@ -640,6 +651,50 @@ def _migrate_memory_embeddings(conn: sqlite3.Connection) -> None:
             );
         """
     )
+
+
+def _migrate_memory_ocr(conn: sqlite3.Connection) -> None:
+    region_columns = _column_names(conn, "memory_ocr_regions")
+    region_migrations = {
+        "reading_order": (
+            "ALTER TABLE memory_ocr_regions "
+            "ADD COLUMN reading_order INTEGER NOT NULL DEFAULT 0"
+        ),
+        "crop_path": (
+            "ALTER TABLE memory_ocr_regions "
+            "ADD COLUMN crop_path TEXT NOT NULL DEFAULT ''"
+        ),
+        "detector_version": (
+            "ALTER TABLE memory_ocr_regions "
+            "ADD COLUMN detector_version TEXT NOT NULL DEFAULT 'ocr-local-region-v1'"
+        ),
+    }
+    for column, sql in region_migrations.items():
+        if column not in region_columns:
+            conn.execute(sql)
+
+    text_columns = _column_names(conn, "memory_ocr_texts")
+    text_migrations = {
+        "text_profile": (
+            "ALTER TABLE memory_ocr_texts "
+            "ADD COLUMN text_profile TEXT NOT NULL DEFAULT 'raw_ocr'"
+        ),
+        "parent_text_id": "ALTER TABLE memory_ocr_texts ADD COLUMN parent_text_id TEXT",
+        "quality_flags_json": (
+            "ALTER TABLE memory_ocr_texts "
+            "ADD COLUMN quality_flags_json TEXT NOT NULL DEFAULT '{}'"
+        ),
+        "second_pass_status": (
+            "ALTER TABLE memory_ocr_texts "
+            "ADD COLUMN second_pass_status TEXT NOT NULL DEFAULT 'not_needed'"
+        ),
+        "second_pass_reason": (
+            "ALTER TABLE memory_ocr_texts ADD COLUMN second_pass_reason TEXT"
+        ),
+    }
+    for column, sql in text_migrations.items():
+        if column not in text_columns:
+            conn.execute(sql)
 
 
 def _column_names(conn: sqlite3.Connection, table: str) -> set[str]:
