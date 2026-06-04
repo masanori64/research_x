@@ -960,8 +960,6 @@ class _MistralEmbedder:
             "input": texts,
             "encoding_format": "float",
         }
-        if self.spec.dimensions:
-            payload["output_dimension"] = self.spec.dimensions
         response = _post_json_budgeted(
             self.spec.base_url or "https://api.mistral.ai/v1/embeddings",
             payload,
@@ -994,7 +992,10 @@ class _JinaEmbedder:
         response = _post_json_budgeted(
             self.spec.base_url or "https://api.jina.ai/v1/embeddings",
             payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "User-Agent": "research-x/0.1 (+https://github.com/masanori64/research_x)",
+            },
             timeout_seconds=self.spec.timeout_seconds,
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
@@ -1744,6 +1745,7 @@ def _post_json_unbudgeted(
         data=body,
         headers={
             "Content-Type": "application/json",
+            "User-Agent": "research-x/0.1 (+https://github.com/masanori64/research_x)",
             **headers,
         },
         method="POST",

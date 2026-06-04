@@ -2730,7 +2730,7 @@ def test_cohere_embedding_request_uses_v2_embed_shape(monkeypatch) -> None:
     }
 
 
-def test_mistral_embedding_request_uses_output_dimension(monkeypatch) -> None:
+def test_mistral_embedding_request_omits_unsupported_output_dimension(monkeypatch) -> None:
     captured = {}
 
     def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
@@ -2759,7 +2759,6 @@ def test_mistral_embedding_request_uses_output_dimension(monkeypatch) -> None:
         "model": "mistral-embed",
         "input": ["robot learning"],
         "encoding_format": "float",
-        "output_dimension": 3,
     }
 
 
@@ -2788,6 +2787,7 @@ def test_jina_embedding_request_sets_retrieval_task(monkeypatch) -> None:
     assert vector
     assert captured["url"] == "https://api.jina.ai/v1/embeddings"
     assert captured["headers"]["Authorization"] == "Bearer fake-key"
+    assert captured["headers"]["User-Agent"].startswith("research-x/")
     assert captured["payload"] == {
         "model": "jina-embeddings-v3",
         "input": ["robot learning"],
