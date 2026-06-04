@@ -642,13 +642,14 @@ Current strategy classification:
 - rerank arms: Voyage `rerank-2.5`, Cohere `rerank-v4.0-pro` /
   `rerank-v4.0-fast`, and Jina `jina-reranker-v3`, always after source-bundle restoration and
   never as a first-stage source of truth;
-- reader/OCR/media arms: Jina Reader for URL/PDF extraction and Mistral `mistral-ocr-latest` for
-  future media/PDF text extraction contracts;
+- reader/OCR/media arms: Jina Reader for URL/PDF extraction; Mistral `mistral-ocr-2512` as the
+  fixed OCR eval candidate; Mistral `mistral-ocr-latest` only when intentional latest tracking is
+  desired;
 - Japanese/cross-lingual recall: route-gated challengers such as Voyage/Jina/Gemini;
 - long-form learning and concept maps: route-gated challengers such as Voyage, OpenAI large,
   Jina, Corpus2Skill maps, topic threads, and relation expansion;
-- code/API/repository material: `code_technical` challengers such as Mistral or Voyage code
-  embeddings, only for route-specific evals;
+- code/API/repository material: `code_technical` challengers such as Mistral
+  `codestral-embed-2505` and Voyage `voyage-code-3`, only for route-specific evals;
 - media/OCR/caption routes: `media_text_bridge` challengers only after media docs expose
   citation-ready OCR, caption, alt text, or VLM text;
 - Gemini text embedding uses `gemini-embedding-2` for runnable Gemini API text tests. It is
@@ -656,6 +657,14 @@ Current strategy classification:
 - Native Gemini Embedding 2 multimodal use is implemented through the separate
   `native_multimodal_media` contract, not `api_embedding_portfolio`. Vertex AI
   `multimodalembedding@001` remains a separate GCP auth/project/location reference.
+- Voyage contextual chunks use `voyage-context-4` as the current candidate. `voyage-context-3`
+  remains an older comparison row only.
+- Jina `jina-embeddings-v5-omni-small` can enter the text portfolio only as a text-only
+  `media_text_bridge` candidate over OCR/caption/alt_text/VLM text. Native image/PDF URL or file
+  ingestion remains a separate media evidence contract.
+- Managed RAG systems such as OpenAI File Search and Gemini File Search are reference lanes only.
+  They may compare UX and citation behavior but must not replace local raw X evidence, account
+  ownership, or source-bundle restoration.
 - exact entities, dates, tickers, handles, and places: keep FTS/metadata/relations/derived cards as
   the guardrail before adding dense-provider complexity.
 
@@ -714,6 +723,8 @@ Use these commands before and during real API experiments:
 ```powershell
 uv run python -m research_x memory api-budget status --db runs/x_data.sqlite3
 uv run python -m research_x memory api-budget set --db runs/x_data.sqlite3 --max-run-usd 1
+uv run python -m research_x memory api-budget seed-default-prices --db runs/x_data.sqlite3
+uv run python -m research_x memory api-lane-estimate --db runs/x_data.sqlite3
 uv run python -m research_x memory api-usage --db runs/x_data.sqlite3 --today
 uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 8767
 ```
@@ -721,6 +732,15 @@ uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 876
 The app also shows run/day/month budget status, recent events, and a kill-switch control. Provider
 dashboards remain the billing source of truth; the local ledger is a pre-request safety guard and
 operational monitor.
+
+Pricing confidence:
+
+- primary-priced rows use explicit provider pricing pages or model documents;
+- secondary-priced rows, currently Cohere `embed-v4.0` and Rerank v4 search units, are included in
+  estimates only because Cohere primary docs confirm the billing basis while LiteLLM/price-index
+  sources provide matching unit prices;
+- unknown or dashboard-only prices remain blocked by default in real API execution unless the user
+  registers an explicit local `api-budget price-set` row or passes `--allow-unpriced-api`.
 
 ## Corpus2Skill Position
 

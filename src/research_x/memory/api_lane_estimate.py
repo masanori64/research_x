@@ -1,0 +1,1026 @@
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+from research_x.memory.api_budget import upsert_api_price
+from research_x.memory.embeddings import estimate_memory_embedding_build
+from research_x.memory.media_embeddings import estimate_media_embedding_build
+from research_x.memory.schema import ensure_memory_schema
+
+SOURCE_GEMINI_PRICING = "https://ai.google.dev/gemini-api/docs/pricing"
+SOURCE_OPENAI_PRICING = "https://platform.openai.com/pricing"
+SOURCE_VOYAGE_MODELS = "https://www.mongodb.com/docs/voyageai/models/"
+SOURCE_JINA_MODELS = "https://api.jina.ai/docs"
+SOURCE_JINA_OMNI = "https://jina.ai/models/jina-embeddings-v5-omni-small/"
+SOURCE_COHERE_PRICING = "https://cohere.com/pricing"
+SOURCE_COHERE_PRICING_DOCS = "https://docs.cohere.com/docs/how-does-cohere-pricing-work"
+SOURCE_LITELLM_PRICES = (
+    "https://raw.githubusercontent.com/BerriAI/litellm/main/"
+    "model_prices_and_context_window.json"
+)
+SOURCE_MISTRAL_PRICING = "https://mistral.ai/pricing/"
+SOURCE_MISTRAL_CODESTRAL = "https://docs.mistral.ai/models/model-cards/codestral-embed-25-05"
+SOURCE_MISTRAL_OCR = "https://docs.mistral.ai/studio-api/document-processing/basic_ocr"
+
+_URL_RE = re.compile(r"https?://[^\s<>'\"()]+", re.IGNORECASE)
+_X_HOSTS = {"x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"}
+
+
+@dataclass(frozen=True)
+class PriceCatalogRow:
+    provider: str
+    model: str
+    operation: str
+    unit: str
+    usd_per_unit: float
+    source_url: str
+    notes: str
+
+
+@dataclass(frozen=True)
+class ApiLaneEstimateRow:
+    lane: str
+    name: str
+    provider: str
+    model: str
+    operation: str
+    status: str
+    selected_units: int
+    unit: str
+    estimated_cost_usd: float | None
+    cost_basis: str
+    source_url: str
+    notes: str
+    extra: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ApiLaneEstimateReport:
+    db_path: str
+    checked_at: str
+    rows: tuple[ApiLaneEstimateRow, ...]
+    totals: dict[str, Any]
+    assumptions: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _TextArm:
+    lane: str
+    name: str
+    provider: str
+    model: str
+    dimensions: int
+    embedding_profile: str
+    price_per_million_input_tokens: float | None
+    source_url: str
+    status: str = "estimate_ready"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class _OperationArm:
+    lane: str
+    name: str
+    provider: str
+    model: str
+    operation: str
+    unit: str
+    price_per_unit: float | None
+    source_url: str
+    status: str
+    notes: str
+
+
+DEFAULT_PRICE_CATALOG_ROWS: tuple[PriceCatalogRow, ...] = (
+    PriceCatalogRow(
+        "gemini",
+        "gemini-embedding-2",
+        "embedding",
+        "input_token",
+        0.20 / 1_000_000,
+        SOURCE_GEMINI_PRICING,
+        "Gemini Embedding 2 Standard text input price.",
+    ),
+    PriceCatalogRow(
+        "gemini",
+        "gemini-embedding-2",
+        "media_embedding",
+        "document",
+        0.00012,
+        SOURCE_GEMINI_PRICING,
+        "Gemini Embedding 2 Standard image input price, stored as one document per media call.",
+    ),
+    PriceCatalogRow(
+        "openai",
+        "text-embedding-3-small",
+        "embedding",
+        "input_token",
+        0.02 / 1_000_000,
+        SOURCE_OPENAI_PRICING,
+        "OpenAI text embedding input price.",
+    ),
+    PriceCatalogRow(
+        "openai",
+        "text-embedding-3-large",
+        "embedding",
+        "input_token",
+        0.13 / 1_000_000,
+        SOURCE_OPENAI_PRICING,
+        "OpenAI text embedding input price.",
+    ),
+    PriceCatalogRow(
+        "voyage",
+        "voyage-4",
+        "embedding",
+        "input_token",
+        0.06 / 1_000_000,
+        SOURCE_VOYAGE_MODELS,
+        "Voyage text embedding price.",
+    ),
+    PriceCatalogRow(
+        "voyage",
+        "voyage-4-large",
+        "embedding",
+        "input_token",
+        0.12 / 1_000_000,
+        SOURCE_VOYAGE_MODELS,
+        "Voyage text embedding price.",
+    ),
+    PriceCatalogRow(
+        "voyage",
+        "voyage-code-3",
+        "embedding",
+        "input_token",
+        0.18 / 1_000_000,
+        SOURCE_VOYAGE_MODELS,
+        "Voyage domain-specific code embedding price.",
+    ),
+    PriceCatalogRow(
+        "voyage",
+        "voyage-context-4",
+        "embedding",
+        "input_token",
+        0.12 / 1_000_000,
+        SOURCE_VOYAGE_MODELS,
+        "Voyage contextual chunk embedding price; local contextual input contract is separate.",
+    ),
+    PriceCatalogRow(
+        "voyage",
+        "voyage-context-3",
+        "embedding",
+        "input_token",
+        0.18 / 1_000_000,
+        SOURCE_VOYAGE_MODELS,
+        "Older Voyage contextual chunk embedding comparison price.",
+    ),
+    PriceCatalogRow(
+        "voyage",
+        "rerank-2.5",
+        "rerank",
+        "input_token",
+        0.05 / 1_000_000,
+        SOURCE_VOYAGE_MODELS,
+        "Voyage reranker token price.",
+    ),
+    PriceCatalogRow(
+        "jina",
+        "jina-embeddings-v5-text-small",
+        "embedding",
+        "input_token",
+        0.05 / 1_000_000,
+        SOURCE_JINA_MODELS,
+        "Jina Search Foundation API token price for embeddings.",
+    ),
+    PriceCatalogRow(
+        "jina",
+        "jina-embeddings-v5-omni-small",
+        "embedding",
+        "input_token",
+        0.05 / 1_000_000,
+        SOURCE_JINA_MODELS,
+        "Jina v5 omni text-only estimate; native media URL ingestion remains a separate contract.",
+    ),
+    PriceCatalogRow(
+        "jina",
+        "jina-reranker-v3",
+        "rerank",
+        "input_token",
+        0.05 / 1_000_000,
+        SOURCE_JINA_MODELS,
+        "Jina Reranker API follows Search Foundation token pricing.",
+    ),
+    PriceCatalogRow(
+        "jina",
+        "reader",
+        "reader_extract",
+        "input_token",
+        0.05 / 1_000_000,
+        SOURCE_JINA_MODELS,
+        (
+            "Reader estimate uses extracted-context token upper bound; actual billing is "
+            "provider-side."
+        ),
+    ),
+    PriceCatalogRow(
+        "cohere",
+        "embed-v4.0",
+        "embedding",
+        "input_token",
+        0.12 / 1_000_000,
+        SOURCE_LITELLM_PRICES,
+        (
+            "Secondary estimate from LiteLLM price file. Cohere official docs confirm "
+            "embedding billing is token-based, but the public Cohere page may require dashboard "
+            "or deployment context for exact PAYG display."
+        ),
+    ),
+    PriceCatalogRow(
+        "cohere",
+        "rerank-v4.0-pro",
+        "rerank",
+        "call",
+        0.0025,
+        SOURCE_LITELLM_PRICES,
+        (
+            "Secondary estimate from LiteLLM/Azure Cohere route. Cohere official docs define "
+            "one search as one query with up to 100 documents."
+        ),
+    ),
+    PriceCatalogRow(
+        "cohere",
+        "rerank-v4.0-fast",
+        "rerank",
+        "call",
+        0.002,
+        SOURCE_LITELLM_PRICES,
+        (
+            "Secondary estimate from LiteLLM/Azure Cohere route. Cohere official docs define "
+            "one search as one query with up to 100 documents."
+        ),
+    ),
+    PriceCatalogRow(
+        "mistral",
+        "mistral-embed",
+        "embedding",
+        "input_token",
+        0.10 / 1_000_000,
+        SOURCE_MISTRAL_PRICING,
+        "Mistral text embedding price.",
+    ),
+    PriceCatalogRow(
+        "mistral",
+        "codestral-embed-2505",
+        "embedding",
+        "input_token",
+        0.15 / 1_000_000,
+        SOURCE_MISTRAL_PRICING,
+        "Mistral Codestral Embed price.",
+    ),
+    PriceCatalogRow(
+        "mistral",
+        "codestral-embed",
+        "embedding",
+        "input_token",
+        0.15 / 1_000_000,
+        SOURCE_MISTRAL_PRICING,
+        "Mistral Codestral Embed alias price.",
+    ),
+    PriceCatalogRow(
+        "mistral",
+        "mistral-ocr-2512",
+        "ocr",
+        "page",
+        3.0 / 1_000,
+        SOURCE_MISTRAL_PRICING,
+        "Mistral Libraries/Document AI OCR price per 1K pages; fixed OCR 2512 evaluation row.",
+    ),
+    PriceCatalogRow(
+        "mistral",
+        "mistral-ocr-latest",
+        "ocr",
+        "page",
+        3.0 / 1_000,
+        SOURCE_MISTRAL_PRICING,
+        "Mistral latest OCR alias; use only when intentional latest tracking is desired.",
+    ),
+)
+
+
+def seed_default_api_price_catalog(db_path: str | Path) -> int:
+    for row in DEFAULT_PRICE_CATALOG_ROWS:
+        upsert_api_price(
+            db_path,
+            provider=row.provider,
+            model=row.model,
+            operation=row.operation,
+            unit=row.unit,
+            usd_per_unit=row.usd_per_unit,
+            source_url=row.source_url,
+            checked_at=_utc_now(),
+            notes=row.notes,
+        )
+    return len(DEFAULT_PRICE_CATALOG_ROWS)
+
+
+def build_api_lane_estimate_report(
+    db_path: str | Path,
+    *,
+    include_optional_context3: bool = False,
+    include_reference_managed_rag: bool = False,
+    reader_url_limit: int = 100,
+    reader_max_chars: int = 4000,
+    rerank_query_count: int = 5,
+    rerank_candidate_limit: int = 20,
+    rerank_avg_candidate_tokens: int = 250,
+    max_file_bytes: int = 20 * 1024 * 1024,
+) -> ApiLaneEstimateReport:
+    rows: list[ApiLaneEstimateRow] = []
+    rows.extend(
+        _text_embedding_rows(
+            db_path,
+            include_optional_context3=include_optional_context3,
+        )
+    )
+    rows.extend(_media_embedding_rows(db_path, max_file_bytes=max_file_bytes))
+    rows.extend(
+        _rerank_rows(
+            rerank_query_count=rerank_query_count,
+            rerank_candidate_limit=rerank_candidate_limit,
+            rerank_avg_candidate_tokens=rerank_avg_candidate_tokens,
+        )
+    )
+    rows.extend(
+        _reader_rows(
+            db_path,
+            reader_url_limit=reader_url_limit,
+            reader_max_chars=reader_max_chars,
+        )
+    )
+    rows.extend(_ocr_rows(db_path, max_file_bytes=max_file_bytes))
+    rows.extend(
+        _managed_rag_rows(
+            db_path,
+            include_reference_managed_rag=include_reference_managed_rag,
+        )
+    )
+    priced_rows = [row for row in rows if row.estimated_cost_usd is not None]
+    total_priced_cost = sum(float(row.estimated_cost_usd or 0.0) for row in priced_rows)
+    totals = {
+        "rows": len(rows),
+        "priced_rows": len(priced_rows),
+        "unpriced_rows": len(rows) - len(priced_rows),
+        "estimated_priced_cost_usd": round(total_priced_cost, 6),
+        "by_lane": _totals_by_lane(rows),
+    }
+    return ApiLaneEstimateReport(
+        db_path=str(Path(db_path)),
+        checked_at=_utc_now(),
+        rows=tuple(rows),
+        totals=totals,
+        assumptions=(
+            "This command does not call paid APIs and does not write embeddings.",
+            (
+                "Costs are local safety estimates; provider dashboards remain the billing "
+                "source of truth."
+            ),
+            (
+                "Different provider vectors remain separate candidate engines and are not "
+                "mixed directly."
+            ),
+            (
+                "Cohere v4 unit prices are included as secondary estimates; verify in your "
+                "Cohere dashboard before high-volume use."
+            ),
+            (
+                "Jina Reader and OCR estimates are upper/lower bounds because URL output "
+                "size and PDF pages vary."
+            ),
+            (
+                "Managed RAG references are not local X DB replacements and are costed only "
+                "when explicitly included."
+            ),
+        ),
+    )
+
+
+def api_lane_estimate_json(report: ApiLaneEstimateReport) -> str:
+    return json.dumps(asdict(report), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_api_lane_estimate(report: ApiLaneEstimateReport) -> str:
+    lines = [
+        f"db: {report.db_path}",
+        f"checked_at: {report.checked_at}",
+        (
+            "summary: "
+            f"rows={report.totals['rows']} priced={report.totals['priced_rows']} "
+            f"unpriced={report.totals['unpriced_rows']} "
+            f"estimated_priced_cost_usd={report.totals['estimated_priced_cost_usd']:.6f}"
+        ),
+        "by_lane:",
+    ]
+    for lane, summary in sorted(report.totals["by_lane"].items()):
+        cost = summary["estimated_priced_cost_usd"]
+        lines.append(
+            f"  {lane}: rows={summary['rows']} priced={summary['priced_rows']} cost~=${cost:.6f}"
+        )
+    lines.append("rows:")
+    for row in report.rows:
+        cost = "unpriced" if row.estimated_cost_usd is None else f"${row.estimated_cost_usd:.6f}"
+        lines.append(
+            "  - "
+            f"{row.lane}/{row.name}: {row.provider}/{row.model} "
+            f"op={row.operation} status={row.status} "
+            f"{row.selected_units} {row.unit} cost~={cost}"
+        )
+        lines.append(f"    basis: {row.cost_basis}")
+        if row.notes:
+            lines.append(f"    notes: {row.notes}")
+    lines.append("assumptions:")
+    for assumption in report.assumptions:
+        lines.append(f"  - {assumption}")
+    return "\n".join(lines)
+
+
+def _text_embedding_rows(
+    db_path: str | Path,
+    *,
+    include_optional_context3: bool,
+) -> tuple[ApiLaneEstimateRow, ...]:
+    arms = [
+        _TextArm(
+            "embedding",
+            "gemini_embedding_2_text",
+            "gemini",
+            "gemini-embedding-2",
+            768,
+            "general_memory",
+            0.20,
+            SOURCE_GEMINI_PRICING,
+        ),
+        _TextArm(
+            "embedding",
+            "openai_small_general",
+            "openai",
+            "text-embedding-3-small",
+            1536,
+            "general_memory",
+            0.02,
+            SOURCE_OPENAI_PRICING,
+        ),
+        _TextArm(
+            "embedding",
+            "openai_large_learning",
+            "openai",
+            "text-embedding-3-large",
+            3072,
+            "learning_long",
+            0.13,
+            SOURCE_OPENAI_PRICING,
+            status="eval_challenger",
+        ),
+        _TextArm(
+            "embedding",
+            "voyage4_multilingual",
+            "voyage",
+            "voyage-4",
+            1024,
+            "jp_multilingual",
+            0.06,
+            SOURCE_VOYAGE_MODELS,
+        ),
+        _TextArm(
+            "embedding",
+            "voyage4_large_learning",
+            "voyage",
+            "voyage-4-large",
+            1024,
+            "learning_long",
+            0.12,
+            SOURCE_VOYAGE_MODELS,
+            status="eval_challenger",
+        ),
+        _TextArm(
+            "embedding",
+            "voyage_code_3",
+            "voyage",
+            "voyage-code-3",
+            1024,
+            "code_technical",
+            0.18,
+            SOURCE_VOYAGE_MODELS,
+            status="route_specific",
+        ),
+        _TextArm(
+            "contextual_embedding",
+            "voyage_context_4_learning",
+            "voyage",
+            "voyage-context-4",
+            1024,
+            "learning_contextual",
+            0.12,
+            SOURCE_VOYAGE_MODELS,
+            status="contract_required_lower_bound",
+            notes=(
+                "Requires contextual chunk input contract; token count is lower-bound from "
+                "current docs."
+            ),
+        ),
+        _TextArm(
+            "embedding",
+            "jina_v5_text_multilingual",
+            "jina",
+            "jina-embeddings-v5-text-small",
+            1024,
+            "jp_multilingual",
+            0.05,
+            SOURCE_JINA_MODELS,
+        ),
+        _TextArm(
+            "embedding",
+            "jina_v5_omni_text_bridge",
+            "jina",
+            "jina-embeddings-v5-omni-small",
+            1024,
+            "media_text_bridge",
+            0.05,
+            SOURCE_JINA_OMNI,
+            status="media_text_bridge_text_only",
+            notes=(
+                "Text-only outputs are documented as compatible with v5 text; native media URL "
+                "ingestion remains separate from local file evidence."
+            ),
+        ),
+        _TextArm(
+            "embedding",
+            "cohere_v4_media_text",
+            "cohere",
+            "embed-v4.0",
+            1536,
+            "media_text_bridge",
+            0.12,
+            SOURCE_LITELLM_PRICES,
+            status="secondary_priced_estimate",
+            notes=(
+                "Cohere official docs confirm embed is token-billed; $0.12/M token comes from "
+                "LiteLLM/secondary price indexes because the public Cohere page did not expose "
+                "a stable PAYG unit price in plain text."
+            ),
+        ),
+        _TextArm(
+            "embedding",
+            "mistral_codestral_embed",
+            "mistral",
+            "codestral-embed-2505",
+            1024,
+            "code_technical",
+            0.15,
+            SOURCE_MISTRAL_CODESTRAL,
+            status="route_specific",
+            notes="Mistral model card confirms codestral-embed-2505 and $0.15/M tokens.",
+        ),
+    ]
+    if include_optional_context3:
+        arms.append(
+            _TextArm(
+                "contextual_embedding",
+                "voyage_context_3_learning_compare",
+                "voyage",
+                "voyage-context-3",
+                1024,
+                "learning_contextual",
+                0.18,
+                SOURCE_VOYAGE_MODELS,
+                status="older_comparison_lower_bound",
+                notes="Optional older contextual model kept only for comparison.",
+            )
+        )
+    rows = []
+    for arm in arms:
+        estimate = estimate_memory_embedding_build(
+            db_path,
+            provider=arm.provider,
+            model=arm.model,
+            dimensions=arm.dimensions,
+            embedding_profile=arm.embedding_profile,
+            price_per_million_input_tokens=arm.price_per_million_input_tokens,
+        )
+        rows.append(
+            ApiLaneEstimateRow(
+                lane=arm.lane,
+                name=arm.name,
+                provider=arm.provider,
+                model=arm.model,
+                operation="embedding",
+                status=arm.status,
+                selected_units=estimate.estimated_input_tokens,
+                unit="input_token",
+                estimated_cost_usd=estimate.estimated_input_cost,
+                cost_basis=(
+                    "current memory_documents embedding text tokens"
+                    if arm.price_per_million_input_tokens is not None
+                    else "provider public PAYG unit price not pinned"
+                ),
+                source_url=arm.source_url,
+                notes=arm.notes,
+                extra={
+                    "documents": estimate.documents,
+                    "selected_docs": estimate.selected,
+                    "dimensions": arm.dimensions,
+                    "embedding_profile": arm.embedding_profile,
+                    "missing": estimate.missing,
+                    "stale_text": estimate.stale_text,
+                    "stale_source": estimate.stale_source,
+                    "current": estimate.current,
+                },
+            )
+        )
+    return tuple(rows)
+
+
+def _media_embedding_rows(
+    db_path: str | Path,
+    *,
+    max_file_bytes: int,
+) -> tuple[ApiLaneEstimateRow, ...]:
+    estimate = estimate_media_embedding_build(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        dimensions=1536,
+        embedding_profile="native_multimodal_media",
+        max_file_bytes=max_file_bytes,
+    )
+    image_count = sum(
+        count
+        for mime, count in estimate.by_mime_type.items()
+        if mime in {"image/jpeg", "image/png", "image/webp"}
+    )
+    online_cost = image_count * 0.00012
+    batch_cost = image_count * 0.00006
+    return (
+        ApiLaneEstimateRow(
+            lane="media_embedding",
+            name="gemini_embedding_2_native_media",
+            provider="gemini",
+            model="gemini-embedding-2",
+            operation="media_embedding",
+            status="requires_explicit_eval",
+            selected_units=image_count,
+            unit="image",
+            estimated_cost_usd=online_cost,
+            cost_basis="Gemini Embedding 2 Standard image input price; PDFs are not costed here.",
+            source_url=SOURCE_GEMINI_PRICING,
+            notes=(
+                "Native media vectors remain recall signals. The estimate counts image files only; "
+                f"batch image lower-bound would be ${batch_cost:.6f}."
+            ),
+            extra={
+                "media": estimate.media,
+                "selected_media": estimate.selected,
+                "api_calls": estimate.estimated_api_calls,
+                "input_bytes": estimate.estimated_input_bytes,
+                "by_mime_type": estimate.by_mime_type,
+                "skipped_reasons": estimate.skipped_reasons,
+            },
+        ),
+    )
+
+
+def _rerank_rows(
+    *,
+    rerank_query_count: int,
+    rerank_candidate_limit: int,
+    rerank_avg_candidate_tokens: int,
+) -> tuple[ApiLaneEstimateRow, ...]:
+    query_count = max(0, rerank_query_count)
+    candidate_limit = max(1, rerank_candidate_limit)
+    avg_tokens = max(1, rerank_avg_candidate_tokens)
+    tokens = query_count * candidate_limit * avg_tokens
+    arms = (
+        _OperationArm(
+            "rerank",
+            "voyage_rerank_2_5",
+            "voyage",
+            "rerank-2.5",
+            "rerank",
+            "input_token",
+            0.05 / 1_000_000,
+            SOURCE_VOYAGE_MODELS,
+            "estimate_ready",
+            "Voyage bills processed query/document tokens for rerank.",
+        ),
+        _OperationArm(
+            "rerank",
+            "cohere_rerank_v4_0_pro",
+            "cohere",
+            "rerank-v4.0-pro",
+            "rerank",
+            "search",
+            0.0025,
+            SOURCE_LITELLM_PRICES,
+            "secondary_priced_estimate",
+            (
+                "Cohere defines one search as one query with up to 100 documents; $0.0025/search "
+                "comes from LiteLLM/Azure Cohere route and should be checked against your "
+                "Cohere dashboard before high-volume use."
+            ),
+        ),
+        _OperationArm(
+            "rerank",
+            "cohere_rerank_v4_0_fast",
+            "cohere",
+            "rerank-v4.0-fast",
+            "rerank",
+            "search",
+            0.002,
+            SOURCE_LITELLM_PRICES,
+            "secondary_priced_estimate",
+            (
+                "Cohere defines one search as one query with up to 100 documents; $0.002/search "
+                "comes from LiteLLM/Azure Cohere route and should be checked against your "
+                "Cohere dashboard before high-volume use."
+            ),
+        ),
+        _OperationArm(
+            "rerank",
+            "jina_reranker_v3",
+            "jina",
+            "jina-reranker-v3",
+            "rerank",
+            "input_token",
+            0.05 / 1_000_000,
+            SOURCE_JINA_MODELS,
+            "estimate_ready",
+            "Jina reranker pricing is aligned with Search Foundation token pricing.",
+        ),
+    )
+    rows = []
+    for arm in arms:
+        selected_units = query_count if arm.unit == "search" else tokens
+        cost = None if arm.price_per_unit is None else selected_units * arm.price_per_unit
+        rows.append(
+            ApiLaneEstimateRow(
+                lane=arm.lane,
+                name=arm.name,
+                provider=arm.provider,
+                model=arm.model,
+                operation=arm.operation,
+                status=arm.status,
+                selected_units=selected_units,
+                unit=arm.unit,
+                estimated_cost_usd=cost,
+                cost_basis=(
+                    f"{query_count} queries * {candidate_limit} candidates * "
+                    f"{avg_tokens} avg tokens"
+                    if arm.unit == "input_token"
+                    else f"{query_count} bounded rerank searches"
+                ),
+                source_url=arm.source_url,
+                notes=arm.notes,
+                extra={
+                    "query_count": query_count,
+                    "candidate_limit": candidate_limit,
+                    "avg_candidate_tokens": avg_tokens,
+                },
+            )
+        )
+    return tuple(rows)
+
+
+def _reader_rows(
+    db_path: str | Path,
+    *,
+    reader_url_limit: int,
+    reader_max_chars: int,
+) -> tuple[ApiLaneEstimateRow, ...]:
+    urls = discover_external_urls(db_path)
+    selected = min(len(urls), max(0, reader_url_limit))
+    # Jina Reader billing is token-based in the Search Foundation API family. Use a conservative
+    # extracted-context upper bound so URL fanout is visible before a network request.
+    tokens = selected * max(1, (max(0, reader_max_chars) + 1) // 2)
+    cost = tokens * (0.05 / 1_000_000)
+    return (
+        ApiLaneEstimateRow(
+            lane="reader",
+            name="jina_reader_extract",
+            provider="jina",
+            model="reader",
+            operation="reader_extract",
+            status="url_fanout_estimate_ready",
+            selected_units=tokens,
+            unit="input_token",
+            estimated_cost_usd=cost,
+            cost_basis=(
+                f"min({len(urls)} discovered external URLs, limit={reader_url_limit}) "
+                f"* max_chars={reader_max_chars} / 2 rough tokens"
+            ),
+            source_url=SOURCE_JINA_MODELS,
+            notes=(
+                "URL discovery is not evidence; Reader output must become context "
+                "chunks/citations."
+            ),
+            extra={
+                "discovered_external_urls": len(urls),
+                "selected_urls": selected,
+                "sample_urls": urls[:10],
+                "reader_max_chars": reader_max_chars,
+            },
+        ),
+    )
+
+
+def _ocr_rows(db_path: str | Path, *, max_file_bytes: int) -> tuple[ApiLaneEstimateRow, ...]:
+    estimate = estimate_media_embedding_build(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        dimensions=1536,
+        embedding_profile="native_multimodal_media",
+        max_file_bytes=max_file_bytes,
+    )
+    page_lower_bound = estimate.selected
+    return tuple(
+        ApiLaneEstimateRow(
+            lane="ocr",
+            name=name,
+            provider="mistral",
+            model=model,
+            operation="ocr",
+            status=status,
+            selected_units=page_lower_bound,
+            unit="page_lower_bound",
+            estimated_cost_usd=page_lower_bound * (3.0 / 1_000),
+            cost_basis="selected local image/PDF media counted as at least one OCR page each",
+            source_url=SOURCE_MISTRAL_PRICING,
+            notes=(
+                "OCR is media-to-text evidence preparation, not native vector recall. "
+                "PDF page counts can make actual cost higher than this lower bound."
+            ),
+            extra={
+                "media_selected": estimate.selected,
+                "by_mime_type": estimate.by_mime_type,
+                "fixed_model": model == "mistral-ocr-2512",
+            },
+        )
+        for name, model, status in (
+            ("mistral_ocr_2512", "mistral-ocr-2512", "fixed_eval_candidate"),
+            ("mistral_ocr_latest", "mistral-ocr-latest", "latest_alias_optional"),
+        )
+    )
+
+
+def _managed_rag_rows(
+    db_path: str | Path,
+    *,
+    include_reference_managed_rag: bool,
+) -> tuple[ApiLaneEstimateRow, ...]:
+    docs = _memory_document_count(db_path)
+    status = "reference_only_not_costed"
+    cost: float | None = None
+    if include_reference_managed_rag:
+        status = "reference_enabled_still_not_auto_ingested"
+    return (
+        ApiLaneEstimateRow(
+            lane="managed_rag_reference",
+            name="openai_file_search_vector_stores",
+            provider="openai",
+            model="file_search",
+            operation="managed_rag_reference",
+            status=status,
+            selected_units=docs,
+            unit="document",
+            estimated_cost_usd=cost,
+            cost_basis="not costed because managed RAG does not replace the local X DB by default",
+            source_url="https://platform.openai.com/docs/guides/tools-file-search/",
+            notes=(
+                "Use only as an eval reference for UX/citation behavior, not as canonical "
+                "storage."
+            ),
+            extra={"documents": docs},
+        ),
+        ApiLaneEstimateRow(
+            lane="managed_rag_reference",
+            name="gemini_file_search_embedding_2",
+            provider="gemini",
+            model="gemini-file-search",
+            operation="managed_rag_reference",
+            status=status,
+            selected_units=docs,
+            unit="document",
+            estimated_cost_usd=cost,
+            cost_basis="not costed because managed RAG does not replace the local X DB by default",
+            source_url="https://ai.google.dev/gemini-api/docs/file-search",
+            notes=(
+                "Gemini File Search can use gemini-embedding-2 but remains a managed "
+                "reference lane."
+            ),
+            extra={"documents": docs},
+        ),
+    )
+
+
+def discover_external_urls(db_path: str | Path) -> tuple[str, ...]:
+    path = Path(db_path)
+    if not path.exists():
+        return ()
+    urls: set[str] = set()
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        if _table_exists(conn, "memory_external_items"):
+            for row in conn.execute("SELECT url FROM memory_external_items WHERE url IS NOT NULL"):
+                _add_external_url(urls, row["url"])
+        if _table_exists(conn, "memory_documents"):
+            for row in conn.execute(
+                """
+                SELECT body, compact_text, metadata_json
+                FROM memory_documents
+                WHERE body LIKE '%http%'
+                   OR compact_text LIKE '%http%'
+                   OR metadata_json LIKE '%http%'
+                """
+            ):
+                _extract_urls(urls, row["body"])
+                _extract_urls(urls, row["compact_text"])
+                _extract_urls(urls, row["metadata_json"])
+        if _table_exists(conn, "tweets"):
+            for row in conn.execute(
+                """
+                SELECT url, text, raw_json
+                FROM tweets
+                WHERE url LIKE '%http%' OR text LIKE '%http%' OR raw_json LIKE '%http%'
+                """
+            ):
+                # tweet.url is usually an X source URL and is intentionally filtered out.
+                _extract_urls(urls, row["url"])
+                _extract_urls(urls, row["text"])
+                _extract_urls(urls, row["raw_json"])
+    return tuple(sorted(urls))
+
+
+def _extract_urls(urls: set[str], text: Any) -> None:
+    if not text:
+        return
+    for match in _URL_RE.findall(str(text)):
+        _add_external_url(urls, match.rstrip(".,;:!?]}>"))
+
+
+def _add_external_url(urls: set[str], url: Any) -> None:
+    if not url:
+        return
+    value = str(url).strip().rstrip(".,;:!?]}>")
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return
+    if parsed.netloc.lower() in _X_HOSTS:
+        return
+    if parsed.netloc.lower().endswith(".x.com") or parsed.netloc.lower().endswith(".twitter.com"):
+        return
+    urls.add(value)
+
+
+def _memory_document_count(db_path: str | Path) -> int:
+    with sqlite3.connect(db_path, timeout=60) as conn:
+        ensure_memory_schema(conn)
+        return int(conn.execute("SELECT COUNT(*) FROM memory_documents").fetchone()[0])
+
+
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+            (table,),
+        ).fetchone()
+        is not None
+    )
+
+
+def _totals_by_lane(rows: list[ApiLaneEstimateRow]) -> dict[str, dict[str, Any]]:
+    totals: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        bucket = totals.setdefault(
+            row.lane,
+            {"rows": 0, "priced_rows": 0, "estimated_priced_cost_usd": 0.0},
+        )
+        bucket["rows"] += 1
+        if row.estimated_cost_usd is not None:
+            bucket["priced_rows"] += 1
+            bucket["estimated_priced_cost_usd"] += float(row.estimated_cost_usd)
+    for bucket in totals.values():
+        bucket["estimated_priced_cost_usd"] = round(bucket["estimated_priced_cost_usd"], 6)
+    return totals
+
+
+def _utc_now() -> str:
+    return datetime.now(tz=UTC).isoformat()

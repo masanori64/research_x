@@ -431,6 +431,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_api_budget_price_parser.add_argument("--source-url", default=None)
     memory_api_budget_price_parser.add_argument("--checked-at", default=None)
     memory_api_budget_price_parser.add_argument("--notes", default=None)
+    memory_api_budget_seed_prices_parser = memory_api_budget_subparsers.add_parser(
+        "seed-default-prices",
+        help="register checked default provider/model price rows used before real API runs",
+    )
+    memory_api_budget_seed_prices_parser.add_argument("--db", default="runs/x_data.sqlite3")
 
     memory_api_usage_parser = memory_subparsers.add_parser(
         "api-usage",
@@ -455,6 +460,36 @@ def main(argv: list[str] | None = None) -> int:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    memory_api_lane_estimate_parser = memory_subparsers.add_parser(
+        "api-lane-estimate",
+        help="estimate all planned paid API lanes before making real API calls",
+    )
+    memory_api_lane_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_lane_estimate_parser.add_argument(
+        "--include-optional-context3",
+        action="store_true",
+        help="also estimate older voyage-context-3 as a comparison row",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--include-reference-managed-rag",
+        action="store_true",
+        help="show managed RAG reference rows as enabled reference lanes",
+    )
+    memory_api_lane_estimate_parser.add_argument("--reader-url-limit", type=int, default=100)
+    memory_api_lane_estimate_parser.add_argument("--reader-max-chars", type=int, default=4000)
+    memory_api_lane_estimate_parser.add_argument("--rerank-query-count", type=int, default=5)
+    memory_api_lane_estimate_parser.add_argument("--rerank-candidate-limit", type=int, default=20)
+    memory_api_lane_estimate_parser.add_argument(
+        "--rerank-avg-candidate-tokens",
+        type=int,
+        default=250,
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_api_lane_estimate_parser.add_argument("--json", action="store_true")
     memory_build_parser = memory_subparsers.add_parser(
         "build-corpus",
         help="build memory_documents and FTS index from the canonical X store",
@@ -2327,6 +2362,12 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
                 f"{args.unit}=${args.usd_per_unit}"
             )
             return 0
+        if args.api_budget_command == "seed-default-prices":
+            from research_x.memory.api_lane_estimate import seed_default_api_price_catalog
+
+            count = seed_default_api_price_catalog(args.db)
+            print(f"seeded default API prices: {count}")
+            return 0
         raise AssertionError(f"unhandled api-budget command {args.api_budget_command}")
     if args.memory_command == "api-usage":
         from research_x.memory.api_budget import api_usage_report, format_api_usage_report
@@ -2353,6 +2394,26 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             port=args.port,
             open_browser=args.open_browser,
         )
+        return 0
+    if args.memory_command == "api-lane-estimate":
+        from research_x.memory.api_lane_estimate import (
+            api_lane_estimate_json,
+            build_api_lane_estimate_report,
+            format_api_lane_estimate,
+        )
+
+        report = build_api_lane_estimate_report(
+            args.db,
+            include_optional_context3=args.include_optional_context3,
+            include_reference_managed_rag=args.include_reference_managed_rag,
+            reader_url_limit=args.reader_url_limit,
+            reader_max_chars=args.reader_max_chars,
+            rerank_query_count=args.rerank_query_count,
+            rerank_candidate_limit=args.rerank_candidate_limit,
+            rerank_avg_candidate_tokens=args.rerank_avg_candidate_tokens,
+            max_file_bytes=args.max_file_bytes,
+        )
+        print(api_lane_estimate_json(report) if args.json else format_api_lane_estimate(report))
         return 0
     if args.memory_command == "build-corpus":
         from research_x.memory.corpus import build_memory_corpus, summary_as_dict

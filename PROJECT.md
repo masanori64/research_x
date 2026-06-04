@@ -262,13 +262,19 @@ Implementation checklist:
       normal workflow routes.
 - [x] Add local API budget policies, usage ledger, kill switch, CLI/app monitoring, and guarded
       real-provider call sites before full paid API evaluation.
+- [x] Add full preflight `api-lane-estimate` for the planned embedding, rerank, URL Reader,
+      OCR, native media, and managed-RAG reference lanes without spending API tokens.
+- [x] Add checked default API price seeding, with Cohere v4 prices marked as secondary estimates
+      when the public primary source confirms billing basis but not a plain unit table.
 - [x] Add `test-diagnose` so slow or hanging pytest units can be isolated without dropping
       coverage from the normal verification pipeline.
 
 Stop condition before this milestone starts:
 
 - API keys and target provider/profile choices must be explicit.
-- Estimated cost and document coverage must be reviewed before writing real embedding rows.
+- Run `memory api-budget seed-default-prices` and `memory api-lane-estimate` before writing real
+  embedding, rerank, Reader, OCR, or native media rows.
+- Estimated cost and document/media/URL coverage must be reviewed before writing real provider rows.
 - Native media build must start with `media-embedding-estimate`, then `--limit 1`, `--limit 10`,
   `--limit 100`, then full only after coverage looks correct.
 - Rerank providers must run on restored bounded source bundles, not raw semantic hits.

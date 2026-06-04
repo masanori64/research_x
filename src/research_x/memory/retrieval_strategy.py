@@ -203,14 +203,14 @@ MISTRAL_TEXT_CODE_DOCS = PortfolioCandidate(
     name="mistral_text_code_docs",
     candidate_kind="semantic",
     provider="mistral",
-    model="mistral-embed",
+    model="codestral-embed-2505",
     dimensions=1024,
     embedding_profile="code_technical",
     candidates=100,
     vector_space_kind="dense",
     portfolio_eligible=True,
-    purpose="Technical/API/documentation recall challenger.",
-    source_refs=("Mistral embeddings docs",),
+    purpose="Codestral Embed route-specific challenger for code/API/documentation recall.",
+    source_refs=("Mistral Codestral Embed", "Mistral pricing"),
 )
 VOYAGE_CODE_3 = PortfolioCandidate(
     name="voyage_code_3",
@@ -240,6 +240,25 @@ COHERE_V4_MEDIA_TEXT = PortfolioCandidate(
     preconditions=("media_doc must include OCR/caption/alt_text or VLM text.",),
     source_refs=("Cohere Embed v4 docs",),
 )
+VOYAGE_CONTEXT_4_LEARNING = PortfolioCandidate(
+    name="voyage_context_4_learning",
+    candidate_kind="contextual_embedding",
+    provider="voyage",
+    model="voyage-context-4",
+    dimensions=1024,
+    embedding_profile="learning_contextual",
+    vector_space_kind="contextual_dense",
+    status="needs_contextual_chunk_implementation",
+    purpose=(
+        "Contextual chunk embedding candidate for topic/thread bundles where chunk-level "
+        "vectors need surrounding document context."
+    ),
+    preconditions=(
+        "Group source-bundle chunks by parent document before embedding.",
+        "Store contextual input hashes separately from standard embedding text hashes.",
+    ),
+    source_refs=("Voyage contextualized chunk embeddings docs",),
+)
 VOYAGE_CONTEXT_3_LEARNING = PortfolioCandidate(
     name="voyage_context_3_learning",
     candidate_kind="contextual_embedding",
@@ -248,10 +267,10 @@ VOYAGE_CONTEXT_3_LEARNING = PortfolioCandidate(
     dimensions=1024,
     embedding_profile="learning_contextual",
     vector_space_kind="contextual_dense",
-    status="needs_contextual_chunk_implementation",
+    status="older_comparison_only",
     purpose=(
-        "Contextual chunk embedding candidate for topic/thread bundles where chunk-level "
-        "vectors need surrounding document context."
+        "Older contextual chunk embedding candidate retained only for comparison against "
+        "voyage-context-4."
     ),
     preconditions=(
         "Group source-bundle chunks by parent document before embedding.",
@@ -517,6 +536,25 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             MISTRAL_TEXT_CODE_DOCS,
             VOYAGE_CODE_3,
             COHERE_V4_MEDIA_TEXT,
+            PortfolioCandidate(
+                name="jina_v5_omni_media_text",
+                candidate_kind="semantic",
+                provider="jina",
+                model="jina-embeddings-v5-omni-small",
+                dimensions=1024,
+                embedding_profile="media_text_bridge",
+                candidates=120,
+                modality="text_from_media",
+                vector_space_kind="dense",
+                portfolio_eligible=True,
+                status="text_only_bridge_candidate",
+                purpose=(
+                    "Jina omni text-only bridge candidate for OCR/caption/alt_text documents. "
+                    "Native media ingestion is kept outside api_embedding_portfolio."
+                ),
+                preconditions=("Index citation-ready media-derived text only.",),
+                source_refs=("Jina embeddings v5 omni",),
+            ),
         ),
         promotion_gate=(
             "No provider/vector space can promote without route-level portfolio wins over "
@@ -784,6 +822,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         candidates=(
             VOYAGE4_LARGE_LEARNING,
             OPENAI_LARGE_LEARNING,
+            VOYAGE_CONTEXT_4_LEARNING,
             VOYAGE_CONTEXT_3_LEARNING,
             PortfolioCandidate(
                 name="jina_v5_text_learning",
@@ -826,20 +865,20 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         candidates=(
             MISTRAL_TEXT_CODE_DOCS,
             PortfolioCandidate(
-                name="mistral_codestral_embed",
+                name="mistral_embed_legacy_text",
                 candidate_kind="semantic",
                 provider="mistral",
-                model="codestral-embed-2505",
-                dimensions=None,
+                model="mistral-embed",
+                dimensions=1024,
                 embedding_profile="code_technical",
                 vector_space_kind="dense",
                 portfolio_eligible=False,
-                status="deferred_dimension_and_dtype_required",
+                status="legacy_comparison_only",
                 purpose=(
-                    "Code-specialist Mistral candidate; keep deferred until output_dimension "
-                    "and dtype policy are pinned for this repo."
+                    "Older general Mistral embedding retained for comparison only; "
+                    "Codestral Embed is the route-specific code candidate."
                 ),
-                source_refs=("Mistral Codestral Embed",),
+                source_refs=("Mistral embeddings docs",),
             ),
             VOYAGE_CODE_3,
         ),
@@ -875,13 +914,17 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 candidates=120,
                 modality="text_from_media",
                 vector_space_kind="dense",
-                portfolio_eligible=False,
-                status="deferred_native_or_api_confirmation",
+                portfolio_eligible=True,
+                status="text_only_bridge_candidate",
                 purpose=(
-                    "Current Jina omni candidate; defer until media input/citation contracts "
-                    "exist."
+                    "Jina omni text-only bridge candidate. Jina documents text-only outputs as "
+                    "compatible with v5 text, while native image/PDF URL ingestion remains a "
+                    "separate evidence contract."
                 ),
-                preconditions=("Native image vector ingestion is not enabled in this repo yet.",),
+                preconditions=(
+                    "Index only citation-ready media-derived text in memory_embeddings.",
+                    "Do not pass local media files or remote media URLs through this text lane.",
+                ),
                 source_refs=("Jina embeddings v5 omni",),
             ),
             PortfolioCandidate(
@@ -933,6 +976,25 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                     "Implement raw media input handling and media citation restoration.",
                 ),
                 source_refs=("Vertex AI multimodal embeddings docs",),
+            ),
+            PortfolioCandidate(
+                name="mistral_ocr_2512",
+                candidate_kind="ocr",
+                provider="mistral",
+                model="mistral-ocr-2512",
+                modality="pdf_or_image",
+                route_role="media_to_citation_text",
+                portfolio_eligible=False,
+                status="fixed_eval_candidate",
+                purpose=(
+                    "Fixed Mistral OCR 2512 candidate for repeatable media/PDF text extraction "
+                    "evals before media_text_bridge or normal text retrieval."
+                ),
+                preconditions=(
+                    "Define media file input, OCR output hashes, and source URL/local path "
+                    "citation mapping.",
+                ),
+                source_refs=("Mistral OCR docs", "Mistral pricing"),
             ),
             PortfolioCandidate(
                 name="mistral_ocr_latest",
@@ -1019,6 +1081,66 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             "Reject if missing/stale/skipped coverage is not visible.",
         ),
         source_refs=("Google Gemini Embedding 2 GA", "Google Gemini API embeddings docs"),
+    ),
+    RetrievalStrategy(
+        strategy_id="managed_rag_reference",
+        label="managed RAG reference lanes",
+        stage="reference only",
+        adoption="eval_only_explicit",
+        purpose=(
+            "Compare managed File Search behavior for UX, citation ergonomics, and operational "
+            "tradeoffs without replacing the local X DB evidence pipeline."
+        ),
+        question_types=("citation_required", "comparison"),
+        intents=("technology", "science", "author", "event"),
+        routes=("external_context", "current_fact_check", "learning_map"),
+        doc_types=("context_chunk", "citation_annotation", "answer_artifact"),
+        candidates=(
+            PortfolioCandidate(
+                name="openai_file_search_vector_stores",
+                candidate_kind="managed_rag_reference",
+                provider="openai",
+                model="file_search",
+                route_role="reference_answer_context",
+                status="reference_only",
+                purpose=(
+                    "OpenAI Responses API file_search/vector stores reference for UX and "
+                    "citation behavior."
+                ),
+                preconditions=(
+                    "Do not bulk-ingest the local X DB unless explicitly approved.",
+                    "Treat managed output as eval reference, not canonical evidence.",
+                ),
+                source_refs=("OpenAI File Search docs",),
+            ),
+            PortfolioCandidate(
+                name="gemini_file_search_embedding_2",
+                candidate_kind="managed_rag_reference",
+                provider="gemini",
+                model="gemini-file-search",
+                route_role="reference_answer_context",
+                status="reference_only",
+                purpose=(
+                    "Gemini File Search reference using gemini-embedding-2 behavior for "
+                    "managed RAG comparison."
+                ),
+                preconditions=(
+                    "Do not bulk-ingest the local X DB unless explicitly approved.",
+                    "Treat managed output as eval reference, not canonical evidence.",
+                ),
+                source_refs=("Gemini File Search docs",),
+            ),
+        ),
+        promotion_gate=(
+            "Can influence UX or eval baselines only; cannot replace raw/local evidence storage.",
+        ),
+        rejection_gate=(
+            (
+                "Reject as primary path if source-bundle provenance or local account ownership "
+                "is lost."
+            ),
+        ),
+        source_refs=("OpenAI File Search docs", "Gemini File Search docs"),
     ),
     RetrievalStrategy(
         strategy_id="exact_metadata_first",

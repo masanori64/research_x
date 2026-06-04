@@ -9,6 +9,10 @@ from research_x.memory import embeddings, media_embeddings
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import build_memory_answer
+from research_x.memory.api_lane_estimate import (
+    build_api_lane_estimate_report,
+    discover_external_urls,
+)
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import build_context_bundle
 from research_x.memory.corpus import (
@@ -627,7 +631,11 @@ def test_memory_retrieval_strategies_auto_keeps_semantic_challengers_explicit() 
     assert any("provider=voyage" in spec for spec in portfolio_specs)
     assert any("provider=jina" in spec for spec in portfolio_specs)
     assert any("provider=cohere" in spec for spec in portfolio_specs)
-    assert any("provider=mistral" in spec for spec in portfolio_specs)
+    assert any(
+        "provider=mistral" in spec and "model=codestral-embed-2505" in spec
+        for spec in portfolio_specs
+    )
+    assert any("model=jina-embeddings-v5-omni-small" in spec for spec in portfolio_specs)
     assert all("provider=local_hash" not in spec for spec in portfolio_specs)
 
 
@@ -676,9 +684,25 @@ def test_memory_retrieval_strategies_keep_native_media_deferred() -> None:
     )
     assert candidates["gemini_embedding_2_native_media"]["candidate_kind"] == "media_embedding"
     assert candidates["vertex_multimodal_embedding_001"]["provider"] == "vertex_ai"
+    assert candidates["jina_v5_omni_media_text"]["portfolio_eligible"] is True
+    assert candidates["mistral_ocr_2512"]["model"] == "mistral-ocr-2512"
     assert candidates["mistral_ocr_latest"]["candidate_kind"] == "ocr"
     assert any("provider=cohere" in spec for spec in specs)
+    assert any("model=jina-embeddings-v5-omni-small" in spec for spec in specs)
     assert all("native_multimodal_media" not in spec for spec in specs)
+
+
+def test_memory_retrieval_strategy_exposes_context4_and_managed_reference() -> None:
+    learning = retrieval_strategies_as_dicts(strategy_ids=("learning_long",))[0]
+    learning_candidates = {candidate["name"]: candidate for candidate in learning["candidates"]}
+    managed = retrieval_strategies_as_dicts(strategy_ids=("managed_rag_reference",))[0]
+    managed_candidates = {candidate["name"]: candidate for candidate in managed["candidates"]}
+
+    assert learning_candidates["voyage_context_4_learning"]["model"] == "voyage-context-4"
+    assert learning_candidates["voyage_context_3_learning"]["status"] == "older_comparison_only"
+    assert managed["adoption"] == "eval_only_explicit"
+    assert managed_candidates["openai_file_search_vector_stores"]["status"] == "reference_only"
+    assert managed_candidates["gemini_file_search_embedding_2"]["provider"] == "gemini"
 
 
 def test_memory_native_multimodal_media_strategy_is_explicit_only() -> None:
@@ -811,6 +835,145 @@ def test_memory_media_embedding_cli_estimate_is_read_only(tmp_path: Path) -> Non
         ensure_memory_schema(conn)
         count = conn.execute("SELECT COUNT(*) FROM memory_media_embeddings").fetchone()[0]
     assert count == 0
+
+
+def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+        conn.execute(
+            """
+            INSERT INTO memory_external_runs (
+                run_id, provider, provider_role, query, endpoint, parameters_json,
+                status, retrieved_at, raw_response_hash, retention_policy, error
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "external-run",
+                "serper",
+                "index_provider",
+                "pizza",
+                "https://google.serper.dev/search",
+                "{}",
+                "ok",
+                "2026-05-26T00:00:00+00:00",
+                "hash",
+                "metadata_only",
+                None,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO memory_external_items (
+                item_id, run_id, position, title, url, snippet, source, metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "external-item",
+                "external-run",
+                1,
+                "Pizza",
+                "https://example.com/pizza",
+                "pizza snippet",
+                "example",
+                "{}",
+            ),
+        )
+
+    report = build_api_lane_estimate_report(
+        db_path,
+        include_optional_context3=True,
+        reader_url_limit=10,
+        reader_max_chars=1000,
+        rerank_query_count=2,
+        rerank_candidate_limit=10,
+        rerank_avg_candidate_tokens=100,
+    )
+    rows = {row.name: row for row in report.rows}
+
+    assert rows["gemini_embedding_2_text"].estimated_cost_usd is not None
+    assert rows["cohere_v4_media_text"].status == "secondary_priced_estimate"
+    assert rows["cohere_rerank_v4_0_pro"].estimated_cost_usd == 0.005
+    assert rows["jina_reader_extract"].extra["discovered_external_urls"] == 2
+    assert rows["jina_reader_extract"].estimated_cost_usd is not None
+    assert rows["mistral_ocr_2512"].estimated_cost_usd is not None
+    assert rows["voyage_context_4_learning"].status == "contract_required_lower_bound"
+    assert rows["voyage_context_3_learning_compare"].status == "older_comparison_lower_bound"
+    assert rows["openai_file_search_vector_stores"].estimated_cost_usd is None
+
+
+def test_memory_api_lane_estimate_cli_and_price_seed(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    assert main(["memory", "api-budget", "seed-default-prices", "--db", str(db_path)]) == 0
+    assert (
+        main(
+            [
+                "memory",
+                "api-lane-estimate",
+                "--db",
+                str(db_path),
+                "--reader-url-limit",
+                "5",
+                "--rerank-query-count",
+                "1",
+            ]
+        )
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "seeded default API prices" in output
+    assert "cohere_v4_media_text" in output
+    assert "managed_rag_reference/openai_file_search_vector_stores" in output
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT provider, model, operation, unit, usd_per_unit
+            FROM memory_api_price_catalog
+            WHERE provider = 'cohere'
+            ORDER BY model, operation, unit
+            """
+        ).fetchall()
+    assert ("cohere", "embed-v4.0", "embedding", "input_token", 0.00000012) in rows
+    assert ("cohere", "rerank-v4.0-pro", "rerank", "call", 0.0025) in rows
+
+
+def test_memory_discover_external_urls_filters_x_sources(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE tweets
+            SET text = text || ' https://example.com/article https://[broken'
+            WHERE tweet_id = ?
+            """,
+            ("tweet-1",),
+        )
+
+    urls = discover_external_urls(db_path)
+
+    assert "https://example.com/article" in urls
+    assert all("x.com" not in urlparse_netloc for urlparse_netloc in urls)
 
 
 def test_memory_restore_media_source_bundle_without_media_row(tmp_path: Path) -> None:

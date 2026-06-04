@@ -555,6 +555,7 @@ memory workflow           Bounded route/context/answer orchestration with stop r
 memory api-budget         Inspect/change local API budget policy and kill switch.
 memory api-usage          Show API usage ledger events and estimated local spend.
 memory api-watch          Start a lightweight API budget monitor page.
+memory api-lane-estimate  Estimate planned embedding/rerank/reader/OCR/managed-RAG lanes without paid API calls.
 memory eval               Route-oriented memory checks.
 memory eval-runs          List stored eval runs.
 memory eval-show          Show one stored eval run and case-level results.
@@ -607,8 +608,9 @@ Optional real API embedding arm evaluation:
 
 Before any paid provider call, configure and inspect the local API budget guard. Unknown prices are
 blocked by default, so add explicit price rows before full builds.
-Replace `<checked_usd_per_input_token>` with the current provider price after checking the linked
-official pricing page.
+Seed the checked default price catalog, then inspect it. Cohere v4 PAYG unit prices are marked as
+secondary estimates because Cohere's public docs expose the billing basis while the plain public
+pricing page can require deployment/dashboard context for exact v4 units.
 
 ```powershell
 uv run python -m research_x memory api-budget status --db runs/x_data.sqlite3
@@ -617,14 +619,13 @@ uv run python -m research_x memory api-budget set `
   --max-run-usd 1 `
   --max-day-usd 5 `
   --max-month-usd 25
-uv run python -m research_x memory api-budget price-set `
+uv run python -m research_x memory api-budget seed-default-prices --db runs/x_data.sqlite3
+uv run python -m research_x memory api-lane-estimate `
   --db runs/x_data.sqlite3 `
-  --provider gemini `
-  --model gemini-embedding-2 `
-  --operation embedding `
-  --unit input_tokens `
-  --usd-per-unit <checked_usd_per_input_token> `
-  --source-url "https://ai.google.dev/gemini-api/docs/pricing"
+  --include-optional-context3 `
+  --reader-url-limit 100 `
+  --rerank-query-count 5 `
+  --rerank-candidate-limit 20
 uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 8767
 ```
 
@@ -702,8 +703,10 @@ Do not treat the optional embedding section as the default production path. Run 
 coverage first, then compare the explicit `api_embedding_portfolio` against evidence-first arms.
 The runnable first-pass text arms are Gemini `gemini-embedding-2`, OpenAI
 `text-embedding-3-small` / `text-embedding-3-large`, Voyage `voyage-4` /
-`voyage-4-large`, Jina `jina-embeddings-v5-text-small`, Cohere `embed-v4.0`,
-and Mistral `mistral-embed`. Rerank arms are separate: Voyage `rerank-2.5`,
+`voyage-4-large`, Voyage `voyage-code-3`, Voyage `voyage-context-4` as a contextual
+contract-required lower-bound, Jina `jina-embeddings-v5-text-small` /
+`jina-embeddings-v5-omni-small` for text-only/media-text bridge evaluation, Cohere
+`embed-v4.0`, and Mistral `codestral-embed-2505`. Rerank arms are separate: Voyage `rerank-2.5`,
 Cohere `rerank-v4.0-pro` / `rerank-v4.0-fast`, and Jina `jina-reranker-v3`.
 Gemini `gemini-embedding-001` remains a legacy comparison option, not the preferred first pass.
 Gemini Embedding 2 native multimodal use is available through the explicit media contract and
@@ -711,6 +714,9 @@ Gemini Embedding 2 native multimodal use is available through the explicit media
 that media hits restore cleanly and do not become unsupported image-content claims. Vertex AI
 `multimodalembedding@001` remains a separate reference that needs GCP project/location/auth, not a
 plain Gemini API key.
+Reader/OCR/reference lanes are also visible in `memory api-lane-estimate`: Jina Reader for URL
+extraction, Mistral `mistral-ocr-2512` / `mistral-ocr-latest` for OCR lower-bound estimates, and
+OpenAI/Gemini managed File Search as reference-only lanes.
 
 Native Gemini Embedding 2 media evaluation uses a separate media contract, not
 `memory_embeddings`:
