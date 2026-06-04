@@ -10,6 +10,7 @@ EXPLICIT_RETRIEVAL_STRATEGY_ADOPTIONS = {
     "eval_only_explicit",
     "eval_only",
     "conditional_eval",
+    "requires_explicit_eval",
 }
 
 
@@ -885,25 +886,25 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             ),
             PortfolioCandidate(
                 name="gemini_embedding_2_native_media",
-                candidate_kind="semantic",
+                candidate_kind="media_embedding",
                 provider="gemini",
                 model="gemini-embedding-2",
                 dimensions=1536,
                 embedding_profile="native_multimodal_media",
                 modality="native_multimodal",
                 vector_space_kind="multimodal_dense",
-                route_role="deferred_media_recall",
+                route_role="media_recall",
                 portfolio_eligible=False,
-                status="deferred_media_contract_required",
+                status="requires_explicit_eval",
                 purpose=(
                     "Gemini Embedding 2 native multimodal recall candidate. The model is now "
-                    "confirmed, but this repo still needs raw media input and citation "
-                    "restoration contracts before media vectors can be eligible."
+                    "confirmed and uses the separate memory_media_embeddings contract instead "
+                    "of the text-only memory_embeddings contract."
                 ),
                 preconditions=(
-                    "Implement raw media input handling.",
-                    "Store media vector source hashes and source URLs.",
-                    "Evaluate citation restoration from media hits.",
+                    "Build media vectors with memory build-media-embeddings.",
+                    "Restore media hits to tweet/media source bundles before evidence use.",
+                    "Do not treat raw media matches as image-content claims without OCR/caption.",
                 ),
                 source_refs=(
                     "Google Gemini Embedding 2 GA",
@@ -963,9 +964,61 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         source_refs=(
             "Cohere Embed v4 docs",
             "Jina embeddings v5 omni",
+            "Google Gemini Embedding 2 GA",
             "Vertex AI multimodal embeddings docs",
             "Mistral OCR docs",
         ),
+    ),
+    RetrievalStrategy(
+        strategy_id="native_multimodal_media",
+        label="Gemini Embedding 2 native media recall",
+        stage="explicit media recall candidate",
+        adoption="requires_explicit_eval",
+        purpose=(
+            "Search saved local image/PDF media files with Gemini Embedding 2, then restore hits "
+            "to media/tweet/bookmark/quote source bundles. Raw media matches are candidate "
+            "signals, not image-content evidence."
+        ),
+        question_types=("media_grounded", "citation_required"),
+        intents=("media", "adult_comic", "technology"),
+        routes=("media_context", "quote_context"),
+        doc_types=("media_doc", "bookmark_doc", "quote_tree_doc", "tweet_doc"),
+        candidates=(
+            PortfolioCandidate(
+                name="gemini_embedding_2_native_media",
+                candidate_kind="media_embedding",
+                provider="gemini",
+                model="gemini-embedding-2",
+                dimensions=1536,
+                embedding_profile="native_multimodal_media",
+                modality="native_multimodal",
+                vector_space_kind="multimodal_dense",
+                route_role="media_recall",
+                status="requires_explicit_eval",
+                purpose=(
+                    "Native media recall over saved local image/PDF files using "
+                    "memory_media_embeddings."
+                ),
+                preconditions=(
+                    "Run media-embedding-estimate before writing real API rows.",
+                    "Start builds with --limit 1, then 10, then 100.",
+                    "Restore every hit to media_source_evidence before answer context.",
+                ),
+                source_refs=("Google Gemini Embedding 2 GA", "Google Gemini API embeddings docs"),
+            ),
+        ),
+        promotion_gate=(
+            "Must restore 100% of media hits to source bundles.",
+            "Must keep raw_media_match, media_source_evidence, and "
+            "media_content_evidence distinct.",
+            "Must improve media_grounded evals without unsupported image-content claims.",
+        ),
+        rejection_gate=(
+            "Reject if media_text_bridge OCR/caption text solves the same cases with "
+            "clearer citations.",
+            "Reject if missing/stale/skipped coverage is not visible.",
+        ),
+        source_refs=("Google Gemini Embedding 2 GA", "Google Gemini API embeddings docs"),
     ),
     RetrievalStrategy(
         strategy_id="exact_metadata_first",

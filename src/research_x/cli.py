@@ -381,6 +381,109 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_coverage_parser.add_argument("--embedding-profile", default=None)
     memory_embedding_coverage_parser.add_argument("--text-template-version", default=None)
     memory_embedding_coverage_parser.add_argument("--json", action="store_true")
+    memory_media_embedding_estimate_parser = memory_subparsers.add_parser(
+        "media-embedding-estimate",
+        help="estimate saved media files, staleness, skips, and calls for native media embeddings",
+    )
+    memory_media_embedding_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_embedding_estimate_parser.add_argument("--provider", default="gemini")
+    memory_media_embedding_estimate_parser.add_argument("--model", default=None)
+    memory_media_embedding_estimate_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_embedding_estimate_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_embedding_estimate_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_embedding_estimate_parser.add_argument("--api-key-env", default=None)
+    memory_media_embedding_estimate_parser.add_argument("--base-url", default=None)
+    memory_media_embedding_estimate_parser.add_argument("--limit", type=int, default=None)
+    memory_media_embedding_estimate_parser.add_argument("--rebuild", action="store_true")
+    memory_media_embedding_estimate_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_media_embedding_estimate_parser.add_argument(
+        "--mime-type",
+        action="append",
+        default=[],
+    )
+    memory_media_embedding_estimate_parser.add_argument("--json", action="store_true")
+    memory_media_embedding_parser = memory_subparsers.add_parser(
+        "build-media-embeddings",
+        help="build native media embeddings over saved local image/PDF media files",
+    )
+    memory_media_embedding_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_embedding_parser.add_argument("--provider", default="gemini")
+    memory_media_embedding_parser.add_argument("--model", default=None)
+    memory_media_embedding_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_embedding_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_embedding_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_embedding_parser.add_argument("--api-key-env", default=None)
+    memory_media_embedding_parser.add_argument("--base-url", default=None)
+    memory_media_embedding_parser.add_argument("--limit", type=int, default=None)
+    memory_media_embedding_parser.add_argument("--rebuild", action="store_true")
+    memory_media_embedding_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_media_embedding_parser.add_argument("--mime-type", action="append", default=[])
+    memory_media_embedding_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_media_embedding_coverage_parser = memory_subparsers.add_parser(
+        "media-embedding-coverage",
+        help="show native media embedding coverage/staleness by mime and skipped reason",
+    )
+    memory_media_embedding_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_embedding_coverage_parser.add_argument("--provider", default="gemini")
+    memory_media_embedding_coverage_parser.add_argument("--model", default=None)
+    memory_media_embedding_coverage_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_embedding_coverage_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_embedding_coverage_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_embedding_coverage_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_media_embedding_coverage_parser.add_argument("--mime-type", action="append", default=[])
+    memory_media_embedding_coverage_parser.add_argument("--json", action="store_true")
+    memory_media_search_parser = memory_subparsers.add_parser(
+        "media-search",
+        help="search native media embeddings and restore tweet/media source bundles",
+    )
+    memory_media_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_search_parser.add_argument("--query", required=True)
+    memory_media_search_parser.add_argument("--provider", default="gemini")
+    memory_media_search_parser.add_argument("--model", default=None)
+    memory_media_search_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_search_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_search_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_search_parser.add_argument("--api-key-env", default=None)
+    memory_media_search_parser.add_argument("--base-url", default=None)
+    memory_media_search_parser.add_argument("--limit", type=int, default=10)
+    memory_media_search_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_media_search_parser.add_argument("--json", action="store_true")
     memory_relations_build_parser = memory_subparsers.add_parser(
         "build-relations",
         help="build relation edges over memory_documents",
@@ -2010,6 +2113,98 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             text_template_version=args.text_template_version,
         )
         print(embedding_coverage_json(report) if args.json else format_embedding_coverage(report))
+        return 0
+    if args.memory_command == "media-embedding-estimate":
+        from research_x.memory.media_embeddings import (
+            estimate_media_embedding_build,
+            format_media_embedding_estimate,
+            media_embedding_estimate_json,
+        )
+
+        estimate = estimate_media_embedding_build(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            max_file_bytes=args.max_file_bytes,
+            mime_types=tuple(args.mime_type),
+        )
+        print(
+            media_embedding_estimate_json(estimate)
+            if args.json
+            else format_media_embedding_estimate(estimate)
+        )
+        return 0
+    if args.memory_command == "build-media-embeddings":
+        from research_x.memory.media_embeddings import build_media_embeddings, summary_as_dict
+
+        summary = build_media_embeddings(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            max_file_bytes=args.max_file_bytes,
+            mime_types=tuple(args.mime_type),
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "media-embedding-coverage":
+        from research_x.memory.media_embeddings import (
+            format_media_embedding_coverage,
+            media_embedding_coverage_json,
+            media_embedding_coverage_report,
+        )
+
+        report = media_embedding_coverage_report(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            max_file_bytes=args.max_file_bytes,
+            mime_types=tuple(args.mime_type),
+        )
+        print(
+            media_embedding_coverage_json(report)
+            if args.json
+            else format_media_embedding_coverage(report)
+        )
+        return 0
+    if args.memory_command == "media-search":
+        from research_x.memory.media_embeddings import (
+            format_media_search,
+            media_search_json,
+            search_media_embeddings,
+        )
+
+        hits = search_media_embeddings(
+            args.db,
+            args.query,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            limit=args.limit,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(media_search_json(hits) if args.json else format_media_search(hits))
         return 0
     if args.memory_command == "build-relations":
         from research_x.memory.relations import build_memory_relations, summary_as_dict

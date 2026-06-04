@@ -846,6 +846,7 @@ class _GeminiEmbedder:
                             "text": _gemini_content_text(
                                 text,
                                 model=self.spec.model,
+                                embedding_profile=self.spec.embedding_profile,
                                 task_type=task_type,
                             )
                         }
@@ -1690,12 +1691,32 @@ def _is_gemini_embedding_2(model: str) -> bool:
     return model.removeprefix("models/") == "gemini-embedding-2"
 
 
-def _gemini_content_text(text: str, *, model: str, task_type: str) -> str:
+def _gemini_content_text(
+    text: str,
+    *,
+    model: str,
+    embedding_profile: str,
+    task_type: str,
+) -> str:
     if not _is_gemini_embedding_2(model):
         return text
     if task_type == "RETRIEVAL_QUERY":
-        return f"Represent this search query for retrieval:\n{text}"
-    return f"Represent this document for retrieval:\n{text}"
+        return f"task: {_gemini_query_task(embedding_profile)} | query: {text}"
+    return f"task: {_gemini_document_task(embedding_profile)} | document: {text}"
+
+
+def _gemini_query_task(embedding_profile: str) -> str:
+    if embedding_profile == "general_memory":
+        return "question answering"
+    if embedding_profile == "code_technical":
+        return "code retrieval"
+    return "search result"
+
+
+def _gemini_document_task(embedding_profile: str) -> str:
+    if embedding_profile == "code_technical":
+        return "code retrieval"
+    return "search result"
 
 
 def _chunks(rows: list[sqlite3.Row], size: int):

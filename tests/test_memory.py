@@ -5,7 +5,7 @@ import urllib.error
 from pathlib import Path
 
 from research_x.cli import main
-from research_x.memory import embeddings
+from research_x.memory import embeddings, media_embeddings
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import build_memory_answer
@@ -36,6 +36,13 @@ from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
+from research_x.memory.media_embeddings import (
+    build_media_embeddings,
+    estimate_media_embedding_build,
+    media_embedding_coverage_report,
+    restore_media_source_bundle,
+    search_media_embeddings,
+)
 from research_x.memory.portfolio import (
     parse_portfolio_reranker_spec,
     parse_portfolio_semantic_spec,
@@ -665,12 +672,156 @@ def test_memory_retrieval_strategies_keep_native_media_deferred() -> None:
     assert candidates["gemini_embedding_2_native_media"]["portfolio_eligible"] is False
     assert (
         candidates["gemini_embedding_2_native_media"]["status"]
-        == "deferred_media_contract_required"
+        == "requires_explicit_eval"
     )
+    assert candidates["gemini_embedding_2_native_media"]["candidate_kind"] == "media_embedding"
     assert candidates["vertex_multimodal_embedding_001"]["provider"] == "vertex_ai"
     assert candidates["mistral_ocr_latest"]["candidate_kind"] == "ocr"
     assert any("provider=cohere" in spec for spec in specs)
     assert all("native_multimodal_media" not in spec for spec in specs)
+
+
+def test_memory_native_multimodal_media_strategy_is_explicit_only() -> None:
+    automatic = retrieval_strategies_as_dicts(query="保存した画像付き投稿を探して")
+    explicit = retrieval_strategies_as_dicts(strategy_ids=("native_multimodal_media",))
+    candidates = {candidate["name"]: candidate for candidate in explicit[0]["candidates"]}
+
+    assert "native_multimodal_media" not in {
+        strategy["strategy_id"] for strategy in automatic
+    }
+    assert explicit[0]["adoption"] == "requires_explicit_eval"
+    assert candidates["gemini_embedding_2_native_media"]["candidate_kind"] == "media_embedding"
+    assert candidates["gemini_embedding_2_native_media"]["model"] == "gemini-embedding-2"
+
+
+def test_memory_media_embedding_schema_estimate_build_and_search(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'memory_media_embeddings'"
+            ).fetchone()[0]
+            == 1
+        )
+
+    captured = {"payloads": []}
+
+    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
+        captured["url"] = url
+        captured["payloads"].append(payload)
+        captured["headers"] = headers
+        return {"embeddings": [{"values": [0.1, 0.2, 0.3]}]}
+
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    monkeypatch.setattr(media_embeddings, "_post_json", fake_post_json)
+
+    estimate = estimate_media_embedding_build(db_path, dimensions=3)
+    summary = build_media_embeddings(db_path, dimensions=3, limit=1)
+    coverage = media_embedding_coverage_report(db_path, dimensions=3)
+    hits = search_media_embeddings(db_path, "robot image", dimensions=3, limit=1)
+
+    assert estimate.media == 1
+    assert estimate.selected == 1
+    assert estimate.skipped == 0
+    assert summary.embedded == 1
+    assert coverage.current == 1
+    media_payload = next(
+        payload
+        for payload in captured["payloads"]
+        if len(payload["requests"][0]["content"]["parts"]) > 1
+    )
+    assert media_payload["requests"][0]["content"]["parts"][1]["inlineData"][
+        "mimeType"
+    ] == "image/jpeg"
+    assert media_payload["requests"][0]["embedContentConfig"]["outputDimensionality"] == 3
+    assert hits[0].media_id == "media-1"
+    assert hits[0].evidence_status == "unconfirmed_media_match"
+    assert hits[0].bundle["doc_id"] == "media:media-1"
+    assert hits[0].bundle["tweet_id"] == "tweet-1"
+    assert hits[0].bundle["media_content_evidence"] is False
+    assert any(
+        relation["relation_type"] == "has_media"
+        for relation in hits[0].bundle["relations"]
+    )
+
+    media_path.write_bytes(b"changed-image")
+    stale = media_embedding_coverage_report(db_path, dimensions=3)
+    assert stale.stale_file == 1
+
+
+def test_memory_media_embedding_resolver_skips_invalid_media(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "note.txt"
+    media_path.write_text("not media", encoding="utf-8")
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ?, content_type = ? WHERE media_id = ?",
+            (str(media_path), "text/plain", "media-1"),
+        )
+
+    estimate = estimate_media_embedding_build(db_path, dimensions=3)
+
+    assert estimate.media == 1
+    assert estimate.selected == 0
+    assert estimate.skipped == 1
+    assert estimate.skipped_reasons["unsupported_mime_type"] == 1
+
+
+def test_memory_media_embedding_cli_estimate_is_read_only(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+
+    assert (
+        main(
+            [
+                "memory",
+                "media-embedding-estimate",
+                "--db",
+                str(db_path),
+                "--dimensions",
+                "3",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        count = conn.execute("SELECT COUNT(*) FROM memory_media_embeddings").fetchone()[0]
+    assert count == 0
+
+
+def test_memory_restore_media_source_bundle_without_media_row(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        bundle = restore_media_source_bundle(conn, "missing-media")
+
+    assert bundle["restored"] is False
+    assert bundle["evidence_status"] == "unconfirmed_media_match"
 
 
 def test_memory_portfolio_guarded_fusion_defers_semantic_only_noise() -> None:
@@ -2469,7 +2620,9 @@ def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
     assert vector
     assert "taskType" not in request
     assert request["embedContentConfig"]["outputDimensionality"] == 3
-    assert "Represent this search query" in request["content"]["parts"][0]["text"]
+    assert request["content"]["parts"][0]["text"].startswith(
+        "task: question answering | query:"
+    )
 
 
 def test_openai_compatible_embedding_request_uses_custom_endpoint(monkeypatch) -> None:

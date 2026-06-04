@@ -673,9 +673,11 @@ The runnable first-pass text arms are Gemini `gemini-embedding-2`, OpenAI
 and Mistral `mistral-embed`. Rerank arms are separate: Voyage `rerank-2.5`,
 Cohere `rerank-v4.0-pro` / `rerank-v4.0-fast`, and Jina `jina-reranker-v3`.
 Gemini `gemini-embedding-001` remains a legacy comparison option, not the preferred first pass.
-Gemini Embedding 2 native multimodal use remains deferred until raw media input hashes and
-tweet/media citation restoration are implemented. Vertex AI `multimodalembedding@001` remains a
-separate reference that needs GCP project/location/auth, not a plain Gemini API key.
+Gemini Embedding 2 native multimodal use is available through the explicit media contract and
+`native_multimodal_media` strategy. It remains outside automatic workflow routes until eval proves
+that media hits restore cleanly and do not become unsupported image-content claims. Vertex AI
+`multimodalembedding@001` remains a separate reference that needs GCP project/location/auth, not a
+plain Gemini API key.
 
 Native Gemini Embedding 2 media evaluation uses a separate media contract, not
 `memory_embeddings`:

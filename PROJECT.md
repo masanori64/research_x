@@ -239,22 +239,26 @@ the Gemini Embedding 2 media evidence contract first, then run real API embeddin
 for text and native media arms, run bounded rerank arms, and compare them against the
 evidence-first baselines.
 
+Implementation side status: complete. The remaining work in this milestone is real API execution:
+estimate costs/coverage, run limited Gemini text/media builds, then evaluate text, media, and rerank
+arms against the evidence-first baselines.
+
 Implementation checklist:
 
-- [ ] Add `memory_media_embeddings` for raw media vectors without weakening the existing
+- [x] Add `memory_media_embeddings` for raw media vectors without weakening the existing
       text-only `memory_embeddings` contract.
-- [ ] Add media input resolution for local image/PDF files with mime filtering, file hashes,
+- [x] Add media input resolution for local image/PDF files with mime filtering, file hashes,
       metadata hashes, skipped reasons, and stale detection.
-- [ ] Add Gemini Embedding 2 native media provider support with inline media payloads and
+- [x] Add Gemini Embedding 2 native media provider support with inline media payloads and
       media-context text parts.
-- [ ] Add `media-embedding-estimate`, `build-media-embeddings`,
+- [x] Add `media-embedding-estimate`, `build-media-embeddings`,
       `media-embedding-coverage`, and `media-search` commands.
-- [ ] Add source-bundle restoration for media vector hits and distinguish
+- [x] Add source-bundle restoration for media vector hits and distinguish
       `raw_media_match`, `media_source_evidence`, and `media_content_evidence`.
-- [ ] Add `native_multimodal_media` strategy; keep `api_embedding_portfolio` text-only.
-- [ ] Keep Gemini Embedding 2 text embeddings in existing `build-embeddings` and improve
+- [x] Add `native_multimodal_media` strategy; keep `api_embedding_portfolio` text-only.
+- [x] Keep Gemini Embedding 2 text embeddings in existing `build-embeddings` and improve
       profile-specific prefixing.
-- [ ] Add media-grounded eval cases and promotion gates before native media search can enter
+- [x] Add media-grounded eval cases and promotion gates before native media search can enter
       normal workflow routes.
 
 Stop condition before this milestone starts:

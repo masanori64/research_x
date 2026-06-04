@@ -111,6 +111,30 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             )
         );
 
+        CREATE TABLE IF NOT EXISTS memory_media_embeddings (
+            media_id TEXT NOT NULL,
+            doc_id TEXT NOT NULL,
+            source_tweet_id TEXT,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            dimensions INTEGER NOT NULL,
+            embedding_profile TEXT NOT NULL,
+            input_template_version TEXT NOT NULL,
+            embedding BLOB NOT NULL,
+            mime_type TEXT NOT NULL,
+            local_path TEXT NOT NULL,
+            media_url TEXT,
+            media_file_hash TEXT NOT NULL,
+            media_metadata_hash TEXT NOT NULL,
+            input_parts_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(
+                media_id, provider, model, dimensions,
+                embedding_profile, input_template_version
+            )
+        );
+
         CREATE TABLE IF NOT EXISTS memory_relations (
             relation_id TEXT PRIMARY KEY,
             source_doc_id TEXT NOT NULL,
@@ -313,6 +337,10 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_context_chunks(source_kind, source_id);
         CREATE INDEX IF NOT EXISTS idx_memory_citation_annotations_chunk
             ON memory_citation_annotations(chunk_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_media_embeddings_doc
+            ON memory_media_embeddings(doc_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_media_embeddings_tweet
+            ON memory_media_embeddings(source_tweet_id);
         CREATE INDEX IF NOT EXISTS idx_memory_answer_runs_question
             ON memory_answer_runs(question, created_at);
         CREATE INDEX IF NOT EXISTS idx_memory_workflow_runs_query
