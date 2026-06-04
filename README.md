@@ -282,7 +282,10 @@ OpenAI-compatible endpoint, Qwen, Kimi, and GLM presets.
 Operational notes:
 
 - Labels are annotations, not canonical truth.
-- Gemini free-tier quota can be exhausted quickly on tens of thousands of rows.
+- The current no-quota provider freeze also applies to classifier calls; do not use Gemini/OpenAI or
+  other provider classifiers unless provider quota use is explicitly permitted.
+- Gemini free-tier quota can be exhausted quickly on tens of thousands of rows, and free-tier
+  consumption is still prohibited while the no-quota freeze is active.
 - `label-existing` supports request pacing, retry metadata, cancellation checks, and
   `--stop-on-rate-limit`.
 - The local app can stop jobs and restore the DB to a pre-job backup.
@@ -542,6 +545,11 @@ memory media-embedding-estimate Estimate saved media files, staleness, skips, an
 memory build-media-embeddings Build native media embeddings for local image/PDF media files.
 memory media-embedding-coverage Show native media embedding coverage by mime/status.
 memory media-search        Search native media embeddings and restore source bundles.
+memory objective-routes    Plan primary/fallback/escalation objective routes.
+memory ocr-estimate        Estimate stratified OCR evidence candidates without provider calls.
+memory build-ocr-evidence  Build OCR evidence rows and citation-ready chunks.
+memory ocr-coverage        Show OCR evidence and promoted OCR chunk coverage.
+memory ocr-search          Search stored OCR evidence and restore media bundles.
 memory relations          Inspect relation edges for selected documents.
 memory plan               Show query planning output.
 memory search             Hybrid retrieval with lexical, metadata, relation expansion, semantic.
@@ -555,7 +563,7 @@ memory workflow           Bounded route/context/answer orchestration with stop r
 memory api-budget         Inspect/change local API budget policy and kill switch.
 memory api-usage          Show API usage ledger events and estimated local spend.
 memory api-watch          Start a lightweight API budget monitor page.
-memory api-lane-estimate  Estimate planned embedding/rerank/reader/OCR/managed-RAG lanes without paid API calls.
+memory api-lane-estimate  Estimate planned embedding/rerank/reader/OCR/managed-RAG lanes without provider API calls.
 memory eval               Route-oriented memory checks.
 memory eval-runs          List stored eval runs.
 memory eval-show          Show one stored eval run and case-level results.
@@ -604,10 +612,19 @@ uv run python -m research_x memory workflow `
   --llm-context-country JP
 ```
 
-Optional real API embedding arm evaluation:
+Real API arm implementation and offline preflight:
 
-Before any paid provider call, configure and inspect the local API budget guard. Unknown prices are
-blocked by default, so add explicit price rows before full builds.
+Current repository execution policy is a no-quota provider freeze. Do not run commands that contact
+Gemini, OpenAI, Voyage, Jina, Cohere, Mistral, Serper, Brave, or similar providers. This includes
+paid usage, free-tier usage, trial credits, and zero-dollar quota consumption.
+
+The commands in this section document the implemented surface and offline preflight path. While the
+freeze is active, only run local/fake providers, non-network estimates, coverage reports, and
+mocked tests. Provider-calling build/search/answer commands are blocked operationally until the user
+explicitly permits provider quota use in the current conversation.
+
+Before any future provider call, configure and inspect the local API budget guard. Unknown prices are
+blocked by default, so add explicit price rows before full builds after the freeze is lifted.
 Seed the checked default price catalog, then inspect it. Cohere v4 PAYG unit prices are marked as
 secondary estimates because Cohere's public docs expose the billing basis while the plain public
 pricing page can require deployment/dashboard context for exact v4 units.
@@ -633,11 +650,34 @@ uv run python -m research_x memory api-watch --db runs/x_data.sqlite3 --port 876
 
 `memory api-lane-estimate` also prints `recommended_plans`. The first-pass recommendation is
 `objective_fit_router_baseline`: broad semantic recall, bounded rerank, limited Reader extraction,
-and sampled OCR calibration. Route expansions such as `jp_multilingual_route`,
+and stratified OCR calibration. Route expansions such as `jp_multilingual_route`,
 `learning_long_route`, `code_technical_route`, and `media_grounded_route` are added when the
 question needs them. Full OCR over all media is shown separately as an expensive explicit-only
 option, because native media recall should select candidate media before OCR creates
 citation-ready image/PDF text.
+
+Objective routing and OCR evidence preparation can be exercised without provider calls:
+
+```powershell
+uv run python -m research_x memory objective-routes `
+  --db runs/x_data.sqlite3 `
+  --query "画像付きで保存したロボット制御の資料を探して"
+uv run python -m research_x memory ocr-estimate `
+  --db runs/x_data.sqlite3 `
+  --sample-policy stratified `
+  --limit 100
+uv run python -m research_x memory build-ocr-evidence `
+  --db runs/x_data.sqlite3 `
+  --provider fake `
+  --limit 10
+uv run python -m research_x memory ocr-coverage --db runs/x_data.sqlite3
+uv run python -m research_x memory ocr-search `
+  --db runs/x_data.sqlite3 `
+  --query "OCRで読める保存画像"
+```
+
+The following provider-calling examples are implementation references only while the no-quota freeze
+is active. Do not execute them until the user explicitly permits provider quota use.
 
 ```powershell
 uv run python -m research_x memory embedding-estimate `
@@ -733,11 +773,15 @@ plain Gemini API key.
 Reader/OCR/reference lanes are also visible in `memory api-lane-estimate`: Jina Reader for URL
 extraction, Mistral `mistral-ocr-2512` as the fixed OCR candidate, optional
 `mistral-ocr-latest`, and OpenAI/Gemini managed File Search as reference-only lanes. OCR is
-expensive over all saved media, so the estimate defaults to a sampled scope. Use `--ocr-scope all`
-only when intentionally pricing full OCR.
+expensive over all saved media, so the estimate defaults to a stratified calibration scope. Use
+`--ocr-scope all` only when intentionally pricing full OCR after provider quota use is explicitly
+permitted.
 
 Native Gemini Embedding 2 media evaluation uses a separate media contract, not
 `memory_embeddings`:
+
+The media build/search examples below contact Gemini when run with `provider=gemini`, so they are
+also blocked by the current no-quota freeze.
 
 ```powershell
 uv run python -m research_x memory media-embedding-estimate `

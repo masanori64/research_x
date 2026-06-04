@@ -69,6 +69,9 @@ Keep the design surface small.
 - When changing the design, update this file first, then adjust `PROJECT.md` only if the milestone
   order changed.
 - Prefer appending a short decision note here over scattering partial plans through new files.
+- When Plan Mode or the user provides a concrete implementation plan, record the durable design
+  contract here before code. The implementation may then change the code, README, and PROJECT to
+  match this file.
 
 Decision discipline:
 
@@ -666,7 +669,7 @@ Current strategy classification:
   ingestion remains a separate media evidence contract.
 - OCR is not a recall arm. It is an evidence-preparation lane that turns image/PDF media into
   citation-ready text. Because all-media OCR can dominate cost, `api-lane-estimate` defaults to a
-  sampled OCR scope and requires `--ocr-scope all` for full lower-bound pricing.
+  stratified calibration scope and requires `--ocr-scope all` for full lower-bound pricing.
 - Managed RAG systems such as OpenAI File Search and Gemini File Search are reference lanes only.
   They may compare UX and citation behavior but must not replace local raw X evidence, account
   ownership, or source-bundle restoration.
@@ -705,10 +708,79 @@ Objective-fit performance priority:
   `code_technical_route`, and `media_grounded_route`. It separates comparison/high-cost options
   such as older contextual embeddings, latest OCR alias tracking, and full OCR lower-bound pricing.
 
+ObjectiveRoutePlan integration:
+
+- The current single `WorkflowRoute` remains for compatibility, but the objective-fit path uses an
+  `ObjectiveRoutePlan` with `primary_route`, `fallback_routes`, `must_run_guards`,
+  `escalation_triggers`, `stop_conditions`, `budget_policy`, and `planned_provider_roles`.
+- The router must not choose only one brittle route. It selects a primary route plus fallback routes
+  and explicit escalation triggers.
+- Current Evidence/Skill/Workflow is `candidate_a_current_baseline`: a strong default candidate,
+  not an unquestioned final architecture.
+- Route examples:
+  - `single_fact_conditioned`: primary `exact_metadata_social`, fallback
+    `candidate_a_current_baseline` and `semantic_embedding_portfolio`;
+  - `media_grounded`: primary `media_evidence`, fallback `exact_metadata_social`,
+    `semantic_embedding_portfolio`, and `candidate_a_current_baseline`, escalation
+    `ocr_quality_pipeline`;
+  - `temporal_freshness`: primary `candidate_a_current_baseline`, fallback
+    `external_web_context` and `bounded_agentic_workflow`;
+  - `exploratory_map`: primary `skill_map`, fallback `graph_sensemaking` and
+    `semantic_embedding_portfolio`.
+
+OCR Evidence Quality Pipeline:
+
+- OCR is the standard sub-workflow for `media_grounded` escalation, not a loose add-on.
+- The media route flow is:
+
+```text
+media_recall
+  -> media_source_evidence
+  -> media_quality_profile
+  -> text_region_detection / crop contract
+  -> engine_routing
+  -> raw_ocr_storage
+  -> confidence / quality gate
+  -> second_pass when needed
+  -> context_chunk + citation promotion
+  -> media_content_evidence
+```
+
+- Initial OCR provider is Mistral `mistral-ocr-2512`; `fake` is the no-network test provider.
+  PaddleOCR / PaddleOCR-VL / manga OCR remain optional local providers behind the same provider
+  contract.
+- Store raw OCR, corrected text, and caption/VLM text as separate profiles. Never overwrite raw OCR
+  with normalized or LLM-corrected text.
+- OCR source granularity is `media_id + page_index + region_index + bbox + source_image_hash`.
+- `memory_context_chunks` and `memory_citation_annotations` are the promotion target. A media item
+  becomes `media_content_evidence` only after OCR/caption/VLM text has been promoted into
+  citation-ready chunks.
+- OCR sampling is `stratified_calibration`, not a flat random 100. Default strata are
+  `document_or_table`, `screenshot_or_ui`, `manga_or_vertical_text`,
+  `general_japanese_image`, `alt_text_missing`, `media_recall_top_hit`, and
+  `tweet_text_insufficient`.
+- Full OCR remains explicit-only. Expand OCR scope only when targeted OCR fails answer-correctness
+  evals for media-grounded questions.
+
 ## API Budget Guard
 
-All paid or quota-limited provider calls must pass through the local API budget guard before an
-HTTP request is sent.
+Current execution policy:
+
+- External provider API calls are frozen until the user explicitly lifts the no-quota freeze in the
+  current conversation.
+- The freeze covers paid usage, free-tier usage, trial credits, and any zero-dollar quota
+  consumption. "Free" provider calls are still real quota consumption and are not allowed.
+- While frozen, run only local/fake providers, read-only estimates that do not contact providers,
+  coverage reports, and tests that monkeypatch provider HTTP.
+- Do not run real embedding, OCR, rerank, classifier, answer, reader, external-search,
+  LLM-context, or managed-RAG calls. Do not use `--allow-unpriced-api`.
+- If the freeze is lifted, offline estimates and budget status must be checked before the first
+  request, the smallest useful limit must be used first, and the next provider call must be stopped
+  when pricing, quota, or budget evidence is unclear.
+
+All paid, free-tier, trial-credit, or otherwise quota-limited provider calls must pass through the
+local API budget guard before an HTTP request is sent. While the no-quota freeze is active, this is
+a future safety contract only; it is not permission to call providers.
 
 Guarded provider roles include:
 
@@ -729,19 +801,22 @@ The guard stores a local usage ledger in:
 - `memory_api_usage_events`;
 - `memory_api_price_catalog`.
 
-Default policy is intentionally conservative:
+Default policy for future provider-call experiments is intentionally conservative:
 
 - run cap: 1 USD;
 - day cap: 5 USD;
 - month cap: 25 USD;
 - unknown price action: block;
-- kill switch: off by default, but when enabled it blocks the next paid API call before HTTP.
+- kill switch: off by default, but when enabled it blocks the next provider API call before HTTP.
 
-Unknown prices are not treated as free. A provider/model/operation/unit must have a price catalog
-entry, or the command must explicitly pass `--allow-unpriced-api`; that override is recorded in the
-ledger. Local/fake providers and diagnostic `local_hash` do not create billable events.
+Unknown prices are not treated as free. During the no-quota freeze, neither price catalog rows nor
+`--allow-unpriced-api` override the provider-call prohibition. If the freeze is later lifted, a
+provider/model/operation/unit must have a price catalog entry unless the user explicitly permits an
+unpriced override in that same conversation. Local/fake providers and diagnostic `local_hash` do not
+create billable events.
 
-Use these commands before and during real API experiments:
+Use these commands for offline preflight and future monitoring. They do not by themselves authorize
+provider HTTP requests:
 
 ```powershell
 uv run python -m research_x memory api-budget status --db runs/x_data.sqlite3
@@ -762,8 +837,9 @@ Pricing confidence:
 - secondary-priced rows, currently Cohere `embed-v4.0` and Rerank v4 search units, are included in
   estimates only because Cohere primary docs confirm the billing basis while LiteLLM/price-index
   sources provide matching unit prices;
-- unknown or dashboard-only prices remain blocked by default in real API execution unless the user
-  registers an explicit local `api-budget price-set` row or passes `--allow-unpriced-api`.
+- unknown or dashboard-only prices remain blocked by default in future provider execution. During
+  the no-quota freeze, even explicit price rows and `--allow-unpriced-api` do not authorize provider
+  calls.
 
 ## Corpus2Skill Position
 

@@ -224,24 +224,23 @@ Implementation checklist:
       `api_embedding_portfolio` as strategy concepts without treating generated maps as evidence.
 - [x] Make `portfolio-eval` compare non-vector evidence paths, source-bundle restoration, workflow
       routing, and real API embedding arms under the same route-level cases.
-- [x] Split real API candidates into embedding, rerank, and reader/OCR/media lanes before running
-      paid API builds.
+- [x] Split real API candidates into embedding, rerank, and reader/OCR/media lanes before any
+      provider-quota builds.
 - [x] Add fake-first reranker provider wiring and keep real rerank providers behind explicit eval
       or command selection.
 - [x] Keep `local_hash` diagnostic-only and blocked from promotion.
 - [x] Stop before real API embedding estimates/builds until the workflow-gated strategy surface is
       aligned.
 
-## Next Milestone: Gemini Embedding 2 Media Contract And Real API Evaluation
+## Next Milestone: Objective-Fit Media Evidence And No-Quota API Preflight
 
 The workflow-gated strategy surface is aligned. The next implementation/evaluation phase is to add
-the Gemini Embedding 2 media evidence contract first, then run real API embedding estimates/builds
-for text and native media arms, run bounded rerank arms, and compare them against the
-evidence-first baselines.
+objective-fit route planning and media evidence contracts first, then keep real provider execution
+behind the no-quota freeze until the user explicitly permits provider quota use.
 
-Implementation side status: complete. The remaining work in this milestone is real API execution:
-estimate costs/coverage, run limited Gemini text/media builds, then evaluate text, media, and rerank
-arms against the evidence-first baselines.
+Implementation side status: complete for the no-quota contract and fake/local verification surface.
+Real provider execution, including free-tier or trial-credit calls, is not part of the current
+allowed execution state.
 
 Implementation checklist:
 
@@ -261,7 +260,7 @@ Implementation checklist:
 - [x] Add media-grounded eval cases and promotion gates before native media search can enter
       normal workflow routes.
 - [x] Add local API budget policies, usage ledger, kill switch, CLI/app monitoring, and guarded
-      real-provider call sites before full paid API evaluation.
+      real-provider call sites before full provider-quota evaluation.
 - [x] Add full preflight `api-lane-estimate` for the planned embedding, rerank, URL Reader,
       OCR, native media, and managed-RAG reference lanes without spending API tokens.
 - [x] Split embedding estimates by workflow role instead of treating all text embeddings as one
@@ -273,13 +272,24 @@ Implementation checklist:
       when the public primary source confirms billing basis but not a plain unit table.
 - [x] Add `test-diagnose` so slow or hanging pytest units can be isolated without dropping
       coverage from the normal verification pipeline.
+- [x] Add `ObjectiveRoutePlan` execution metadata so each query records primary route, fallback
+      routes, escalation triggers, stop conditions, budget policy, and planned provider roles.
+- [x] Add OCR Evidence Quality Pipeline commands and storage so media-grounded routes can promote
+      OCR/caption-ready text to citation chunks without treating raw media hits as image-content
+      evidence.
+- [x] Update docs before code for the no-quota provider freeze and for Plan Mode implementation
+      plans.
 
 Stop condition before this milestone starts:
 
 - API keys and target provider/profile choices must be explicit.
-- Run `memory api-budget seed-default-prices` and `memory api-lane-estimate` before writing real
-  embedding, rerank, Reader, OCR, or native media rows.
-- Estimated cost and document/media/URL coverage must be reviewed before writing real provider rows.
+- Provider quota use must be explicitly permitted in the current conversation before writing real
+  embedding, rerank, Reader, OCR, or native media rows. This includes paid usage, free-tier usage,
+  trial credits, and zero-dollar quota consumption.
+- Run non-network `memory api-budget seed-default-prices` and `memory api-lane-estimate` before any
+  future provider call.
+- Estimated cost and document/media/URL coverage must be reviewed before writing real provider rows
+  after the no-quota freeze is lifted.
 - Native media build must start with `media-embedding-estimate`, then `--limit 1`, `--limit 10`,
   `--limit 100`, then full only after coverage looks correct.
 - Rerank providers must run on restored bounded source bundles, not raw semantic hits.

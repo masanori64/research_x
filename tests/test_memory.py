@@ -4,6 +4,8 @@ import sqlite3
 import urllib.error
 from pathlib import Path
 
+import pytest
+
 from research_x.cli import main
 from research_x.memory import embeddings, media_embeddings
 from research_x.memory import portfolio as memory_portfolio
@@ -46,6 +48,13 @@ from research_x.memory.media_embeddings import (
     media_embedding_coverage_report,
     restore_media_source_bundle,
     search_media_embeddings,
+)
+from research_x.memory.objective_routes import plan_objective_routes
+from research_x.memory.ocr import (
+    build_ocr_evidence,
+    estimate_ocr_evidence,
+    ocr_coverage,
+    ocr_search,
 )
 from research_x.memory.portfolio import (
     parse_portfolio_reranker_spec,
@@ -729,6 +738,7 @@ def test_memory_media_embedding_schema_estimate_build_and_search(
     build_memory_corpus(db_path)
     build_memory_relations(db_path)
     with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
         conn.execute(
             "UPDATE media SET local_path = ? WHERE media_id = ?",
@@ -784,6 +794,161 @@ def test_memory_media_embedding_schema_estimate_build_and_search(
     media_path.write_bytes(b"changed-image")
     stale = media_embedding_coverage_report(db_path, dimensions=3)
     assert stale.stale_file == 1
+
+
+def test_memory_objective_routes_include_primary_fallback_and_ocr_escalation() -> None:
+    plan = plan_objective_routes("画像の図表にあったネットワーク資料っぽい投稿を出して")
+
+    assert plan.primary_route == "media_evidence"
+    assert "exact_metadata_social" in plan.fallback_routes
+    assert "semantic_embedding_portfolio" in plan.fallback_routes
+    assert "ocr_quality_pipeline" in plan.escalation_triggers
+    assert "no_unsupported_media_content_claims" in plan.must_run_guards
+    assert "ocr" in plan.planned_provider_roles
+    assert plan.workflow_route.route == "media_context"
+    assert plan.as_dict()["primary_route"] == "media_evidence"
+
+
+def test_memory_ocr_evidence_promotes_media_content_chunks(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+        before = restore_media_source_bundle(conn, "media-1")
+
+    estimate = estimate_ocr_evidence(db_path, limit=100)
+    summary = build_ocr_evidence(db_path, provider="fake", limit=1)
+    coverage = ocr_coverage(db_path)
+    hits = ocr_search(db_path, "OCR robot", limit=5)
+
+    assert before["media_content_evidence"] is False
+    assert estimate.selected == 1
+    assert estimate.sample_policy == "stratified"
+    assert summary.provider == "fake"
+    assert summary.processed == 1
+    assert summary.promoted_chunks == 1
+    assert coverage.texts == 1
+    assert coverage.context_chunks == 1
+    assert hits
+    assert hits[0]["media_id"] == "media-1"
+    assert hits[0]["bundle"]["tweet_id"] == "tweet-1"
+    assert hits[0]["bundle"]["media_content_evidence"] is True
+    with sqlite3.connect(db_path) as conn:
+        raw_text, normalized_text, corrected_text = conn.execute(
+            """
+            SELECT raw_ocr_text, normalized_text, corrected_text
+            FROM memory_ocr_texts
+            LIMIT 1
+            """
+        ).fetchone()
+    assert "Fake OCR text" in raw_text
+    assert "OCR robot diagram label" in normalized_text
+    assert corrected_text is None
+
+
+def test_memory_ocr_blocks_provider_quota_calls(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    with pytest.raises(RuntimeError, match="provider OCR API use is frozen"):
+        build_ocr_evidence(db_path, provider="mistral", limit=1)
+
+
+def test_memory_objective_routes_and_ocr_cli(tmp_path: Path, capsys) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+
+    assert (
+        main(
+            [
+                "memory",
+                "objective-routes",
+                "--db",
+                str(db_path),
+                "--query",
+                "画像の図表を探して",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    objective_output = capsys.readouterr().out
+    assert '"primary_route": "media_evidence"' in objective_output
+    assert "ocr_quality_pipeline" in objective_output
+    assert (
+        main(
+            [
+                "memory",
+                "ocr-estimate",
+                "--db",
+                str(db_path),
+                "--limit",
+                "100",
+            ]
+        )
+        == 0
+    )
+    estimate_output = capsys.readouterr().out
+    assert "sample_policy: stratified" in estimate_output
+    assert "selected=1" in estimate_output
+    assert (
+        main(
+            [
+                "memory",
+                "build-ocr-evidence",
+                "--db",
+                str(db_path),
+                "--provider",
+                "fake",
+                "--limit",
+                "1",
+            ]
+        )
+        == 0
+    )
+    build_output = capsys.readouterr().out
+    assert "provider: fake/mistral-ocr-2512" in build_output
+    assert (
+        main(
+            [
+                "memory",
+                "build-ocr-evidence",
+                "--db",
+                str(db_path),
+                "--provider",
+                "mistral",
+                "--allow-real-api",
+                "--limit",
+                "1",
+            ]
+        )
+        == 1
+    )
+    blocked_output = capsys.readouterr()
+    assert "does not override" in blocked_output.err
+    assert "promoted_chunks=1" in build_output
+    assert main(["memory", "ocr-coverage", "--db", str(db_path)]) == 0
+    coverage_output = capsys.readouterr().out
+    assert "texts=1" in coverage_output
+    assert "context_chunks=1" in coverage_output
 
 
 def test_memory_media_embedding_resolver_skips_invalid_media(tmp_path: Path) -> None:

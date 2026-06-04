@@ -1,0 +1,1025 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+import json
+import mimetypes
+import sqlite3
+import uuid
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Protocol
+
+from research_x.memory.api_budget import api_units, budgeted_api_call
+from research_x.memory.embeddings import _api_key, _post_json
+from research_x.memory.media_embeddings import restore_media_source_bundle
+from research_x.memory.schema import ensure_memory_schema
+
+OCR_PROVIDER_FAKE = "fake"
+OCR_PROVIDER_MISTRAL = "mistral"
+OCR_DEFAULT_PROVIDER = OCR_PROVIDER_FAKE
+OCR_DEFAULT_MODEL = "mistral-ocr-2512"
+OCR_DEFAULT_PROFILE = "ocr-evidence-v1"
+OCR_EXTRACTOR_VERSION = "ocr-evidence-v1"
+DEFAULT_SAMPLE_POLICY = "stratified"
+DEFAULT_MAX_FILE_BYTES = 20 * 1024 * 1024
+SUPPORTED_OCR_MIME_TYPES = (
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+)
+
+
+@dataclass(frozen=True)
+class OcrRegion:
+    region_id: str
+    media_id: str
+    source_tweet_id: str
+    page_index: int
+    region_index: int
+    bbox: dict[str, int | float | str]
+    region_hash: str
+    source_image_hash: str
+    local_path: str
+    resolved_path: str
+    mime_type: str
+    quality_flags: dict[str, Any]
+    strata: tuple[str, ...]
+    engine_route: str
+    status: str
+    skip_reason: str | None
+    media_url: str | None
+    tweet_url: str | None
+    alt_text: str | None
+    tweet_text: str | None
+
+    def as_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["strata"] = list(self.strata)
+        return payload
+
+
+@dataclass(frozen=True)
+class OcrEstimate:
+    db_path: str
+    sample_policy: str
+    limit: int | None
+    media: int
+    selected: int
+    skipped: int
+    by_strata: dict[str, int]
+    by_engine_route: dict[str, int]
+    skipped_reasons: dict[str, int]
+    estimated_pages: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class OcrResult:
+    raw_text: str
+    normalized_text: str
+    confidence: float | None
+    corrected_text: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class OcrBuildSummary:
+    db_path: str
+    provider: str
+    model: str
+    ocr_profile: str
+    ocr_run_id: str
+    selected: int
+    processed: int
+    skipped: int
+    promoted_chunks: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class OcrCoverage:
+    db_path: str
+    regions: int
+    texts: int
+    context_chunks: int
+    by_provider_model: dict[str, int]
+    by_evidence_status: dict[str, int]
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+class OcrProvider(Protocol):
+    provider_id: str
+
+    def extract(self, region: OcrRegion, *, model: str, timeout_seconds: float) -> OcrResult:
+        """Extract OCR text from a resolved media region."""
+
+
+class FakeOcrProvider:
+    provider_id = OCR_PROVIDER_FAKE
+
+    def extract(self, region: OcrRegion, *, model: str, timeout_seconds: float) -> OcrResult:
+        text = f"Fake OCR text for {region.media_id}: OCR robot diagram label"
+        return OcrResult(
+            raw_text=text,
+            normalized_text=_normalize_ocr_text(text),
+            confidence=0.93,
+            metadata={"fixture": True, "engine_route": region.engine_route},
+        )
+
+
+class MistralOcrProvider:
+    provider_id = OCR_PROVIDER_MISTRAL
+
+    def __init__(
+        self,
+        *,
+        api_key_env: str = "MISTRAL_API_KEY",
+        base_url: str | None = None,
+    ) -> None:
+        self.api_key = _api_key(api_key_env)
+        self.base_url = base_url or "https://api.mistral.ai/v1/ocr"
+
+    def extract(self, region: OcrRegion, *, model: str, timeout_seconds: float) -> OcrResult:
+        data_url = _data_url(region.resolved_path, region.mime_type)
+        document_key = "document_url" if region.mime_type == "application/pdf" else "image_url"
+        payload = {
+            "model": model,
+            "document": {
+                "type": document_key,
+                document_key: data_url,
+            },
+            "include_image_base64": False,
+        }
+        with budgeted_api_call(
+            provider=OCR_PROVIDER_MISTRAL,
+            model=model,
+            provider_role="ocr",
+            operation="ocr",
+            units=api_units(
+                calls=1,
+                pages=1,
+                media_bytes=Path(region.resolved_path).stat().st_size,
+            ),
+            request_payload={
+                "model": model,
+                "media_id": region.media_id,
+                "mime_type": region.mime_type,
+            },
+            metadata={"region_id": region.region_id, "engine_route": region.engine_route},
+        ):
+            response = _post_json(
+                self.base_url,
+                payload,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout_seconds=timeout_seconds,
+            )
+        raw_text = _extract_mistral_text(response)
+        return OcrResult(
+            raw_text=raw_text,
+            normalized_text=_normalize_ocr_text(raw_text),
+            confidence=None,
+            metadata={"response_shape": _response_shape(response)},
+        )
+
+
+def estimate_ocr_evidence(
+    db_path: str | Path,
+    *,
+    sample_policy: str = DEFAULT_SAMPLE_POLICY,
+    limit: int | None = 100,
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+) -> OcrEstimate:
+    regions = _selected_regions(
+        _ocr_regions(db_path, max_file_bytes=max_file_bytes),
+        sample_policy=sample_policy,
+        limit=limit,
+    )
+    all_regions = _ocr_regions(db_path, max_file_bytes=max_file_bytes)
+    skipped = [region for region in all_regions if region.status == "skipped"]
+    return OcrEstimate(
+        db_path=str(Path(db_path)),
+        sample_policy=sample_policy,
+        limit=limit,
+        media=len(all_regions),
+        selected=len(regions),
+        skipped=len(skipped),
+        by_strata=_count_strata(regions),
+        by_engine_route=_count_attr(regions, "engine_route"),
+        skipped_reasons=_count_skip_reasons(skipped),
+        estimated_pages=len(regions),
+    )
+
+
+def build_ocr_evidence(
+    db_path: str | Path,
+    *,
+    provider: str = OCR_DEFAULT_PROVIDER,
+    model: str = OCR_DEFAULT_MODEL,
+    ocr_profile: str = OCR_DEFAULT_PROFILE,
+    sample_policy: str = DEFAULT_SAMPLE_POLICY,
+    limit: int | None = 100,
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+    timeout_seconds: float = 60.0,
+    promote_chunks: bool = True,
+    api_key_env: str | None = None,
+    base_url: str | None = None,
+    allow_provider_quota: bool = False,
+) -> OcrBuildSummary:
+    path = Path(db_path)
+    normalized_provider = provider.strip().lower()
+    if normalized_provider != OCR_PROVIDER_FAKE and not allow_provider_quota:
+        raise RuntimeError(
+            "provider OCR API use is frozen, including paid, free-tier, trial-credit, and "
+            "zero-dollar quota calls. Use provider=fake unless the no-quota freeze is explicitly "
+            "lifted."
+        )
+    selected = _selected_regions(
+        _ocr_regions(path, max_file_bytes=max_file_bytes),
+        sample_policy=sample_policy,
+        limit=limit,
+    )
+    ocr_run_id = f"ocr-{uuid.uuid4().hex[:12]}"
+    started = _utc_now()
+    provider_impl = _provider(normalized_provider, api_key_env=api_key_env, base_url=base_url)
+    processed = 0
+    skipped = 0
+    promoted = 0
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        _insert_ocr_run(
+            conn,
+            ocr_run_id=ocr_run_id,
+            provider=provider_impl.provider_id,
+            model=model,
+            ocr_profile=ocr_profile,
+            sample_policy=sample_policy,
+            limit=limit,
+            status="running",
+            started_at=started,
+            selected=len(selected),
+        )
+        try:
+            for region in selected:
+                _insert_ocr_region(conn, ocr_run_id=ocr_run_id, region=region)
+                if region.status == "skipped":
+                    skipped += 1
+                    continue
+                result = provider_impl.extract(region, model=model, timeout_seconds=timeout_seconds)
+                _insert_ocr_text(
+                    conn,
+                    ocr_run_id=ocr_run_id,
+                    region=region,
+                    provider=provider_impl.provider_id,
+                    model=model,
+                    ocr_profile=ocr_profile,
+                    result=result,
+                )
+                processed += 1
+                if promote_chunks and result.normalized_text:
+                    _promote_region_to_chunk(
+                        conn,
+                        ocr_run_id=ocr_run_id,
+                        region=region,
+                        provider=provider_impl.provider_id,
+                        model=model,
+                        ocr_profile=ocr_profile,
+                        result=result,
+                    )
+                    promoted += 1
+        except Exception as exc:
+            _finish_ocr_run(
+                conn,
+                ocr_run_id=ocr_run_id,
+                status="error",
+                processed=processed,
+                skipped=skipped,
+                error=str(exc),
+            )
+            conn.commit()
+            raise
+        _finish_ocr_run(
+            conn,
+            ocr_run_id=ocr_run_id,
+            status="ok",
+            processed=processed,
+            skipped=skipped,
+        )
+        conn.commit()
+    return OcrBuildSummary(
+        db_path=str(path),
+        provider=provider_impl.provider_id,
+        model=model,
+        ocr_profile=ocr_profile,
+        ocr_run_id=ocr_run_id,
+        selected=len(selected),
+        processed=processed,
+        skipped=skipped,
+        promoted_chunks=promoted,
+    )
+
+
+def ocr_coverage(db_path: str | Path) -> OcrCoverage:
+    with sqlite3.connect(db_path, timeout=60) as conn:
+        ensure_memory_schema(conn)
+        regions = conn.execute("SELECT COUNT(*) FROM memory_ocr_regions").fetchone()[0]
+        texts = conn.execute("SELECT COUNT(*) FROM memory_ocr_texts").fetchone()[0]
+        chunks = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_context_chunks
+            WHERE provider_role = 'ocr'
+            """
+        ).fetchone()[0]
+        provider_rows = conn.execute(
+            """
+            SELECT provider || '/' || model, COUNT(*)
+            FROM memory_ocr_texts
+            GROUP BY provider, model
+            """
+        ).fetchall()
+        status_rows = conn.execute(
+            """
+            SELECT evidence_status, COUNT(*)
+            FROM memory_ocr_texts
+            GROUP BY evidence_status
+            """
+        ).fetchall()
+    return OcrCoverage(
+        db_path=str(Path(db_path)),
+        regions=int(regions),
+        texts=int(texts),
+        context_chunks=int(chunks),
+        by_provider_model={str(key): int(value) for key, value in provider_rows},
+        by_evidence_status={str(key): int(value) for key, value in status_rows},
+    )
+
+
+def ocr_search(db_path: str | Path, query: str, *, limit: int = 10) -> tuple[dict[str, Any], ...]:
+    terms = tuple(term for term in _normalize_ocr_text(query).split() if term)
+    with sqlite3.connect(db_path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        rows = conn.execute(
+            """
+            SELECT t.text_id, t.media_id, t.normalized_text, t.confidence,
+                   t.evidence_status, r.bbox_json, r.local_path, r.mime_type
+            FROM memory_ocr_texts t
+            JOIN memory_ocr_regions r ON r.region_id = t.region_id
+            ORDER BY t.created_at DESC
+            """
+        ).fetchall()
+        hits = []
+        for row in rows:
+            text = str(row["normalized_text"] or "")
+            if terms and not all(term.casefold() in text.casefold() for term in terms):
+                continue
+            bundle = restore_media_source_bundle(conn, str(row["media_id"]))
+            hits.append(
+                {
+                    "text_id": row["text_id"],
+                    "media_id": row["media_id"],
+                    "text": text,
+                    "confidence": row["confidence"],
+                    "evidence_status": row["evidence_status"],
+                    "bbox": _loads_json(row["bbox_json"]),
+                    "bundle": bundle,
+                }
+            )
+            if len(hits) >= max(1, limit):
+                break
+    return tuple(hits)
+
+
+def estimate_json(estimate: OcrEstimate) -> str:
+    return json.dumps(estimate.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def summary_json(summary: OcrBuildSummary) -> str:
+    return json.dumps(summary.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def coverage_json(coverage: OcrCoverage) -> str:
+    return json.dumps(coverage.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def search_json(hits: tuple[dict[str, Any], ...]) -> str:
+    return json.dumps(hits, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_estimate(estimate: OcrEstimate) -> str:
+    return "\n".join(
+        (
+            f"db: {estimate.db_path}",
+            f"sample_policy: {estimate.sample_policy} limit={estimate.limit}",
+            f"media: {estimate.media} selected={estimate.selected} skipped={estimate.skipped}",
+            f"estimated_pages: {estimate.estimated_pages}",
+            f"by_strata: {json.dumps(estimate.by_strata, ensure_ascii=False, sort_keys=True)}",
+            (
+                "by_engine_route: "
+                f"{json.dumps(estimate.by_engine_route, ensure_ascii=False, sort_keys=True)}"
+            ),
+            (
+                "skipped_reasons: "
+                f"{json.dumps(estimate.skipped_reasons, ensure_ascii=False, sort_keys=True)}"
+            ),
+        )
+    )
+
+
+def format_summary(summary: OcrBuildSummary) -> str:
+    return "\n".join(
+        (
+            f"db: {summary.db_path}",
+            f"run: {summary.ocr_run_id}",
+            f"provider: {summary.provider}/{summary.model} profile={summary.ocr_profile}",
+            (
+                f"selected={summary.selected} processed={summary.processed} "
+                f"skipped={summary.skipped} promoted_chunks={summary.promoted_chunks}"
+            ),
+        )
+    )
+
+
+def format_coverage(coverage: OcrCoverage) -> str:
+    return "\n".join(
+        (
+            f"db: {coverage.db_path}",
+            (
+                f"regions={coverage.regions} texts={coverage.texts} "
+                f"context_chunks={coverage.context_chunks}"
+            ),
+            (
+                "by_provider_model: "
+                f"{json.dumps(coverage.by_provider_model, ensure_ascii=False, sort_keys=True)}"
+            ),
+            (
+                "by_evidence_status: "
+                f"{json.dumps(coverage.by_evidence_status, ensure_ascii=False, sort_keys=True)}"
+            ),
+        )
+    )
+
+
+def format_search(hits: tuple[dict[str, Any], ...]) -> str:
+    lines = []
+    for index, hit in enumerate(hits, start=1):
+        bundle = hit["bundle"]
+        lines.append(
+            f"{index}. media_id={hit['media_id']} tweet_id={bundle.get('tweet_id') or ''} "
+            f"confidence={hit.get('confidence')}"
+        )
+        lines.append(f"   text={hit['text']}")
+        lines.append(f"   tweet_url={bundle.get('tweet_url') or ''}")
+    return "\n".join(lines) if lines else "no OCR hits"
+
+
+def _ocr_regions(db_path: str | Path, *, max_file_bytes: int) -> tuple[OcrRegion, ...]:
+    path = Path(db_path)
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        rows = conn.execute(
+            """
+            SELECT
+                m.media_id, m.tweet_id, m.type, m.url AS media_url, m.alt_text,
+                m.local_path, m.download_status, m.content_type, m.bytes,
+                t.url AS tweet_url, t.text AS tweet_text
+            FROM media m
+            JOIN tweets t ON t.tweet_id = m.tweet_id
+            ORDER BY t.last_observed_at DESC, m.media_id
+            """
+        ).fetchall()
+    return tuple(_region_from_row(row, db_path=path, max_file_bytes=max_file_bytes) for row in rows)
+
+
+def _region_from_row(row: sqlite3.Row, *, db_path: Path, max_file_bytes: int) -> OcrRegion:
+    local_path = str(row["local_path"] or "")
+    resolved = _resolve_media_path(local_path, db_path=db_path)
+    mime_type = _resolve_mime_type(row, resolved)
+    quality_flags = _quality_flags(row, resolved=resolved, max_file_bytes=max_file_bytes)
+    skip_reason = quality_flags.get("skip_reason")
+    source_hash = _file_hash(resolved) if resolved and not skip_reason else ""
+    strata = _strata(row, mime_type=mime_type, quality_flags=quality_flags)
+    engine_route = _engine_route(strata)
+    region_hash = _stable_hash(
+        {
+            "media_id": row["media_id"],
+            "local_path": local_path,
+            "mime_type": mime_type,
+            "source_hash": source_hash,
+            "bbox": "full",
+        }
+    )
+    bbox = {"type": "full_media", "x": 0, "y": 0, "width": 1, "height": 1}
+    return OcrRegion(
+        region_id=f"ocr-region-{region_hash[:16]}",
+        media_id=str(row["media_id"]),
+        source_tweet_id=str(row["tweet_id"] or ""),
+        page_index=0,
+        region_index=0,
+        bbox=bbox,
+        region_hash=region_hash,
+        source_image_hash=source_hash,
+        local_path=local_path,
+        resolved_path=str(resolved) if resolved else "",
+        mime_type=mime_type,
+        quality_flags=quality_flags,
+        strata=strata,
+        engine_route=engine_route,
+        status="skipped" if skip_reason else "candidate",
+        skip_reason=str(skip_reason) if skip_reason else None,
+        media_url=row["media_url"],
+        tweet_url=row["tweet_url"],
+        alt_text=row["alt_text"],
+        tweet_text=row["tweet_text"],
+    )
+
+
+def _selected_regions(
+    regions: tuple[OcrRegion, ...],
+    *,
+    sample_policy: str,
+    limit: int | None,
+) -> tuple[OcrRegion, ...]:
+    candidates = [region for region in regions if region.status != "skipped"]
+    normalized_policy = sample_policy.strip().lower().replace("-", "_")
+    if normalized_policy in {"all", "full"}:
+        selected = candidates
+    elif normalized_policy == "stratified":
+        selected = _stratified(candidates, limit=limit)
+    else:
+        selected = candidates
+    if limit is not None and limit >= 0:
+        selected = selected[:limit]
+    return tuple(selected)
+
+
+def _stratified(candidates: list[OcrRegion], *, limit: int | None) -> list[OcrRegion]:
+    if limit is None or limit <= 0:
+        return candidates
+    buckets: dict[str, list[OcrRegion]] = {}
+    for region in candidates:
+        key = region.strata[0] if region.strata else "unknown"
+        buckets.setdefault(key, []).append(region)
+    selected: list[OcrRegion] = []
+    keys = sorted(buckets)
+    while len(selected) < limit and any(buckets.values()):
+        for key in keys:
+            if buckets[key] and len(selected) < limit:
+                selected.append(buckets[key].pop(0))
+    return selected
+
+
+def _quality_flags(
+    row: sqlite3.Row,
+    *,
+    resolved: Path | None,
+    max_file_bytes: int,
+) -> dict[str, Any]:
+    local_path = str(row["local_path"] or "")
+    mime_type = _resolve_mime_type(row, resolved)
+    flags: dict[str, Any] = {
+        "download_status": row["download_status"],
+        "declared_bytes": int(row["bytes"] or 0),
+        "has_alt_text": bool(row["alt_text"]),
+        "tweet_text_chars": len(str(row["tweet_text"] or "")),
+        "media_type": row["type"],
+    }
+    if not local_path:
+        flags["skip_reason"] = "missing_local_path"
+    elif resolved is None:
+        flags["skip_reason"] = "missing_file"
+    elif mime_type not in SUPPORTED_OCR_MIME_TYPES:
+        flags["skip_reason"] = "unsupported_mime_type"
+    else:
+        size = resolved.stat().st_size
+        flags["file_bytes"] = size
+        if size <= 0:
+            flags["skip_reason"] = "zero_byte_file"
+        elif size > max_file_bytes:
+            flags["skip_reason"] = "file_too_large"
+    flags["text_likelihood"] = _text_likelihood(row, mime_type=mime_type)
+    return flags
+
+
+def _strata(row: sqlite3.Row, *, mime_type: str, quality_flags: dict[str, Any]) -> tuple[str, ...]:
+    text = " ".join(
+        str(row[key] or "") for key in ("alt_text", "tweet_text", "media_url")
+    ).casefold()
+    values: list[str] = []
+    if mime_type == "application/pdf":
+        values.append("document_or_table")
+    if any(term in text for term in ("スクショ", "screenshot", "画面", "ui")):
+        values.append("screenshot_or_ui")
+    if any(term in text for term in ("漫画", "manga", "同人", "縦書", "吹き出し")):
+        values.append("manga_or_vertical_text")
+    if quality_flags.get("text_likelihood") == "high":
+        values.append("general_japanese_image")
+    if not quality_flags.get("has_alt_text"):
+        values.append("alt_text_missing")
+    if quality_flags.get("tweet_text_chars", 0) < 24:
+        values.append("tweet_text_insufficient")
+    if not values:
+        values.append("media_recall_top_hit")
+    return tuple(dict.fromkeys(values))
+
+
+def _engine_route(strata: tuple[str, ...]) -> str:
+    if "document_or_table" in strata:
+        return "document_pdf_or_table"
+    if "screenshot_or_ui" in strata:
+        return "screenshot_or_ui_text"
+    if "manga_or_vertical_text" in strata:
+        return "manga_or_vertical_text"
+    if "general_japanese_image" in strata:
+        return "japanese_general_image"
+    return "mistral_general"
+
+
+def _text_likelihood(row: sqlite3.Row, *, mime_type: str) -> str:
+    text = " ".join(str(row[key] or "") for key in ("alt_text", "tweet_text"))
+    if mime_type == "application/pdf":
+        return "high"
+    if any(term in text for term in ("資料", "図表", "スクショ", "文字", "説明", "メニュー")):
+        return "high"
+    if row["alt_text"]:
+        return "medium"
+    return "unknown"
+
+
+def _insert_ocr_run(
+    conn: sqlite3.Connection,
+    *,
+    ocr_run_id: str,
+    provider: str,
+    model: str,
+    ocr_profile: str,
+    sample_policy: str,
+    limit: int | None,
+    status: str,
+    started_at: str,
+    selected: int,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO memory_ocr_runs (
+            ocr_run_id, provider, model, ocr_profile, sample_policy, limit_count,
+            status, selected_regions, processed_regions, skipped_regions,
+            budget_event_id, started_at, finished_at, error, metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)
+        """,
+        (
+            ocr_run_id,
+            provider,
+            model,
+            ocr_profile,
+            sample_policy,
+            limit,
+            status,
+            selected,
+            None,
+            started_at,
+            None,
+            None,
+            "{}",
+        ),
+    )
+
+
+def _finish_ocr_run(
+    conn: sqlite3.Connection,
+    *,
+    ocr_run_id: str,
+    status: str,
+    processed: int,
+    skipped: int,
+    error: str | None = None,
+) -> None:
+    conn.execute(
+        """
+        UPDATE memory_ocr_runs
+        SET status = ?, processed_regions = ?, skipped_regions = ?, finished_at = ?, error = ?
+        WHERE ocr_run_id = ?
+        """,
+        (status, processed, skipped, _utc_now(), error, ocr_run_id),
+    )
+
+
+def _insert_ocr_region(conn: sqlite3.Connection, *, ocr_run_id: str, region: OcrRegion) -> None:
+    conn.execute(
+        """
+        INSERT INTO memory_ocr_regions (
+            region_id, ocr_run_id, media_id, source_tweet_id, page_index, region_index,
+            bbox_json, region_hash, source_image_hash, local_path, mime_type,
+            quality_flags_json, strata_json, engine_route, status, created_at, metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(region_id) DO UPDATE SET
+            ocr_run_id=excluded.ocr_run_id,
+            status=excluded.status,
+            quality_flags_json=excluded.quality_flags_json,
+            metadata_json=excluded.metadata_json
+        """,
+        (
+            region.region_id,
+            ocr_run_id,
+            region.media_id,
+            region.source_tweet_id,
+            region.page_index,
+            region.region_index,
+            json.dumps(region.bbox, ensure_ascii=False, sort_keys=True),
+            region.region_hash,
+            region.source_image_hash,
+            region.local_path,
+            region.mime_type,
+            json.dumps(region.quality_flags, ensure_ascii=False, sort_keys=True),
+            json.dumps(region.strata, ensure_ascii=False),
+            region.engine_route,
+            region.status,
+            _utc_now(),
+            json.dumps({"skip_reason": region.skip_reason}, ensure_ascii=False, sort_keys=True),
+        ),
+    )
+
+
+def _insert_ocr_text(
+    conn: sqlite3.Connection,
+    *,
+    ocr_run_id: str,
+    region: OcrRegion,
+    provider: str,
+    model: str,
+    ocr_profile: str,
+    result: OcrResult,
+) -> str:
+    text_id = _stable_id("ocr-text", ocr_run_id, region.region_id, provider, model, ocr_profile)
+    conn.execute(
+        """
+        INSERT INTO memory_ocr_texts (
+            text_id, ocr_run_id, region_id, media_id, provider, model, ocr_profile,
+            raw_ocr_text, normalized_text, corrected_text, confidence, evidence_status,
+            source_image_hash, region_hash, created_at, metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(text_id) DO UPDATE SET
+            raw_ocr_text=excluded.raw_ocr_text,
+            normalized_text=excluded.normalized_text,
+            corrected_text=excluded.corrected_text,
+            confidence=excluded.confidence,
+            metadata_json=excluded.metadata_json
+        """,
+        (
+            text_id,
+            ocr_run_id,
+            region.region_id,
+            region.media_id,
+            provider,
+            model,
+            ocr_profile,
+            result.raw_text,
+            result.normalized_text,
+            result.corrected_text,
+            result.confidence,
+            "fact" if result.normalized_text else "unconfirmed",
+            region.source_image_hash,
+            region.region_hash,
+            _utc_now(),
+            json.dumps(result.metadata or {}, ensure_ascii=False, sort_keys=True),
+        ),
+    )
+    return text_id
+
+
+def _promote_region_to_chunk(
+    conn: sqlite3.Connection,
+    *,
+    ocr_run_id: str,
+    region: OcrRegion,
+    provider: str,
+    model: str,
+    ocr_profile: str,
+    result: OcrResult,
+) -> None:
+    bundle = restore_media_source_bundle(conn, region.media_id)
+    chunk_id = _stable_id("ocr-chunk", ocr_run_id, region.region_id, provider, model)
+    now = _utc_now()
+    source_url = bundle.get("tweet_url") or region.tweet_url or region.media_url
+    title = f"OCR media {region.media_id}"
+    metadata = {
+        "ocr_run_id": ocr_run_id,
+        "region_id": region.region_id,
+        "bbox": region.bbox,
+        "engine_route": region.engine_route,
+        "strata": region.strata,
+        "source_image_hash": region.source_image_hash,
+        "provider": provider,
+        "model": model,
+        "ocr_profile": ocr_profile,
+        "raw_text_preserved": True,
+    }
+    conn.execute(
+        """
+        INSERT INTO memory_context_chunks (
+            chunk_id, run_id, source_kind, source_id, source_url,
+            provider, provider_role, chunk_text, chunk_index, offset_start,
+            offset_end, token_count, relevance_score, extractor_version, created_at,
+            metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(chunk_id) DO UPDATE SET
+            chunk_text=excluded.chunk_text,
+            token_count=excluded.token_count,
+            metadata_json=excluded.metadata_json
+        """,
+        (
+            chunk_id,
+            ocr_run_id,
+            "local_x_db",
+            region.media_id,
+            source_url,
+            provider,
+            "ocr",
+            result.normalized_text,
+            region.region_index,
+            None,
+            None,
+            max(1, len(result.normalized_text) // 2),
+            result.confidence,
+            OCR_EXTRACTOR_VERSION,
+            now,
+            json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+        ),
+    )
+    citation_id = _stable_id("ocr-citation", chunk_id, region.media_id)
+    conn.execute(
+        """
+        INSERT INTO memory_citation_annotations (
+            citation_id, answer_id, chunk_id, source_kind, source_id, source_url,
+            title, answer_start_index, answer_end_index, field_path, support_type,
+            evidence_status, confidence, created_at, metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(citation_id) DO UPDATE SET
+            support_type=excluded.support_type,
+            evidence_status=excluded.evidence_status,
+            confidence=excluded.confidence,
+            metadata_json=excluded.metadata_json
+        """,
+        (
+            citation_id,
+            None,
+            chunk_id,
+            "local_x_db",
+            region.media_id,
+            source_url,
+            title,
+            None,
+            None,
+            "media.ocr_text",
+            "supports_media_content",
+            "fact",
+            result.confidence,
+            now,
+            json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+        ),
+    )
+
+
+def _provider(
+    provider: str,
+    *,
+    api_key_env: str | None,
+    base_url: str | None,
+) -> OcrProvider:
+    normalized = provider.strip().lower()
+    if normalized == OCR_PROVIDER_FAKE:
+        return FakeOcrProvider()
+    if normalized == OCR_PROVIDER_MISTRAL:
+        return MistralOcrProvider(
+            api_key_env=api_key_env or "MISTRAL_API_KEY",
+            base_url=base_url,
+        )
+    raise ValueError(f"unsupported OCR provider: {provider}")
+
+
+def _extract_mistral_text(response: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if isinstance(response.get("text"), str):
+        parts.append(response["text"])
+    pages = response.get("pages")
+    if isinstance(pages, list):
+        for page in pages:
+            if not isinstance(page, dict):
+                continue
+            for key in ("markdown", "text"):
+                if isinstance(page.get(key), str):
+                    parts.append(page[key])
+            images = page.get("images")
+            if isinstance(images, list):
+                for image in images:
+                    if isinstance(image, dict) and isinstance(image.get("text"), str):
+                        parts.append(image["text"])
+    return "\n\n".join(part for part in parts if part).strip()
+
+
+def _response_shape(response: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "keys": tuple(sorted(response)),
+        "pages": len(response.get("pages") or []) if isinstance(response.get("pages"), list) else 0,
+    }
+
+
+def _resolve_media_path(local_path: str, *, db_path: Path) -> Path | None:
+    if not local_path:
+        return None
+    raw = Path(local_path)
+    candidates = (raw, db_path.parent / raw, Path.cwd() / raw)
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _resolve_mime_type(row: sqlite3.Row, path: Path | None) -> str:
+    value = str(row["content_type"] or "").split(";")[0].strip().lower()
+    if value:
+        return value
+    if path:
+        guessed, _ = mimetypes.guess_type(path.name)
+        return guessed or ""
+    return ""
+
+
+def _data_url(path: str, mime_type: str) -> str:
+    data = Path(path).read_bytes()
+    return f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+def _file_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _stable_hash(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
+def _stable_id(prefix: str, *parts: str) -> str:
+    return f"{prefix}-{_stable_hash(parts)[:16]}"
+
+
+def _normalize_ocr_text(value: str) -> str:
+    return " ".join((value or "").replace("\r", "\n").split())
+
+
+def _loads_json(value: str | None) -> Any:
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return None
+
+
+def _count_attr(regions: tuple[OcrRegion, ...] | list[OcrRegion], attr: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for region in regions:
+        key = str(getattr(region, attr))
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _count_strata(regions: tuple[OcrRegion, ...] | list[OcrRegion]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for region in regions:
+        for stratum in region.strata:
+            counts[stratum] = counts.get(stratum, 0) + 1
+    return counts
+
+
+def _count_skip_reasons(regions: list[OcrRegion]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for region in regions:
+        key = region.skip_reason or "unknown"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _utc_now() -> str:
+    return datetime.now(tz=UTC).isoformat()

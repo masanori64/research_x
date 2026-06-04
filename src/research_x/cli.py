@@ -46,7 +46,7 @@ def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--api-budget-policy",
         default="default",
-        help="API budget policy id used for paid API calls",
+        help="API budget policy id used for future provider calls",
     )
     parser.add_argument(
         "--api-run-id",
@@ -62,7 +62,7 @@ def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--allow-unpriced-api",
         action="store_true",
-        help="allow paid API calls even when provider/model price is not in the local catalog",
+        help="allow provider calls without a local price row after the no-quota freeze is lifted",
     )
 
 
@@ -389,14 +389,14 @@ def main(argv: list[str] | None = None) -> int:
     memory_api_budget_set_parser.add_argument("--json", action="store_true")
     memory_api_budget_stop_parser = memory_api_budget_subparsers.add_parser(
         "stop",
-        help="enable kill switch for new paid API calls",
+        help="enable kill switch for new provider API calls",
     )
     memory_api_budget_stop_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_api_budget_stop_parser.add_argument("--policy-id", default="default")
     memory_api_budget_stop_parser.add_argument("--json", action="store_true")
     memory_api_budget_resume_parser = memory_api_budget_subparsers.add_parser(
         "resume",
-        help="disable kill switch for new paid API calls",
+        help="disable kill switch for new provider API calls",
     )
     memory_api_budget_resume_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_api_budget_resume_parser.add_argument("--policy-id", default="default")
@@ -433,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_api_budget_price_parser.add_argument("--notes", default=None)
     memory_api_budget_seed_prices_parser = memory_api_budget_subparsers.add_parser(
         "seed-default-prices",
-        help="register checked default provider/model price rows used before real API runs",
+        help="register checked default provider/model price rows used before future provider runs",
     )
     memory_api_budget_seed_prices_parser.add_argument("--db", default="runs/x_data.sqlite3")
 
@@ -462,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_api_lane_estimate_parser = memory_subparsers.add_parser(
         "api-lane-estimate",
-        help="estimate all planned paid API lanes before making real API calls",
+        help="estimate planned provider lanes without making provider API calls",
     )
     memory_api_lane_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_api_lane_estimate_parser.add_argument(
@@ -736,6 +736,62 @@ def main(argv: list[str] | None = None) -> int:
     memory_media_search_parser.add_argument("--timeout-seconds", type=float, default=60.0)
     memory_media_search_parser.add_argument("--json", action="store_true")
     _add_api_budget_options(memory_media_search_parser)
+    memory_ocr_estimate_parser = memory_subparsers.add_parser(
+        "ocr-estimate",
+        help="estimate stratified OCR evidence candidates without calling provider OCR APIs",
+    )
+    memory_ocr_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_estimate_parser.add_argument("--sample-policy", default="stratified")
+    memory_ocr_estimate_parser.add_argument("--limit", type=int, default=100)
+    memory_ocr_estimate_parser.add_argument("--max-file-bytes", type=int, default=20 * 1024 * 1024)
+    memory_ocr_estimate_parser.add_argument("--json", action="store_true")
+    memory_ocr_build_parser = memory_subparsers.add_parser(
+        "build-ocr-evidence",
+        help="build OCR evidence rows and promote citation-ready OCR chunks",
+    )
+    memory_ocr_build_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_build_parser.add_argument(
+        "--provider",
+        choices=["fake", "mistral"],
+        default="fake",
+        help=(
+            "fake is allowed during the no-quota freeze; mistral requires provider quota permission"
+        ),
+    )
+    memory_ocr_build_parser.add_argument("--model", default="mistral-ocr-2512")
+    memory_ocr_build_parser.add_argument("--ocr-profile", default="ocr-evidence-v1")
+    memory_ocr_build_parser.add_argument("--sample-policy", default="stratified")
+    memory_ocr_build_parser.add_argument("--limit", type=int, default=100)
+    memory_ocr_build_parser.add_argument("--max-file-bytes", type=int, default=20 * 1024 * 1024)
+    memory_ocr_build_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_ocr_build_parser.add_argument("--api-key-env", default=None)
+    memory_ocr_build_parser.add_argument("--base-url", default=None)
+    memory_ocr_build_parser.add_argument(
+        "--no-promote-chunks",
+        action="store_true",
+        help="store raw OCR rows without creating context chunks/citations",
+    )
+    memory_ocr_build_parser.add_argument(
+        "--allow-real-api",
+        action="store_true",
+        help="reserved for future provider OCR runs after the no-quota freeze is lifted",
+    )
+    memory_ocr_build_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_ocr_build_parser)
+    memory_ocr_coverage_parser = memory_subparsers.add_parser(
+        "ocr-coverage",
+        help="show OCR evidence rows and promoted OCR context chunks",
+    )
+    memory_ocr_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_coverage_parser.add_argument("--json", action="store_true")
+    memory_ocr_search_parser = memory_subparsers.add_parser(
+        "ocr-search",
+        help="search stored OCR evidence text and restore media bundles",
+    )
+    memory_ocr_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_search_parser.add_argument("--query", required=True)
+    memory_ocr_search_parser.add_argument("--limit", type=int, default=10)
+    memory_ocr_search_parser.add_argument("--json", action="store_true")
     memory_relations_build_parser = memory_subparsers.add_parser(
         "build-relations",
         help="build relation edges over memory_documents",
@@ -1385,6 +1441,16 @@ def main(argv: list[str] | None = None) -> int:
         help="list memory-search question types used to broaden eval coverage",
     )
     memory_question_types_parser.add_argument("--json", action="store_true")
+    memory_objective_routes_parser = memory_subparsers.add_parser(
+        "objective-routes",
+        help="plan primary, fallback, and escalation routes for one objective query",
+    )
+    memory_objective_routes_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_objective_routes_parser.add_argument("--query", required=True)
+    memory_objective_routes_parser.add_argument("--route", default="auto")
+    memory_objective_routes_parser.add_argument("--budget-policy", default="default")
+    memory_objective_routes_parser.add_argument("--store", action="store_true")
+    memory_objective_routes_parser.add_argument("--json", action="store_true")
     memory_retrieval_strategies_parser = memory_subparsers.add_parser(
         "retrieval-strategies",
         help="list route/retrieval/evidence strategies for portfolio experiments",
@@ -2625,6 +2691,60 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         )
         print(media_search_json(hits) if args.json else format_media_search(hits))
         return 0
+    if args.memory_command == "ocr-estimate":
+        from research_x.memory.ocr import estimate_json, estimate_ocr_evidence, format_estimate
+
+        estimate = estimate_ocr_evidence(
+            args.db,
+            sample_policy=args.sample_policy,
+            limit=args.limit,
+            max_file_bytes=args.max_file_bytes,
+        )
+        print(estimate_json(estimate) if args.json else format_estimate(estimate))
+        return 0
+    if args.memory_command == "build-ocr-evidence":
+        from research_x.memory.ocr import build_ocr_evidence, format_summary, summary_json
+
+        if args.provider != "fake" and not args.allow_real_api:
+            raise RuntimeError(
+                "provider OCR API use is frozen, including paid, free-tier, trial-credit, and "
+                "zero-dollar quota calls. Re-run with provider=fake unless the user explicitly "
+                "lifts the no-quota freeze in this conversation."
+            )
+        if args.provider != "fake" and args.allow_real_api:
+            raise RuntimeError(
+                "--allow-real-api does not override the current no-quota provider freeze. "
+                "External OCR calls remain blocked until the user explicitly permits provider "
+                "quota use, including free-tier or trial-credit usage."
+            )
+        with _api_budget_for_args(args):
+            summary = build_ocr_evidence(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                ocr_profile=args.ocr_profile,
+                sample_policy=args.sample_policy,
+                limit=args.limit,
+                max_file_bytes=args.max_file_bytes,
+                timeout_seconds=args.timeout_seconds,
+                promote_chunks=not args.no_promote_chunks,
+                api_key_env=args.api_key_env,
+                base_url=args.base_url,
+            )
+        print(summary_json(summary) if args.json else format_summary(summary))
+        return 0
+    if args.memory_command == "ocr-coverage":
+        from research_x.memory.ocr import coverage_json, format_coverage, ocr_coverage
+
+        coverage = ocr_coverage(args.db)
+        print(coverage_json(coverage) if args.json else format_coverage(coverage))
+        return 0
+    if args.memory_command == "ocr-search":
+        from research_x.memory.ocr import format_search, ocr_search, search_json
+
+        hits = ocr_search(args.db, args.query, limit=args.limit)
+        print(search_json(hits) if args.json else format_search(hits))
+        return 0
     if args.memory_command == "build-relations":
         from research_x.memory.relations import build_memory_relations, summary_as_dict
 
@@ -3207,6 +3327,23 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         from research_x.memory.question_types import format_question_types, question_types_json
 
         print(question_types_json() if args.json else format_question_types())
+        return 0
+    if args.memory_command == "objective-routes":
+        from research_x.memory.objective_routes import (
+            format_objective_route_plan,
+            objective_route_plan_json,
+            plan_objective_routes,
+            store_objective_route_plan,
+        )
+
+        plan = plan_objective_routes(
+            args.query,
+            requested_route=args.route,
+            budget_policy=args.budget_policy,
+        )
+        if args.store:
+            store_objective_route_plan(args.db, plan)
+        print(objective_route_plan_json(plan) if args.json else format_objective_route_plan(plan))
         return 0
     if args.memory_command in {"retrieval-strategies", "embedding-strategies"}:
         from research_x.memory.retrieval_strategy import (

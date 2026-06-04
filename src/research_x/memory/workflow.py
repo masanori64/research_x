@@ -163,6 +163,7 @@ def run_memory_workflow(
     started_at = _utc_now()
     query_plan = build_query_plan(query)
     route_plan = plan_workflow_route(query_plan, requested_route=route)
+    objective_route_plan = _objective_route_plan(query, requested_route=route)
     workflow_id = _workflow_id(query, route_plan.route, started_at)
     steps: list[WorkflowStep] = []
     context_bundle: ContextBundle | None = None
@@ -172,6 +173,9 @@ def run_memory_workflow(
         "workflow_version": WORKFLOW_VERSION,
         "query_plan": query_plan.as_dict(),
         "route_plan": route_plan.as_dict(),
+        "objective_route_plan": (
+            objective_route_plan.as_dict() if objective_route_plan is not None else None
+        ),
         "parameters": {
             "limit": max(1, limit),
             "doc_type": doc_type,
@@ -254,6 +258,9 @@ def run_memory_workflow(
             "query_plan": query_plan.as_dict(),
             "recommended_doc_types": list(route_plan.recommended_doc_types),
             "wants_external_context": route_plan.wants_external_context,
+            "objective_route_plan": (
+                objective_route_plan.as_dict() if objective_route_plan is not None else None
+            ),
         },
     )
 
@@ -612,6 +619,15 @@ def _route(route: str, reason: str) -> WorkflowRoute:
         recommended_doc_types=_ROUTE_DOC_TYPES[route],
         wants_external_context=route == "current_fact_check",
     )
+
+
+def _objective_route_plan(query: str, *, requested_route: str) -> Any | None:
+    try:
+        from research_x.memory.objective_routes import plan_objective_routes
+
+        return plan_objective_routes(query, requested_route=requested_route)
+    except Exception:
+        return None
 
 
 def _looks_like_current_fact_check(plan: QueryPlan) -> bool:

@@ -295,6 +295,86 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(workflow_id) REFERENCES memory_workflow_runs(workflow_id)
         );
 
+        CREATE TABLE IF NOT EXISTS memory_objective_route_runs (
+            route_run_id TEXT PRIMARY KEY,
+            query TEXT NOT NULL,
+            objective_route_version TEXT NOT NULL,
+            eval_question_type TEXT NOT NULL,
+            primary_route TEXT NOT NULL,
+            fallback_routes_json TEXT NOT NULL,
+            must_run_guards_json TEXT NOT NULL,
+            escalation_triggers_json TEXT NOT NULL,
+            stop_conditions_json TEXT NOT NULL,
+            budget_policy TEXT NOT NULL,
+            planned_provider_roles_json TEXT NOT NULL,
+            selected_routes_json TEXT NOT NULL,
+            stop_reason TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_ocr_runs (
+            ocr_run_id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            ocr_profile TEXT NOT NULL,
+            sample_policy TEXT NOT NULL,
+            limit_count INTEGER,
+            status TEXT NOT NULL,
+            selected_regions INTEGER NOT NULL,
+            processed_regions INTEGER NOT NULL,
+            skipped_regions INTEGER NOT NULL,
+            budget_event_id TEXT,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            error TEXT,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_ocr_regions (
+            region_id TEXT PRIMARY KEY,
+            ocr_run_id TEXT,
+            media_id TEXT NOT NULL,
+            source_tweet_id TEXT,
+            page_index INTEGER NOT NULL,
+            region_index INTEGER NOT NULL,
+            bbox_json TEXT NOT NULL,
+            region_hash TEXT NOT NULL,
+            source_image_hash TEXT NOT NULL,
+            local_path TEXT NOT NULL,
+            mime_type TEXT NOT NULL,
+            quality_flags_json TEXT NOT NULL,
+            strata_json TEXT NOT NULL,
+            engine_route TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL,
+            FOREIGN KEY(ocr_run_id) REFERENCES memory_ocr_runs(ocr_run_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_ocr_texts (
+            text_id TEXT PRIMARY KEY,
+            ocr_run_id TEXT,
+            region_id TEXT NOT NULL,
+            media_id TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            ocr_profile TEXT NOT NULL,
+            raw_ocr_text TEXT NOT NULL,
+            normalized_text TEXT NOT NULL,
+            corrected_text TEXT,
+            confidence REAL,
+            evidence_status TEXT NOT NULL,
+            source_image_hash TEXT NOT NULL,
+            region_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL,
+            FOREIGN KEY(ocr_run_id) REFERENCES memory_ocr_runs(ocr_run_id),
+            FOREIGN KEY(region_id) REFERENCES memory_ocr_regions(region_id)
+        );
+
         CREATE TABLE IF NOT EXISTS memory_api_budget_policies (
             policy_id TEXT PRIMARY KEY,
             enabled INTEGER NOT NULL,
@@ -398,6 +478,14 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_workflow_runs(query, started_at);
         CREATE INDEX IF NOT EXISTS idx_memory_workflow_steps_workflow
             ON memory_workflow_steps(workflow_id, step_index);
+        CREATE INDEX IF NOT EXISTS idx_memory_objective_route_query
+            ON memory_objective_route_runs(query, created_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_ocr_regions_media
+            ON memory_ocr_regions(media_id, status);
+        CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_media
+            ON memory_ocr_texts(media_id, evidence_status);
+        CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_region
+            ON memory_ocr_texts(region_id);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_run
             ON memory_api_usage_events(run_id, started_at);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_provider

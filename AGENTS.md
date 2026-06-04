@@ -3,6 +3,33 @@
 This repository is a shared workspace. Before editing, check the current diff and do not revert or
 overwrite uncommitted changes made by other workers.
 
+## No-Quota Provider Freeze
+
+External provider API calls are prohibited unless the user explicitly lifts this no-quota freeze in
+the current conversation. This includes paid usage, free-tier usage, trial credits, and any
+zero-dollar quota consumption. Do not run commands or code paths that can send provider HTTP
+requests to Gemini, OpenAI, Voyage, Jina, Cohere, Mistral, Serper, Brave, or similar services.
+
+Allowed while the freeze is active:
+
+- local/fake providers;
+- read-only estimates and coverage commands that do not send provider HTTP requests;
+- tests that monkeypatch provider calls;
+- static code inspection and documentation work;
+- implementation of provider integrations when verification uses fake/local providers only.
+
+Disallowed while the freeze is active:
+
+- real embedding, OCR, rerank, classifier, answer, reader, external search, LLM-context, or
+  managed-RAG calls;
+- commands using `--allow-unpriced-api`;
+- "small smoke tests" against real providers;
+- free-tier, trial-credit, or zero-dollar provider calls.
+
+If the user later explicitly permits provider quota use, keep the API Budget Guard enabled, run
+offline estimates first, start with the smallest limit, and stop before the next provider call if
+pricing, quota, or budget evidence is unclear.
+
 ## Commands
 
 Use the project's `uv` environment for Python tooling. Do not run global `python`, `pytest`, or
@@ -65,6 +92,13 @@ When research changes a design decision, add the durable current conclusion to
 `docs/memory-pipeline-v2.md`. Move superseded or bulky historical notes to
 `docs/memory-pipeline-archive.md` only when they would otherwise bloat the active source. Avoid
 duplicating the same design text across multiple files.
+
+Before implementing a design or architecture change, update the relevant Markdown source of truth
+first. When Plan Mode or the user provides a concrete implementation plan, record the durable parts
+of that plan before code: for memory-search design changes, update `docs/memory-pipeline-v2.md`;
+for durable agent behavior changes, update `AGENTS.md`; for public commands or milestone state,
+update `README.md` and/or `PROJECT.md`. This rule is about preventing implementation drift; do not
+scatter transient notes into new Markdown files.
 
 ## Decision Quality
 

@@ -397,7 +397,7 @@ def build_api_lane_estimate_report(
         rows=tuple(rows),
         totals=totals,
         assumptions=(
-            "This command does not call paid APIs and does not write embeddings.",
+            "This command does not call provider APIs and does not write embeddings.",
             (
                 "Costs are local safety estimates; provider dashboards remain the billing "
                 "source of truth."
@@ -415,7 +415,7 @@ def build_api_lane_estimate_report(
                 "size and PDF pages vary."
             ),
             (
-                "OCR defaults to a small sampled estimate; full OCR over all media requires "
+                "OCR defaults to stratified calibration; full OCR over all media requires "
                 "--ocr-scope all."
             ),
             (
@@ -915,12 +915,14 @@ def _ocr_rows(
             source_url=SOURCE_MISTRAL_PRICING,
             notes=(
                 "OCR is media-to-text evidence preparation, not native vector recall. "
-                "Default is sampled because OCR all-media is expensive. "
+                "Default is stratified calibration because OCR all-media is expensive and "
+                "flat random samples are weak for heterogeneous media. "
                 "PDF page counts can make actual full cost higher than this lower bound."
             ),
             extra={
                 "ocr_scope": normalized_scope,
                 "ocr_limit": max(0, limit),
+                "sample_policy": "stratified_calibration",
                 "media_selected": estimate.selected,
                 "full_page_lower_bound": full_page_lower_bound,
                 "full_cost_lower_bound_usd": full_page_lower_bound * (3.0 / 1_000),
@@ -1085,7 +1087,7 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             "recommended_first_pass",
             (
                 "Build the broad answer-correctness foundation: general semantic recall, bounded "
-                "rerank, limited URL Reader grounding, and sampled OCR calibration. Add route "
+                "rerank, limited URL Reader grounding, and stratified OCR calibration. Add route "
                 "expansions only when the input needs them."
             ),
             (
