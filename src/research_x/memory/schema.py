@@ -315,6 +315,22 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             metadata_json TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS memory_objective_route_steps (
+            route_step_id TEXT PRIMARY KEY,
+            route_run_id TEXT NOT NULL,
+            step_index INTEGER NOT NULL,
+            route_arm TEXT NOT NULL,
+            status TEXT NOT NULL,
+            evidence_count INTEGER NOT NULL,
+            citation_count INTEGER NOT NULL,
+            stop_condition TEXT,
+            escalation_trigger TEXT,
+            provider_quota_skipped INTEGER NOT NULL,
+            output_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(route_run_id) REFERENCES memory_objective_route_runs(route_run_id)
+        );
+
         CREATE TABLE IF NOT EXISTS memory_ocr_runs (
             ocr_run_id TEXT PRIMARY KEY,
             provider TEXT NOT NULL,
@@ -488,6 +504,8 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_workflow_steps(workflow_id, step_index);
         CREATE INDEX IF NOT EXISTS idx_memory_objective_route_query
             ON memory_objective_route_runs(query, created_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_objective_route_steps_run
+            ON memory_objective_route_steps(route_run_id, step_index);
         CREATE INDEX IF NOT EXISTS idx_memory_ocr_regions_media
             ON memory_ocr_regions(media_id, status);
         CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_media

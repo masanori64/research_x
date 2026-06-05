@@ -1476,6 +1476,24 @@ def main(argv: list[str] | None = None) -> int:
     memory_objective_routes_parser.add_argument("--budget-policy", default="default")
     memory_objective_routes_parser.add_argument("--store", action="store_true")
     memory_objective_routes_parser.add_argument("--json", action="store_true")
+    memory_objective_execute_parser = memory_subparsers.add_parser(
+        "objective-execute",
+        help="execute ObjectiveRoutePlan over no-spend local evidence arms",
+    )
+    memory_objective_execute_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_objective_execute_parser.add_argument("--query", required=True)
+    memory_objective_execute_parser.add_argument("--route", default="auto")
+    memory_objective_execute_parser.add_argument("--budget-policy", default="default")
+    memory_objective_execute_parser.add_argument("--limit", type=int, default=5)
+    memory_objective_execute_parser.add_argument("--account", default=None)
+    memory_objective_execute_parser.add_argument("--max-route-arms", type=int, default=4)
+    memory_objective_execute_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store objective route run/step trace rows",
+    )
+    memory_objective_execute_parser.add_argument("--json", action="store_true")
     memory_retrieval_strategies_parser = memory_subparsers.add_parser(
         "retrieval-strategies",
         help="list route/retrieval/evidence strategies for portfolio experiments",
@@ -3397,6 +3415,29 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         if args.store:
             store_objective_route_plan(args.db, plan)
         print(objective_route_plan_json(plan) if args.json else format_objective_route_plan(plan))
+        return 0
+    if args.memory_command == "objective-execute":
+        from research_x.memory.objective_executor import (
+            format_objective_route_execution,
+            objective_route_execution_json,
+            run_objective_route_execution,
+        )
+
+        execution = run_objective_route_execution(
+            args.db,
+            args.query,
+            route=args.route,
+            budget_policy=args.budget_policy,
+            limit=args.limit,
+            account=args.account,
+            max_route_arms=args.max_route_arms,
+            store=args.store,
+        )
+        print(
+            objective_route_execution_json(execution)
+            if args.json
+            else format_objective_route_execution(execution)
+        )
         return 0
     if args.memory_command in {"retrieval-strategies", "embedding-strategies"}:
         from research_x.memory.retrieval_strategy import (

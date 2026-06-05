@@ -49,6 +49,7 @@ from research_x.memory.media_embeddings import (
     restore_media_source_bundle,
     search_media_embeddings,
 )
+from research_x.memory.objective_executor import run_objective_route_execution
 from research_x.memory.objective_routes import plan_objective_routes
 from research_x.memory.ocr import (
     build_ocr_evidence,
@@ -811,6 +812,64 @@ def test_memory_objective_routes_include_primary_fallback_and_ocr_escalation() -
     assert plan.as_dict()["primary_route"] == "media_evidence"
 
 
+def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    execution = run_objective_route_execution(
+        db_path,
+        "画像 robot image",
+        limit=2,
+        max_route_arms=4,
+    )
+
+    assert execution.plan.primary_route == "media_evidence"
+    assert execution.selected_routes == ("media_evidence",)
+    assert execution.arm_results[0].route_arm == "media_evidence"
+    assert execution.arm_results[0].provider_quota_skipped is False
+    assert execution.arm_results[0].output["ocr_estimate"]["sample_policy"] == "stratified"
+    assert execution.metadata["provider_quota_frozen"] is True
+    with sqlite3.connect(db_path) as conn:
+        route_rows = conn.execute(
+            "SELECT COUNT(*) FROM memory_objective_route_runs WHERE route_run_id = ?",
+            (execution.route_run_id,),
+        ).fetchone()[0]
+        step_rows = conn.execute(
+            "SELECT COUNT(*) FROM memory_objective_route_steps WHERE route_run_id = ?",
+            (execution.route_run_id,),
+        ).fetchone()[0]
+    assert route_rows == 1
+    assert step_rows == 1
+
+
+def test_memory_objective_execute_skips_provider_freshness_fallbacks(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    execution = run_objective_route_execution(
+        db_path,
+        "最新のロボット論文リンクは今も正しいか確認して",
+        limit=2,
+        max_route_arms=3,
+    )
+
+    assert execution.plan.primary_route == "candidate_a_current_baseline"
+    assert execution.arm_results[0].route_arm == "candidate_a_current_baseline"
+    assert execution.arm_results[0].stop_condition == "external_context_needed"
+    external = next(
+        result
+        for result in execution.arm_results
+        if result.route_arm == "external_web_context"
+    )
+    assert external.status == "skipped"
+    assert external.provider_quota_skipped is True
+    assert external.output["reason"] == "no_quota_provider_freeze"
+
+
 def test_memory_ocr_evidence_promotes_media_content_chunks(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     media_path = tmp_path / "image.jpg"
@@ -960,6 +1019,27 @@ def test_memory_objective_routes_and_ocr_cli(tmp_path: Path, capsys) -> None:
     objective_output = capsys.readouterr().out
     assert '"primary_route": "media_evidence"' in objective_output
     assert "ocr_quality_pipeline" in objective_output
+    assert (
+        main(
+            [
+                "memory",
+                "objective-execute",
+                "--db",
+                str(db_path),
+                "--query",
+                "画像の図表を探して",
+                "--limit",
+                "2",
+                "--max-route-arms",
+                "2",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    execution_output = capsys.readouterr().out
+    assert '"route_arm": "media_evidence"' in execution_output
+    assert '"provider_quota_frozen": true' in execution_output
     assert (
         main(
             [

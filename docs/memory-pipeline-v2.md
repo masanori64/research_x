@@ -717,6 +717,24 @@ ObjectiveRoutePlan integration:
   and explicit escalation triggers.
 - Current Evidence/Skill/Workflow is `candidate_a_current_baseline`: a strong default candidate,
   not an unquestioned final architecture.
+- The router is not evidence. It is a policy/execution layer that decides which existing evidence
+  components run first, which fallback arms may run, which escalation conditions are allowed, and
+  where to stop.
+- `ObjectiveRouteExecution` is the no-spend execution layer for this policy. It must call existing
+  evidence components instead of replacing them:
+  - `candidate_a_current_baseline` calls the existing bounded workflow without answer/provider
+    calls;
+  - `exact_metadata_social` calls local FTS/metadata/relation search and context creation;
+  - `media_evidence` inspects restored media/OCR evidence and may escalate to local OCR estimate or
+    existing stored OCR chunks, but does not create fake evidence implicitly;
+  - `skill_map` and `graph_sensemaking` use existing derived documents/relations as navigation
+    hints, not final evidence;
+  - semantic, rerank, managed-RAG, external Web, and provider-backed agentic arms remain skipped
+    while the no-quota provider freeze is active unless a local/fake implementation is explicitly
+    selected.
+- Route execution records a trace: selected route arm, fallback use, escalation triggers, stop
+  condition, evidence counts, citation counts, and whether provider quota was skipped. This trace is
+  an operational audit artifact, not evidence.
 - Route examples:
   - `single_fact_conditioned`: primary `exact_metadata_social`, fallback
     `candidate_a_current_baseline` and `semantic_embedding_portfolio`;

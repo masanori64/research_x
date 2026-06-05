@@ -562,6 +562,7 @@ memory extract-url        Reader/extract provider role, fake, HTTP, or Jina Read
 memory llm-context        Pre-extracted Web context provider role, fake or Brave.
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
+memory objective-execute  Execute ObjectiveRoutePlan over no-spend local evidence arms.
 memory api-budget         Inspect/change local API budget policy and kill switch.
 memory api-usage          Show API usage ledger events and estimated local spend.
 memory api-watch          Start a lightweight API budget monitor page.
@@ -664,6 +665,10 @@ Objective routing and OCR evidence preparation can be exercised without provider
 uv run python -m research_x memory objective-routes `
   --db runs/x_data.sqlite3 `
   --query "画像付きで保存したロボット制御の資料を探して"
+uv run python -m research_x memory objective-execute `
+  --db runs/x_data.sqlite3 `
+  --query "画像付きで保存したロボット制御の資料を探して" `
+  --limit 5
 uv run python -m research_x memory ocr-estimate `
   --db runs/x_data.sqlite3 `
   --sample-policy stratified `

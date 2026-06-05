@@ -282,6 +282,9 @@ Implementation checklist:
 - [x] Complete the no-spend OCR quality implementation: local media quality profiling,
       deterministic region/crop contract, reading order, engine routing, second-pass metadata,
       corrected-text profile storage, and `ocr-promote-chunks` without provider calls.
+- [x] Add no-spend `ObjectiveRouteExecution` so ObjectiveRoutePlan can execute existing
+      Evidence/Skill/Workflow arms, record fallback/escalation traces, and skip provider-backed
+      arms under the no-quota policy.
 
 Stop condition before this milestone starts:
 
