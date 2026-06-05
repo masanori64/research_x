@@ -232,7 +232,7 @@ Implementation checklist:
 - [x] Stop before real API embedding estimates/builds until the workflow-gated strategy surface is
       aligned.
 
-## Next Milestone: Objective-Fit Media Evidence And No-Quota API Preflight
+## Completed Milestone: Objective-Fit Media Evidence And No-Quota API Preflight
 
 The workflow-gated strategy surface is aligned. The next implementation/evaluation phase is to add
 objective-fit route planning and media evidence contracts first, then keep real provider execution
@@ -303,6 +303,30 @@ Stop condition before this milestone starts:
   until a separate policy and implementation change is made.
 - Raw media matches are candidate signals only. They must not become image-content claims unless
   OCR/caption/VLM text has been converted into citation-ready context chunks.
+
+## Next Milestone: Final Skeleton Execution Surface
+
+`docs/memory-pipeline-v2.md` now defines the final skeleton as Evidence / Source Bundle First plus
+ObjectiveRoutePolicy, Evaluation First, Security Boundary, and Continuous Projection / Temporal Ops.
+The next implementation phase is to align code with that skeleton without spending provider quota.
+
+Implementation checklist:
+
+- [ ] Add explicit QueryTransform and RetrievalTextProfile artifacts so generated query/search text
+      cannot be mistaken for evidence.
+- [ ] Split eval storage/reporting into route, retrieval, context, citation, answer, and abstention
+      gates.
+- [ ] Extend route execution traces with guarded fusion details, route fallback use, skipped
+      provider roles, and source-bundle restoration failures.
+- [ ] Add user-model/ranking-policy scaffolding that records personal signals as hints, not
+      citation evidence.
+- [ ] Add projection generation and index membership tracking for rebuildable search artifacts.
+- [ ] Add trust boundary, taint flags, data classification, account/source visibility, and allowed
+      sink metadata to context/tool/provider surfaces where data can cross boundaries.
+- [ ] Add visual recall evidence state between raw media match and media content evidence, including
+      page/region/bbox citation readiness fields.
+- [ ] Keep all new provider-backed and quota-consuming arms blocked unless the current conversation
+      explicitly permits quota use.
 
 ## Completed V2 Evidence Objects
 

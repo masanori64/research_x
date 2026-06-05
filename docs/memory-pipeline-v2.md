@@ -31,19 +31,27 @@ Change the final design:
 - do not assume Claude, Codex, OpenAI, Brave, or any hidden web backend provider unless a source or
   local configuration proves it.
 
-The final system is:
+The final system is no longer "current workflow only" or "router first". The current skeleton is:
 
 ```text
-Raw Sources
-  -> Normalized / Derived Views
-  -> Evidence Relations / Source Bundles
-  -> Corpus2Skill / Skill Navigation Hints
-  -> Workflow-Gated Adaptive Portfolio
-  -> LLM-Ready Context Chunks
-  -> Citation Metadata
-  -> Bounded Workflows / Orchestrator
-  -> Answer Artifacts
-  -> Feedback / Eval / Audit / Rebuild
+User Query
+  -> ObjectiveRoutePolicy
+  -> QueryTransform / QueryVariants
+  -> Candidate Arms
+       exact / FTS / metadata / relation
+       user-profile ranking hints
+       semantic embeddings
+       sparse / late interaction / rerank
+       media OCR / visual retrieval
+       Corpus2Skill / graph navigation
+       external web / managed reference
+  -> Source Bundle Restoration
+  -> Guarded Fusion / Rerank
+  -> Context Chunk Construction
+  -> Citation Verification
+  -> Answer or Abstain
+  -> Eval Gates
+  -> Workflow Trace / Feedback / Rebuild
 ```
 
 The central invariant:
@@ -54,6 +62,63 @@ raw source != searchable document != search result != context chunk != citation 
 
 Each object must be traceable backward to its source and forward to the answer or workflow that used
 it.
+
+## Final Skeleton Decision
+
+The active skeleton is:
+
+```text
+Evidence / Source Bundle First
++ ObjectiveRoutePolicy
++ Evaluation First
++ Security Boundary
++ Continuous Projection / Temporal Ops
+```
+
+This decision was made after treating the older Evidence/Skill/Workflow-first design as a candidate,
+not as an unquestioned premise, and comparing it with router-first, graph-first, vector-first,
+agent-first, skill-map-first, multimodal-first, and evaluation-first materials.
+
+Final classification:
+
+- Must be part of the skeleton:
+  - Evidence / Source Bundle First.
+  - ObjectiveRoutePolicy.
+  - route, retrieval, context, citation, answer, and abstention evaluation gates.
+  - QueryTransform and RetrievalTextProfile as non-evidence artifacts.
+  - media evidence levels from raw media match to citation-ready content evidence.
+  - user model and personalization as ranking policy, not evidence.
+  - projection generation, index membership, source state, temporal validity, and backfill records.
+  - source-sink security policy, trust boundaries, taint flags, and allowed sinks.
+- Permanent candidate lanes, not unconditional default execution:
+  - exact / FTS / metadata / relation search;
+  - semantic embedding portfolio;
+  - learned sparse / sparse lexical arms;
+  - late interaction / ColBERT-style stages;
+  - rerank cascades;
+  - OCR / visual retrieval;
+  - Corpus2Skill navigation;
+  - graph/topic navigation;
+  - external Web context;
+  - long-context route;
+  - managed RAG references.
+- Useful hints, never citation-ready evidence:
+  - AI labels;
+  - user profile and implicit feedback;
+  - generated query expansions, HyDE text, and subqueries;
+  - Corpus2Skill summaries;
+  - graph/community summaries;
+  - VLM observations;
+  - router confidence;
+  - embedding or reranker scores.
+- Avoid in the final architecture:
+  - hard router selection that keeps only one entry point without measured recall loss;
+  - using a vector DB as the source of truth;
+  - using graph/ontology data as the source of truth instead of a projection;
+  - treating VLM/OCR output as evidence without chunk/citation promotion;
+  - always-on personal boosting for all queries;
+  - accepting correct-looking answers without provenance;
+  - treating external Web, OCR, tweet text, or tool output as trusted instructions.
 
 ## Scope Hygiene
 
@@ -130,8 +195,9 @@ section.
 
 Current active decisions:
 
-- Evidence/Skill/Workflow first: raw evidence, derived views, relations, source bundles,
-  Corpus2Skill navigation hints, and bounded workflows are the system center.
+- Evidence / Source Bundle First remains the evidence center after re-evaluation. ObjectiveRoutePolicy
+  controls execution, but does not replace source bundles, context chunks, citation verification, or
+  workflow traces.
 - Real API embeddings are optional recall arms inside a workflow-gated portfolio; local_hash is
   diagnostic only.
 - Multiple embedding providers or profiles are separate candidate engines. Never mix their vectors
@@ -139,6 +205,16 @@ Current active decisions:
 - Candidate results must be restored to source bundles before context chunking, citation, reranking,
   answer generation, or promotion.
 - Corpus2Skill is a navigation map and route hint, not citation-ready evidence.
+- QueryTransform, HyDE, subqueries, contextual retrieval text, SPLADE/doc expansion text, and
+  RetrievalTextProfile rows are search artifacts. They must be traceable and auditable, but are not
+  source evidence.
+- User models, personal preference signals, implicit feedback, and active-learning labels are
+  route-aware ranking policies or review signals. They must not become answer citations.
+- Rebuildable indexes are projections. Track source hashes, projection generations, index
+  membership, stale/tombstone status, backfills, and temporal validity.
+- External Web text, OCR output, tweet text, media text, and tool output are untrusted data. Before
+  they can affect tools, provider calls, writes, external fetches, or answers, they must pass the
+  relevant source-sink policy and citation/evidence gate.
 - Architecture decisions must follow the decision-quality loop in AGENTS.md: inspect repo state,
   search primary then secondary sources when needed, treat sources as inputs, evaluate alternatives,
   and loop when new uncertainty appears.
@@ -158,6 +234,14 @@ Current active decisions:
 9. Domain-specific embeddings are added only when evaluation shows that evidence-first routing and
    the broad real API semantic arm, when built, are insufficient.
 10. Query answers must separate evidence-backed facts from model inference.
+11. Generated query text, generated retrieval text, labels, summaries, profile scores, router
+    confidence, and model scores are hints. They are never direct evidence.
+12. Personalization is route-scoped ranking policy. It must be gated by intent and evaluation, not
+    applied globally.
+13. OCR-free visual retrieval and VLM observations are recall or interpretation candidates. They
+    become citation-ready only after source-bundle restoration and region/page/chunk promotion.
+14. Every provider/tool surface must preserve trust boundary, source visibility, account scope,
+    data classification, and allowed sink metadata.
 
 ## Layer 0: Raw Sources
 
@@ -745,6 +829,75 @@ ObjectiveRoutePlan integration:
     `external_web_context` and `bounded_agentic_workflow`;
   - `exploratory_map`: primary `skill_map`, fallback `graph_sensemaking` and
     `semantic_embedding_portfolio`.
+
+QueryTransform and retrieval text policy:
+
+- Query transforms are allowed when they improve recall or decomposition, but every transformed
+  query must be recorded as a separate artifact with:
+  - `parent_query_id`;
+  - `transform_kind`;
+  - generated text;
+  - preserved anchors;
+  - allowed routes;
+  - drift flags;
+  - `citation_excluded=true`.
+- Retrieval-only text must not overwrite source text or context chunks. Store it under an explicit
+  `retrieval_text_profile`, such as `raw_compact`, `contextual_bm25`, `learned_sparse`,
+  `hypothetical_query`, or `doc_expansion`.
+- HyDE text, query decomposition, RAG-Fusion variants, SPLADE/doc expansion terms, and contextual
+  retrieval strings are search aids only. They may influence candidate discovery and route traces,
+  but they cannot support answer claims directly.
+
+Evaluation gate policy:
+
+- Promotion is never decided by answer text alone. Evaluate at least these separable gates:
+  - `route_eval`: did the route choose enough entry points and avoid unsafe narrowing?
+  - `retrieval_eval`: did candidate arms retrieve the expected source bundles?
+  - `context_eval`: did selected chunks contain relevant, non-noisy context?
+  - `citation_eval`: does each claim cite the correct source/chunk/region?
+  - `answer_eval`: is the answer useful and faithful to cited context?
+  - `abstention_eval`: did the workflow refuse, defer, or ask for more context when evidence was
+    absent, stale, contradictory, subjective, or underspecified?
+- Failure analysis must separate retrieval failure, context selection failure, citation failure,
+  answer-generation failure, and overconfident self-knowledge.
+- Provider-based judges may be added only behind budget guard and calibration. A small human or
+  deterministic validation set must remain the promotion reference when possible.
+
+Personalization and exploration policy:
+
+- A `user_model` is a ranking policy, not a fact source. Bookmark ownership, account history,
+  implicit feedback, explicit feedback, profile cards, and active-learning labels can weight
+  candidates, but must not become citations.
+- Personalization should be route scoped. Known-item/refinding, subjective preference,
+  exploratory learning, freshness check, and media-grounded routes may use different personal,
+  neutral, diverse, and exploratory weights.
+- Diversity and novelty may be explicit route goals, but should be evaluated separately from
+  citation precision so exploratory results do not degrade grounded answers.
+
+Projection and temporal operations policy:
+
+- Search indexes, embeddings, sparse representations, retrieval text, Corpus2Skill maps, graph
+  summaries, OCR chunks, and long-context layouts are projections over raw/source-bundle data.
+- Projections must track source hashes, generation IDs, builder/template/provider versions,
+  membership status, stale/tombstone/deferred state, and coverage.
+- Backfills and rebuilds produce new projection generations. They must not rewrite past answer
+  artifacts; past answers remain tied to the evidence and generation active at the time.
+- Freshness and obsolescence are relations, not deletion. Prefer `newer_than`,
+  `obsolete_candidate`, `supports`, `contradicts`, and temporal validity metadata over removing old
+  evidence.
+
+Security and source-sink policy:
+
+- Retrieved tweet text, OCR text, external Web text, media-derived text, tool output, and generated
+  retrieval text are untrusted data.
+- Every chunk/tool call/provider request should carry trust boundary, taint flags, data
+  classification, source visibility, account scope, and allowed sinks when the workflow can send or
+  act on the data.
+- The route planner must be driven by trusted user query, local configuration, and policy. Untrusted
+  retrieved/OCR/external text must not directly choose tools, provider calls, writes, external
+  fetches, or secret-adjacent operations.
+- Prompt wrappers and provenance markers are useful, but not sufficient. Deterministic source-sink
+  gates, allowlists, approval policy, and audit traces are the core defense.
 
 OCR Evidence Quality Pipeline:
 
