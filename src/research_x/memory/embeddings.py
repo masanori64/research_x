@@ -55,6 +55,17 @@ PRODUCTION_PROVIDERS = (
 EMBEDDING_PROVIDER_CHOICES = ("auto", LOCAL_HASH_PROVIDER, *PRODUCTION_PROVIDERS)
 DEFAULT_EMBEDDING_PROFILE = "general_memory"
 DEFAULT_TEXT_TEMPLATE_VERSION = "memory-doc-embedding-v1"
+EMBEDDING_EXECUTION_STAGES = (
+    "auto",
+    "technical_canary",
+    "eval_slice",
+    "production_scope",
+)
+EMBEDDING_SELECTION_POLICIES = (
+    "auto",
+    "sequential",
+    "doc_type_round_robin",
+)
 
 DEFAULT_DIMENSIONS = {
     LOCAL_HASH_PROVIDER: 512,
@@ -91,6 +102,9 @@ class EmbeddingBuildSummary:
     selected: int
     embedded: int
     skipped: int
+    execution_stage: str
+    selection_policy: str
+    selection_contract: str
 
 
 @dataclass(frozen=True)
@@ -139,6 +153,9 @@ class EmbeddingBuildEstimate:
     estimated_batches: int
     price_per_million_input_tokens: float | None = None
     estimated_input_cost: float | None = None
+    execution_stage: str = "production_scope"
+    selection_policy: str = "sequential"
+    selection_contract: str = ""
 
 
 @dataclass(frozen=True)
@@ -233,6 +250,8 @@ def build_memory_embeddings(
     limit: int | None = None,
     rebuild: bool = False,
     progress_every: int = 1000,
+    execution_stage: str = "auto",
+    selection_policy: str = "auto",
 ) -> EmbeddingBuildSummary:
     path = Path(db_path)
     if not path.exists():
@@ -245,6 +264,19 @@ def build_memory_embeddings(
         text_template_version=text_template_version,
         api_key_env=api_key_env,
         base_url=base_url,
+    )
+    resolved_execution_stage = _resolve_embedding_execution_stage(
+        execution_stage,
+        limit=limit,
+    )
+    resolved_selection_policy = _resolve_embedding_selection_policy(
+        selection_policy,
+        execution_stage=resolved_execution_stage,
+    )
+    selection_contract = _embedding_selection_contract(
+        execution_stage=resolved_execution_stage,
+        selection_policy=resolved_selection_policy,
+        limit=limit,
     )
     resolved_batch_size = max(1, batch_size)
     selected = 0
@@ -260,6 +292,7 @@ def build_memory_embeddings(
             spec=spec,
             limit=limit,
             rebuild=rebuild,
+            selection_policy=resolved_selection_policy,
         )
         selected = len(rows)
         embedder = _embedder(spec)
@@ -311,6 +344,9 @@ def build_memory_embeddings(
         selected=selected,
         embedded=embedded,
         skipped=skipped,
+        execution_stage=resolved_execution_stage,
+        selection_policy=resolved_selection_policy,
+        selection_contract=selection_contract,
     )
 
 
@@ -615,6 +651,8 @@ def estimate_memory_embedding_build(
     limit: int | None = None,
     rebuild: bool = False,
     price_per_million_input_tokens: float | None = None,
+    execution_stage: str = "auto",
+    selection_policy: str = "auto",
 ) -> EmbeddingBuildEstimate:
     path = Path(db_path)
     if not path.exists():
@@ -628,6 +666,19 @@ def estimate_memory_embedding_build(
         api_key_env=api_key_env,
         base_url=base_url,
     )
+    resolved_execution_stage = _resolve_embedding_execution_stage(
+        execution_stage,
+        limit=limit,
+    )
+    resolved_selection_policy = _resolve_embedding_selection_policy(
+        selection_policy,
+        execution_stage=resolved_execution_stage,
+    )
+    selection_contract = _embedding_selection_contract(
+        execution_stage=resolved_execution_stage,
+        selection_policy=resolved_selection_policy,
+        limit=limit,
+    )
     resolved_batch_size = max(1, batch_size)
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
@@ -640,6 +691,7 @@ def estimate_memory_embedding_build(
             spec=spec,
             limit=limit,
             rebuild=rebuild,
+            selection_policy=resolved_selection_policy,
         )
     counts = {"missing": 0, "stale_text": 0, "stale_source": 0, "current": 0}
     input_chars = 0
@@ -673,6 +725,9 @@ def estimate_memory_embedding_build(
         estimated_batches=math.ceil(selected / resolved_batch_size) if selected else 0,
         price_per_million_input_tokens=price_per_million_input_tokens,
         estimated_input_cost=estimated_cost,
+        execution_stage=resolved_execution_stage,
+        selection_policy=resolved_selection_policy,
+        selection_contract=selection_contract,
     )
 
 
@@ -703,6 +758,11 @@ def format_embedding_estimate(estimate: EmbeddingBuildEstimate) -> str:
             "api batches: "
             f"batch_size={estimate.batch_size} estimated_batches={estimate.estimated_batches}"
         ),
+        (
+            "execution: "
+            f"stage={estimate.execution_stage} selection_policy={estimate.selection_policy}"
+        ),
+        f"selection contract: {estimate.selection_contract}",
     ]
     if estimate.estimated_input_cost is None:
         lines.append("estimated input cost: unknown")
@@ -1031,10 +1091,11 @@ def _embedding_source_rows(
     spec: EmbeddingSpec,
     limit: int | None,
     rebuild: bool,
+    selection_policy: str,
 ) -> list[sqlite3.Row]:
     sql = """
         SELECT
-            d.doc_id, d.title, d.compact_text, d.body, d.metadata_json,
+            d.doc_id, d.doc_type, d.title, d.compact_text, d.body, d.metadata_json,
             e.embedded_text_hash, e.source_doc_hash
         FROM memory_documents d
         LEFT JOIN memory_embeddings e
@@ -1053,20 +1114,104 @@ def _embedding_source_rows(
         spec.embedding_profile,
         spec.text_template_version,
     ]
-    if limit is not None and limit > 0:
-        sql += " LIMIT ?"
-        params.append(limit)
     rows = conn.execute(sql, params).fetchall()
-    if rebuild:
-        return rows
-    return [
-        row
-        for row in rows
-        if (
-            row["embedded_text_hash"] != _text_hash(_embedding_text(row))
-            or row["source_doc_hash"] != _source_doc_hash(row)
+    if not rebuild:
+        rows = [
+            row
+            for row in rows
+            if (
+                row["embedded_text_hash"] != _text_hash(_embedding_text(row))
+                or row["source_doc_hash"] != _source_doc_hash(row)
+            )
+        ]
+    return _select_embedding_rows(rows, limit=limit, selection_policy=selection_policy)
+
+
+def _resolve_embedding_execution_stage(stage: str, *, limit: int | None) -> str:
+    normalized = _clean_id(stage).replace("-", "_") or "auto"
+    if normalized not in EMBEDDING_EXECUTION_STAGES:
+        raise ValueError(
+            "embedding execution stage must be one of: "
+            + ", ".join(EMBEDDING_EXECUTION_STAGES)
         )
-    ]
+    if normalized == "auto":
+        return "technical_canary" if limit is not None else "production_scope"
+    if normalized == "production_scope" and limit is not None:
+        raise ValueError(
+            "production_scope embedding builds must not use --limit; use "
+            "technical_canary or eval_slice for limited preflight work"
+        )
+    if normalized in {"technical_canary", "eval_slice"} and limit is None:
+        raise ValueError(f"{normalized} embedding stage requires --limit")
+    return normalized
+
+
+def _resolve_embedding_selection_policy(policy: str, *, execution_stage: str) -> str:
+    normalized = _clean_id(policy).replace("-", "_") or "auto"
+    if normalized not in EMBEDDING_SELECTION_POLICIES:
+        raise ValueError(
+            "embedding selection policy must be one of: "
+            + ", ".join(EMBEDDING_SELECTION_POLICIES)
+        )
+    if normalized == "auto":
+        return "doc_type_round_robin" if execution_stage == "eval_slice" else "sequential"
+    return normalized
+
+
+def _embedding_selection_contract(
+    *,
+    execution_stage: str,
+    selection_policy: str,
+    limit: int | None,
+) -> str:
+    if execution_stage == "technical_canary":
+        return (
+            "limited technical canary: verifies provider payload, dimensions, DB writes, "
+            "coverage, and budget guard only; not a production index"
+        )
+    if execution_stage == "eval_slice":
+        return (
+            "limited evaluation slice: compares provider/profile behavior on a stable "
+            f"{selection_policy} sample; adopted arms still require full selected-scope coverage"
+        )
+    return (
+        "production scope: selected provider/profile is expected to cover the full selected "
+        "document scope"
+        if limit is None
+        else "invalid limited production scope"
+    )
+
+
+def _select_embedding_rows(
+    rows: list[sqlite3.Row],
+    *,
+    limit: int | None,
+    selection_policy: str,
+) -> list[sqlite3.Row]:
+    if limit is None or limit <= 0 or len(rows) <= limit:
+        return rows
+    if selection_policy == "sequential":
+        return rows[:limit]
+    if selection_policy == "doc_type_round_robin":
+        grouped: dict[str, list[sqlite3.Row]] = {}
+        for row in rows:
+            grouped.setdefault(str(row["doc_type"]), []).append(row)
+        selected: list[sqlite3.Row] = []
+        doc_types = sorted(grouped)
+        index = 0
+        while len(selected) < limit and grouped:
+            doc_type = doc_types[index % len(doc_types)]
+            bucket = grouped.get(doc_type)
+            if bucket:
+                selected.append(bucket.pop(0))
+                if not bucket:
+                    grouped.pop(doc_type, None)
+                    doc_types = sorted(grouped)
+                    index = 0
+                    continue
+            index += 1
+        return selected
+    raise ValueError(f"unknown embedding selection policy: {selection_policy}")
 
 
 def _embedding_rows(

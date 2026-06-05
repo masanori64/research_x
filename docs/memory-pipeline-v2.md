@@ -180,6 +180,11 @@ Current active decisions:
   diagnostic only.
 - Multiple embedding providers or profiles are separate candidate engines. Never mix their vectors
   into one shared distance space or average raw scores across providers.
+- Text embedding and OCR use small limits for different reasons. A text embedding limit is a
+  technical canary or evaluation slice before provider/profile promotion; a promoted text embedding
+  arm must eventually cover its full selected document scope. OCR limits are calibration or
+  candidate-set controls because OCR is per-media evidence preparation and full-media OCR is not the
+  default target.
 - Candidate results must be restored to source bundles before context chunking, citation, reranking,
   answer generation, or promotion.
 - Corpus2Skill is a navigation map and route hint, not citation-ready evidence.
@@ -626,6 +631,21 @@ text_template_version
 source_doc_hash
 ```
 
+Text embedding execution stages are explicit:
+
+- `technical_canary`: a small provider/API, output-dimension, DB persistence, coverage, and budget
+  guard check. This is the default meaning of `--limit 1/10/100` when no stage is specified. It is
+  not an index-quality claim.
+- `eval_slice`: a bounded provider/profile comparison slice. It should use a stable representative
+  selection policy such as doc-type round robin. It is not a production index.
+- `production_scope`: the selected provider/profile scope intended for real search coverage. A
+  production-scope build must not be silently limited by an arbitrary `--limit`; route-specific
+  production arms cover their route-specific document scope, not just a smoke-test prefix.
+
+This differs from OCR. OCR remains per-media evidence preparation and can be selective in production
+because many media items do not need text extraction. Text embedding, once an arm is adopted for a
+scope, must index that whole scope.
+
 Native media embeddings use a separate contract from text embeddings. Text embeddings index
 `memory_documents` and are current only when `source_doc_hash` and `embedding_text_hash` match the
 document row. Raw media embeddings index saved local media files and are current only when the
@@ -741,6 +761,9 @@ Current strategy classification:
 - OCR is not a recall arm. It is an evidence-preparation lane that turns image/PDF media into
   citation-ready text. Because all-media OCR can dominate cost, `api-lane-estimate` defaults to a
   stratified calibration scope and requires `--ocr-scope all` for full lower-bound pricing.
+- API lane row names should match strategy candidate names where practical. If an estimate row needs
+  an alias, the mapping must be clear in the row metadata or recommended plan so agents do not think
+  a catalog candidate disappeared.
 - Managed RAG systems such as OpenAI File Search and Gemini File Search are reference lanes only.
   They may compare UX and citation behavior but must not replace local raw X evidence, account
   ownership, or source-bundle restoration.

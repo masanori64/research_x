@@ -173,6 +173,10 @@ Use `uv run python -m research_x memory --help` as the command surface check.
 
 - [x] Split provider candidates into embedding, rerank, reader/OCR/media, external search,
       classifier, answer, relation judge, and managed-RAG reference lanes.
+- [x] Keep strategy-catalog candidates and API-lane estimate rows aligned for the runnable provider
+      arms, while leaving legacy, local-compatible, and auth-gated references explicitly gated.
+- [x] Distinguish embedding technical canaries and eval slices from production-scope embedding
+      builds; limited text embedding runs do not count as full search indexes.
 - [x] Add no-spend `api-lane-estimate`, checked default price seeding, local API budget policy,
       usage ledger, kill switch, app/CLI monitoring, and guarded provider call sites.
 - [x] Freeze paid, free-tier, trial-credit, and zero-dollar quota calls unless explicitly lifted in

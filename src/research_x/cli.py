@@ -40,6 +40,17 @@ MEMORY_EMBEDDING_PROVIDER_OR_LATEST_CHOICES = [
     "latest",
     *MEMORY_EMBEDDING_PROVIDER_CHOICES,
 ]
+MEMORY_EMBEDDING_EXECUTION_STAGE_CHOICES = [
+    "auto",
+    "technical-canary",
+    "eval-slice",
+    "production-scope",
+]
+MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES = [
+    "auto",
+    "sequential",
+    "doc-type-round-robin",
+]
 
 
 def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
@@ -578,6 +589,21 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_parser.add_argument("--base-url", default=None)
     memory_embedding_parser.add_argument("--batch-size", type=int, default=64)
     memory_embedding_parser.add_argument("--limit", type=int, default=None)
+    memory_embedding_parser.add_argument(
+        "--execution-stage",
+        choices=MEMORY_EMBEDDING_EXECUTION_STAGE_CHOICES,
+        default="auto",
+        help=(
+            "embedding build intent; limited auto builds are technical canaries, "
+            "production-scope must not use --limit"
+        ),
+    )
+    memory_embedding_parser.add_argument(
+        "--selection-policy",
+        choices=MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES,
+        default="auto",
+        help="document selection policy for limited canary/eval-slice builds",
+    )
     memory_embedding_parser.add_argument("--rebuild", action="store_true")
     memory_embedding_parser.add_argument("--progress-every", type=int, default=1000)
     _add_api_budget_options(memory_embedding_parser)
@@ -602,6 +628,21 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_estimate_parser.add_argument("--base-url", default=None)
     memory_embedding_estimate_parser.add_argument("--batch-size", type=int, default=64)
     memory_embedding_estimate_parser.add_argument("--limit", type=int, default=None)
+    memory_embedding_estimate_parser.add_argument(
+        "--execution-stage",
+        choices=MEMORY_EMBEDDING_EXECUTION_STAGE_CHOICES,
+        default="auto",
+        help=(
+            "embedding estimate intent; limited auto estimates are technical canaries, "
+            "production-scope must not use --limit"
+        ),
+    )
+    memory_embedding_estimate_parser.add_argument(
+        "--selection-policy",
+        choices=MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES,
+        default="auto",
+        help="document selection policy for limited canary/eval-slice estimates",
+    )
     memory_embedding_estimate_parser.add_argument("--rebuild", action="store_true")
     memory_embedding_estimate_parser.add_argument(
         "--price-per-million-input-tokens",
@@ -2710,6 +2751,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             limit=args.limit,
             rebuild=args.rebuild,
             progress_every=args.progress_every,
+            execution_stage=args.execution_stage,
+            selection_policy=args.selection_policy,
         )
         print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
         return 0
@@ -2733,6 +2776,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             limit=args.limit,
             rebuild=args.rebuild,
             price_per_million_input_tokens=args.price_per_million_input_tokens,
+            execution_stage=args.execution_stage,
+            selection_policy=args.selection_policy,
         )
         output = (
             embedding_estimate_json(estimate)

@@ -82,6 +82,7 @@ from research_x.memory.reader import (
 from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.rerank import rerank_evidence_query, rerank_hits
 from research_x.memory.retrieval_strategy import (
+    DEFAULT_RETRIEVAL_STRATEGIES,
     reranker_spec_strings_for_strategies,
     retrieval_strategies_as_dicts,
     semantic_spec_strings_for_strategies,
@@ -424,6 +425,45 @@ def test_memory_embedding_estimate_reports_selection_and_cost(tmp_path: Path) ->
     assert estimate.estimated_batches == 3
     assert estimate.estimated_input_tokens > 0
     assert estimate.estimated_input_cost is not None
+    assert estimate.execution_stage == "production_scope"
+    assert estimate.selection_policy == "sequential"
+
+
+def test_memory_embedding_limited_estimates_are_not_production_scope(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    canary = estimate_memory_embedding_build(
+        db_path,
+        provider="gemini",
+        dimensions=768,
+        limit=1,
+    )
+    eval_slice = estimate_memory_embedding_build(
+        db_path,
+        provider="gemini",
+        dimensions=768,
+        limit=3,
+        execution_stage="eval-slice",
+    )
+
+    assert canary.execution_stage == "technical_canary"
+    assert canary.selection_policy == "sequential"
+    assert "not a production index" in canary.selection_contract
+    assert eval_slice.execution_stage == "eval_slice"
+    assert eval_slice.selection_policy == "doc_type_round_robin"
+    assert "full selected-scope coverage" in eval_slice.selection_contract
+    with pytest.raises(ValueError, match="production_scope embedding builds must not use --limit"):
+        estimate_memory_embedding_build(
+            db_path,
+            provider="gemini",
+            dimensions=768,
+            limit=1,
+            execution_stage="production-scope",
+        )
 
 
 def test_memory_embedding_schema_migrates_legacy_rows(tmp_path: Path) -> None:
@@ -1556,6 +1596,7 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
     report = build_api_lane_estimate_report(
         db_path,
         include_optional_context3=True,
+        include_latest_ocr=True,
         reader_url_limit=10,
         reader_max_chars=1000,
         rerank_query_count=2,
@@ -1563,12 +1604,27 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
         rerank_avg_candidate_tokens=100,
     )
     rows = {row.name: row for row in report.rows}
+    estimate_row_names = set(rows)
+    gated_statuses = {
+        "legacy_comparison_only",
+        "deferred_endpoint_required",
+        "deferred_local_or_compatible",
+        "deferred_gcp_vertex_auth_required",
+    }
+    runnable_strategy_names = {
+        candidate.name
+        for strategy in DEFAULT_RETRIEVAL_STRATEGIES
+        for candidate in strategy.candidates
+        if candidate.provider and candidate.model and candidate.status not in gated_statuses
+    }
 
-    assert rows["gemini_embedding_2_text"].estimated_cost_usd is not None
+    assert rows["gemini2_general_text"].estimated_cost_usd is not None
     assert rows["cohere_v4_media_text"].status == "secondary_priced_estimate"
     assert rows["cohere_v4_media_text"].lane == "embedding_media_text_bridge"
     assert rows["voyage4_multilingual"].lane == "embedding_jp_multilingual"
-    assert rows["mistral_codestral_embed"].lane == "embedding_code_technical"
+    assert rows["gemini2_multilingual"].lane == "embedding_jp_multilingual"
+    assert rows["jina_v5_text_learning"].lane == "embedding_learning_long"
+    assert rows["mistral_text_code_docs"].lane == "embedding_code_technical"
     assert rows["cohere_rerank_v4_0_pro"].estimated_cost_usd == 0.005
     assert rows["jina_reader_extract"].extra["discovered_external_urls"] == 2
     assert rows["jina_reader_extract"].estimated_cost_usd is not None
@@ -1576,7 +1632,7 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
     assert rows["mistral_ocr_2512"].selected_units == 1
     assert rows["voyage_context_4_learning"].status == "contract_required_lower_bound"
     assert rows["voyage_context_4_learning"].lane == "embedding_contextual_learning"
-    assert rows["voyage_context_3_learning_compare"].status == "older_comparison_lower_bound"
+    assert rows["voyage_context_3_learning"].status == "older_comparison_lower_bound"
     assert rows["openai_file_search_vector_stores"].estimated_cost_usd is None
     plans = {plan["plan_id"]: plan for plan in report.totals["recommended_plans"]}
     assert plans["objective_fit_router_baseline"]["status"] == "recommended_first_pass"
@@ -1584,12 +1640,15 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
         plans["objective_fit_router_baseline"]["estimated_cost_usd"]
         < report.totals["estimated_priced_cost_usd"]
     )
-    assert "gemini_embedding_2_text" in plans["objective_fit_router_baseline"]["row_names"]
+    assert "gemini2_general_text" in plans["objective_fit_router_baseline"]["row_names"]
     assert "voyage4_multilingual" in plans["jp_multilingual_route"]["row_names"]
+    assert "gemini2_multilingual" in plans["jp_multilingual_route"]["row_names"]
     assert "voyage_context_4_learning" in plans["learning_long_route"]["row_names"]
-    assert "mistral_codestral_embed" in plans["code_technical_route"]["row_names"]
+    assert "jina_v5_text_learning" in plans["learning_long_route"]["row_names"]
+    assert "mistral_text_code_docs" in plans["code_technical_route"]["row_names"]
     assert "gemini_embedding_2_native_media" in plans["media_grounded_route"]["row_names"]
     assert plans["full_ocr_lower_bound"]["status"] == "expensive_explicit_only"
+    assert runnable_strategy_names <= estimate_row_names
 
 
 def test_memory_api_lane_estimate_cli_and_price_seed(

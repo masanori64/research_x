@@ -485,7 +485,7 @@ def _text_embedding_rows(
     arms = [
         _TextArm(
             "embedding_general_memory",
-            "gemini_embedding_2_text",
+            "gemini2_general_text",
             "gemini",
             "gemini-embedding-2",
             768,
@@ -572,8 +572,30 @@ def _text_embedding_rows(
             SOURCE_JINA_MODELS,
         ),
         _TextArm(
+            "embedding_jp_multilingual",
+            "gemini2_multilingual",
+            "gemini",
+            "gemini-embedding-2",
+            1536,
+            "jp_multilingual",
+            0.20,
+            SOURCE_GEMINI_PRICING,
+            status="eval_challenger",
+        ),
+        _TextArm(
+            "embedding_learning_long",
+            "jina_v5_text_learning",
+            "jina",
+            "jina-embeddings-v5-text-small",
+            1024,
+            "learning_long",
+            0.05,
+            SOURCE_JINA_MODELS,
+            status="eval_challenger",
+        ),
+        _TextArm(
             "embedding_media_text_bridge",
-            "jina_v5_omni_text_bridge",
+            "jina_v5_omni_media_text",
             "jina",
             "jina-embeddings-v5-omni-small",
             1024,
@@ -604,7 +626,7 @@ def _text_embedding_rows(
         ),
         _TextArm(
             "embedding_code_technical",
-            "mistral_codestral_embed",
+            "mistral_text_code_docs",
             "mistral",
             "codestral-embed-2505",
             1024,
@@ -619,7 +641,7 @@ def _text_embedding_rows(
         arms.append(
             _TextArm(
                 "embedding_contextual_learning",
-                "voyage_context_3_learning_compare",
+                "voyage_context_3_learning",
                 "voyage",
                 "voyage-context-3",
                 1024,
@@ -667,6 +689,13 @@ def _text_embedding_rows(
                     "stale_text": estimate.stale_text,
                     "stale_source": estimate.stale_source,
                     "current": estimate.current,
+                    "execution_stage": "production_scope_estimate",
+                    "canary_sequence": (
+                        "limit 1 -> 10 -> 100 technical_canary before production build"
+                    ),
+                    "production_contract": (
+                        "adopted text embedding arms must cover their full selected document scope"
+                    ),
                 },
             )
         )
@@ -1100,7 +1129,7 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             ),
             row_by_name,
             (
-                "gemini_embedding_2_text",
+                "gemini2_general_text",
                 "openai_small_general",
                 "voyage_rerank_2_5",
                 "cohere_rerank_v4_0_fast",
@@ -1118,7 +1147,7 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             ),
             "Incremental route expansion; do not run for exact-anchor-only questions.",
             row_by_name,
-            ("voyage4_multilingual", "jina_v5_text_multilingual"),
+            ("voyage4_multilingual", "jina_v5_text_multilingual", "gemini2_multilingual"),
         ),
         _plan_from_names(
             "learning_long_route",
@@ -1129,7 +1158,12 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             ),
             "Adds high-capacity and contextual recall only for concept-heavy questions.",
             row_by_name,
-            ("openai_large_learning", "voyage4_large_learning", "voyage_context_4_learning"),
+            (
+                "openai_large_learning",
+                "voyage4_large_learning",
+                "voyage_context_4_learning",
+                "jina_v5_text_learning",
+            ),
         ),
         _plan_from_names(
             "code_technical_route",
@@ -1140,7 +1174,7 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             ),
             "Specialist code/documentation embeddings should not replace broad memory recall.",
             row_by_name,
-            ("voyage_code_3", "mistral_codestral_embed"),
+            ("voyage_code_3", "mistral_text_code_docs"),
         ),
         _plan_from_names(
             "media_grounded_route",
@@ -1152,14 +1186,14 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             "This is a targeted media path, not full OCR over every saved image.",
             row_by_name,
             (
-                "jina_v5_omni_text_bridge",
+                "jina_v5_omni_media_text",
                 "cohere_v4_media_text",
                 "gemini_embedding_2_native_media",
                 "mistral_ocr_2512",
             ),
         ),
     ]
-    context3 = row_by_name.get("voyage_context_3_learning_compare")
+    context3 = row_by_name.get("voyage_context_3_learning")
     if context3 is not None:
         plans.append(
             {

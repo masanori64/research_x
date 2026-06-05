@@ -662,6 +662,12 @@ question needs them. Full OCR over all media is shown separately as an expensive
 option, because native media recall should select candidate media before OCR creates
 citation-ready image/PDF text.
 
+Embedding and OCR limits mean different things. Text embedding `--limit 1/10/100` is a technical
+canary or evaluation slice before a provider/profile is promoted; once promoted, that embedding arm
+must cover its full selected document scope. OCR `--limit 100` is a stratified calibration or
+candidate-set control because OCR is per-media evidence preparation and full-media OCR is not the
+default production target.
+
 Objective routing and OCR evidence preparation can be exercised without provider calls:
 
 ```powershell
@@ -713,13 +719,29 @@ uv run python -m research_x memory embedding-estimate `
   --model gemini-embedding-2 `
   --dimensions 768 `
   --batch-size 64
+uv run python -m research_x memory embedding-estimate `
+  --db runs/x_data.sqlite3 `
+  --provider gemini `
+  --model gemini-embedding-2 `
+  --dimensions 768 `
+  --limit 100
+uv run python -m research_x memory embedding-estimate `
+  --db runs/x_data.sqlite3 `
+  --provider voyage `
+  --model voyage-4 `
+  --dimensions 1024 `
+  --embedding-profile jp_multilingual `
+  --execution-stage eval-slice `
+  --selection-policy doc-type-round-robin `
+  --limit 100
 uv run python -m research_x memory build-embeddings `
   --db runs/x_data.sqlite3 `
   --provider gemini `
   --model gemini-embedding-2 `
   --dimensions 768 `
   --embedding-profile general_memory `
-  --text-template-version memory-doc-embedding-v1
+  --text-template-version memory-doc-embedding-v1 `
+  --execution-stage production-scope
 # Native provider choices include openai, gemini, voyage, cohere, mistral, jina,
 # openai_compatible. local_hash is diagnostic-only and not a production candidate.
 # For OpenAI-compatible embedding APIs, pass a full embeddings endpoint as --base-url.
@@ -781,8 +803,10 @@ coverage first, then compare the explicit `api_embedding_portfolio` against evid
 The embedding arms are role-specific, not interchangeable "just text" indexes:
 
 - `embedding_general_memory`: Gemini `gemini-embedding-2`, OpenAI `text-embedding-3-small`;
-- `embedding_jp_multilingual`: Voyage `voyage-4`, Jina `jina-embeddings-v5-text-small`;
-- `embedding_learning_long`: OpenAI `text-embedding-3-large`, Voyage `voyage-4-large`;
+- `embedding_jp_multilingual`: Voyage `voyage-4`, Jina `jina-embeddings-v5-text-small`,
+  Gemini `gemini-embedding-2`;
+- `embedding_learning_long`: OpenAI `text-embedding-3-large`, Voyage `voyage-4-large`,
+  Jina `jina-embeddings-v5-text-small`;
 - `embedding_contextual_learning`: Voyage `voyage-context-4` as a contextual contract-required
   lower-bound;
 - `embedding_code_technical`: Voyage `voyage-code-3`, Mistral `codestral-embed-2505`;
