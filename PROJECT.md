@@ -304,7 +304,7 @@ Stop condition before this milestone starts:
 - Raw media matches are candidate signals only. They must not become image-content claims unless
   OCR/caption/VLM text has been converted into citation-ready context chunks.
 
-## Next Milestone: Final Skeleton Execution Surface
+## Completed Milestone: Final Skeleton Execution Surface
 
 `docs/memory-pipeline-v2.md` now defines the final skeleton as Evidence / Source Bundle First plus
 ObjectiveRoutePolicy, Evaluation First, Security Boundary, and Continuous Projection / Temporal Ops.
@@ -312,21 +312,31 @@ The next implementation phase is to align code with that skeleton without spendi
 
 Implementation checklist:
 
-- [ ] Add explicit QueryTransform and RetrievalTextProfile artifacts so generated query/search text
+- [x] Add explicit QueryTransform and RetrievalTextProfile artifacts so generated query/search text
       cannot be mistaken for evidence.
-- [ ] Split eval storage/reporting into route, retrieval, context, citation, answer, and abstention
+- [x] Split eval storage/reporting into route, retrieval, context, citation, answer, and abstention
       gates.
-- [ ] Extend route execution traces with guarded fusion details, route fallback use, skipped
+- [x] Extend route execution traces with guarded fusion details, route fallback use, skipped
       provider roles, and source-bundle restoration failures.
-- [ ] Add user-model/ranking-policy scaffolding that records personal signals as hints, not
+- [x] Add user-model/ranking-policy scaffolding that records personal signals as hints, not
       citation evidence.
-- [ ] Add projection generation and index membership tracking for rebuildable search artifacts.
-- [ ] Add trust boundary, taint flags, data classification, account/source visibility, and allowed
+- [x] Add projection generation and index membership tracking for rebuildable search artifacts.
+- [x] Add trust boundary, taint flags, data classification, account/source visibility, and allowed
       sink metadata to context/tool/provider surfaces where data can cross boundaries.
-- [ ] Add visual recall evidence state between raw media match and media content evidence, including
+- [x] Add visual recall evidence state between raw media match and media content evidence, including
       page/region/bbox citation readiness fields.
-- [ ] Keep all new provider-backed and quota-consuming arms blocked unless the current conversation
+- [x] Keep all new provider-backed and quota-consuming arms blocked unless the current conversation
       explicitly permits quota use.
+
+Current paid/quota gate:
+
+- The repository can now build and store the final no-spend skeleton surface with
+  `memory final-skeleton-preflight`.
+- The next uncompleted step is real provider execution or provider-backed evaluation:
+  semantic embedding builds, native media embedding builds, reranker calls, URL Reader calls, OCR
+  provider calls, managed-RAG references, or provider judges.
+- Do not cross this gate without explicit current-conversation permission to consume paid,
+  free-tier, trial-credit, or zero-dollar provider quota.
 
 ## Completed V2 Evidence Objects
 

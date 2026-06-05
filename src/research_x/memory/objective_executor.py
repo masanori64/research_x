@@ -109,11 +109,30 @@ def run_objective_route_execution(
         if best.evidence_count > 0:
             stop_reason = best.stop_condition or best.escalation_trigger or "needs_review"
 
+    skipped_provider_roles = [
+        result.route_arm for result in results if result.provider_quota_skipped
+    ]
+    fallback_routes_used = [
+        result.route_arm for result in results if result.route_arm != plan.primary_route
+    ]
+    source_bundle_restoration_failures = sum(
+        int(result.output.get("source_bundle_restoration_failures", 0))
+        for result in results
+    )
     metadata = {
         "execution_version": OBJECTIVE_EXECUTION_VERSION,
         "provider_quota_frozen": True,
         "no_quota_policy": "provider arms are skipped unless local/fake",
         "evaluated_route_count": len(results),
+        "guarded_fusion": {
+            "candidate_routes": list(selected_routes),
+            "executed_routes": [result.route_arm for result in results],
+            "fusion_scope": "source_bundle_restored_local_arms",
+            "raw_score_averaging": False,
+        },
+        "fallback_routes_used": fallback_routes_used,
+        "skipped_provider_roles": skipped_provider_roles,
+        "source_bundle_restoration_failures": source_bundle_restoration_failures,
     }
     execution = ObjectiveRouteExecution(
         route_run_id=route_run_id,
@@ -365,8 +384,23 @@ def _result_from_context_bundle(
             "context_chunks": evidence_count,
             "citations": citation_count,
             "doc_types": _doc_types_from_hits(bundle.retrieved_hits),
+            "source_bundle_restoration_failures": _source_bundle_restoration_failures(
+                bundle.retrieved_hits
+            ),
         },
     )
+
+
+def _source_bundle_restoration_failures(hits: list[dict[str, Any]]) -> int:
+    failures = 0
+    for hit in hits:
+        if not hit.get("doc_id"):
+            failures += 1
+            continue
+        metadata = hit.get("metadata") or {}
+        if isinstance(metadata, dict) and metadata.get("source_bundle_error"):
+            failures += 1
+    return failures
 
 
 def _skipped_arm(route_arm: str, *, reason: str) -> ObjectiveRouteArmResult:

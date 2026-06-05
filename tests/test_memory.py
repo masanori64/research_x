@@ -40,6 +40,7 @@ from research_x.memory.evals import (
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
+from research_x.memory.final_skeleton import run_final_skeleton_preflight
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.media_embeddings import (
@@ -1040,6 +1041,8 @@ def test_memory_objective_routes_and_ocr_cli(tmp_path: Path, capsys) -> None:
     execution_output = capsys.readouterr().out
     assert '"route_arm": "media_evidence"' in execution_output
     assert '"provider_quota_frozen": true' in execution_output
+    assert '"guarded_fusion"' in execution_output
+    assert '"source_bundle_restoration_failures"' in execution_output
     assert (
         main(
             [
@@ -1096,6 +1099,140 @@ def test_memory_objective_routes_and_ocr_cli(tmp_path: Path, capsys) -> None:
     coverage_output = capsys.readouterr().out
     assert "texts=1" in coverage_output
     assert "context_chunks=1" in coverage_output
+
+
+def test_memory_final_skeleton_preflight_writes_no_spend_contracts(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    report = run_final_skeleton_preflight(
+        db_path,
+        "画像付きで保存した強化学習の資料を出して",
+        limit=3,
+    )
+
+    assert report.provider_quota_blocked is True
+    assert report.query_transforms >= 2
+    assert report.retrieval_text_profiles >= 2
+    assert report.eval_gates == 6
+    assert report.index_memberships >= 1
+    assert report.security_boundaries >= report.query_transforms
+    assert report.visual_recall_evidence == 1
+    assert report.user_ranking_signals == 1
+    assert "provider-backed" in report.next_paid_gate
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        query_transform = conn.execute(
+            """
+            SELECT citation_excluded, drift_flags_json
+            FROM memory_query_transforms
+            WHERE transform_kind = 'media_grounded_query'
+            """
+        ).fetchone()
+        assert query_transform is not None
+        assert query_transform[0] == 1
+        assert "generated_search_text" in json.loads(query_transform[1])
+
+        retrieval_profile = conn.execute(
+            """
+            SELECT citation_excluded, metadata_json
+            FROM memory_retrieval_text_profiles
+            WHERE retrieval_text_profile = 'contextual_bm25'
+            LIMIT 1
+            """
+        ).fetchone()
+        assert retrieval_profile is not None
+        assert retrieval_profile[0] == 1
+        assert (
+            json.loads(retrieval_profile[1])["contract"]
+            == "retrieval_text_profile_is_projection_not_source"
+        )
+
+        gate_names = {
+            row[0]
+            for row in conn.execute(
+                "SELECT gate_name FROM memory_eval_gate_results WHERE route_run_id = ?",
+                (report.preflight_id,),
+            ).fetchall()
+        }
+        assert gate_names == {
+            "route_eval",
+            "retrieval_eval",
+            "context_eval",
+            "citation_eval",
+            "answer_eval",
+            "abstention_eval",
+        }
+
+        visual = conn.execute(
+            """
+            SELECT evidence_level, citation_ready, metadata_json
+            FROM memory_visual_recall_evidence
+            WHERE media_id = 'media-1'
+            """
+        ).fetchone()
+        assert visual is not None
+        assert visual[0] == "visual_recall_evidence"
+        assert visual[1] == 0
+        assert (
+            json.loads(visual[2])["contract"]
+            == "visual_recall_candidate_not_media_content_evidence"
+        )
+
+        signal = conn.execute(
+            """
+            SELECT evidence_status, route_scope
+            FROM memory_user_ranking_signals
+            WHERE subject_id = 'tweet-1'
+            """
+        ).fetchone()
+        assert signal == (
+            "ranking_hint_not_evidence",
+            "refinding,subjective_preference,exploratory_learning",
+        )
+
+        projection = conn.execute(
+            "SELECT status, coverage_json FROM memory_projection_generations"
+        ).fetchone()
+        assert projection is not None
+        assert projection[0] == "ready"
+        assert json.loads(projection[1])["provider_quota_blocked"] is True
+
+
+def test_memory_final_skeleton_preflight_cli_json_no_store(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    assert (
+        main(
+            [
+                "memory",
+                "final-skeleton-preflight",
+                "--db",
+                str(db_path),
+                "--query",
+                "北千住のピザ店を保存から探して",
+                "--no-store",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["stored"] is False
+    assert payload["provider_quota_blocked"] is True
+    assert payload["eval_gates"] == 6
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        assert conn.execute("SELECT COUNT(*) FROM memory_query_transforms").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM memory_eval_gate_results").fetchone()[0] == 0
 
 
 def test_memory_media_embedding_resolver_skips_invalid_media(tmp_path: Path) -> None:

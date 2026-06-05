@@ -450,6 +450,117 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             PRIMARY KEY(provider, model, operation, unit)
         );
 
+        CREATE TABLE IF NOT EXISTS memory_query_transforms (
+            transform_id TEXT PRIMARY KEY,
+            parent_query_id TEXT NOT NULL,
+            query TEXT NOT NULL,
+            transform_kind TEXT NOT NULL,
+            generated_text TEXT NOT NULL,
+            preserved_anchors_json TEXT NOT NULL,
+            allowed_routes_json TEXT NOT NULL,
+            drift_flags_json TEXT NOT NULL,
+            citation_excluded INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_retrieval_text_profiles (
+            profile_id TEXT PRIMARY KEY,
+            doc_id TEXT NOT NULL,
+            retrieval_text_profile TEXT NOT NULL,
+            retrieval_text TEXT NOT NULL,
+            source_doc_hash TEXT,
+            citation_excluded INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_eval_gate_results (
+            gate_result_id TEXT PRIMARY KEY,
+            route_run_id TEXT,
+            workflow_id TEXT,
+            answer_id TEXT,
+            query TEXT NOT NULL,
+            gate_name TEXT NOT NULL,
+            status TEXT NOT NULL,
+            score REAL,
+            evaluator_kind TEXT NOT NULL,
+            evidence_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_projection_generations (
+            generation_id TEXT PRIMARY KEY,
+            projection_kind TEXT NOT NULL,
+            source_scope TEXT NOT NULL,
+            builder_version TEXT NOT NULL,
+            input_manifest_json TEXT NOT NULL,
+            status TEXT NOT NULL,
+            coverage_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_index_membership (
+            membership_id TEXT PRIMARY KEY,
+            generation_id TEXT NOT NULL,
+            artifact_kind TEXT NOT NULL,
+            artifact_id TEXT NOT NULL,
+            source_id TEXT,
+            source_hash TEXT,
+            membership_status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL,
+            FOREIGN KEY(generation_id) REFERENCES memory_projection_generations(generation_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_security_boundaries (
+            boundary_id TEXT PRIMARY KEY,
+            run_id TEXT,
+            artifact_kind TEXT NOT NULL,
+            artifact_id TEXT NOT NULL,
+            source_kind TEXT NOT NULL,
+            trust_boundary TEXT NOT NULL,
+            taint_flags_json TEXT NOT NULL,
+            data_classification TEXT NOT NULL,
+            source_visibility TEXT NOT NULL,
+            account_scope TEXT,
+            allowed_sinks_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_visual_recall_evidence (
+            visual_evidence_id TEXT PRIMARY KEY,
+            media_id TEXT NOT NULL,
+            source_tweet_id TEXT,
+            evidence_level TEXT NOT NULL,
+            page_index INTEGER NOT NULL,
+            region_index INTEGER NOT NULL,
+            pixel_bbox_json TEXT NOT NULL,
+            normalized_bbox_json TEXT NOT NULL,
+            citation_ready INTEGER NOT NULL,
+            source_image_hash TEXT,
+            provider TEXT,
+            model TEXT,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS memory_user_ranking_signals (
+            signal_id TEXT PRIMARY KEY,
+            subject_kind TEXT NOT NULL,
+            subject_id TEXT NOT NULL,
+            signal_type TEXT NOT NULL,
+            signal_value REAL NOT NULL,
+            confidence REAL NOT NULL,
+            route_scope TEXT NOT NULL,
+            evidence_status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_memory_documents_doc_type
             ON memory_documents(doc_type);
         CREATE INDEX IF NOT EXISTS idx_memory_documents_source_tweet
@@ -512,14 +623,28 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_ocr_texts(media_id, evidence_status);
         CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_region
             ON memory_ocr_texts(region_id);
-        CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_profile
-            ON memory_ocr_texts(text_profile, second_pass_status);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_run
             ON memory_api_usage_events(run_id, started_at);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_provider
             ON memory_api_usage_events(provider, model, operation, started_at);
         CREATE INDEX IF NOT EXISTS idx_memory_api_usage_status
             ON memory_api_usage_events(status, started_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_query_transforms_parent
+            ON memory_query_transforms(parent_query_id, transform_kind);
+        CREATE INDEX IF NOT EXISTS idx_memory_retrieval_text_profiles_doc
+            ON memory_retrieval_text_profiles(doc_id, retrieval_text_profile);
+        CREATE INDEX IF NOT EXISTS idx_memory_eval_gate_results_query
+            ON memory_eval_gate_results(query, gate_name, created_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_projection_generations_kind
+            ON memory_projection_generations(projection_kind, created_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_index_membership_generation
+            ON memory_index_membership(generation_id, artifact_kind);
+        CREATE INDEX IF NOT EXISTS idx_memory_security_boundaries_artifact
+            ON memory_security_boundaries(artifact_kind, artifact_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_visual_recall_media
+            ON memory_visual_recall_evidence(media_id, evidence_level);
+        CREATE INDEX IF NOT EXISTS idx_memory_user_ranking_signals_subject
+            ON memory_user_ranking_signals(subject_kind, subject_id, route_scope);
         """
     )
     _migrate_memory_documents(conn)
@@ -533,6 +658,12 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_embeddings(
                 provider, model, dimensions, embedding_profile, text_template_version
             )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_memory_ocr_texts_profile
+            ON memory_ocr_texts(text_profile, second_pass_status)
         """
     )
 

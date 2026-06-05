@@ -1494,6 +1494,21 @@ def main(argv: list[str] | None = None) -> int:
         help="store objective route run/step trace rows",
     )
     memory_objective_execute_parser.add_argument("--json", action="store_true")
+    memory_final_skeleton_parser = memory_subparsers.add_parser(
+        "final-skeleton-preflight",
+        help="write no-spend final skeleton artifacts up to the provider-quota gate",
+    )
+    memory_final_skeleton_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_final_skeleton_parser.add_argument("--query", required=True)
+    memory_final_skeleton_parser.add_argument("--route", default="auto")
+    memory_final_skeleton_parser.add_argument("--limit", type=int, default=10)
+    memory_final_skeleton_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store no-spend final skeleton preflight artifacts",
+    )
+    memory_final_skeleton_parser.add_argument("--json", action="store_true")
     memory_retrieval_strategies_parser = memory_subparsers.add_parser(
         "retrieval-strategies",
         help="list route/retrieval/evidence strategies for portfolio experiments",
@@ -3437,6 +3452,26 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             objective_route_execution_json(execution)
             if args.json
             else format_objective_route_execution(execution)
+        )
+        return 0
+    if args.memory_command == "final-skeleton-preflight":
+        from research_x.memory.final_skeleton import (
+            final_skeleton_preflight_json,
+            format_final_skeleton_preflight,
+            run_final_skeleton_preflight,
+        )
+
+        report = run_final_skeleton_preflight(
+            args.db,
+            args.query,
+            route=args.route,
+            limit=args.limit,
+            store=args.store,
+        )
+        print(
+            final_skeleton_preflight_json(report)
+            if args.json
+            else format_final_skeleton_preflight(report)
         )
         return 0
     if args.memory_command in {"retrieval-strategies", "embedding-strategies"}:
