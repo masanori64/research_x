@@ -86,8 +86,16 @@ from research_x.memory.retrieval_strategy import (
     retrieval_strategies_as_dicts,
     semantic_spec_strings_for_strategies,
 )
+from research_x.memory.retrieval_text import (
+    build_retrieval_text_profiles,
+    retrieval_text_coverage,
+)
 from research_x.memory.schema import ensure_memory_schema
-from research_x.memory.search import search_memory, strong_anchor_terms_for_query
+from research_x.memory.search import (
+    search_memory,
+    search_memory_retrieval_text_only,
+    strong_anchor_terms_for_query,
+)
 from research_x.memory.source_kinds import classify_external_source_kind
 from research_x.memory.workflow import plan_workflow_route, run_memory_workflow, workflow_json
 
@@ -156,6 +164,40 @@ def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
         "topic_thread",
         0.0,
     )
+
+
+def test_memory_retrieval_text_profiles_are_search_only_projection(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    summary = build_retrieval_text_profiles(db_path)
+    coverage = retrieval_text_coverage(db_path)
+    projection_results = search_memory_retrieval_text_only(db_path, "type", limit=5)
+    hybrid_results = search_memory(db_path, "type", limit=5)
+    report = audit_memory_db(db_path)
+
+    assert summary.documents == 5
+    assert summary.profile_rows == 10
+    assert coverage.profile_rows == 10
+    assert coverage.fts_rows == 10
+    assert coverage.citation_included_rows == 0
+    assert coverage.orphaned_fts_rows == 0
+    assert coverage.profiles_missing_fts_rows == 0
+    assert not coverage.missing_by_profile
+    assert projection_results
+    assert any(
+        contribution["engine"] == "retrieval_text"
+        for result in projection_results
+        for contribution in result.metadata["engine_contributions"]
+    )
+    assert any(
+        contribution["engine"] == "retrieval_text"
+        for result in hybrid_results
+        for contribution in result.metadata["engine_contributions"]
+    )
+    assert "no_spend_gap" not in report.strategy_gap_counts
 
 
 def test_memory_evidence_includes_quote_and_media(tmp_path: Path) -> None:
@@ -554,6 +596,9 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
     assert not result.fusion_regressed
     assert {
         "fts_only",
+        "exact_anchor",
+        "retrieval_text",
+        "relation_expansion",
         "corpus2skill_navigation",
         "source_bundle_context",
         "workflow_route",
@@ -561,13 +606,22 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
         "hash64",
         "hash32",
     }.issubset({arm.name for arm in result.arms})
-    assert {"fts_only", "navigation_map", "source_bundle_context", "bounded_workflow"}.issubset(
-        {arm.mode for arm in result.arms}
-    )
+    assert {
+        "fts_only",
+        "exact_anchor",
+        "retrieval_text",
+        "relation_expansion",
+        "navigation_map",
+        "source_bundle_context",
+        "bounded_workflow",
+    }.issubset({arm.mode for arm in result.arms})
     assert "semantic_only" in {arm.mode for arm in result.arms}
     assert {arm.name: arm.case_status for arm in result.arms}["local_hybrid"] == "ok"
     assert {
         "fts_only",
+        "exact_anchor",
+        "retrieval_text",
+        "relation_expansion",
         "corpus2skill_navigation",
         "source_bundle_context",
         "workflow_route",
@@ -1929,7 +1983,81 @@ def test_memory_audit_allows_evidence_first_without_embeddings(tmp_path: Path) -
 
     assert report.documents == 5
     assert not report.warnings
+    assert "no_spend_gap" not in report.strategy_gap_counts
     assert main(["memory", "audit", "--db", str(db_path), "--strict"]) == 0
+
+
+def test_memory_audit_flags_claim_citation_integrity_issues(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    answer = build_memory_answer(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="fake",
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            """
+            UPDATE memory_answer_runs
+            SET answer_text = ?
+            WHERE answer_id = ?
+            """,
+            (
+                "根拠に基づく回答です [2]\n"
+                "これは追加された確認不能な事実説明です。",
+                answer.answer_id,
+            ),
+        )
+
+    report = audit_memory_db(db_path)
+
+    assert report.claim_citation_issues["ok_answer_with_unmapped_citation_markers"] == 1
+    assert report.claim_citation_issues["ok_answer_with_unrendered_citation_markers"] == 1
+    assert report.claim_citation_issues["ok_answer_with_invalid_citation_spans"] >= 1
+    assert report.claim_citation_issues["ok_answer_with_uncited_claim_lines"] == 1
+
+
+def test_memory_audit_flags_retrieval_text_lineage_issues(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    build_retrieval_text_profiles(db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        profile_id = conn.execute(
+            """
+            SELECT profile_id
+            FROM memory_retrieval_text_profiles
+            ORDER BY profile_id
+            LIMIT 1
+            """
+        ).fetchone()[0]
+        conn.execute(
+            """
+            UPDATE memory_retrieval_text_profiles
+            SET citation_excluded = 0,
+                source_doc_hash = 'stale'
+            WHERE profile_id = ?
+            """,
+            (profile_id,),
+        )
+        conn.execute(
+            "DELETE FROM memory_retrieval_text_fts WHERE profile_id = ?",
+            (profile_id,),
+        )
+
+    report = audit_memory_db(db_path)
+
+    assert report.freshness_lineage_issues["retrieval_text_not_citation_excluded"] == 1
+    assert report.freshness_lineage_issues["retrieval_text_stale_source_doc_hash"] == 1
+    assert report.freshness_lineage_issues["retrieval_text_profiles_missing_fts"] == 1
 
 
 def test_memory_audit_accepts_openai_compatible_embeddings_as_production(

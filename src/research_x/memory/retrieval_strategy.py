@@ -248,7 +248,7 @@ VOYAGE_CONTEXT_4_LEARNING = PortfolioCandidate(
     dimensions=1024,
     embedding_profile="learning_contextual",
     vector_space_kind="contextual_dense",
-    status="needs_contextual_chunk_implementation",
+    status="provider_quota_gate",
     purpose=(
         "Contextual chunk embedding candidate for topic/thread bundles where chunk-level "
         "vectors need surrounding document context."
@@ -327,20 +327,20 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             PortfolioCandidate(
                 name="exact_anchor_engine",
                 candidate_kind="retrieval_engine",
-                status="partially_implemented",
+                status="implemented_eval_arm",
                 purpose=(
-                    "Handles, URLs, long IDs, dates, tickers, and place names should be a "
-                    "separate auditable candidate engine instead of only a filter/boost."
+                    "Handles, URLs, long IDs, dates, tickers, and place names are exposed as "
+                    "a separate auditable portfolio arm instead of only a filter/boost."
                 ),
                 source_refs=("SQLite FTS5",),
             ),
             PortfolioCandidate(
                 name="relation_engine",
                 candidate_kind="retrieval_engine",
-                status="partially_implemented",
+                status="implemented_eval_arm",
                 purpose=(
                     "Quote, media, duplicate-bookmark, same-url, same-topic, and freshness "
-                    "relations should be independently visible in portfolio comparisons."
+                    "relations are independently visible in portfolio comparisons."
                 ),
                 source_refs=("GraphRAG", "Azure RRF"),
             ),
@@ -374,10 +374,10 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             PortfolioCandidate(
                 name="contextual_bm25_search_text",
                 candidate_kind="derived_retrieval_text",
-                status="needs_implementation",
+                status="implemented_projection",
                 purpose=(
-                    "Store 50-100 token search-only context beside source docs, index it in "
-                    "FTS, and cite only the original source/context chunks."
+                    "Store deterministic search-only retrieval profiles beside source docs, "
+                    "index them in FTS, and cite only the original source/context chunks."
                 ),
                 preconditions=(
                     "Mark generated retrieval text as derived/search-only.",
@@ -661,10 +661,10 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         strategy_id="claim_citation_verification",
         label="claim-level support checking for generated answers",
         stage="post-answer evidence audit",
-        adoption="requires_implementation",
+        adoption="implemented_audit_gate",
         purpose=(
-            "Verify whether each factual answer claim is supported, contradicted, or "
-            "insufficiently supported by cited chunks."
+            "Verify deterministic citation integrity for generated answers and force review "
+            "when factual-looking claims lack citation markers or cited chunks are invalid."
         ),
         question_types=("citation_required", "false_premise_abstention", "temporal_freshness"),
         intents=("finance", "technology", "science", "freshness"),
@@ -672,12 +672,13 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         doc_types=("context_chunk", "citation_annotation", "answer_artifact_doc"),
         candidates=(
             PortfolioCandidate(
-                name="atomic_claim_support_gate",
+                name="deterministic_claim_citation_gate",
                 candidate_kind="verifier",
-                status="needs_implementation",
+                status="implemented_audit_gate",
                 purpose=(
-                    "Extract atomic claims, map claims to cited chunks, and force "
-                    "needs_review when support is absent."
+                    "Check marker mapping, selected chunk linkage, source hash drift, "
+                    "citation spans, evidence status, and uncited factual-looking lines. "
+                    "Semantic atomic-claim judging remains a provider/human gate."
                 ),
                 source_refs=("FActScore", "ALCE"),
             ),
@@ -692,7 +693,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         strategy_id="freshness_lineage",
         label="source version and freshness lineage",
         stage="dynamic-source reliability layer",
-        adoption="requires_implementation",
+        adoption="implemented_lineage_audit",
         purpose=(
             "Make source versions, content hashes, last-seen times, supersession, and "
             "retention rules first-class so stale/newer queries do not rely only on ranking."
@@ -705,10 +706,11 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             PortfolioCandidate(
                 name="source_version_lineage",
                 candidate_kind="lineage",
-                status="partially_implemented",
+                status="implemented_lineage_audit",
                 purpose=(
-                    "Existing source_doc_hash and freshness relations are a start; saved URLs "
-                    "and external chunks still need explicit version/supersession lineage."
+                    "Audit local source_doc_hash, projection memberships, retrieval text, "
+                    "citation-excluded derived artifacts, and visual evidence overclaims. "
+                    "Provider-backed external revalidation remains behind provider gates."
                 ),
                 source_refs=("VersionRAG", "FRESCO"),
             ),
@@ -1004,7 +1006,7 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 modality="pdf_or_image",
                 route_role="media_to_citation_text",
                 portfolio_eligible=False,
-                status="needs_media_ocr_contract",
+                status="deferred_provider_quota",
                 purpose=(
                     "Convert PDF/image/screenshot media into citation-ready text before "
                     "media_text_bridge or normal text retrieval."

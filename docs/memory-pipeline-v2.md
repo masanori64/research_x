@@ -702,12 +702,15 @@ Current evaluation rule:
 
 Current strategy classification:
 
-- implemented baseline: `baseline_hybrid_foundation` with FTS, LIKE, metadata, semantic when
-  explicitly configured, relation expansion, RRF metadata, and source-bundle restoration;
+- implemented baseline: `baseline_hybrid_foundation` with FTS, LIKE, metadata, retrieval-text FTS,
+  semantic when explicitly configured, exact-anchor visibility, relation expansion, RRF metadata,
+  and source-bundle restoration;
 - workflow-first next candidates: `corpus2skill_navigation`, `bounded_workflow_orchestration`,
   source-bundle restoration, and route-gated portfolio selection;
-- high-value evidence candidates: `contextual_bm25`, `rerank_stage`,
-  `claim_citation_verification`, and `freshness_lineage`;
+- implemented non-evidence retrieval projection: `contextual_bm25` through
+  `RetrievalTextProfile` rows and FTS, with source-hash and citation-exclusion audit;
+- high-value candidate stage: `rerank_stage`;
+- implemented audit gates: `claim_citation_verification` and `freshness_lineage`;
 - real API embedding recall arms are role-specific, not one generic text bucket:
   `embedding_general_memory`, `embedding_jp_multilingual`, `embedding_learning_long`,
   `embedding_contextual_learning`, `embedding_code_technical`, and
@@ -831,6 +834,13 @@ QueryTransform and retrieval text policy:
 - HyDE text, query decomposition, RAG-Fusion variants, SPLADE/doc expansion terms, and contextual
   retrieval strings are search aids only. They may influence candidate discovery and route traces,
   but they cannot support answer claims directly.
+- The current no-spend implementation stores deterministic `raw_compact` and `contextual_bm25`
+  `RetrievalTextProfile` rows, mirrors them into an FTS projection, and exposes build/coverage
+  commands. Search may use those rows as a retrieval arm, but citations must still point back to
+  source bundles or context chunks.
+- Retrieval-text audit should fail when a projection claims to be active/current/citation-ready
+  while its source hash, citation-exclusion flag, or source document link is invalid. A missing
+  optional projection is coverage debt, not source evidence failure.
 
 Evaluation gate policy:
 

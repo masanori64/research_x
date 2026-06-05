@@ -1590,6 +1590,32 @@ def main(argv: list[str] | None = None) -> int:
         help="store no-spend final skeleton preflight artifacts",
     )
     memory_final_skeleton_parser.add_argument("--json", action="store_true")
+    memory_retrieval_text_parser = memory_subparsers.add_parser(
+        "build-retrieval-text",
+        help="build no-spend retrieval-text projections for FTS recall",
+    )
+    memory_retrieval_text_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_retrieval_text_parser.add_argument(
+        "--profile",
+        action="append",
+        default=[],
+        choices=["raw_compact", "contextual_bm25"],
+        help="retrieval text profile to build; repeatable",
+    )
+    memory_retrieval_text_parser.add_argument("--limit", type=int, default=None)
+    memory_retrieval_text_parser.add_argument(
+        "--rebuild",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="replace existing rows for the selected profiles before rebuilding",
+    )
+    memory_retrieval_text_parser.add_argument("--json", action="store_true")
+    memory_retrieval_text_coverage_parser = memory_subparsers.add_parser(
+        "retrieval-text-coverage",
+        help="show retrieval-text projection coverage and staleness",
+    )
+    memory_retrieval_text_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_retrieval_text_coverage_parser.add_argument("--json", action="store_true")
     memory_retrieval_strategies_parser = memory_subparsers.add_parser(
         "retrieval-strategies",
         help="list route/retrieval/evidence strategies for portfolio experiments",
@@ -3655,6 +3681,39 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             final_skeleton_preflight_json(report)
             if args.json
             else format_final_skeleton_preflight(report)
+        )
+        return 0
+    if args.memory_command == "build-retrieval-text":
+        from research_x.memory.retrieval_text import (
+            build_retrieval_text_profiles,
+            format_retrieval_text_summary,
+            retrieval_text_summary_json,
+        )
+
+        summary = build_retrieval_text_profiles(
+            args.db,
+            profiles=tuple(args.profile) if args.profile else ("raw_compact", "contextual_bm25"),
+            limit=args.limit,
+            rebuild=args.rebuild,
+        )
+        print(
+            retrieval_text_summary_json(summary)
+            if args.json
+            else format_retrieval_text_summary(summary)
+        )
+        return 0
+    if args.memory_command == "retrieval-text-coverage":
+        from research_x.memory.retrieval_text import (
+            format_retrieval_text_summary,
+            retrieval_text_coverage,
+            retrieval_text_summary_json,
+        )
+
+        coverage = retrieval_text_coverage(args.db)
+        print(
+            retrieval_text_summary_json(coverage)
+            if args.json
+            else format_retrieval_text_summary(coverage)
         )
         return 0
     if args.memory_command in {"retrieval-strategies", "embedding-strategies"}:

@@ -106,6 +106,19 @@ def search_memory(
                 plan=plan,
             )
         )
+        raw_rows.extend(
+            _with_engine_contributions(
+                _retrieval_text_search(
+                    conn,
+                    plan,
+                    limit=pool_limit,
+                    doc_type=doc_type,
+                    account=account,
+                ),
+                "retrieval_text",
+                plan=plan,
+            )
+        )
         if semantic_provider:
             semantic_hits = semantic_search_memory(
                 path,
@@ -149,7 +162,12 @@ def search_memory(
             for candidate in candidates
             if candidate.get("source_tweet_id")
         )
-        feedback = feedback_scores_for_docs(conn, doc_ids, plan=plan)
+        feedback = feedback_scores_for_docs(
+            conn,
+            doc_ids,
+            plan=plan,
+            route=_feedback_route_scope(plan),
+        )
         account_counts = _bookmark_account_counts(conn, tweet_ids)
         relation_counts = relation_summary_for_docs(conn, doc_ids)
         latest_observed_at = _latest_observed_at(conn)
@@ -218,6 +236,59 @@ def search_memory_fts_only(
                         account=account,
                     ),
                     "fts",
+                    plan=plan,
+                )
+            ),
+            plan,
+        )
+        latest_observed_at = _latest_observed_at(conn)
+    results = [
+        _result_from_candidate(
+            candidate,
+            plan=plan,
+            feedback_score=0.0,
+            bookmark_account_count=0,
+            relation_counts={},
+            latest_observed_at=latest_observed_at,
+            semantic_hit=None,
+            semantic_rerank_rank=None,
+            semantic_weight=0.0,
+        )
+        for candidate in candidates
+    ]
+    results.sort(key=lambda result: (result.score, _date_sort_value(result.metadata)), reverse=True)
+    return tuple(results[:resolved_limit])
+
+
+def search_memory_retrieval_text_only(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int = 10,
+    doc_type: str | None = None,
+    account: str | None = None,
+) -> tuple[MemorySearchResult, ...]:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    resolved_limit = max(1, limit)
+    plan = build_query_plan(query)
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        if memory_document_count(conn) == 0:
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
+        candidates = _filter_anchor_candidates(
+            _merge_candidates(
+                _with_engine_contributions(
+                    _retrieval_text_search(
+                        conn,
+                        plan,
+                        limit=max(resolved_limit * 8, 50),
+                        doc_type=doc_type,
+                        account=account,
+                    ),
+                    "retrieval_text",
                     plan=plan,
                 )
             ),
@@ -428,6 +499,54 @@ def _metadata_search(
     return [dict(row) for row in conn.execute(sql, (*params, limit)).fetchall()]
 
 
+def _retrieval_text_search(
+    conn: sqlite3.Connection,
+    plan: QueryPlan,
+    *,
+    limit: int,
+    doc_type: str | None,
+    account: str | None,
+) -> list[dict[str, Any]]:
+    fts_query = _fts_query(plan.search_terms)
+    if not fts_query:
+        return []
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'memory_retrieval_text_fts'
+        LIMIT 1
+        """
+    ).fetchone()
+    if row is None:
+        return []
+    filters, params = _filters(doc_type=doc_type, account=account)
+    sql = f"""
+        SELECT
+            d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
+            d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.created_at, d.observed_at, d.updated_at,
+            bm25(memory_retrieval_text_fts) AS raw_score,
+            'retrieval_text' AS match_method
+        FROM memory_retrieval_text_fts
+        JOIN memory_retrieval_text_profiles p
+          ON p.profile_id = memory_retrieval_text_fts.profile_id
+         AND p.doc_id = memory_retrieval_text_fts.doc_id
+        JOIN memory_documents d ON d.doc_id = memory_retrieval_text_fts.doc_id
+        WHERE memory_retrieval_text_fts MATCH ?
+          AND p.citation_excluded = 1
+          AND p.source_doc_hash = d.source_doc_hash
+        {filters}
+        ORDER BY raw_score ASC, d.observed_at DESC
+        LIMIT ?
+    """
+    try:
+        return [dict(row) for row in conn.execute(sql, (fts_query, *params, limit)).fetchall()]
+    except sqlite3.OperationalError as exc:
+        raise RuntimeError(f"retrieval text FTS query failed for query {fts_query!r}") from exc
+
+
 def _rows_by_doc_ids(
     conn: sqlite3.Connection,
     doc_ids: tuple[str, ...],
@@ -568,6 +687,7 @@ def _candidate_has_anchor(candidate: dict[str, Any], anchors: tuple[str, ...]) -
 def _method_priority(method: str) -> int:
     return {
         "fts": 5,
+        "retrieval_text": 4,
         "semantic": 4,
         "like": 3,
         "metadata": 2,
@@ -702,6 +822,8 @@ def _safe_float(value: Any) -> float:
 def _engine_route_weight(engine: str, plan: QueryPlan) -> float:
     if engine == "fts":
         return 1.25 if plan.exact_terms else 1.0
+    if engine == "retrieval_text":
+        return 1.15 if "technology" in plan.intents or "science" in plan.intents else 0.95
     if engine == "semantic":
         return 1.2 if "technology" in plan.intents or "author" in plan.intents else 1.0
     if engine == "metadata":
@@ -709,6 +831,22 @@ def _engine_route_weight(engine: str, plan: QueryPlan) -> float:
     if engine == "relation_expansion":
         return 1.3 if plan.requires_quote_context or "freshness" in plan.intents else 1.0
     return 0.8
+
+
+def _feedback_route_scope(plan: QueryPlan) -> str:
+    if plan.requires_media_context:
+        return "media_context"
+    if plan.requires_quote_context:
+        return "quote_context"
+    if "food" in plan.intents or plan.wants_event_dates:
+        return "place_recall"
+    if "finance" in plan.intents or "freshness" in plan.intents:
+        return "current_fact_check"
+    if "author" in plan.intents:
+        return "author_stance"
+    if "technology" in plan.intents or "science" in plan.intents:
+        return "learning_map"
+    return "local_memory_search"
 
 
 def _ensure_semantic_rerank_contribution(

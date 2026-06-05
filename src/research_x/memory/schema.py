@@ -475,6 +475,13 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             metadata_json TEXT NOT NULL
         );
 
+        CREATE VIRTUAL TABLE IF NOT EXISTS memory_retrieval_text_fts USING fts5(
+            profile_id UNINDEXED,
+            doc_id UNINDEXED,
+            retrieval_text_profile UNINDEXED,
+            retrieval_text
+        );
+
         CREATE TABLE IF NOT EXISTS memory_eval_gate_results (
             gate_result_id TEXT PRIMARY KEY,
             route_run_id TEXT,

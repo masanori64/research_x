@@ -564,6 +564,8 @@ memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
 memory objective-execute  Execute ObjectiveRoutePlan over no-spend local evidence arms.
 memory final-skeleton-preflight Write no-spend final skeleton artifacts up to the provider-quota gate.
+memory build-retrieval-text Build no-spend retrieval-text projections for FTS recall.
+memory retrieval-text-coverage Show retrieval-text projection coverage and staleness.
 memory api-budget         Inspect/change local API budget policy and kill switch.
 memory api-usage          Show API usage ledger events and estimated local spend.
 memory api-watch          Start a lightweight API budget monitor page.
@@ -674,6 +676,11 @@ uv run python -m research_x memory final-skeleton-preflight `
   --db runs/x_data.sqlite3 `
   --query "画像付きで保存したロボット制御の資料を探して" `
   --limit 10
+uv run python -m research_x memory build-retrieval-text `
+  --db runs/x_data.sqlite3 `
+  --profile raw_compact `
+  --profile contextual_bm25
+uv run python -m research_x memory retrieval-text-coverage --db runs/x_data.sqlite3
 uv run python -m research_x memory ocr-estimate `
   --db runs/x_data.sqlite3 `
   --sample-policy stratified `

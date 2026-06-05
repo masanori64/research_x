@@ -65,7 +65,8 @@ Raw acquisition data remains canonical and must not be replaced by summaries or 
 Implemented memory subsystems are grouped by behavior rather than file inventory:
 
 - corpus/schema/search/context: rebuildable `memory_documents`, FTS, local search, context chunks,
-  citation annotations, evidence bundles, and source-bundle restoration;
+  retrieval-text FTS projections, citation annotations, evidence bundles, and source-bundle
+  restoration;
 - derived/relations/freshness: place, author, ticker-event, topic-thread derived docs; quote,
   media, bookmark, duplicate, same-topic, stale/newer, and optional judged relation edges;
 - external/reader/llm_context: fake/Serper URL discovery, fake/HTTP/Jina Reader contract, extracted
@@ -84,7 +85,8 @@ Implemented memory subsystems are grouped by behavior rather than file inventory
   route fallback/escalation traces, provider-skip metadata, and final skeleton preflight up to the
   provider-quota gate;
 - api_budget/api_lane_estimate/audit: local API budget policies, usage ledger, kill switch,
-  monitoring commands, offline lane estimates, strict audit checks, and pytest diagnostics.
+  monitoring commands, offline lane estimates, claim/citation and lineage audit checks, strict
+  audit checks, and pytest diagnostics.
 
 ## Implemented Command Surface
 
@@ -140,6 +142,8 @@ memory question-types
 memory objective-routes
 memory objective-execute
 memory final-skeleton-preflight
+memory build-retrieval-text
+memory retrieval-text-coverage
 memory retrieval-strategies
 memory rerank
 ```
@@ -234,24 +238,19 @@ separate gated steps.
 
 ## Next Work
 
-Next phase: `deferred` / `later` / `optional` closure audit.
+No-spend closure state:
 
-Goal:
+- strategy catalog statuses are classified as implemented/candidate, human gate, or reference-only;
+- strict audit exposes hidden no-spend gaps if new `needs_*` statuses are introduced;
+- exact-anchor, relation, and retrieval-text arms are visible in portfolio/eval;
+- deterministic claim/citation and freshness/projection lineage checks are part of audit.
 
-- classify every remaining deferred-looking item as `implemented`, `no_spend_gap`, `human_gate`, or
-  `reference_only`;
-- make `no_spend_gap` actionable and fail strict audit where appropriate;
-- keep `human_gate` visible with an unlock condition and first command;
-- avoid treating reference-only managed-RAG, latest aliases, or diagnostic providers as production
-  paths.
+Remaining gates:
 
-Expected next implementation direction:
-
-- update `memory audit --strict` or an adjacent audit report to expose unresolved no-spend gaps;
-- add deterministic claim/citation support checks where answer citations can be audited without
-  provider calls;
-- tighten freshness/projection lineage checks where source hashes or projections can go stale;
-- leave all provider-quota work behind the current gate.
+- provider-quota gate: real embedding, rerank, Reader, OCR, classifier, answer, relation judge,
+  external-search, LLM-context, or managed-RAG calls;
+- local-dependency gate: PaddleOCR/PaddleOCR-VL/manga OCR, local Qwen-style endpoints, and OSS
+  Corpus2Skill compiler execution.
 
 ## Implementation Rules
 

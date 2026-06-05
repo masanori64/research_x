@@ -22,6 +22,7 @@ from research_x.memory.query import build_query_plan
 from research_x.memory.rerank import rerank_hits
 from research_x.memory.search import (
     search_memory_fts_only,
+    search_memory_retrieval_text_only,
     strong_anchor_terms_for_query,
     text_matches_any_anchor,
 )
@@ -30,8 +31,11 @@ from research_x.memory.workflow import plan_workflow_route, run_memory_workflow
 DIAGNOSTIC_EMBEDDING_PROVIDERS = {"local_hash"}
 BASELINE_ARM_NAMES = {
     "fts_only",
+    "exact_anchor",
+    "retrieval_text",
     "local_hybrid",
     "lexical",
+    "relation_expansion",
     "corpus2skill_navigation",
     "source_bundle_context",
     "workflow_route",
@@ -401,6 +405,9 @@ def _run_case(
 ) -> PortfolioCaseResult:
     arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]] = []
     arm_payloads.append(_run_fts_only_arm(db_path, case.query, limit=arm_limit))
+    arm_payloads.append(_run_exact_anchor_arm(db_path, case.query, limit=arm_limit))
+    arm_payloads.append(_run_retrieval_text_arm(db_path, case.query, limit=arm_limit))
+    arm_payloads.append(_run_relation_expansion_arm(db_path, case.query, limit=arm_limit))
     arm_payloads.append(
         _run_corpus2skill_navigation_arm(db_path, case.query, limit=arm_limit)
     )
@@ -660,6 +667,111 @@ def _run_fts_only_arm(
             error=_compact_error(str(exc)),
         )
         return arm, []
+
+
+def _run_exact_anchor_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        bundle = build_evidence_bundle(db_path, query, limit=max(limit * 2, 20))
+        anchors = strong_anchor_terms_for_query(query)
+        hits = []
+        for hit in bundle["hits"]:
+            engines = _hit_engine_names(hit)
+            if not engines.intersection({"fts", "like", "metadata"}):
+                continue
+            components = _hit_score_components(hit)
+            has_exact_score = float(components.get("lexical_exact") or 0.0) > 0.0
+            if anchors and not _raw_hit_matches_anchors(hit, anchors):
+                continue
+            if not anchors and not has_exact_score:
+                continue
+            hits.append(hit)
+        hits = _annotate_hits(
+            _dedupe_raw_hits(hits)[:limit],
+            {"portfolio_non_vector_arm": "exact_anchor"},
+        )
+        return (
+            _arm_from_hits("exact_anchor", hits, mode="exact_anchor", weight=1.1),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "exact_anchor",
+            mode="exact_anchor",
+            error=str(exc),
+            weight=1.1,
+        )
+
+
+def _run_retrieval_text_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        results = search_memory_retrieval_text_only(db_path, query, limit=limit)
+        hits = build_evidence_hits_from_results(db_path, query, results)
+        hits = _annotate_hits(
+            hits,
+            {"portfolio_non_vector_arm": "retrieval_text"},
+        )
+        return (
+            _arm_from_hits(
+                "retrieval_text",
+                hits,
+                mode="retrieval_text",
+                weight=0.95,
+            ),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "retrieval_text",
+            mode="retrieval_text",
+            error=str(exc),
+            weight=0.95,
+        )
+
+
+def _run_relation_expansion_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        bundle = build_evidence_bundle(db_path, query, limit=max(limit * 2, 20))
+        hits = []
+        for hit in bundle["hits"]:
+            if "relation_expansion" in _hit_engine_names(hit) or (hit.get("evidence") or {}).get(
+                "relations"
+            ):
+                hits.append(hit)
+        hits = _annotate_hits(
+            _dedupe_raw_hits(hits)[:limit],
+            {"portfolio_non_vector_arm": "relation_expansion"},
+        )
+        return (
+            _arm_from_hits(
+                "relation_expansion",
+                hits,
+                mode="relation_expansion",
+                weight=1.0,
+            ),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "relation_expansion",
+            mode="relation_expansion",
+            error=str(exc),
+            weight=1.0,
+        )
 
 
 def _run_corpus2skill_navigation_arm(
@@ -961,6 +1073,31 @@ def _raw_hit_matches_anchors(hit: dict[str, Any], anchors: tuple[str, ...]) -> b
         json.dumps(hit.get("metadata") or {}, ensure_ascii=False, sort_keys=True),
         json.dumps(hit.get("evidence") or {}, ensure_ascii=False, sort_keys=True),
     )
+
+
+def _hit_engine_names(hit: dict[str, Any]) -> set[str]:
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    values = metadata.get("engine_contributions") if isinstance(metadata, dict) else ()
+    engines = {
+        str(item.get("engine") or "")
+        for item in values or ()
+        if isinstance(item, dict) and item.get("engine")
+    }
+    methods = metadata.get("retrieval_methods") if isinstance(metadata, dict) else ()
+    engines.update(str(method) for method in methods or () if method)
+    method = hit.get("match_method")
+    if method:
+        engines.update(str(part) for part in str(method).split("+") if part)
+    return {engine for engine in engines if engine}
+
+
+def _hit_score_components(hit: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(hit.get("score_components"), dict):
+        return dict(hit["score_components"])
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    if isinstance(metadata, dict) and isinstance(metadata.get("rank_score_components"), dict):
+        return dict(metadata["rank_score_components"])
+    return {}
 
 
 def _evaluate_arms(

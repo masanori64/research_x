@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.document_hashes import memory_document_source_hash
 from research_x.memory.embeddings import PRODUCTION_PROVIDERS
+from research_x.memory.retrieval_strategy import DEFAULT_RETRIEVAL_STRATEGIES
 from research_x.memory.schema import ensure_memory_schema
 
 
@@ -26,6 +29,9 @@ class MemoryAuditReport:
     invalid_enums_by_field: dict[str, int]
     fixture_artifacts: dict[str, int]
     answer_status_counts: dict[str, int]
+    claim_citation_issues: dict[str, int]
+    freshness_lineage_issues: dict[str, int]
+    strategy_gap_counts: dict[str, int]
     warnings: tuple[str, ...]
 
 
@@ -49,6 +55,9 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_enums = _invalid_enum_counts(conn)
         fixture_artifacts = _fixture_artifact_counts(conn)
         answer_status_counts = _answer_status_counts(conn)
+        claim_citation_issues = _claim_citation_issues(conn)
+        freshness_lineage_issues = _freshness_lineage_issues(conn)
+        strategy_gap_counts = _strategy_gap_counts()
     warnings = _warnings(
         documents=documents,
         fts_rows=fts_rows,
@@ -63,6 +72,9 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_enums=invalid_enums,
         fixture_artifacts=fixture_artifacts,
         answer_status_counts=answer_status_counts,
+        claim_citation_issues=claim_citation_issues,
+        freshness_lineage_issues=freshness_lineage_issues,
+        strategy_gap_counts=strategy_gap_counts,
     )
     return MemoryAuditReport(
         db_path=str(path),
@@ -79,6 +91,9 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_enums_by_field=invalid_enums,
         fixture_artifacts=fixture_artifacts,
         answer_status_counts=answer_status_counts,
+        claim_citation_issues=claim_citation_issues,
+        freshness_lineage_issues=freshness_lineage_issues,
+        strategy_gap_counts=strategy_gap_counts,
         warnings=tuple(warnings),
     )
 
@@ -102,6 +117,9 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"invalid enum values by field: {report.invalid_enums_by_field or {}}",
         f"fixture artifacts: {report.fixture_artifacts or {}}",
         f"answer statuses: {report.answer_status_counts or {}}",
+        f"claim/citation issues: {report.claim_citation_issues or {}}",
+        f"freshness/lineage issues: {report.freshness_lineage_issues or {}}",
+        f"strategy gap counts: {report.strategy_gap_counts or {}}",
         "embedding specs:",
     ]
     if report.embedding_specs:
@@ -576,6 +594,418 @@ def _answer_status_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return {str(row["status"]): int(row["count"]) for row in rows}
 
 
+def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
+    issues: dict[str, int] = {}
+    answers = conn.execute(
+        """
+        SELECT answer_id, answer_text, structured_json, status
+        FROM memory_answer_runs
+        WHERE answer_text IS NOT NULL
+          AND TRIM(answer_text) != ''
+        """
+    ).fetchall()
+    for answer in answers:
+        answer_id = str(answer["answer_id"])
+        status = str(answer["status"] or "")
+        text = str(answer["answer_text"] or "")
+        structured = _loads_json(answer["structured_json"], default={})
+        citations = conn.execute(
+            """
+            SELECT
+                ca.citation_id, ca.chunk_id, ca.support_type, ca.evidence_status,
+                ca.answer_start_index, ca.answer_end_index, ca.metadata_json,
+                c.source_id, c.metadata_json AS chunk_metadata_json
+            FROM memory_citation_annotations ca
+            LEFT JOIN memory_context_chunks c ON c.chunk_id = ca.chunk_id
+            WHERE answer_id = ?
+            """,
+            (answer_id,),
+        ).fetchall()
+        markers = _answer_markers(text)
+        citation_markers = [marker for row in citations if (marker := _citation_marker(row))]
+        extra_markers = set(markers) - set(citation_markers)
+        missing_answer_markers = set(citation_markers) - set(markers)
+        duplicate_markers = len(markers) - len(set(markers))
+        if status == "ok" and extra_markers:
+            _increment(issues, "ok_answer_with_unmapped_citation_markers", len(extra_markers))
+        if status == "ok" and missing_answer_markers:
+            _increment(
+                issues,
+                "ok_answer_with_unrendered_citation_markers",
+                len(missing_answer_markers),
+            )
+        if status == "ok" and duplicate_markers:
+            _increment(issues, "ok_answer_with_duplicate_citation_markers", duplicate_markers)
+        if status == "ok" and not citations:
+            _increment(issues, "ok_answer_without_citations")
+        missing_markers = (
+            structured.get("missing_citation_markers")
+            if isinstance(structured, dict)
+            else None
+        )
+        if status == "ok" and missing_markers:
+            _increment(issues, "ok_answer_with_missing_citation_markers")
+        selected_chunk_ids = _selected_chunk_ids(structured)
+        if status == "ok" and selected_chunk_ids:
+            outside_selection = [
+                row for row in citations if str(row["chunk_id"] or "") not in selected_chunk_ids
+            ]
+            if outside_selection:
+                _increment(
+                    issues,
+                    "ok_answer_cites_chunk_outside_selection",
+                    len(outside_selection),
+                )
+        uncited_context = [
+            row for row in citations if str(row["support_type"] or "") == "uncited_context"
+        ]
+        if status == "ok" and uncited_context:
+            _increment(issues, "ok_answer_with_uncited_context", len(uncited_context))
+        missing_spans = [
+            row
+            for row in citations
+            if row["answer_start_index"] is None or row["answer_end_index"] is None
+        ]
+        if status == "ok" and missing_spans:
+            _increment(issues, "ok_answer_with_missing_citation_spans", len(missing_spans))
+        bad_spans = [
+            row
+            for row in citations
+            if row["answer_start_index"] is not None
+            and row["answer_end_index"] is not None
+            and text[int(row["answer_start_index"]): int(row["answer_end_index"])]
+            != (_citation_marker(row) or "")
+        ]
+        if status == "ok" and bad_spans:
+            _increment(issues, "ok_answer_with_invalid_citation_spans", len(bad_spans))
+        non_fact = [
+            row for row in citations if str(row["evidence_status"] or "") != "fact"
+        ]
+        if status == "ok" and non_fact:
+            _increment(issues, "ok_answer_cites_non_fact_evidence", len(non_fact))
+        source_drift = [
+            row for row in citations if _citation_source_hash_drift(conn, row)
+        ]
+        if status == "ok" and source_drift:
+            _increment(issues, "ok_answer_citation_source_hash_drift", len(source_drift))
+        uncited_claims = _uncited_claim_lines(text)
+        if status == "ok" and uncited_claims:
+            _increment(issues, "ok_answer_with_uncited_claim_lines", len(uncited_claims))
+    return issues
+
+
+def _freshness_lineage_issues(conn: sqlite3.Connection) -> dict[str, int]:
+    issues: dict[str, int] = {}
+    docs = conn.execute(
+        """
+        SELECT doc_id, title, body, compact_text, metadata_json, source_doc_hash
+        FROM memory_documents
+        """
+    ).fetchall()
+    for doc in docs:
+        stored = str(doc["source_doc_hash"] or "")
+        if not stored:
+            _increment(issues, "documents_missing_source_doc_hash")
+            continue
+        if stored != memory_document_source_hash(doc):
+            _increment(issues, "documents_stale_source_doc_hash")
+    stale_embeddings = int(
+        conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_embeddings e
+            JOIN memory_documents d ON d.doc_id = e.doc_id
+            WHERE e.source_doc_hash IS NULL
+               OR e.source_doc_hash != d.source_doc_hash
+            """
+        ).fetchone()[0]
+    )
+    if stale_embeddings:
+        issues["embeddings_stale_source_doc_hash"] = stale_embeddings
+    if _table_exists(conn, "memory_retrieval_text_profiles"):
+        citation_included_retrieval_text = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_retrieval_text_profiles
+                WHERE citation_excluded != 1
+                """
+            ).fetchone()[0]
+        )
+        stale_retrieval_text = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_retrieval_text_profiles p
+                JOIN memory_documents d ON d.doc_id = p.doc_id
+                WHERE p.source_doc_hash IS NULL
+                   OR p.source_doc_hash != d.source_doc_hash
+                """
+            ).fetchone()[0]
+        )
+        orphaned_retrieval_text = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_retrieval_text_profiles p
+                LEFT JOIN memory_documents d ON d.doc_id = p.doc_id
+                WHERE d.doc_id IS NULL
+                """
+            ).fetchone()[0]
+        )
+        orphaned_retrieval_text_fts = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_retrieval_text_fts f
+                LEFT JOIN memory_retrieval_text_profiles p ON p.profile_id = f.profile_id
+                WHERE p.profile_id IS NULL
+                """
+            ).fetchone()[0]
+        )
+        missing_retrieval_text_fts = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_retrieval_text_profiles p
+                LEFT JOIN memory_retrieval_text_fts f ON f.profile_id = p.profile_id
+                WHERE f.profile_id IS NULL
+                """
+            ).fetchone()[0]
+        )
+        if citation_included_retrieval_text:
+            issues["retrieval_text_not_citation_excluded"] = citation_included_retrieval_text
+        if stale_retrieval_text:
+            issues["retrieval_text_stale_source_doc_hash"] = stale_retrieval_text
+        if orphaned_retrieval_text:
+            issues["retrieval_text_orphaned_documents"] = orphaned_retrieval_text
+        if orphaned_retrieval_text_fts:
+            issues["retrieval_text_fts_orphaned_profiles"] = orphaned_retrieval_text_fts
+        if missing_retrieval_text_fts:
+            issues["retrieval_text_profiles_missing_fts"] = missing_retrieval_text_fts
+    if _table_exists(conn, "memory_query_transforms"):
+        citation_included_transforms = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_query_transforms
+                WHERE citation_excluded != 1
+                """
+            ).fetchone()[0]
+        )
+        if citation_included_transforms:
+            issues["query_transforms_not_citation_excluded"] = citation_included_transforms
+    if _table_exists(conn, "memory_index_membership"):
+        stale_memberships = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_index_membership m
+                JOIN memory_documents d ON d.doc_id = m.artifact_id
+                WHERE m.artifact_kind = 'memory_document'
+                  AND m.membership_status = 'active'
+                  AND m.source_hash IS NOT NULL
+                  AND d.source_doc_hash IS NOT NULL
+                  AND m.source_hash != d.source_doc_hash
+                """
+            ).fetchone()[0]
+        )
+        orphaned_memberships = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_index_membership m
+                LEFT JOIN memory_documents d ON d.doc_id = m.artifact_id
+                WHERE m.artifact_kind = 'memory_document'
+                  AND m.membership_status = 'active'
+                  AND d.doc_id IS NULL
+                """
+            ).fetchone()[0]
+        )
+        if stale_memberships:
+            issues["index_membership_stale_source_hash"] = stale_memberships
+        if orphaned_memberships:
+            issues["index_membership_orphaned_documents"] = orphaned_memberships
+    if _table_exists(conn, "memory_visual_recall_evidence"):
+        overclaimed_visual = int(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM memory_visual_recall_evidence
+                WHERE citation_ready = 1
+                  AND evidence_level IN (
+                    'raw_media_match',
+                    'visual_recall_evidence',
+                    'media_role_profile',
+                    'codex_observation'
+                  )
+                """
+            ).fetchone()[0]
+        )
+        if overclaimed_visual:
+            issues["visual_recall_overclaimed_citation_ready"] = overclaimed_visual
+    return issues
+
+
+def _strategy_gap_counts() -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for strategy_obj in DEFAULT_RETRIEVAL_STRATEGIES:
+        strategy = strategy_obj.as_dict()
+        adoption = str(strategy.get("adoption") or "")
+        _classify_strategy_status(counts, adoption)
+        for candidate in strategy.get("candidates") or ():
+            if not isinstance(candidate, dict):
+                continue
+            _classify_strategy_status(counts, str(candidate.get("status") or ""))
+    return {key: value for key, value in counts.items() if value}
+
+
+def _classify_strategy_status(counts: dict[str, int], status: str) -> None:
+    if not status:
+        return
+    normalized = status.strip().lower()
+    if normalized in {"needs_implementation", "requires_implementation", "partially_implemented"}:
+        _increment(counts, "no_spend_gap")
+        return
+    if normalized.startswith("deferred_") or normalized in {
+        "needs_real_api_eval",
+        "fixed_eval_candidate",
+        "provider_quota_gate",
+    }:
+        _increment(counts, "human_gate")
+        return
+    if normalized in {
+        "legacy_comparison_only",
+        "latest_alias_optional",
+        "older_comparison_only",
+        "reference_only",
+    }:
+        _increment(counts, "reference_only")
+        return
+    if "implemented" in normalized or normalized in {
+        "candidate",
+        "eval_only",
+        "requires_eval",
+        "always_on_control_surface",
+        "workflow_hint_not_evidence",
+        "eval_only_explicit",
+        "conditional_eval",
+        "requires_explicit_eval",
+        "text_only_bridge_candidate",
+        "always_on_baseline",
+        "always_on_guard",
+        "implemented_audit_gate",
+        "implemented_lineage_audit",
+        "implemented_projection",
+        "provider_quota_gate",
+    }:
+        _increment(counts, "implemented_or_candidate")
+        return
+    _increment(counts, f"unclassified_status:{normalized}")
+
+
+def _selected_chunk_ids(structured: Any) -> set[str]:
+    if not isinstance(structured, dict):
+        return set()
+    values: set[str] = set()
+    for key in ("selected_chunk_ids", "used_chunk_ids"):
+        raw_values = structured.get(key)
+        if isinstance(raw_values, list):
+            values.update(str(value) for value in raw_values if value is not None)
+    context_selection = structured.get("context_selection")
+    if isinstance(context_selection, dict):
+        raw_values = context_selection.get("selected_chunk_ids")
+        if isinstance(raw_values, list):
+            values.update(str(value) for value in raw_values if value is not None)
+    return values
+
+
+def _uncited_claim_lines(answer_text: str) -> list[str]:
+    lines = []
+    for raw_line in answer_text.splitlines():
+        line = raw_line.strip()
+        if not line or re_match_citation_marker(line):
+            continue
+        if _is_nonclaim_answer_line(line):
+            continue
+        if not _looks_like_claim_line(line):
+            continue
+        lines.append(line)
+    return lines
+
+
+def _answer_markers(text: str) -> list[str]:
+    return [match.group(0) for match in re.finditer(r"\[(\d{1,3})\]", text)]
+
+
+def re_match_citation_marker(text: str) -> bool:
+    return bool(_answer_markers(text))
+
+
+def _citation_marker(row: sqlite3.Row) -> str | None:
+    metadata = _loads_json(row["metadata_json"], default={})
+    if isinstance(metadata, dict) and metadata.get("marker"):
+        return str(metadata["marker"])
+    display_index = metadata.get("display_index") if isinstance(metadata, dict) else None
+    if display_index is None:
+        return None
+    return f"[{display_index}]"
+
+
+def _citation_source_hash_drift(conn: sqlite3.Connection, row: sqlite3.Row) -> bool:
+    source_id = str(row["source_id"] or "")
+    if not source_id:
+        return False
+    doc = conn.execute(
+        """
+        SELECT doc_id, title, body, compact_text, metadata_json, source_doc_hash
+        FROM memory_documents
+        WHERE doc_id = ?
+        """,
+        (source_id,),
+    ).fetchone()
+    if doc is None:
+        return False
+    current_hash = memory_document_source_hash(doc)
+    if str(doc["source_doc_hash"] or "") != current_hash:
+        return True
+    chunk_metadata = _loads_json(row["chunk_metadata_json"], default={})
+    if not isinstance(chunk_metadata, dict):
+        return False
+    chunk_hash = chunk_metadata.get("source_doc_hash")
+    return bool(chunk_hash and str(chunk_hash) != current_hash)
+
+
+def _is_nonclaim_answer_line(line: str) -> bool:
+    prefixes = (
+        "質問:",
+        "根拠ベースの回答",
+        "推論:",
+        "context:",
+        "prompt_version:",
+        "根拠になるコンテキストが見つかりません",
+        "追加取得または検索条件の変更が必要",
+    )
+    stripped = line.lstrip("- ").strip()
+    return any(stripped.startswith(prefix) for prefix in prefixes)
+
+
+def _looks_like_claim_line(line: str) -> bool:
+    text = line.lstrip("- ").strip()
+    if len(text) < 12:
+        return False
+    has_letter_or_digit = any(char.isalpha() or char.isdigit() for char in text)
+    has_japanese = any(
+        "\u3040" <= char <= "\u30ff" or "\u4e00" <= char <= "\u9fff"
+        for char in text
+    )
+    return has_letter_or_digit or has_japanese
+
+
+def _increment(values: dict[str, int], key: str, amount: int = 1) -> None:
+    values[key] = values.get(key, 0) + amount
+
+
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
     row = conn.execute(
         """
@@ -588,6 +1018,17 @@ def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
         (table,),
     ).fetchone()
     return bool(row)
+
+
+def _loads_json(value: Any, *, default: Any) -> Any:
+    if value is None:
+        return default
+    if isinstance(value, dict | list):
+        return value
+    try:
+        return json.loads(str(value))
+    except json.JSONDecodeError:
+        return default
 
 
 def _warnings(
@@ -605,6 +1046,9 @@ def _warnings(
     invalid_enums: dict[str, int],
     fixture_artifacts: dict[str, int],
     answer_status_counts: dict[str, int],
+    claim_citation_issues: dict[str, int],
+    freshness_lineage_issues: dict[str, int],
+    strategy_gap_counts: dict[str, int],
 ) -> list[str]:
     warnings: list[str] = []
     if documents == 0:
@@ -647,6 +1091,21 @@ def _warnings(
         warnings.append(
             "stored answer artifacts need review or regeneration: "
             f"{review_answers}"
+        )
+    if claim_citation_issues:
+        warnings.append(
+            "claim/citation verification issues detected: "
+            f"{claim_citation_issues}"
+        )
+    if freshness_lineage_issues:
+        warnings.append(
+            "freshness/projection lineage issues detected: "
+            f"{freshness_lineage_issues}"
+        )
+    if strategy_gap_counts.get("no_spend_gap"):
+        warnings.append(
+            "retrieval strategy catalog still has no-spend implementation gaps: "
+            f"{strategy_gap_counts}"
         )
     production_specs = [
         spec
