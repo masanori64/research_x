@@ -482,15 +482,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_api_lane_estimate_parser.add_argument(
         "--ocr-scope",
-        choices=["none", "sample", "all"],
+        choices=["none", "sample", "candidate-set", "all"],
         default="sample",
-        help="OCR cost scope; all is expensive and must be explicit",
+        help="OCR cost scope; candidate-set estimates routed media candidates, all is expensive",
     )
     memory_api_lane_estimate_parser.add_argument(
         "--ocr-limit",
         type=int,
         default=100,
-        help="media item cap used when --ocr-scope sample",
+        help="media item cap used when --ocr-scope sample or candidate-set",
     )
     memory_api_lane_estimate_parser.add_argument("--reader-url-limit", type=int, default=100)
     memory_api_lane_estimate_parser.add_argument("--reader-max-chars", type=int, default=4000)
@@ -744,7 +744,30 @@ def main(argv: list[str] | None = None) -> int:
     memory_ocr_estimate_parser.add_argument("--sample-policy", default="stratified")
     memory_ocr_estimate_parser.add_argument("--limit", type=int, default=100)
     memory_ocr_estimate_parser.add_argument("--max-file-bytes", type=int, default=20 * 1024 * 1024)
+    memory_ocr_estimate_parser.add_argument("--media-id", action="append", default=[])
+    memory_ocr_estimate_parser.add_argument("--tweet-id", action="append", default=[])
+    memory_ocr_estimate_parser.add_argument("--engine-route", action="append", default=[])
     memory_ocr_estimate_parser.add_argument("--json", action="store_true")
+    memory_media_role_estimate_parser = memory_subparsers.add_parser(
+        "media-role-estimate",
+        help="estimate local media roles and evidence actions without writing the database",
+    )
+    memory_media_role_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_role_estimate_parser.add_argument("--limit", type=int, default=100)
+    memory_media_role_estimate_parser.add_argument("--json", action="store_true")
+    memory_media_role_build_parser = memory_subparsers.add_parser(
+        "media-role-build",
+        help="store local media role annotations for OCR/caption routing",
+    )
+    memory_media_role_build_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_role_build_parser.add_argument("--limit", type=int, default=100)
+    memory_media_role_build_parser.add_argument("--json", action="store_true")
+    memory_media_role_coverage_parser = memory_subparsers.add_parser(
+        "media-role-coverage",
+        help="show stored local media role annotations",
+    )
+    memory_media_role_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_role_coverage_parser.add_argument("--json", action="store_true")
     memory_ocr_build_parser = memory_subparsers.add_parser(
         "build-ocr-evidence",
         help="build OCR evidence rows and promote citation-ready OCR chunks",
@@ -763,6 +786,9 @@ def main(argv: list[str] | None = None) -> int:
     memory_ocr_build_parser.add_argument("--sample-policy", default="stratified")
     memory_ocr_build_parser.add_argument("--limit", type=int, default=100)
     memory_ocr_build_parser.add_argument("--max-file-bytes", type=int, default=20 * 1024 * 1024)
+    memory_ocr_build_parser.add_argument("--media-id", action="append", default=[])
+    memory_ocr_build_parser.add_argument("--tweet-id", action="append", default=[])
+    memory_ocr_build_parser.add_argument("--engine-route", action="append", default=[])
     memory_ocr_build_parser.add_argument("--timeout-seconds", type=float, default=60.0)
     memory_ocr_build_parser.add_argument("--api-key-env", default=None)
     memory_ocr_build_parser.add_argument("--base-url", default=None)
@@ -809,6 +835,45 @@ def main(argv: list[str] | None = None) -> int:
         help="mark candidates without creating corrected_text profiles",
     )
     memory_ocr_second_pass_parser.add_argument("--json", action="store_true")
+    memory_media_observation_add_parser = memory_subparsers.add_parser(
+        "media-observation-add",
+        help="store a Codex/VLM media observation as an inference annotation",
+    )
+    memory_media_observation_add_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_observation_add_parser.add_argument("--media-id", required=True)
+    memory_media_observation_add_parser.add_argument("--text-file", required=True)
+    memory_media_observation_add_parser.add_argument(
+        "--observation-kind",
+        default="codex_interpretation",
+    )
+    memory_media_observation_add_parser.add_argument("--provider", default="codex_interactive")
+    memory_media_observation_add_parser.add_argument("--model", default="gpt-5.5")
+    memory_media_observation_add_parser.add_argument("--confidence", type=float, default=0.7)
+    memory_media_observation_add_parser.add_argument("--prompt", default=None)
+    memory_media_observation_add_parser.add_argument("--session-id", default=None)
+    memory_media_observation_add_parser.add_argument(
+        "--no-promote-chunks",
+        action="store_true",
+        help="store observation text without creating inference context chunks",
+    )
+    memory_media_observation_add_parser.add_argument("--json", action="store_true")
+    memory_media_observation_import_parser = memory_subparsers.add_parser(
+        "media-observation-import",
+        help="import Codex/VLM media observations from JSONL",
+    )
+    memory_media_observation_import_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_observation_import_parser.add_argument("--jsonl", required=True)
+    memory_media_observation_import_parser.add_argument(
+        "--no-promote-chunks",
+        action="store_true",
+    )
+    memory_media_observation_import_parser.add_argument("--json", action="store_true")
+    memory_media_observation_coverage_parser = memory_subparsers.add_parser(
+        "media-observation-coverage",
+        help="show stored Codex/VLM media observations",
+    )
+    memory_media_observation_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_observation_coverage_parser.add_argument("--json", action="store_true")
     memory_ocr_search_parser = memory_subparsers.add_parser(
         "ocr-search",
         help="search stored OCR evidence text and restore media bundles",
@@ -1487,6 +1552,22 @@ def main(argv: list[str] | None = None) -> int:
     memory_objective_execute_parser.add_argument("--limit", type=int, default=5)
     memory_objective_execute_parser.add_argument("--account", default=None)
     memory_objective_execute_parser.add_argument("--max-route-arms", type=int, default=4)
+    memory_objective_execute_parser.add_argument(
+        "--ocr-mode",
+        choices=["off", "stored", "fake"],
+        default="stored",
+        help="media route OCR handling; fake runs no-network candidate-set OCR explicitly",
+    )
+    memory_objective_execute_parser.add_argument("--ocr-limit", type=int, default=10)
+    memory_objective_execute_parser.add_argument(
+        "--ocr-sample-policy",
+        default="candidate_set",
+    )
+    memory_objective_execute_parser.add_argument(
+        "--ocr-max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
     memory_objective_execute_parser.add_argument(
         "--store",
         action=argparse.BooleanOptionalAction,
@@ -2757,8 +2838,45 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             sample_policy=args.sample_policy,
             limit=args.limit,
             max_file_bytes=args.max_file_bytes,
+            media_ids=tuple(args.media_id),
+            tweet_ids=tuple(args.tweet_id),
+            engine_routes=tuple(args.engine_route),
         )
         print(estimate_json(estimate) if args.json else format_estimate(estimate))
+        return 0
+    if args.memory_command == "media-role-estimate":
+        from research_x.memory.media_roles import (
+            estimate_media_roles,
+            format_media_role_summary,
+            media_role_summary_json,
+        )
+
+        summary = estimate_media_roles(args.db, limit=args.limit)
+        print(media_role_summary_json(summary) if args.json else format_media_role_summary(summary))
+        return 0
+    if args.memory_command == "media-role-build":
+        from research_x.memory.media_roles import (
+            build_media_roles,
+            format_media_role_summary,
+            media_role_summary_json,
+        )
+
+        summary = build_media_roles(args.db, limit=args.limit)
+        print(media_role_summary_json(summary) if args.json else format_media_role_summary(summary))
+        return 0
+    if args.memory_command == "media-role-coverage":
+        from research_x.memory.media_roles import (
+            format_media_role_summary,
+            media_role_coverage,
+            media_role_summary_json,
+        )
+
+        coverage = media_role_coverage(args.db)
+        print(
+            media_role_summary_json(coverage)
+            if args.json
+            else format_media_role_summary(coverage)
+        )
         return 0
     if args.memory_command == "build-ocr-evidence":
         from research_x.memory.ocr import build_ocr_evidence, format_summary, summary_json
@@ -2788,6 +2906,9 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
                 promote_chunks=not args.no_promote_chunks,
                 api_key_env=args.api_key_env,
                 base_url=args.base_url,
+                media_ids=tuple(args.media_id),
+                tweet_ids=tuple(args.tweet_id),
+                engine_routes=tuple(args.engine_route),
             )
         print(summary_json(summary) if args.json else format_summary(summary))
         return 0
@@ -2804,7 +2925,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             promotion_json,
         )
 
-        profiles = ("raw_ocr", "caption", "vlm_caption")
+        profiles = ("raw_ocr", "caption", "vlm_caption", "codex_observation")
         if args.include_corrected:
             profiles = (*profiles, "corrected_text")
         summary = promote_ocr_chunks(args.db, limit=args.limit, include_profiles=profiles)
@@ -2824,6 +2945,64 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             create_corrected_profile=not args.no_corrected_profile,
         )
         print(second_pass_json(summary) if args.json else format_second_pass(summary))
+        return 0
+    if args.memory_command == "media-observation-add":
+        from research_x.memory.ocr import (
+            add_media_observation,
+            format_media_observation_summary,
+            media_observation_summary_json,
+        )
+
+        text = Path(args.text_file).read_text(encoding="utf-8")
+        summary = add_media_observation(
+            args.db,
+            media_id=args.media_id,
+            observation_text=text,
+            observation_kind=args.observation_kind,
+            provider=args.provider,
+            model=args.model,
+            confidence=args.confidence,
+            prompt=args.prompt,
+            session_id=args.session_id,
+            promote_chunks=not args.no_promote_chunks,
+        )
+        print(
+            media_observation_summary_json(summary)
+            if args.json
+            else format_media_observation_summary(summary)
+        )
+        return 0
+    if args.memory_command == "media-observation-import":
+        from research_x.memory.ocr import (
+            format_media_observation_summary,
+            import_media_observations,
+            media_observation_summary_json,
+        )
+
+        summary = import_media_observations(
+            args.db,
+            args.jsonl,
+            promote_chunks=not args.no_promote_chunks,
+        )
+        print(
+            media_observation_summary_json(summary)
+            if args.json
+            else format_media_observation_summary(summary)
+        )
+        return 0
+    if args.memory_command == "media-observation-coverage":
+        from research_x.memory.ocr import (
+            format_media_observation_summary,
+            media_observation_coverage,
+            media_observation_summary_json,
+        )
+
+        coverage = media_observation_coverage(args.db)
+        print(
+            media_observation_summary_json(coverage)
+            if args.json
+            else format_media_observation_summary(coverage)
+        )
         return 0
     if args.memory_command == "ocr-search":
         from research_x.memory.ocr import format_search, ocr_search, search_json
@@ -3446,6 +3625,10 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             limit=args.limit,
             account=args.account,
             max_route_arms=args.max_route_arms,
+            ocr_mode=args.ocr_mode,
+            ocr_limit=args.ocr_limit,
+            ocr_sample_policy=args.ocr_sample_policy,
+            ocr_max_file_bytes=args.ocr_max_file_bytes,
             store=args.store,
         )
         print(

@@ -564,3 +564,33 @@ Primary/secondary references:
   <https://arxiv.org/abs/2210.07316>
 - BEIR:
   <https://arxiv.org/abs/2104.08663>
+
+### 2026-06-05: Active Research Inputs Compressed
+
+The active architecture document previously carried detailed research-input notes about public Web
+Search patterns, Brave LLM Context, Claude/Brave evidence, broader AI-search products, and
+Corpus2Skill / Agentic RAG / GraphRAG. Those details were compressed in the active file to reduce
+context load.
+
+Durable conclusions retained in the active file:
+
+- search systems should keep discovery, extraction, context chunks, citations, and answer synthesis
+  separate;
+- Corpus2Skill, graph summaries, labels, query transforms, and VLM observations are navigation or
+  interpretation artifacts, not source evidence;
+- agentic search must be bounded by logs, stop reasons, source-bundle restoration, citation gates,
+  and budget/security guards.
+
+Historical detailed notes:
+
+- OpenAI public Web Search patterns separated `web_search_call` from final message content and used
+  URL citations as annotations on answer text.
+- Brave Search / LLM Context patterns separated ranked search results, query-conditioned extracted
+  context, and final answer generation.
+- Claude for Government's Web Search MCP connector explicitly used Brave Search API, while
+  commercial Claude / Claude Code did not publicly guarantee a single built-in backend.
+- Perplexity, Tavily, Exa, Firecrawl, Jina Reader, and Brave all separated at least some of
+  search/discovery, URL extraction, context/chunks, and answer synthesis.
+- Corpus2Skill was treated as a stable navigation map or skill tree, not exact evidence.
+- Graph-like relations remained valuable only when backed by explicit relation tables and
+  provenance.

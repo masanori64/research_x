@@ -883,14 +883,18 @@ def _ocr_rows(
     )
     full_page_lower_bound = estimate.selected
     normalized_scope = scope.strip().lower().replace("-", "_")
-    if normalized_scope not in {"none", "sample", "all"}:
-        raise ValueError("ocr_scope must be one of: none, sample, all")
+    if normalized_scope not in {"none", "sample", "candidate_set", "all"}:
+        raise ValueError("ocr_scope must be one of: none, sample, candidate-set, all")
     if normalized_scope == "none":
         page_lower_bound = 0
         status_suffix = "not_selected"
-    elif normalized_scope == "sample":
+    elif normalized_scope in {"sample", "candidate_set"}:
         page_lower_bound = min(full_page_lower_bound, max(0, limit))
-        status_suffix = "sample_estimate"
+        status_suffix = (
+            "candidate_set_estimate"
+            if normalized_scope == "candidate_set"
+            else "sample_estimate"
+        )
     else:
         page_lower_bound = full_page_lower_bound
         status_suffix = "full_lower_bound"

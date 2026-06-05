@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from research_x.memory.context import ContextBundle, build_context_bundle
+from research_x.memory.media_roles import estimate_media_roles
 from research_x.memory.objective_routes import ObjectiveRoutePlan, plan_objective_routes
-from research_x.memory.ocr import estimate_ocr_evidence, ocr_search
+from research_x.memory.ocr import build_ocr_evidence, estimate_ocr_evidence, ocr_search
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
@@ -72,6 +73,10 @@ def run_objective_route_execution(
     limit: int = 5,
     account: str | None = None,
     max_route_arms: int = 4,
+    ocr_mode: str = "stored",
+    ocr_limit: int = 10,
+    ocr_sample_policy: str = "candidate_set",
+    ocr_max_file_bytes: int = 20 * 1024 * 1024,
     store: bool = True,
 ) -> ObjectiveRouteExecution:
     path = Path(db_path)
@@ -91,7 +96,18 @@ def run_objective_route_execution(
     stop_reason = "no_local_evidence"
     status = "needs_review"
     for index, route_arm in enumerate(selected_routes):
-        result = _execute_arm(path, plan, route_arm, limit=limit, account=account, store=store)
+        result = _execute_arm(
+            path,
+            plan,
+            route_arm,
+            limit=limit,
+            account=account,
+            store=store,
+            ocr_mode=ocr_mode,
+            ocr_limit=ocr_limit,
+            ocr_sample_policy=ocr_sample_policy,
+            ocr_max_file_bytes=ocr_max_file_bytes,
+        )
         results.append(result)
         if store:
             _store_route_step(path, route_run_id=route_run_id, step_index=index, result=result)
@@ -181,6 +197,10 @@ def _execute_arm(
     limit: int,
     account: str | None,
     store: bool,
+    ocr_mode: str,
+    ocr_limit: int,
+    ocr_sample_policy: str,
+    ocr_max_file_bytes: int,
 ) -> ObjectiveRouteArmResult:
     if route_arm == "candidate_a_current_baseline":
         return _execute_current_baseline(db_path, plan, limit=limit, account=account, store=store)
@@ -195,7 +215,17 @@ def _execute_arm(
             store=store,
         )
     if route_arm == "media_evidence":
-        return _execute_media_arm(db_path, plan, limit=limit, account=account, store=store)
+        return _execute_media_arm(
+            db_path,
+            plan,
+            limit=limit,
+            account=account,
+            store=store,
+            ocr_mode=ocr_mode,
+            ocr_limit=ocr_limit,
+            ocr_sample_policy=ocr_sample_policy,
+            ocr_max_file_bytes=ocr_max_file_bytes,
+        )
     if route_arm == "skill_map":
         return _execute_context_arm(
             db_path,
@@ -287,16 +317,35 @@ def _execute_media_arm(
     limit: int,
     account: str | None,
     store: bool,
+    ocr_mode: str,
+    ocr_limit: int,
+    ocr_sample_policy: str,
+    ocr_max_file_bytes: int,
 ) -> ObjectiveRouteArmResult:
-    context_result = _execute_context_arm(
-        db_path,
-        plan,
-        route_arm="media_evidence",
-        limit=limit,
-        account=account,
-        doc_type="media_doc",
-        store=store,
-    )
+    try:
+        bundle = build_context_bundle(
+            db_path,
+            plan.query,
+            limit=limit,
+            doc_type="media_doc",
+            account=account,
+            semantic_provider=None,
+            external_reader_provider="fake",
+            store=store,
+        )
+    except RuntimeError as exc:
+        return ObjectiveRouteArmResult(
+            route_arm="media_evidence",
+            status="error",
+            evidence_count=0,
+            citation_count=0,
+            stop_condition="no_local_evidence",
+            escalation_trigger=None,
+            provider_quota_skipped=False,
+            output={"error": str(exc)},
+        )
+    context_result = _result_from_context_bundle("media_evidence", bundle)
+    candidate_media_ids = _media_ids_from_hits(bundle.retrieved_hits, limit=ocr_limit)
     ocr_hits = ocr_search(db_path, plan.query, limit=limit)
     content_hits = tuple(
         hit for hit in ocr_hits if hit.get("bundle", {}).get("media_content_evidence")
@@ -317,13 +366,60 @@ def _execute_media_arm(
             provider_quota_skipped=False,
             output=output,
         )
-    estimate = estimate_ocr_evidence(db_path, limit=max(limit, 10))
+    ocr_build: dict[str, Any] | None = None
+    if ocr_mode == "fake" and candidate_media_ids and store:
+        summary = build_ocr_evidence(
+            db_path,
+            provider="fake",
+            sample_policy=ocr_sample_policy,
+            limit=ocr_limit,
+            max_file_bytes=ocr_max_file_bytes,
+            media_ids=candidate_media_ids,
+        )
+        ocr_build = summary.as_dict()
+        ocr_hits = ocr_search(db_path, plan.query, limit=limit)
+        content_hits = tuple(
+            hit for hit in ocr_hits if hit.get("bundle", {}).get("media_content_evidence")
+        )
+        if content_hits:
+            output = {
+                **context_result.output,
+                "candidate_media_ids": list(candidate_media_ids),
+                "ocr_mode": ocr_mode,
+                "ocr_build": ocr_build,
+                "ocr_hits": len(ocr_hits),
+                "media_content_hits": len(content_hits),
+            }
+            return ObjectiveRouteArmResult(
+                route_arm="media_evidence",
+                status="ok",
+                evidence_count=context_result.evidence_count + len(content_hits),
+                citation_count=context_result.citation_count + len(content_hits),
+                stop_condition="media_content_evidence_with_citation_ready_chunk",
+                escalation_trigger=None,
+                provider_quota_skipped=False,
+                output=output,
+            )
+    estimate = estimate_ocr_evidence(
+        db_path,
+        sample_policy=ocr_sample_policy if candidate_media_ids else "stratified",
+        limit=max(limit, 10),
+        max_file_bytes=ocr_max_file_bytes,
+        media_ids=candidate_media_ids,
+    )
+    role_estimate = estimate_media_roles(db_path, limit=max(limit, 10))
     output = {
         **context_result.output,
+        "candidate_media_ids": list(candidate_media_ids),
+        "ocr_mode": ocr_mode,
+        "ocr_build": ocr_build,
         "ocr_hits": len(ocr_hits),
         "media_content_hits": 0,
         "ocr_estimate": estimate.as_dict(),
+        "media_role_estimate": role_estimate.as_dict(),
     }
+    if ocr_mode == "fake" and candidate_media_ids and not store:
+        output["ocr_build_skipped"] = "store_false_prevents_fixture_mutation"
     evidence_count = context_result.evidence_count + len(ocr_hits)
     return ObjectiveRouteArmResult(
         route_arm="media_evidence",
@@ -339,6 +435,19 @@ def _execute_media_arm(
         provider_quota_skipped=False,
         output=output,
     )
+
+
+def _media_ids_from_hits(hits: list[dict[str, Any]], *, limit: int) -> tuple[str, ...]:
+    media_ids: list[str] = []
+    for hit in hits:
+        doc_id = str(hit.get("doc_id") or "")
+        if doc_id.startswith("media:"):
+            media_id = doc_id.split(":", 1)[1]
+            if media_id and media_id not in media_ids:
+                media_ids.append(media_id)
+        if len(media_ids) >= max(0, limit):
+            break
+    return tuple(media_ids)
 
 
 def _result_from_workflow(route_arm: str, workflow: MemoryWorkflow) -> ObjectiveRouteArmResult:

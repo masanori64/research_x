@@ -147,6 +147,27 @@ class OcrSecondPassSummary:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class MediaObservationSummary:
+    db_path: str
+    imported: int
+    promoted_chunks: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class MediaObservationCoverage:
+    db_path: str
+    texts: int
+    chunks: int
+    visual_annotations: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 class OcrProvider(Protocol):
     provider_id: str
 
@@ -158,7 +179,7 @@ class FakeOcrProvider:
     provider_id = OCR_PROVIDER_FAKE
 
     def extract(self, region: OcrRegion, *, model: str, timeout_seconds: float) -> OcrResult:
-        text = f"Fake OCR text for {region.media_id}: OCR robot diagram label"
+        text = f"Fake OCR text for {region.media_id}: 画像 OCR robot diagram label"
         return OcrResult(
             raw_text=text,
             normalized_text=_normalize_ocr_text(text),
@@ -228,13 +249,22 @@ def estimate_ocr_evidence(
     sample_policy: str = DEFAULT_SAMPLE_POLICY,
     limit: int | None = 100,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+    media_ids: tuple[str, ...] = (),
+    tweet_ids: tuple[str, ...] = (),
+    engine_routes: tuple[str, ...] = (),
 ) -> OcrEstimate:
+    all_regions = _ocr_regions(
+        db_path,
+        max_file_bytes=max_file_bytes,
+        media_ids=media_ids,
+        tweet_ids=tweet_ids,
+    )
     regions = _selected_regions(
-        _ocr_regions(db_path, max_file_bytes=max_file_bytes),
+        all_regions,
         sample_policy=sample_policy,
         limit=limit,
+        engine_routes=engine_routes,
     )
-    all_regions = _ocr_regions(db_path, max_file_bytes=max_file_bytes)
     skipped = [region for region in all_regions if region.status == "skipped"]
     return OcrEstimate(
         db_path=str(Path(db_path)),
@@ -265,6 +295,9 @@ def build_ocr_evidence(
     api_key_env: str | None = None,
     base_url: str | None = None,
     allow_provider_quota: bool = False,
+    media_ids: tuple[str, ...] = (),
+    tweet_ids: tuple[str, ...] = (),
+    engine_routes: tuple[str, ...] = (),
 ) -> OcrBuildSummary:
     path = Path(db_path)
     normalized_provider = provider.strip().lower()
@@ -275,9 +308,15 @@ def build_ocr_evidence(
             "lifted."
         )
     selected = _selected_regions(
-        _ocr_regions(path, max_file_bytes=max_file_bytes),
+        _ocr_regions(
+            path,
+            max_file_bytes=max_file_bytes,
+            media_ids=media_ids,
+            tweet_ids=tweet_ids,
+        ),
         sample_policy=sample_policy,
         limit=limit,
+        engine_routes=engine_routes,
     )
     ocr_run_id = f"ocr-{uuid.uuid4().hex[:12]}"
     started = _utc_now()
@@ -416,6 +455,217 @@ def ocr_coverage(db_path: str | Path) -> OcrCoverage:
     )
 
 
+def add_media_observation(
+    db_path: str | Path,
+    *,
+    media_id: str,
+    observation_text: str,
+    observation_kind: str = "codex_interpretation",
+    provider: str = "codex_interactive",
+    model: str = "gpt-5.5",
+    confidence: float | None = 0.7,
+    prompt: str | None = None,
+    session_id: str | None = None,
+    promote_chunks: bool = True,
+) -> MediaObservationSummary:
+    text = _normalize_ocr_text(observation_text)
+    if not text:
+        raise ValueError("observation_text must not be empty")
+    path = Path(db_path)
+    regions = _ocr_regions(
+        path,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        media_ids=(media_id,),
+    )
+    if not regions:
+        raise ValueError(f"media not found: {media_id}")
+    region = replace(
+        regions[0],
+        bbox={
+            "type": "full_media",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 1.0,
+            "height": 1.0,
+            "reading_order": 0,
+        },
+        region_index=0,
+        reading_order=0,
+        engine_route="vlm_observation",
+        detector_version="media-observation-v1",
+        status="candidate",
+        skip_reason=None,
+        quality_flags={
+            **regions[0].quality_flags,
+            "observation_kind": observation_kind,
+            "provider_role": "media_observation",
+        },
+    )
+    ocr_run_id = f"media-observation-{uuid.uuid4().hex[:12]}"
+    now = _utc_now()
+    result = OcrResult(
+        raw_text=observation_text,
+        normalized_text=text,
+        confidence=confidence,
+        metadata={
+            "observation_kind": observation_kind,
+            "prompt": prompt,
+            "session_id": session_id,
+            "source": "user_or_codex_supplied_observation",
+        },
+    )
+    promoted = 0
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        _insert_ocr_run(
+            conn,
+            ocr_run_id=ocr_run_id,
+            provider=provider,
+            model=model,
+            ocr_profile="media-observation-v1",
+            sample_policy="single_media_observation",
+            limit=1,
+            status="running",
+            started_at=now,
+            selected=1,
+        )
+        _insert_ocr_region(conn, ocr_run_id=ocr_run_id, region=region)
+        text_id = _insert_ocr_text(
+            conn,
+            ocr_run_id=ocr_run_id,
+            region=region,
+            provider=provider,
+            model=model,
+            ocr_profile="media-observation-v1",
+            result=result,
+            text_profile="codex_observation",
+            second_pass_status="not_needed",
+            second_pass_reason=None,
+        )
+        _insert_visual_observation_profile(
+            conn,
+            media_id=media_id,
+            source_tweet_id=region.source_tweet_id,
+            source_image_hash=region.source_image_hash,
+            provider=provider,
+            model=model,
+            observation_kind=observation_kind,
+            confidence=confidence,
+            prompt=prompt,
+            session_id=session_id,
+            now=now,
+        )
+        if promote_chunks:
+            promoted = int(_promote_text_to_chunk(conn, text_id=text_id))
+        _finish_ocr_run(
+            conn,
+            ocr_run_id=ocr_run_id,
+            status="ok",
+            processed=1,
+            skipped=0,
+        )
+        conn.commit()
+    return MediaObservationSummary(db_path=str(path), imported=1, promoted_chunks=promoted)
+
+
+def import_media_observations(
+    db_path: str | Path,
+    jsonl_path: str | Path,
+    *,
+    promote_chunks: bool = True,
+) -> MediaObservationSummary:
+    imported = 0
+    promoted = 0
+    with Path(jsonl_path).open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            observation_text = payload.get("text")
+            if observation_text is None:
+                observation_text = payload.get("observation_text")
+            summary = add_media_observation(
+                db_path,
+                media_id=str(payload["media_id"]),
+                observation_text=str(observation_text or ""),
+                observation_kind=str(payload.get("observation_kind") or "codex_interpretation"),
+                provider=str(payload.get("provider") or "codex_interactive"),
+                model=str(payload.get("model") or "gpt-5.5"),
+                confidence=payload.get("confidence", 0.7),
+                prompt=payload.get("prompt"),
+                session_id=payload.get("session_id"),
+                promote_chunks=promote_chunks,
+            )
+            imported += summary.imported
+            promoted += summary.promoted_chunks
+    return MediaObservationSummary(
+        db_path=str(Path(db_path)),
+        imported=imported,
+        promoted_chunks=promoted,
+    )
+
+
+def media_observation_coverage(db_path: str | Path) -> MediaObservationCoverage:
+    with sqlite3.connect(db_path, timeout=60) as conn:
+        ensure_memory_schema(conn)
+        texts = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_ocr_texts
+            WHERE text_profile = 'codex_observation'
+            """
+        ).fetchone()[0]
+        chunks = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_context_chunks
+            WHERE provider_role = 'ocr'
+              AND metadata_json LIKE '%"text_profile": "codex_observation"%'
+            """
+        ).fetchone()[0]
+        visual = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_visual_recall_evidence
+            WHERE evidence_level = 'codex_observation'
+            """
+        ).fetchone()[0]
+    return MediaObservationCoverage(
+        db_path=str(Path(db_path)),
+        texts=int(texts),
+        chunks=int(chunks),
+        visual_annotations=int(visual),
+    )
+
+
+def media_observation_summary_json(
+    summary: MediaObservationSummary | MediaObservationCoverage,
+) -> str:
+    return json.dumps(summary.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_media_observation_summary(
+    summary: MediaObservationSummary | MediaObservationCoverage,
+) -> str:
+    if isinstance(summary, MediaObservationCoverage):
+        return "\n".join(
+            (
+                f"db: {summary.db_path}",
+                f"texts: {summary.texts}",
+                f"chunks: {summary.chunks}",
+                f"visual_annotations: {summary.visual_annotations}",
+            )
+        )
+    return "\n".join(
+        (
+            f"db: {summary.db_path}",
+            f"imported: {summary.imported}",
+            f"promoted_chunks: {summary.promoted_chunks}",
+        )
+    )
+
+
 def ocr_search(db_path: str | Path, query: str, *, limit: int = 10) -> tuple[dict[str, Any], ...]:
     terms = tuple(term for term in _normalize_ocr_text(query).split() if term)
     with sqlite3.connect(db_path, timeout=60) as conn:
@@ -457,7 +707,12 @@ def promote_ocr_chunks(
     db_path: str | Path,
     *,
     limit: int | None = None,
-    include_profiles: tuple[str, ...] = ("raw_ocr", "caption", "vlm_caption"),
+    include_profiles: tuple[str, ...] = (
+        "raw_ocr",
+        "caption",
+        "vlm_caption",
+        "codex_observation",
+    ),
 ) -> OcrPromotionSummary:
     promoted = 0
     skipped = 0
@@ -682,8 +937,16 @@ def format_search(hits: tuple[dict[str, Any], ...]) -> str:
     return "\n".join(lines) if lines else "no OCR hits"
 
 
-def _ocr_regions(db_path: str | Path, *, max_file_bytes: int) -> tuple[OcrRegion, ...]:
+def _ocr_regions(
+    db_path: str | Path,
+    *,
+    max_file_bytes: int,
+    media_ids: tuple[str, ...] = (),
+    tweet_ids: tuple[str, ...] = (),
+) -> tuple[OcrRegion, ...]:
     path = Path(db_path)
+    media_filter = {str(value) for value in media_ids if str(value)}
+    tweet_filter = {str(value) for value in tweet_ids if str(value)}
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
@@ -700,6 +963,10 @@ def _ocr_regions(db_path: str | Path, *, max_file_bytes: int) -> tuple[OcrRegion
         ).fetchall()
     regions: list[OcrRegion] = []
     for row in rows:
+        if media_filter and str(row["media_id"]) not in media_filter:
+            continue
+        if tweet_filter and str(row["tweet_id"]) not in tweet_filter:
+            continue
         regions.extend(_regions_from_row(row, db_path=path, max_file_bytes=max_file_bytes))
     return tuple(regions)
 
@@ -772,13 +1039,22 @@ def _selected_regions(
     *,
     sample_policy: str,
     limit: int | None,
+    engine_routes: tuple[str, ...] = (),
 ) -> tuple[OcrRegion, ...]:
-    candidates = [region for region in regions if region.status != "skipped"]
+    route_filter = {route.strip() for route in engine_routes if route.strip()}
+    candidates = [
+        region
+        for region in regions
+        if region.status != "skipped"
+        and (not route_filter or region.engine_route in route_filter)
+    ]
     normalized_policy = sample_policy.strip().lower().replace("-", "_")
     if normalized_policy in {"all", "full"}:
         selected = candidates
-    elif normalized_policy == "stratified":
+    elif normalized_policy in {"stratified", "stratified_calibration"}:
         selected = _stratified(candidates, limit=limit)
+    elif normalized_policy == "candidate_set":
+        selected = candidates
     else:
         selected = candidates
     if limit is not None and limit >= 0:
@@ -1273,6 +1549,79 @@ def _insert_ocr_text_variant(
         ),
     )
     return text_id
+
+
+def _insert_visual_observation_profile(
+    conn: sqlite3.Connection,
+    *,
+    media_id: str,
+    source_tweet_id: str,
+    source_image_hash: str,
+    provider: str,
+    model: str,
+    observation_kind: str,
+    confidence: float | None,
+    prompt: str | None,
+    session_id: str | None,
+    now: str,
+) -> None:
+    visual_id = _stable_id(
+        "media-observation",
+        media_id,
+        provider,
+        model,
+        observation_kind,
+        session_id or "",
+    )
+    bbox = {
+        "type": "full_media",
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0,
+    }
+    conn.execute(
+        """
+        INSERT INTO memory_visual_recall_evidence (
+            visual_evidence_id, media_id, source_tweet_id, evidence_level, page_index,
+            region_index, pixel_bbox_json, normalized_bbox_json, citation_ready,
+            source_image_hash, provider, model, created_at, metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(visual_evidence_id) DO UPDATE SET
+            source_tweet_id=excluded.source_tweet_id,
+            source_image_hash=excluded.source_image_hash,
+            provider=excluded.provider,
+            model=excluded.model,
+            metadata_json=excluded.metadata_json
+        """,
+        (
+            visual_id,
+            media_id,
+            source_tweet_id,
+            "codex_observation",
+            0,
+            0,
+            json.dumps(bbox, ensure_ascii=False, sort_keys=True),
+            json.dumps(bbox, ensure_ascii=False, sort_keys=True),
+            0,
+            source_image_hash,
+            provider,
+            model,
+            now,
+            json.dumps(
+                {
+                    "observation_kind": observation_kind,
+                    "confidence": confidence,
+                    "prompt": prompt,
+                    "session_id": session_id,
+                    "contract": "codex_observation_is_inference_annotation_not_fact",
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+        ),
+    )
 
 
 def _evidence_status_for_text(text_profile: str, normalized_text: str) -> str:

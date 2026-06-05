@@ -152,39 +152,17 @@ Decision discipline:
 
 ## Research Inputs Behind This Design
 
-OpenAI public Web Search patterns:
+Archived source-review detail lives in `docs/memory-pipeline-archive.md`. This active file keeps only
+durable current conclusions so agents do not spend context on historical source summaries.
 
-- `web_search_call` is separate from the final `message`.
-- URL citations live as annotations on answer text.
-- Live/cache-only and domain-filtering are tool configuration, not answer content.
+Current durable conclusions:
 
-Brave Search / LLM Context patterns:
-
-- `web-search` discovers ranked URLs and snippets.
-- `llm-context` returns query-conditioned, pre-extracted chunks for grounding.
-- `answers` produces a final answer and should not be treated as canonical evidence.
-
-Claude / Brave evidence:
-
-- Claude for Government's Web Search MCP connector explicitly calls Brave Search API.
-- Commercial Claude and Claude Code do not publicly guarantee that built-in web search always uses
-  Brave.
-- User-installed Brave MCP or Skills are separate from a model provider's built-in web search.
-
-Broader AI-search products:
-
-- Perplexity, Tavily, Exa, Firecrawl, Jina Reader, and Brave all separate at least some of:
-  search/discovery, URL extraction, context/chunks, and answer synthesis.
-- This separation is the useful pattern to copy.
-
-Corpus2Skill / Agentic RAG / GraphRAG:
-
-- Corpus2Skill is best treated as a stable navigation map or skill tree, not the sole source of
-  exact evidence.
-- Agentic search is useful for complex queries, but only as a bounded workflow with logs and stop
-  reasons.
-- Graph-like relations are valuable, but start with explicit relation tables and provenance before
-  introducing a graph framework.
+- Web/search systems are useful mainly because they separate discovery, extraction, context chunks,
+  citations, and answer synthesis.
+- Corpus2Skill, graph summaries, labels, query transforms, and VLM observations are navigation or
+  interpretation artifacts, not source evidence.
+- Agentic search is useful only as a bounded workflow with logs, stop reasons, source-bundle
+  restoration, citation gates, and budget/security guards.
 
 ## Active Decision Record
 
@@ -242,6 +220,12 @@ Current active decisions:
     become citation-ready only after source-bundle restoration and region/page/chunk promotion.
 14. Every provider/tool surface must preserve trust boundary, source visibility, account scope,
     data classification, and allowed sink metadata.
+15. Media role classification is a route policy and annotation layer, not evidence. It may decide
+    whether an image needs no-op, caption, OCR, layout OCR, chart/visual reasoning, or hybrid
+    OCR/VLM handling, but it cannot support answer claims by itself.
+16. Codex or VLM image readings are user/session-conditioned observations. Store them as derived
+    annotations with provenance and source hashes; use them for recall, ranking, or inference only
+    unless citation-ready OCR/caption/VLM chunks explicitly support the claim.
 
 ## Layer 0: Raw Sources
 
@@ -952,6 +936,29 @@ media_recall
     rerunning OCR.
   - Local optional providers such as PaddleOCR/PaddleOCR-VL/manga OCR stay behind the same provider
     contract; adding their dependency or model execution is a separate local-provider step.
+
+Media role and observation policy:
+
+- Media processing starts from a local, no-spend role estimate before OCR. Roles are multi-label and
+  include `photo_place_food`, `photo_product_object`, `photo_person_event`, `document_page`,
+  `slide_or_presentation`, `screenshot_ui`, `code_or_error_screenshot`, `chart_or_graph`,
+  `table_or_form`, `diagram_or_architecture`, `scientific_figure`, `map_or_location`,
+  `meme_or_image_macro`, `manga_or_vertical_comic`, `illustration_or_art`,
+  `decorative_or_reaction`, and `unknown_media`.
+- Role estimates map to evidence actions: `none_source_only`, `caption_candidate`,
+  `ocr_candidate`, `ocr_layout_candidate`, `chart_or_visual_reasoning_candidate`, and
+  `hybrid_ocr_vlm_candidate`.
+- Role estimates are stored as `memory_visual_recall_evidence.evidence_level =
+  media_role_profile` with `citation_ready = 0`; they are routing annotations only.
+- Candidate-set OCR is the default orchestration target. Objective execution may OCR only the
+  restored candidate media IDs for the current route, not the whole media corpus. Full OCR remains
+  explicit-only and must be justified by media-grounded eval failures.
+- Codex or VLM observations are stored as `memory_ocr_texts.text_profile = codex_observation` or
+  `vlm_caption` with `evidence_status = inference`. They preserve raw observation text,
+  provider/model/session metadata, prompt or user intent when available, and source image hash.
+- `raw_ocr` chunks can support image text claims as facts. `caption`, `vlm_caption`,
+  `codex_observation`, and corrected OCR profiles support search helpers or inference only unless a
+  later review explicitly promotes them under a stronger evidence contract.
 
 ## API Budget Guard
 

@@ -50,12 +50,19 @@ from research_x.memory.media_embeddings import (
     restore_media_source_bundle,
     search_media_embeddings,
 )
+from research_x.memory.media_roles import (
+    build_media_roles,
+    estimate_media_roles,
+    media_role_coverage,
+)
 from research_x.memory.objective_executor import run_objective_route_execution
 from research_x.memory.objective_routes import plan_objective_routes
 from research_x.memory.ocr import (
+    add_media_observation,
     build_ocr_evidence,
     estimate_ocr_evidence,
     mark_ocr_second_pass_candidates,
+    media_observation_coverage,
     ocr_coverage,
     ocr_search,
     promote_ocr_chunks,
@@ -830,7 +837,7 @@ def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -
     assert execution.selected_routes == ("media_evidence",)
     assert execution.arm_results[0].route_arm == "media_evidence"
     assert execution.arm_results[0].provider_quota_skipped is False
-    assert execution.arm_results[0].output["ocr_estimate"]["sample_policy"] == "stratified"
+    assert execution.arm_results[0].output["ocr_estimate"]["sample_policy"] == "candidate_set"
     assert execution.metadata["provider_quota_frozen"] is True
     with sqlite3.connect(db_path) as conn:
         route_rows = conn.execute(
@@ -843,6 +850,120 @@ def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -
         ).fetchone()[0]
     assert route_rows == 1
     assert step_rows == 1
+
+
+def test_memory_media_roles_are_no_spend_annotations(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+
+    estimate = estimate_media_roles(db_path, limit=10)
+    summary = build_media_roles(db_path, limit=10)
+    coverage = media_role_coverage(db_path)
+
+    assert estimate.selected == 1
+    assert estimate.stored == 0
+    assert "photo_place_food" in estimate.by_role
+    assert "caption_candidate" in estimate.by_action
+    assert summary.stored == 1
+    assert coverage.profiles == 1
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT evidence_level, citation_ready, metadata_json
+            FROM memory_visual_recall_evidence
+            WHERE media_id = 'media-1'
+              AND evidence_level = 'media_role_profile'
+            """
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "media_role_profile"
+    assert row[1] == 0
+    assert (
+        json.loads(row[2])["contract"]
+        == "media_role_profile_is_routing_annotation_not_evidence"
+    )
+
+
+def test_memory_candidate_set_ocr_limits_media_scope(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+
+    missing = estimate_ocr_evidence(
+        db_path,
+        sample_policy="candidate_set",
+        media_ids=("missing-media",),
+        limit=10,
+    )
+    estimate = estimate_ocr_evidence(
+        db_path,
+        sample_policy="candidate_set",
+        media_ids=("media-1",),
+        limit=10,
+    )
+    summary = build_ocr_evidence(
+        db_path,
+        provider="fake",
+        sample_policy="candidate_set",
+        media_ids=("media-1",),
+        limit=10,
+    )
+
+    assert missing.media == 0
+    assert missing.selected == 0
+    assert estimate.media == 1
+    assert estimate.selected == 1
+    assert summary.processed == 1
+    assert summary.promoted_chunks == 1
+
+
+def test_memory_objective_execute_can_run_explicit_fake_candidate_ocr(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    media_path = tmp_path / "image.jpg"
+    media_path.write_bytes(b"fake-image")
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            "UPDATE media SET local_path = ? WHERE media_id = ?",
+            (str(media_path), "media-1"),
+        )
+
+    execution = run_objective_route_execution(
+        db_path,
+        "画像 OCR robot",
+        limit=2,
+        max_route_arms=1,
+        ocr_mode="fake",
+        ocr_limit=1,
+        ocr_sample_policy="candidate_set",
+    )
+
+    assert execution.status == "ok"
+    assert execution.arm_results[0].output["ocr_mode"] == "fake"
+    assert execution.arm_results[0].output["ocr_build"]["processed"] == 1
+    assert execution.arm_results[0].stop_condition == (
+        "media_content_evidence_with_citation_ready_chunk"
+    )
 
 
 def test_memory_objective_execute_skips_provider_freshness_fallbacks(tmp_path: Path) -> None:
@@ -915,6 +1036,43 @@ def test_memory_ocr_evidence_promotes_media_content_chunks(tmp_path: Path) -> No
     assert "Fake OCR text" in raw_text
     assert "OCR robot diagram label" in normalized_text
     assert corrected_text is None
+
+
+def test_memory_codex_media_observation_is_inference_annotation(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    summary = add_media_observation(
+        db_path,
+        media_id="media-1",
+        observation_text="Codex observation: 店内写真ではなくロボット図解に見える。",
+        observation_kind="codex_interpretation",
+        provider="codex_interactive",
+        model="gpt-5.5",
+        confidence=0.72,
+        prompt="この画像は何か",
+    )
+    coverage = media_observation_coverage(db_path)
+    hits = ocr_search(db_path, "ロボット図解", limit=5)
+
+    assert summary.imported == 1
+    assert summary.promoted_chunks == 1
+    assert coverage.texts == 1
+    assert coverage.chunks == 1
+    assert coverage.visual_annotations == 1
+    assert hits[0]["text_profile"] == "codex_observation"
+    assert hits[0]["evidence_status"] == "inference"
+    with sqlite3.connect(db_path) as conn:
+        citation = conn.execute(
+            """
+            SELECT support_type, evidence_status, field_path
+            FROM memory_citation_annotations
+            WHERE field_path = 'media.ocr_text.codex_observation'
+            """
+        ).fetchone()
+    assert citation == ("supports_search_helper", "inference", "media.ocr_text.codex_observation")
 
 
 def test_memory_ocr_blocks_provider_quota_calls(tmp_path: Path) -> None:
