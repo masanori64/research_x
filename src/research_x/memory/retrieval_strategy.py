@@ -259,27 +259,6 @@ VOYAGE_CONTEXT_4_LEARNING = PortfolioCandidate(
     ),
     source_refs=("Voyage contextualized chunk embeddings docs",),
 )
-VOYAGE_CONTEXT_3_LEARNING = PortfolioCandidate(
-    name="voyage_context_3_learning",
-    candidate_kind="contextual_embedding",
-    provider="voyage",
-    model="voyage-context-3",
-    dimensions=1024,
-    embedding_profile="learning_contextual",
-    vector_space_kind="contextual_dense",
-    status="older_comparison_only",
-    purpose=(
-        "Older contextual chunk embedding candidate retained only for comparison against "
-        "voyage-context-4."
-    ),
-    preconditions=(
-        "Group source-bundle chunks by parent document before embedding.",
-        "Store contextual input hashes separately from standard embedding text hashes.",
-    ),
-    source_refs=("Voyage contextualized chunk embeddings docs",),
-)
-
-
 DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
     RetrievalStrategy(
         strategy_id="baseline_hybrid_foundation",
@@ -825,7 +804,6 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
             VOYAGE4_LARGE_LEARNING,
             OPENAI_LARGE_LEARNING,
             VOYAGE_CONTEXT_4_LEARNING,
-            VOYAGE_CONTEXT_3_LEARNING,
             PortfolioCandidate(
                 name="jina_v5_text_learning",
                 candidate_kind="semantic",
@@ -1006,16 +984,18 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
                 modality="pdf_or_image",
                 route_role="media_to_citation_text",
                 portfolio_eligible=False,
-                status="deferred_provider_quota",
+                status="explicit_alias_tracking_only",
                 purpose=(
-                    "Convert PDF/image/screenshot media into citation-ready text before "
-                    "media_text_bridge or normal text retrieval."
+                    "Explicit alias-tracking OCR check. Do not use as the repeatable default "
+                    "for DB evidence evals because alias movement can change outputs."
                 ),
                 preconditions=(
                     "Define media file input, OCR output hashes, and source URL/local path "
                     "citation mapping.",
+                    "Use only when intentionally measuring latest alias drift against "
+                    "mistral-ocr-2512.",
                 ),
-                source_refs=("Mistral OCR docs",),
+                source_refs=("Mistral OCR docs", "Mistral model alias community reports"),
             ),
         ),
         promotion_gate=(

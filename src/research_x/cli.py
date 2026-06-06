@@ -477,11 +477,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_api_lane_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_api_lane_estimate_parser.add_argument(
-        "--include-optional-context3",
-        action="store_true",
-        help="also estimate older voyage-context-3 as a comparison row",
-    )
-    memory_api_lane_estimate_parser.add_argument(
         "--include-reference-managed-rag",
         action="store_true",
         help="show managed RAG reference rows as enabled reference lanes",
@@ -2693,7 +2688,6 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
         report = build_api_lane_estimate_report(
             args.db,
-            include_optional_context3=args.include_optional_context3,
             include_reference_managed_rag=args.include_reference_managed_rag,
             include_latest_ocr=args.include_latest_ocr,
             ocr_scope=args.ocr_scope,

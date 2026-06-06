@@ -645,7 +645,6 @@ uv run python -m research_x memory api-budget set `
 uv run python -m research_x memory api-budget seed-default-prices --db runs/x_data.sqlite3
 uv run python -m research_x memory api-lane-estimate `
   --db runs/x_data.sqlite3 `
-  --include-optional-context3 `
   --ocr-scope sample `
   --ocr-limit 100 `
   --reader-url-limit 100 `
@@ -822,8 +821,9 @@ that media hits restore cleanly and do not become unsupported image-content clai
 `multimodalembedding@001` remains a separate reference that needs GCP project/location/auth, not a
 plain Gemini API key.
 Reader/OCR/reference lanes are also visible in `memory api-lane-estimate`: Jina Reader for URL
-extraction, Mistral `mistral-ocr-2512` as the fixed OCR candidate, optional
-`mistral-ocr-latest`, and OpenAI/Gemini managed File Search as reference-only lanes. OCR is
+extraction, Mistral `mistral-ocr-2512` as the fixed OCR candidate, Mistral
+`mistral-ocr-latest` as an explicit alias-tracking check only, and OpenAI/Gemini managed File
+Search as reference-only lanes. OCR is
 expensive over all saved media, so the estimate defaults to a stratified calibration scope. Use
 `--ocr-scope all` only when intentionally pricing full OCR after provider quota use is explicitly
 permitted.

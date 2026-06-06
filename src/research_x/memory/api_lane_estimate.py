@@ -173,15 +173,6 @@ DEFAULT_PRICE_CATALOG_ROWS: tuple[PriceCatalogRow, ...] = (
     ),
     PriceCatalogRow(
         "voyage",
-        "voyage-context-3",
-        "embedding",
-        "input_token",
-        0.18 / 1_000_000,
-        SOURCE_VOYAGE_MODELS,
-        "Older Voyage contextual chunk embedding comparison price.",
-    ),
-    PriceCatalogRow(
-        "voyage",
         "rerank-2.5",
         "rerank",
         "input_token",
@@ -332,7 +323,6 @@ def seed_default_api_price_catalog(db_path: str | Path) -> int:
 def build_api_lane_estimate_report(
     db_path: str | Path,
     *,
-    include_optional_context3: bool = False,
     include_reference_managed_rag: bool = False,
     include_latest_ocr: bool = False,
     ocr_scope: str = "sample",
@@ -345,12 +335,7 @@ def build_api_lane_estimate_report(
     max_file_bytes: int = 20 * 1024 * 1024,
 ) -> ApiLaneEstimateReport:
     rows: list[ApiLaneEstimateRow] = []
-    rows.extend(
-        _text_embedding_rows(
-            db_path,
-            include_optional_context3=include_optional_context3,
-        )
-    )
+    rows.extend(_text_embedding_rows(db_path))
     rows.extend(_media_embedding_rows(db_path, max_file_bytes=max_file_bytes))
     rows.extend(
         _rerank_rows(
@@ -479,8 +464,6 @@ def format_api_lane_estimate(report: ApiLaneEstimateReport) -> str:
 
 def _text_embedding_rows(
     db_path: str | Path,
-    *,
-    include_optional_context3: bool,
 ) -> tuple[ApiLaneEstimateRow, ...]:
     arms = [
         _TextArm(
@@ -637,21 +620,6 @@ def _text_embedding_rows(
             notes="Mistral model card confirms codestral-embed-2505 and $0.15/M tokens.",
         ),
     ]
-    if include_optional_context3:
-        arms.append(
-            _TextArm(
-                "embedding_contextual_learning",
-                "voyage_context_3_learning",
-                "voyage",
-                "voyage-context-3",
-                1024,
-                "learning_contextual",
-                0.18,
-                SOURCE_VOYAGE_MODELS,
-                status="older_comparison_lower_bound",
-                notes="Optional older contextual model kept only for comparison.",
-            )
-        )
     rows = []
     for arm in arms:
         estimate = estimate_memory_embedding_build(
@@ -1193,21 +1161,6 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
             ),
         ),
     ]
-    context3 = row_by_name.get("voyage_context_3_learning")
-    if context3 is not None:
-        plans.append(
-            {
-                "plan_id": "optional_voyage_context3_comparison",
-                "status": "comparison_only",
-                "rows": 1,
-                "estimated_cost_usd": context3.estimated_cost_usd,
-                "purpose": (
-                    "Compare older contextual embedding behavior against voyage-context-4; "
-                    "do not include in the first performance pass unless there is a regression."
-                ),
-                "notes": context3.notes,
-            }
-        )
     ocr = row_by_name.get("mistral_ocr_2512")
     if ocr is not None:
         full_pages = int(ocr.extra.get("full_page_lower_bound", 0) or 0)

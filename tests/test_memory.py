@@ -813,7 +813,7 @@ def test_memory_retrieval_strategy_exposes_context4_and_managed_reference() -> N
     managed_candidates = {candidate["name"]: candidate for candidate in managed["candidates"]}
 
     assert learning_candidates["voyage_context_4_learning"]["model"] == "voyage-context-4"
-    assert learning_candidates["voyage_context_3_learning"]["status"] == "older_comparison_only"
+    assert "voyage_context_3_learning" not in learning_candidates
     assert managed["adoption"] == "eval_only_explicit"
     assert managed_candidates["openai_file_search_vector_stores"]["status"] == "reference_only"
     assert managed_candidates["gemini_file_search_embedding_2"]["provider"] == "gemini"
@@ -1595,7 +1595,6 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
 
     report = build_api_lane_estimate_report(
         db_path,
-        include_optional_context3=True,
         include_latest_ocr=True,
         reader_url_limit=10,
         reader_max_chars=1000,
@@ -1632,7 +1631,7 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
     assert rows["mistral_ocr_2512"].selected_units == 1
     assert rows["voyage_context_4_learning"].status == "contract_required_lower_bound"
     assert rows["voyage_context_4_learning"].lane == "embedding_contextual_learning"
-    assert rows["voyage_context_3_learning"].status == "older_comparison_lower_bound"
+    assert "voyage_context_3_learning" not in rows
     assert rows["openai_file_search_vector_stores"].estimated_cost_usd is None
     plans = {plan["plan_id"]: plan for plan in report.totals["recommended_plans"]}
     assert plans["objective_fit_router_baseline"]["status"] == "recommended_first_pass"

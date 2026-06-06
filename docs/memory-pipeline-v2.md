@@ -739,8 +739,8 @@ Current strategy classification:
   `rerank-v4.0-fast`, and Jina `jina-reranker-v3`, always after source-bundle restoration and
   never as a first-stage source of truth;
 - reader/OCR/media arms: Jina Reader for URL/PDF extraction; Mistral `mistral-ocr-2512` as the
-  fixed OCR eval candidate; Mistral `mistral-ocr-latest` only when intentional latest tracking is
-  desired;
+  fixed OCR eval candidate; Mistral `mistral-ocr-latest` only as an explicit alias-tracking
+  check, not the default production/eval model;
 - Japanese/cross-lingual recall: route-gated challengers such as Voyage/Jina/Gemini;
 - long-form learning and concept maps: route-gated challengers such as Voyage, OpenAI large,
   Jina, Corpus2Skill maps, topic threads, and relation expansion;
@@ -753,8 +753,9 @@ Current strategy classification:
 - Native Gemini Embedding 2 multimodal use is implemented through the separate
   `native_multimodal_media` contract, not `api_embedding_portfolio`. Vertex AI
   `multimodalembedding@001` remains a separate GCP auth/project/location reference.
-- Voyage contextual chunks use `voyage-context-4` as the current candidate. `voyage-context-3`
-  remains an older comparison row only.
+- Voyage contextual chunks use `voyage-context-4` as the current candidate. Older
+  `voyage-context-3` comparison rows are removed from the active catalog to avoid redundant
+  provider lanes.
 - Jina `jina-embeddings-v5-omni-small` can enter the text portfolio only as a text-only
   `media_text_bridge` candidate over OCR/caption/alt_text/VLM text. Native image/PDF URL or file
   ingestion remains a separate media evidence contract.
@@ -938,6 +939,9 @@ media_recall
 ```
 
 - Initial OCR provider is Mistral `mistral-ocr-2512`; `fake` is the no-network test provider.
+  Mistral docs use `mistral-ocr-latest` in examples, and community alias tables indicate it can
+  point at `mistral-ocr-2512`, but alias movement is unsuitable for repeatable DB evidence evals.
+  Therefore `2512` stays fixed by default and `latest` is only an explicit drift check.
   PaddleOCR / PaddleOCR-VL / manga OCR remain optional local providers behind the same provider
   contract.
 - Store raw OCR, corrected text, and caption/VLM text as separate profiles. Never overwrite raw OCR
