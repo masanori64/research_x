@@ -942,6 +942,12 @@ media_recall
   Mistral docs use `mistral-ocr-latest` in examples, and community alias tables indicate it can
   point at `mistral-ocr-2512`, but alias movement is unsuitable for repeatable DB evidence evals.
   Therefore `2512` stays fixed by default and `latest` is only an explicit drift check.
+  Qualitatively, Mistral OCR 3 is a practical document-OCR candidate, not an unusable experiment:
+  official docs expose OCR, structured annotations, confidence scores, tables, and document QnA,
+  and third-party/community reports treat it as a strong document parser. The production caveat is
+  reliability and evidence granularity, not basic OCR capability. PDF/API paths can show intermittent
+  service errors, and community reports still call out bbox/annotation limitations, so Mistral OCR
+  must remain behind retry, fallback, confidence, bbox/region, and citation-promotion gates.
   PaddleOCR / PaddleOCR-VL / manga OCR remain optional local providers behind the same provider
   contract.
 - Store raw OCR, corrected text, and caption/VLM text as separate profiles. Never overwrite raw OCR
