@@ -82,8 +82,8 @@ Implemented memory subsystems are grouped by behavior rather than file inventory
   routing, second-pass metadata, corrected-text profiles, OCR chunk promotion, media role
   annotations, candidate-set OCR, and Codex/VLM observation import as inference annotations;
 - objective_routes/objective_executor/final_skeleton: ObjectiveRoutePlan, no-spend route execution,
-  route fallback/escalation traces, provider-skip metadata, and final skeleton preflight up to the
-  provider-quota gate;
+  route fallback/escalation traces, provider-skip metadata, research-task/search-plan/coverage/gap
+  artifacts, and final skeleton preflight up to the provider-quota gate;
 - api_budget/api_lane_estimate/audit: local API budget policies, usage ledger, kill switch,
   monitoring commands, offline lane estimates, claim/citation and lineage audit checks, strict
   audit checks, and pytest diagnostics.
@@ -202,6 +202,9 @@ Use `uv run python -m research_x memory --help` as the command surface check.
 - [x] Add ObjectiveRoutePlan and no-spend ObjectiveRouteExecution with primary route, fallback
       routes, escalation triggers, provider-skip traces, candidate-set OCR, and source-bundle
       restoration failure metadata.
+- [x] Add research-control artifacts so URL discovery, query fan-out, provider summaries, and
+      personalization signals stay citation-excluded until restored into source bundles and context
+      chunks.
 - [x] Add projection generation, index membership, trust boundary, taint flags, account/source
       visibility, allowed sinks, and final-skeleton preflight.
 

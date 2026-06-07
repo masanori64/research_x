@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from research_x.memory.query import QueryPlan, build_query_plan
+from research_x.memory.research_artifacts import build_pre_execution_artifacts
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import WorkflowRoute, plan_workflow_route
 
@@ -34,6 +35,7 @@ class ObjectiveRoutePlan:
         payload = asdict(self)
         payload["workflow_route"] = self.workflow_route.as_dict()
         payload["query_plan"] = self.query_plan.as_dict()
+        payload.update(build_pre_execution_artifacts(self))
         return payload
 
 

@@ -176,6 +176,10 @@ Current active decisions:
 - Evidence / Source Bundle First remains the evidence center after re-evaluation. ObjectiveRoutePolicy
   controls execution, but does not replace source bundles, context chunks, citation verification, or
   workflow traces.
+- External discovery, subquery fan-out, browser-history hints, sub-agent notes, SERP rank, snippets,
+  provider summaries, and AI-generated exploration notes are search-control artifacts. They can
+  widen recall and explain why a route was tried, but they are not evidence until fetched or restored
+  into source bundles, context chunks, and citation annotations.
 - Real API embeddings are optional recall arms inside a workflow-gated portfolio; local_hash is
   diagnostic only.
 - Multiple embedding providers or profiles are separate candidate engines. Never mix their vectors
@@ -201,6 +205,50 @@ Current active decisions:
 - Architecture decisions must follow the decision-quality loop in AGENTS.md: inspect repo state,
   search primary then secondary sources when needed, treat sources as inputs, evaluate alternatives,
   and loop when new uncertainty appears.
+
+## Research Control Artifacts
+
+AI-callable search needs a control plane that prevents external discovery from becoming a flattened
+generic Web answer. The following artifacts are part of ObjectiveRoutePolicy and workflow traces:
+
+- `ResearchTaskFrame`: the pre-search statement of what the user is asking, what counts as enough
+  evidence, whether the local X DB is primary, where personalization may influence ranking, and when
+  the workflow should abstain or ask for review.
+- `SearchPlanGraph`: the planned route arms, query variants, provider roles, fallback order, and
+  escalation edges. It records why a route may run; it does not make any route result factual.
+- `SearchEpisodeTrace`: the executed route arms, provider skips, stop conditions, and escalation
+  events for a single run. It explains what actually happened, but it is still not evidence.
+- `ProviderCapabilityMatrix`: the allowed role of each provider or local arm. For example, Serper is
+  `index_provider` URL discovery; Reader/Jina is extraction; Brave LLM Context is external grounding;
+  browser history is a weak personal recall hint; local X DB is the primary source bundle surface.
+- `ResultCoverageMap`: route/document/source/provider coverage after execution, including skipped
+  provider arms and source-bundle restoration failures.
+- `EvidenceGap`: missing evidence, missing citations, provider-quota blocks, weak source coverage,
+  or media-content gaps that prevent answer promotion.
+- `SourceQualitySignal`: source-kind and provider-role classification such as local X DB, official,
+  primary, secondary, community observation, affiliate/leadgen, AI-suspected, or unknown. This is a
+  ranking and review signal, not a citation by itself.
+- `ReaderQualityProfile`: whether fetched or reader-produced content has enough text, source URL,
+  content hash, and source-kind information to be considered for context chunking.
+- `SERP Flattening Audit`: a check that rank, snippet, AI summary, and fixed source quotas did not
+  become evidence or create a false sense of coverage.
+- `ClaimSupportCheck`: a deterministic support summary for whether the produced context and
+  citations can support answer claims. Semantic claim judging remains a provider or human gate.
+- `PersonalizationPolicy` and `UserSignal`: user-specific ranking hints such as bookmarks, accounts,
+  refinding, or preference signals. They influence route weighting only and must never become answer
+  citations.
+- `ResearchBrief`: the post-execution summary of routes tried, evidence found, gaps, and next
+  actions. It is an output artifact, not source evidence.
+
+Implementation boundary:
+
+- Store these artifacts in existing route/workflow metadata and step outputs before adding new
+  tables.
+- Keep generated or provider-produced exploration artifacts `citation_excluded`.
+- Serper rank, snippets, browser history, sub-agent notes, and AI summaries must pass through
+  fetch/reader/source-bundle restoration before they can produce context chunks or citations.
+- If the artifacts reveal only weak or generic external evidence, the workflow must return
+  `needs_review` or `insufficient_evidence` rather than smoothing the answer.
 
 ## Non-Negotiable Invariants
 

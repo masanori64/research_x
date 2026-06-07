@@ -912,6 +912,23 @@ def test_memory_objective_routes_include_primary_fallback_and_ocr_escalation() -
     assert "ocr" in plan.planned_provider_roles
     assert plan.workflow_route.route == "media_context"
     assert plan.as_dict()["primary_route"] == "media_evidence"
+    payload = plan.as_dict()
+    assert payload["research_task_frame"]["local_x_db_primary"] is True
+    assert payload["research_task_frame"]["evidence_policy"][
+        "snippet_rank_ai_summary_are_evidence"
+    ] is False
+    assert payload["search_plan_graph"]["contract"] == (
+        "plan_graph_controls_search_but_is_not_evidence"
+    )
+    providers = {
+        row["provider"]: row
+        for row in payload["provider_capability_matrix"]["rows"]
+    }
+    assert providers["serper"]["provider_role"] == "index_provider"
+    assert providers["serper"]["evidence_policy"] == "not_evidence_until_fetched_and_chunked"
+    assert providers["subagent_or_deep_research_notes"]["evidence_policy"] == (
+        "citation_excluded_until_source_recovered"
+    )
 
 
 def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -> None:
@@ -933,6 +950,21 @@ def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -
     assert execution.arm_results[0].provider_quota_skipped is False
     assert execution.arm_results[0].output["ocr_estimate"]["sample_policy"] == "candidate_set"
     assert execution.metadata["provider_quota_frozen"] is True
+    assert execution.metadata["result_coverage_map"]["evidence_total"] >= 1
+    assert execution.metadata["claim_support_check"]["deterministic_checks"][
+        "snippet_or_rank_used_as_evidence"
+    ] is False
+    assert execution.metadata["search_episode_trace"]["contract"] == (
+        "episode_trace_explains_execution_but_is_not_source_evidence"
+    )
+    assert execution.metadata["serp_flattening_audit"]["checks"][
+        "snippet_used_as_evidence"
+    ] is False
+    assert execution.metadata["research_brief"]["citation_policy"] == "brief_is_not_evidence"
+    assert any(
+        gap["gap_id"] == "media_content_evidence_missing"
+        for gap in execution.metadata["evidence_gap"]["gaps"]
+    )
     with sqlite3.connect(db_path) as conn:
         route_rows = conn.execute(
             "SELECT COUNT(*) FROM memory_objective_route_runs WHERE route_run_id = ?",
@@ -944,6 +976,38 @@ def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -
         ).fetchone()[0]
     assert route_rows == 1
     assert step_rows == 1
+
+
+def test_memory_objective_execute_records_provider_gated_external_gap(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    execution = run_objective_route_execution(
+        db_path,
+        "昔保存したロボット情報は今も正しい？",
+        limit=2,
+        max_route_arms=3,
+    )
+
+    assert "external_web_context" in execution.selected_routes
+    assert "external_web_context" in execution.metadata["skipped_provider_roles"]
+    assert "external_web_context" in execution.metadata["result_coverage_map"][
+        "provider_quota_skipped_routes"
+    ]
+    assert any(
+        gap["gap_id"] == "provider_quota_gate"
+        for gap in execution.metadata["evidence_gap"]["gaps"]
+    )
+    assert execution.metadata["reader_quality_profile"]["status"] == (
+        "blocked_by_provider_quota_gate"
+    )
+    assert execution.metadata["serp_flattening_audit"]["provider_quota_skipped"] is True
+    assert execution.metadata["source_quality_signals"][-1]["citation_policy"] in {
+        "blocked_until_fetch_extract_hash_and_chunk",
+        "citation_excluded",
+    }
 
 
 def test_memory_media_roles_are_no_spend_annotations(tmp_path: Path) -> None:

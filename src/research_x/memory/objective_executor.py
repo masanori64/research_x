@@ -12,6 +12,7 @@ from research_x.memory.context import ContextBundle, build_context_bundle
 from research_x.memory.media_roles import estimate_media_roles
 from research_x.memory.objective_routes import ObjectiveRoutePlan, plan_objective_routes
 from research_x.memory.ocr import build_ocr_evidence, estimate_ocr_evidence, ocr_search
+from research_x.memory.research_artifacts import build_execution_artifacts
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
@@ -150,6 +151,15 @@ def run_objective_route_execution(
         "skipped_provider_roles": skipped_provider_roles,
         "source_bundle_restoration_failures": source_bundle_restoration_failures,
     }
+    metadata.update(
+        build_execution_artifacts(
+            plan,
+            results,
+            selected_routes=selected_routes[: len(results)],
+            status=status,
+            stop_reason=stop_reason,
+        )
+    )
     execution = ObjectiveRouteExecution(
         route_run_id=route_run_id,
         query=query,
