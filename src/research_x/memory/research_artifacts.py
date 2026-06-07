@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import urllib.parse
 from collections import Counter
 from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from typing import Any
+
+from research_x.memory.source_kinds import classify_external_source_kind
 
 RESEARCH_CONTROL_VERSION = "research-control-v1"
 
@@ -394,6 +397,7 @@ def _source_quality_signals(results: tuple[Any, ...]) -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
     for result in results:
         route = str(getattr(result, "route_arm", "unknown"))
+        output = _dict(getattr(result, "output", {}))
         if route in {
             "candidate_a_current_baseline",
             "exact_metadata_social",
@@ -434,6 +438,7 @@ def _source_quality_signals(results: tuple[Any, ...]) -> list[dict[str, Any]]:
                     "citation_policy": "blocked_until_fetch_extract_hash_and_chunk",
                 }
             )
+            signals.extend(_external_url_quality_signals(route, output))
         else:
             signals.append(
                 {
@@ -445,6 +450,26 @@ def _source_quality_signals(results: tuple[Any, ...]) -> list[dict[str, Any]]:
                     "citation_policy": "citation_excluded",
                 }
             )
+            signals.extend(_external_url_quality_signals(route, output))
+    return signals
+
+
+def _external_url_quality_signals(route: str, output: dict[str, Any]) -> list[dict[str, Any]]:
+    signals = []
+    for url in _urls_from_output(output):
+        source_kind = classify_external_source_kind(url)
+        signals.append(
+            {
+                "route_arm": route,
+                "source_kind": source_kind,
+                "source_url": url,
+                "domain": _domain(url),
+                "quality_class": _quality_class_for_url(url, source_kind=source_kind),
+                "evidence_status": "unconfirmed_until_reader_chunk",
+                "risk_flags": _source_risk_flags(url, source_kind=source_kind),
+                "citation_policy": "fetch_extract_hash_context_chunk_required",
+            }
+        )
     return signals
 
 
@@ -496,6 +521,11 @@ def _reader_quality_profile(results: tuple[Any, ...]) -> dict[str, Any]:
         status = "blocked_by_provider_quota_gate"
     else:
         status = "needs_review"
+    urls = [
+        url
+        for result in external_routes
+        for url in _urls_from_output(_dict(getattr(result, "output", {})))
+    ]
     return {
         "version": RESEARCH_CONTROL_VERSION,
         "status": status,
@@ -506,6 +536,8 @@ def _reader_quality_profile(results: tuple[Any, ...]) -> dict[str, Any]:
             "requires_context_chunk_before_citation": True,
         },
         "external_route_count": len(external_routes),
+        "discovered_url_count": len(urls),
+        "source_kind_counts": _source_kind_counts(urls),
         "contract": "reader_quality_profiles_extracted_content_not_serp_items",
     }
 
@@ -516,6 +548,16 @@ def _serp_flattening_audit(results: tuple[Any, ...]) -> dict[str, Any]:
         for result in results
         if str(getattr(result, "route_arm", "")) == "external_web_context"
     ]
+    urls = [
+        url
+        for result in external_routes
+        for url in _urls_from_output(_dict(getattr(result, "output", {})))
+    ]
+    risk_counts = Counter(
+        risk
+        for url in urls
+        for risk in _source_risk_flags(url, source_kind=classify_external_source_kind(url))
+    )
     return {
         "version": RESEARCH_CONTROL_VERSION,
         "status": "ok" if not external_routes else "needs_reader_or_source_review",
@@ -527,6 +569,9 @@ def _serp_flattening_audit(results: tuple[Any, ...]) -> dict[str, Any]:
             "requires_discovery_to_reader_step": True,
         },
         "external_route_count": len(external_routes),
+        "discovered_url_count": len(urls),
+        "source_kind_counts": _source_kind_counts(urls),
+        "risk_flag_counts": dict(sorted(risk_counts.items())),
         "provider_quota_skipped": any(
             bool(getattr(result, "provider_quota_skipped", False))
             for result in external_routes
@@ -712,6 +757,84 @@ def _next_actions(gaps: dict[str, Any], coverage: dict[str, Any]) -> list[str]:
 
 def _gap(gap_id: str, message: str, **metadata: Any) -> dict[str, Any]:
     return {"gap_id": gap_id, "message": message, "metadata": metadata}
+
+
+def _urls_from_output(output: dict[str, Any], *, limit: int = 20) -> list[str]:
+    urls: list[str] = []
+
+    def visit(value: Any) -> None:
+        if len(urls) >= limit:
+            return
+        if isinstance(value, str):
+            if value.startswith(("http://", "https://")) and value not in urls:
+                urls.append(value)
+            return
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if len(urls) >= limit:
+                    break
+                if str(key).casefold() in {
+                    "url",
+                    "source_url",
+                    "final_url",
+                    "media_url",
+                } or isinstance(item, dict | list | tuple):
+                    visit(item)
+            return
+        if isinstance(value, list | tuple):
+            for item in value:
+                if len(urls) >= limit:
+                    break
+                visit(item)
+
+    visit(output)
+    return urls
+
+
+def _source_kind_counts(urls: list[str]) -> dict[str, int]:
+    counts: Counter[str] = Counter(classify_external_source_kind(url) for url in urls)
+    return dict(sorted(counts.items()))
+
+
+def _source_risk_flags(url: str, *, source_kind: str) -> list[str]:
+    parsed = urllib.parse.urlparse(url)
+    domain = (parsed.hostname or "").lower().removeprefix("www.")
+    query = parsed.query.casefold()
+    path = parsed.path.casefold()
+    flags: list[str] = []
+    if source_kind == "secondary":
+        flags.append("secondary_needs_cross_check")
+    if source_kind == "user_generated":
+        flags.append("community_or_user_generated")
+    if any(token in domain for token in ("tabelog", "hotpepper", "gnavi", "gurunavi")):
+        flags.append("leadgen_or_listing_site")
+    if any(token in query for token in ("utm_", "affiliate", "ref=", "clickid")):
+        flags.append("tracking_or_affiliate_parameter")
+    if any(token in path for token in ("sponsored", "advertorial", "affiliate", "ranking")):
+        flags.append("possible_sponsored_or_ranking_content")
+    if any(token in domain for token in ("perplexity", "you.com", "chatgpt", "gemini.google")):
+        flags.append("ai_generated_or_ai_intermediated")
+    if not flags:
+        flags.append("no_static_risk_flag")
+    return flags
+
+
+def _quality_class_for_url(url: str, *, source_kind: str) -> str:
+    if source_kind == "official":
+        return "official_or_primary_candidate"
+    if source_kind == "user_generated":
+        return "community_observation_candidate"
+    risks = set(_source_risk_flags(url, source_kind=source_kind))
+    if "leadgen_or_listing_site" in risks:
+        return "affiliate_or_leadgen_candidate"
+    if "ai_generated_or_ai_intermediated" in risks:
+        return "ai_suspected_candidate"
+    return "independent_secondary_candidate"
+
+
+def _domain(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    return (parsed.hostname or "").lower().removeprefix("www.")
 
 
 def _dedupe(values: tuple[str, ...]) -> tuple[str, ...]:

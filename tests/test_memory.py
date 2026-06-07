@@ -55,7 +55,10 @@ from research_x.memory.media_roles import (
     estimate_media_roles,
     media_role_coverage,
 )
-from research_x.memory.objective_executor import run_objective_route_execution
+from research_x.memory.objective_executor import (
+    ObjectiveRouteArmResult,
+    run_objective_route_execution,
+)
 from research_x.memory.objective_routes import plan_objective_routes
 from research_x.memory.ocr import (
     add_media_observation,
@@ -81,6 +84,7 @@ from research_x.memory.reader import (
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
 from research_x.memory.rerank import rerank_evidence_query, rerank_hits
+from research_x.memory.research_artifacts import build_execution_artifacts
 from research_x.memory.retrieval_strategy import (
     DEFAULT_RETRIEVAL_STRATEGIES,
     reranker_spec_strings_for_strategies,
@@ -1008,6 +1012,53 @@ def test_memory_objective_execute_records_provider_gated_external_gap(tmp_path: 
         "blocked_until_fetch_extract_hash_and_chunk",
         "citation_excluded",
     }
+
+
+def test_research_artifacts_classify_external_url_quality() -> None:
+    plan = plan_objective_routes("最新の開示と評判を確認して")
+    result = ObjectiveRouteArmResult(
+        route_arm="external_web_context",
+        status="needs_review",
+        evidence_count=0,
+        citation_count=0,
+        stop_condition=None,
+        escalation_trigger="needs_current_external_grounding",
+        provider_quota_skipped=False,
+        output={
+            "source_urls": [
+                "https://www.sec.gov/filing",
+                "https://tabelog.com/tokyo/A1324/rstLst/?utm_source=test",
+                "https://qiita.com/example/items/1",
+            ],
+        },
+    )
+
+    artifacts = build_execution_artifacts(
+        plan,
+        (result,),
+        selected_routes=("external_web_context",),
+        status="needs_review",
+        stop_reason="external_context_needed",
+    )
+
+    signals = artifacts["source_quality_signals"]
+    assert any(
+        signal["source_kind"] == "official"
+        and signal["quality_class"] == "official_or_primary_candidate"
+        for signal in signals
+    )
+    assert any(
+        signal["quality_class"] == "affiliate_or_leadgen_candidate"
+        for signal in signals
+    )
+    assert any(
+        "community_or_user_generated" in signal["risk_flags"]
+        for signal in signals
+    )
+    assert artifacts["reader_quality_profile"]["source_kind_counts"]["official"] == 1
+    assert artifacts["serp_flattening_audit"]["risk_flag_counts"][
+        "leadgen_or_listing_site"
+    ] == 1
 
 
 def test_memory_media_roles_are_no_spend_annotations(tmp_path: Path) -> None:
