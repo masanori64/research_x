@@ -164,11 +164,6 @@ Current durable conclusions:
   interpretation artifacts, not source evidence.
 - Agentic search is useful only as a bounded workflow with logs, stop reasons, source-bundle
   restoration, citation gates, and budget/security guards.
-- Visible ChatGPT web control, such as the `codex-chatgpt-control` SDK pattern, is a Codex
-  consultation lane, not an evidence lane. It may help with planning, second-opinion review, long
-  context synthesis, or research critique in a user-visible ChatGPT session, but its output remains
-  `citation_excluded` until any cited sources are separately fetched, restored, chunked, and
-  verified.
 
 ## Active Decision Record
 
@@ -186,9 +181,6 @@ Current active decisions:
   provider summaries, and AI-generated exploration notes are search-control artifacts. They can
   widen recall and explain why a route was tried, but they are not evidence until fetched or restored
   into source bundles, context chunks, and citation annotations.
-- ChatGPT web consultation notes are also search-control artifacts. They must preserve visible
-  session, user approval, blocker, prompt/response redaction, and account-action boundaries. They
-  must not bypass login, hidden endpoints, captcha, permissions, or source-bundle/citation gates.
 - Real API embeddings are optional recall arms inside a workflow-gated portfolio; local_hash is
   diagnostic only.
 - Multiple embedding providers or profiles are separate candidate engines. Never mix their vectors

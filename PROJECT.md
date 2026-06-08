@@ -33,7 +33,6 @@ Current repo skills:
   surface.
 - `research-x-decision-loop`: detailed research, review, audit, and loop-stop mechanics.
 - `research-x-doc-governance`: Markdown placement, archival, and drift checks.
-- `research-x-chatgpt-control`: visible, user-directed ChatGPT web consultation from Codex.
 - `research-x-goal-runner`: long goal phase loop and human-intervention gates.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: app/CLI/workflow state visibility review.
@@ -85,9 +84,6 @@ Current foundation is implemented through the no-spend/provider-gated boundary:
 - search/evidence/context/citation/answer/workflow/eval surfaces;
 - external discovery, Reader, LLM-context, rerank, embedding, OCR/media, and managed-reference
   contracts behind fake/local or provider gates;
-- visible ChatGPT web consultation planning as a Codex tool, with safe local diagnostics,
-  capability inventory, renderable workflow plans, explicit runtime gates, and citation-excluded
-  output policy;
 - ObjectiveRoutePolicy execution traces, research-control artifacts, projection lineage, API budget
   guard, strict audit, and pytest diagnostics.
 
@@ -108,8 +104,6 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       research-control artifacts, projection lineage, trust boundaries, and final preflight.
 - [x] Native Codex Skill metadata for recurring research_x workflows without a project-local
       prompt-routing layer.
-- [x] Visible ChatGPT control lane: safe local `codex-chatgpt-control` doctor/capabilities/plan/render
-      and blocked-by-default run surface, plus repo Skill for user-directed ChatGPT web consultation.
 
 ## Current Gates
 

@@ -39,7 +39,6 @@ surface.
 - `research-x-decision-loop`: research, review, audit, design loop, and stop-condition mechanics.
 - `research-x-doc-governance`: Markdown placement, archive, and drift checks.
 - `research-x-goal-runner`: long goal phase loop and human-intervention gates.
-- `research-x-chatgpt-control`: visible, user-directed ChatGPT web consultation from Codex.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: hidden app/CLI/workflow state and trace visibility.
 - `research-x-parallel-review`: sub-agent role design when sub-agent use is permitted.
