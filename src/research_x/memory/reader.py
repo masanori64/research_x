@@ -21,6 +21,8 @@ from research_x.memory.source_kinds import (
     EXTERNAL_WEB_MEDIUM,
     classify_external_source_kind,
     evidence_status_for_source,
+    source_quality_class,
+    source_risk_flags,
 )
 
 FETCH_AGENT_ROLE = "fetch_agent"
@@ -361,6 +363,11 @@ def extract_external_run_to_context(
                     "external_item_id": row["item_id"],
                     "external_position": row["position"],
                     "external_snippet": row["snippet"],
+                    "external_snippet_citation_excluded": True,
+                    "external_rank_citation_excluded": True,
+                    "external_discovery_evidence_status": (
+                        "not_evidence_until_reader_chunk"
+                    ),
                     "external_source": row["source"],
                 },
             )
@@ -539,6 +546,8 @@ def _context_chunk(
             "content_type": page.content_type,
             "source_medium": EXTERNAL_WEB_MEDIUM,
             "evidence_source_kind": source_kind,
+            "source_quality_class": source_quality_class(page.url, source_kind=source_kind),
+            "source_risk_flags": source_risk_flags(page.url, source_kind=source_kind),
             "page_metadata": page.metadata,
             **metadata,
         },

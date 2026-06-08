@@ -474,6 +474,9 @@ def format_search_results(
                     f"tweet_id: {result.source_tweet_id or ''}",
                     f"url: {result.metadata.get('url') or ''}",
                     f"rank: {_components_text(result.score_components)}",
+                    f"engines: {_engine_contributions_text(result.metadata)}",
+                    "evidence_policy: scores/ranks/snippets are ranking signals; "
+                    "source bundle/context chunk required for citation",
                 ]
             )
         )
@@ -482,6 +485,23 @@ def format_search_results(
 
 def strong_anchor_terms_for_query(query: str) -> tuple[str, ...]:
     return _strong_anchor_terms(build_query_plan(query))
+
+
+def _engine_contributions_text(metadata: dict[str, Any]) -> str:
+    contributions = metadata.get("engine_contributions")
+    if not isinstance(contributions, list) or not contributions:
+        return "-"
+    parts = []
+    for contribution in contributions[:6]:
+        if not isinstance(contribution, dict):
+            continue
+        engine = str(contribution.get("engine") or "-")
+        rank = contribution.get("rank")
+        provider = contribution.get("provider")
+        model = contribution.get("model")
+        provider_text = f" {provider}/{model}" if provider or model else ""
+        parts.append(f"{engine}#{rank}{provider_text}".strip())
+    return "; ".join(parts) or "-"
 
 
 def text_matches_any_anchor(anchors: tuple[str, ...], *values: Any) -> bool:

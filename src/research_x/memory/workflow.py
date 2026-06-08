@@ -582,6 +582,32 @@ def format_workflow(workflow: MemoryWorkflow) -> str:
             f"route={workflow.route} stop={workflow.stop_reason}"
         )
     ]
+    route_plan = workflow.metadata.get("route_plan") or {}
+    if isinstance(route_plan, dict) and route_plan:
+        reasons = ",".join(str(reason) for reason in route_plan.get("reasons", []) or [])
+        doc_types = ",".join(
+            str(doc_type) for doc_type in route_plan.get("recommended_doc_types", []) or []
+        )
+        lines.append(
+            "route_plan: "
+            f"reasons={reasons} "
+            f"doc_types={doc_types} "
+            f"external={route_plan.get('wants_external_context', False)}"
+        )
+    objective_plan = workflow.metadata.get("objective_route_plan") or {}
+    if isinstance(objective_plan, dict) and objective_plan:
+        fallbacks = ",".join(
+            str(route) for route in objective_plan.get("fallback_routes", []) or []
+        )
+        guards = ",".join(
+            str(guard) for guard in objective_plan.get("must_run_guards", []) or []
+        )
+        lines.append(
+            "objective_route_plan: "
+            f"primary={objective_plan.get('primary_route', '-')} "
+            f"fallbacks={fallbacks} "
+            f"guards={guards}"
+        )
     for step in workflow.steps:
         suffix = f" error={step.error}" if step.error else ""
         lines.append(f"step {step.step_index}: {step.action} status={step.status}{suffix}")

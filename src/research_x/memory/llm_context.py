@@ -17,6 +17,8 @@ from research_x.memory.source_kinds import (
     EXTERNAL_WEB_MEDIUM,
     classify_external_source_kind,
     evidence_status_for_source,
+    source_quality_class,
+    source_risk_flags,
 )
 
 LLM_CONTEXT_ROLE = "llm_context_provider"
@@ -422,6 +424,8 @@ def _context_chunk(
             "content_type": source.content_type,
             "source_medium": EXTERNAL_WEB_MEDIUM,
             "evidence_source_kind": source_kind,
+            "source_quality_class": source_quality_class(source.url, source_kind=source_kind),
+            "source_risk_flags": source_risk_flags(source.url, source_kind=source_kind),
             "source_metadata": source.metadata,
             "retention_policy": "extracted_context_with_source_urls",
         },

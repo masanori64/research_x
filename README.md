@@ -315,6 +315,7 @@ Current app capabilities:
 - live progress bars for acquisition/media/labeling,
 - job stop and stop-with-rollback,
 - DB viewer form,
+- research run viewer for route, evidence gap, source quality, context, and citation inspection,
 - quota/rate-limit terminal states.
 
 Standalone progress monitor:
@@ -585,6 +586,8 @@ memory llm-context        Pre-extracted Web context provider role, fake or Brave
 memory answer             Generated answer artifact with source chunk citations.
 memory workflow           Bounded route/context/answer orchestration with stop reasons.
 memory objective-execute  Execute ObjectiveRoutePlan over no-spend local evidence arms.
+memory research-runs     List recent search/context/workflow/objective traces.
+memory show-run          Show one stored run with route, gap, source-quality, and citation state.
 memory final-skeleton-preflight Write no-spend final skeleton artifacts up to the provider-quota gate.
 memory build-retrieval-text Build no-spend retrieval-text projections for FTS recall.
 memory retrieval-text-coverage Show retrieval-text projection coverage and staleness.

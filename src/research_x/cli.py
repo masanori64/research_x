@@ -1639,6 +1639,30 @@ def main(argv: list[str] | None = None) -> int:
     memory_eval_show_parser.add_argument("--db", default="runs/x_data.sqlite3")
     memory_eval_show_parser.add_argument("--run-id", required=True)
     memory_eval_show_parser.add_argument("--json", action="store_true")
+    memory_research_runs_parser = memory_subparsers.add_parser(
+        "research-runs",
+        help="list recent search, workflow, and objective route traces",
+    )
+    memory_research_runs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_research_runs_parser.add_argument(
+        "--kind",
+        choices=["all", "objective", "workflow", "search"],
+        default="all",
+    )
+    memory_research_runs_parser.add_argument("--limit", type=int, default=20)
+    memory_research_runs_parser.add_argument("--json", action="store_true")
+    memory_show_run_parser = memory_subparsers.add_parser(
+        "show-run",
+        help="show one stored search/workflow/objective trace with gaps and source state",
+    )
+    memory_show_run_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_show_run_parser.add_argument("--run-id", required=True)
+    memory_show_run_parser.add_argument(
+        "--kind",
+        choices=["auto", "objective", "workflow", "search"],
+        default="auto",
+    )
+    memory_show_run_parser.add_argument("--json", action="store_true")
     memory_question_types_parser = memory_subparsers.add_parser(
         "question-types",
         help="list memory-search question types used to broaden eval coverage",
@@ -3776,6 +3800,26 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
         payload = load_memory_eval_run(args.db, args.run_id)
         print(eval_run_json(payload) if args.json else format_eval_run(payload))
+        return 0
+    if args.memory_command == "research-runs":
+        from research_x.memory.observability import (
+            format_research_runs,
+            list_research_runs,
+            research_runs_json,
+        )
+
+        runs = list_research_runs(args.db, run_kind=args.kind, limit=args.limit)
+        print(research_runs_json(runs) if args.json else format_research_runs(runs))
+        return 0
+    if args.memory_command == "show-run":
+        from research_x.memory.observability import (
+            format_research_run,
+            research_run_json,
+            show_research_run,
+        )
+
+        detail = show_research_run(args.db, args.run_id, run_kind=args.kind)
+        print(research_run_json(detail) if args.json else format_research_run(detail))
         return 0
     if args.memory_command == "question-types":
         from research_x.memory.question_types import format_question_types, question_types_json

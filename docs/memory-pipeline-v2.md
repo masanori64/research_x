@@ -244,6 +244,14 @@ Implementation boundary:
 
 - Store these artifacts in existing route/workflow metadata and step outputs before adding new
   tables.
+- Treat the first-class inspection surface as part of the contract. If `ResearchTaskFrame`,
+  `SearchPlanGraph`, `EvidenceGap`, `SourceQualitySignal`, `ClaimSupportCheck`, or `ResearchBrief`
+  exist only in JSON that users cannot inspect from CLI/app flows, the workflow is still too
+  black-box to promote.
+- Expose the same run inspection in the local app, not only in CLI. The app may stay read-only for
+  this surface, but route choices, evidence gaps, source quality, claim-support state, context
+  chunks, and citations must be inspectable from the browser UI before the workflow is treated as
+  operationally usable.
 - Keep generated or provider-produced exploration artifacts `citation_excluded`.
 - Serper rank, snippets, browser history, sub-agent notes, and AI summaries must pass through
   fetch/reader/source-bundle restoration before they can produce context chunks or citations.
@@ -1269,6 +1277,7 @@ memory_citation_annotations -> Layer 5 citation-ready source metadata
 memory_answer_runs      -> Layer 6 answer artifacts
 memory_workflow_runs    -> Layer 7 bounded workflow traces
 memory_workflow_steps   -> Layer 7 bounded workflow step logs
+memory research-runs/show-run -> Layer 7 inspection surface for search/context/workflow/objective traces
 memory build-derived    -> Layer 1 derived cards for places/authors/ticker events/topic threads
 memory evidence         -> legacy-compatible local hit bundle
 memory context          -> Layer 4 chunks plus Layer 5 citation metadata

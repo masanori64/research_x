@@ -14,7 +14,7 @@ from research_x.memory.reader import (
     extract_external_run_to_context,
 )
 from research_x.memory.schema import ensure_memory_schema
-from research_x.memory.source_kinds import LOCAL_X_DB
+from research_x.memory.source_kinds import LOCAL_X_DB, source_quality_class, source_risk_flags
 
 EXTRACTOR_VERSION = "local-evidence-context-v1"
 
@@ -263,6 +263,8 @@ def _chunk(
     metadata = {
         "doc_type": hit.get("doc_type"),
         "tweet_id": hit.get("tweet_id"),
+        "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
+        "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         "matched_terms": hit.get("matched_terms") or [],
         "score_components": hit.get("score_components") or {},
         "engine_contributions": hit.get("metadata", {}).get("engine_contributions")
@@ -327,6 +329,8 @@ def _citation(
             "tweet_id": hit.get("tweet_id"),
             "author": (hit.get("evidence") or {}).get("author"),
             "derived": (hit.get("evidence") or {}).get("derived"),
+            "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
+            "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         },
     )
 
@@ -597,6 +601,8 @@ def _store_search_result(
     evidence_status = "fact" if source_url or tweet_id else "unconfirmed"
     metadata = {
         "title": hit.get("title"),
+        "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
+        "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         "matched_terms": hit.get("matched_terms") or [],
         "score_components": hit.get("score_components") or {},
         "engine_contributions": hit.get("metadata", {}).get("engine_contributions")

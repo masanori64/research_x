@@ -84,7 +84,8 @@ Implemented memory subsystems are grouped by behavior rather than file inventory
   annotations, candidate-set OCR, and Codex/VLM observation import as inference annotations;
 - objective_routes/objective_executor/final_skeleton: ObjectiveRoutePlan, no-spend route execution,
   route fallback/escalation traces, provider-skip metadata, research-task/search-plan/coverage/gap
-  artifacts, and final skeleton preflight up to the provider-quota gate;
+  artifacts, CLI/app run inspection surfaces, and final skeleton preflight up to the
+  provider-quota gate;
 - api_budget/api_lane_estimate/audit: local API budget policies, usage ledger, kill switch,
   monitoring commands, offline lane estimates, claim/citation and lineage audit checks, strict
   audit checks, and pytest diagnostics.
@@ -144,6 +145,8 @@ memory eval-show
 memory question-types
 memory objective-routes
 memory objective-execute
+memory research-runs
+memory show-run
 memory final-skeleton-preflight
 memory build-retrieval-text
 memory retrieval-text-coverage

@@ -37,6 +37,8 @@ class ExternalEvidenceItem:
             "url": self.url,
             "snippet": self.snippet,
             "source": self.source,
+            "citation_excluded": True,
+            "evidence_status": "not_evidence_until_reader_chunk",
             "metadata": self.metadata,
         }
 
@@ -68,6 +70,12 @@ class ExternalEvidenceBundle:
             "retrieved_at": self.retrieved_at,
             "raw_response_hash": self.raw_response_hash,
             "retention_policy": self.retention_policy,
+            "evidence_policy": {
+                "url_discovery_is_not_evidence": True,
+                "rank_is_not_evidence": True,
+                "snippet_is_not_evidence": True,
+                "requires_reader_context_chunk": True,
+            },
             "items": [item.as_dict() for item in self.items],
             "error": self.error,
         }
@@ -100,7 +108,13 @@ class FakeExternalSearchProvider:
                     "Use this provider to test external evidence wiring."
                 ),
                 source="example.invalid",
-                metadata={"fixture": True},
+                metadata={
+                    "fixture": True,
+                    "citation_excluded": True,
+                    "evidence_status": "not_evidence_until_reader_chunk",
+                    "rank_is_not_evidence": True,
+                    "snippet_is_not_evidence": True,
+                },
             )
             for index in range(1, resolved_limit + 1)
         )
@@ -347,14 +361,21 @@ def _serper_items(raw: dict[str, Any], *, limit: int) -> tuple[ExternalEvidenceI
                 url=url,
                 snippet=str(row.get("snippet") or ""),
                 source=str(row.get("source") or _domain(url)),
-                metadata={
-                    key: row[key]
-                    for key in ("date", "position", "sitelinks")
-                    if key in row
-                },
+                metadata=_external_item_metadata(row),
             )
         )
     return tuple(items)
+
+
+def _external_item_metadata(row: dict[str, Any]) -> dict[str, Any]:
+    metadata = {
+        "citation_excluded": True,
+        "evidence_status": "not_evidence_until_reader_chunk",
+        "rank_is_not_evidence": True,
+        "snippet_is_not_evidence": True,
+    }
+    metadata.update({key: row[key] for key in ("date", "position", "sitelinks") if key in row})
+    return metadata
 
 
 def _post_json(

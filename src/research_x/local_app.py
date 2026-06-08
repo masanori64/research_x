@@ -28,6 +28,12 @@ from research_x.memory.api_budget import (
     format_api_budget_status,
     set_api_kill_switch,
 )
+from research_x.memory.observability import (
+    format_research_run,
+    format_research_runs,
+    list_research_runs,
+    show_research_run,
+)
 from research_x.playwright_auth import capture_storage_state_auto, storage_state_has_x_auth_cookies
 from research_x.progress import ProgressSnapshot, progress_snapshot
 
@@ -510,6 +516,20 @@ def serve_collection_app(
                 limit = int(_first(params, "limit") or "50")
                 self._html(_results_page(db=db, account=account, kind=kind, limit=limit))
                 return
+            if parsed.path == "/research-runs":
+                params = parse_qs(parsed.query)
+                db = _first(params, "db") or "runs/x_data.sqlite3"
+                kind = _first(params, "kind") or "all"
+                limit = int(_first(params, "limit") or "20")
+                self._html(_research_runs_page(db=db, kind=kind, limit=limit))
+                return
+            if parsed.path == "/research-run":
+                params = parse_qs(parsed.query)
+                db = _first(params, "db") or "runs/x_data.sqlite3"
+                run_id = _first(params, "run_id")
+                kind = _first(params, "kind") or "auto"
+                self._html(_research_run_page(db=db, run_id=run_id, kind=kind))
+                return
             self.send_error(404)
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API.
@@ -755,6 +775,20 @@ def _home_page(jobs: list[AppJob] | None = None) -> str:
           <label>Limit <input name="limit" type="number" value="50"></label>
           <button type="submit">表示</button>
         </form>
+        <form method="get" action="/research-runs" class="inline">
+          <h2>検索・workflow traceを見る</h2>
+          <label>DB <input name="db" value="runs/x_data.sqlite3"></label>
+          <label>Kind
+            <select name="kind">
+              <option value="all">all</option>
+              <option value="objective">objective</option>
+              <option value="workflow">workflow</option>
+              <option value="search">search</option>
+            </select>
+          </label>
+          <label>Limit <input name="limit" type="number" value="20"></label>
+          <button type="submit">表示</button>
+        </form>
         """,
     )
 
@@ -828,6 +862,79 @@ def _results_page(*, db: str, account: str | None, kind: str, limit: int) -> str
         f"""
         <h1>本文表示</h1>
         <p><a href="/">戻る</a></p>
+        <pre>{html.escape(text)}</pre>
+        """,
+    )
+
+
+def _research_runs_page(*, db: str, kind: str, limit: int) -> str:
+    try:
+        runs = list_research_runs(db, run_kind=kind, limit=limit)
+        text = format_research_runs(runs)
+        rows = []
+        for run in runs:
+            params = urlencode({"db": db, "kind": run.run_kind, "run_id": run.run_id})
+            rows.append(
+                "<tr>"
+                f"<td><a href='/research-run?{params}'>{html.escape(run.run_id)}</a></td>"
+                f"<td>{html.escape(run.run_kind)}</td>"
+                f"<td>{html.escape(run.status)}</td>"
+                f"<td>{html.escape(run.route or '-')}</td>"
+                f"<td>{html.escape(run.query)}</td>"
+                "</tr>"
+            )
+        table = (
+            "<table><tr><th>run</th><th>kind</th><th>status</th>"
+            "<th>route</th><th>query</th></tr>"
+            + "".join(rows)
+            + "</table>"
+            if rows
+            else "<p class='note'>runはありません。</p>"
+        )
+    except Exception as exc:  # noqa: BLE001 - render errors in app.
+        text = f"{type(exc).__name__}: {exc}"
+        table = ""
+    return _page(
+        "検索・workflow trace",
+        f"""
+        <h1>検索・workflow trace</h1>
+        <p><a href="/">戻る</a></p>
+        <form method="get" action="/research-runs" class="inline">
+          <label>DB <input name="db" value="{html.escape(db, quote=True)}"></label>
+          <label>Kind
+            <select name="kind">{_research_kind_options(kind, include_auto=False)}</select>
+          </label>
+          <label>Limit <input name="limit" type="number" value="{limit}"></label>
+          <button type="submit">更新</button>
+        </form>
+        {table}
+        <pre>{html.escape(text)}</pre>
+        """,
+    )
+
+
+def _research_run_page(*, db: str, run_id: str, kind: str) -> str:
+    try:
+        detail = show_research_run(db, run_id, run_kind=kind)
+        text = format_research_run(detail)
+        back_kind = detail.summary.run_kind
+    except Exception as exc:  # noqa: BLE001 - render errors in app.
+        text = f"{type(exc).__name__}: {exc}"
+        back_kind = "all"
+    back_url = "/research-runs?" + urlencode({"db": db, "kind": back_kind, "limit": 20})
+    return _page(
+        "検索・workflow trace詳細",
+        f"""
+        <h1>検索・workflow trace詳細</h1>
+        <p><a href="{html.escape(back_url, quote=True)}">一覧へ戻る</a></p>
+        <form method="get" action="/research-run" class="inline">
+          <label>DB <input name="db" value="{html.escape(db, quote=True)}"></label>
+          <label>Run ID <input name="run_id" value="{html.escape(run_id, quote=True)}"></label>
+          <label>Kind
+            <select name="kind">{_research_kind_options(kind, include_auto=True)}</select>
+          </label>
+          <button type="submit">表示</button>
+        </form>
         <pre>{html.escape(text)}</pre>
         """,
     )
@@ -1392,6 +1499,27 @@ def _reasoning_options(selected: str) -> str:
         ("minimal", "minimal"),
         ("medium", "medium"),
         ("high", "high"),
+    )
+    return "".join(
+        (
+            f"<option value='{html.escape(value)}'"
+            f"{' selected' if value == selected else ''}>{html.escape(label)}</option>"
+        )
+        for value, label in options
+    )
+
+
+def _research_kind_options(selected: str, *, include_auto: bool) -> str:
+    options: list[tuple[str, str]] = []
+    if include_auto:
+        options.append(("auto", "auto"))
+    options.extend(
+        (
+            ("all", "all"),
+            ("objective", "objective"),
+            ("workflow", "workflow"),
+            ("search", "search"),
+        )
     )
     return "".join(
         (

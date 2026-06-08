@@ -57,9 +57,15 @@ from research_x.memory.media_roles import (
 )
 from research_x.memory.objective_executor import (
     ObjectiveRouteArmResult,
+    format_objective_route_execution,
     run_objective_route_execution,
 )
 from research_x.memory.objective_routes import plan_objective_routes
+from research_x.memory.observability import (
+    format_research_run,
+    list_research_runs,
+    show_research_run,
+)
 from research_x.memory.ocr import (
     add_media_observation,
     build_ocr_evidence,
@@ -106,7 +112,12 @@ from research_x.memory.vector_projection import (
     build_vector_projection,
     vector_projection_coverage,
 )
-from research_x.memory.workflow import plan_workflow_route, run_memory_workflow, workflow_json
+from research_x.memory.workflow import (
+    format_workflow,
+    plan_workflow_route,
+    run_memory_workflow,
+    workflow_json,
+)
 
 
 def test_build_memory_corpus_and_search(tmp_path: Path) -> None:
@@ -1095,6 +1106,76 @@ def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -
         ).fetchone()[0]
     assert route_rows == 1
     assert step_rows == 1
+
+
+def test_memory_research_run_observability_surfaces_objective_artifacts(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    execution = run_objective_route_execution(
+        db_path,
+        "画像 robot image",
+        limit=2,
+        max_route_arms=4,
+    )
+    runs = list_research_runs(db_path, run_kind="objective", limit=5)
+    detail = show_research_run(db_path, execution.route_run_id, run_kind="objective")
+    plain_execution = format_objective_route_execution(execution)
+    plain_detail = format_research_run(detail)
+
+    assert runs[0].run_id == execution.route_run_id
+    assert runs[0].detail_counts["gaps"] >= 1
+    assert detail.metadata["research_brief"]["citation_policy"] == "brief_is_not_evidence"
+    assert detail.metadata["serp_flattening_audit"]["checks"]["rank_used_as_evidence"] is False
+    assert "research_task_frame:" in plain_execution
+    assert "search_plan_graph:" in plain_execution
+    assert "provider_capability_matrix:" in plain_execution
+    assert "personalization_policy:" in plain_execution
+    assert "user_signal_policy:" in plain_execution
+    assert "result_coverage:" in plain_execution
+    assert "search_episode_trace:" in plain_execution
+    assert "reader_quality_profile:" in plain_execution
+    assert "research_brief:" in plain_execution
+    assert "evidence_gaps:" in plain_execution
+    assert "serp_flattening:" in plain_execution
+    assert "research_task_frame:" in plain_detail
+    assert "search_plan_graph:" in plain_detail
+    assert "provider_capability_matrix:" in plain_detail
+    assert "personalization_policy:" in plain_detail
+    assert "user_signal_policy:" in plain_detail
+    assert "result_coverage:" in plain_detail
+    assert "search_episode_trace:" in plain_detail
+    assert "reader_quality_profile:" in plain_detail
+    assert "claim_support:" in plain_detail
+    assert "source_quality:" in plain_detail
+
+
+def test_memory_workflow_plain_output_shows_route_plan(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "ロボットの投稿を探して",
+        limit=2,
+        answer_provider="none",
+    )
+    plain = format_workflow(workflow)
+    runs = list_research_runs(db_path, run_kind="workflow", limit=5)
+    detail = show_research_run(db_path, workflow.workflow_id, run_kind="workflow")
+    plain_detail = format_research_run(detail)
+
+    assert runs[0].detail_counts["chunks"] > 0
+    assert runs[0].detail_counts["citations"] > 0
+    assert "route_plan:" in plain
+    assert "objective_route_plan:" in plain
+    assert "doc_types=" in plain
+    assert "quality=local_primary_archive" in plain_detail
 
 
 def test_memory_objective_execute_records_provider_gated_external_gap(tmp_path: Path) -> None:
@@ -2939,15 +3020,23 @@ def test_external_evidence_fake_provider_is_stored(tmp_path: Path) -> None:
     assert bundle.raw_response_hash
     assert len(bundle.items) == 2
     assert bundle.items[0].url.startswith("https://example.invalid/")
+    assert bundle.as_dict()["evidence_policy"]["snippet_is_not_evidence"] is True
+    assert bundle.items[0].as_dict()["citation_excluded"] is True
+    assert bundle.items[0].metadata["evidence_status"] == "not_evidence_until_reader_chunk"
 
     with sqlite3.connect(db_path) as conn:
         run_count = conn.execute("SELECT COUNT(*) FROM memory_external_runs").fetchone()[0]
         item_count = conn.execute("SELECT COUNT(*) FROM memory_external_items").fetchone()[0]
         role = conn.execute("SELECT provider_role FROM memory_external_runs").fetchone()[0]
+        item_metadata = json.loads(
+            conn.execute("SELECT metadata_json FROM memory_external_items").fetchone()[0]
+        )
 
     assert run_count == 1
     assert item_count == 2
     assert role == "index_provider"
+    assert item_metadata["citation_excluded"] is True
+    assert item_metadata["rank_is_not_evidence"] is True
     report = audit_memory_db(db_path)
     assert report.fixture_artifacts["memory_external_runs.fake_provider"] == 1
     assert any("fixture/fake memory artifacts" in warning for warning in report.warnings)
@@ -2995,6 +3084,7 @@ def test_external_evidence_serper_provider_uses_key_and_normalizes(
     assert bundle.parameters["api_key_env"] == "SERPER_API_KEY"
     assert "secret-key" not in json.dumps(bundle.as_dict(), ensure_ascii=False)
     assert bundle.items[0].source == "example.com"
+    assert bundle.items[0].metadata["snippet_is_not_evidence"] is True
 
 
 def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
@@ -3093,6 +3183,8 @@ def test_memory_context_can_include_external_run_chunks(tmp_path: Path) -> None:
     )
     assert external_chunk.run_id == bundle.run_id
     assert external_chunk.metadata["external_run_id"] == external.run_id
+    assert external_chunk.metadata["source_quality_class"] == "independent_secondary_candidate"
+    assert "secondary_needs_cross_check" in external_chunk.metadata["source_risk_flags"]
 
     with sqlite3.connect(db_path) as conn:
         tool_run_id = conn.execute(
@@ -3715,6 +3807,8 @@ def test_reader_extract_external_run_uses_stored_urls(tmp_path: Path) -> None:
 
     assert len(bundles) == 1
     assert bundles[0].context_chunk["metadata"]["external_run_id"] == external.run_id
+    assert bundles[0].context_chunk["metadata"]["external_snippet_citation_excluded"] is True
+    assert bundles[0].context_chunk["metadata"]["external_rank_citation_excluded"] is True
 
 
 def test_llm_context_fake_provider_stores_chunks_and_citations(tmp_path: Path) -> None:

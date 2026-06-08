@@ -12,7 +12,10 @@ from research_x.memory.context import ContextBundle, build_context_bundle
 from research_x.memory.media_roles import estimate_media_roles
 from research_x.memory.objective_routes import ObjectiveRoutePlan, plan_objective_routes
 from research_x.memory.ocr import build_ocr_evidence, estimate_ocr_evidence, ocr_search
-from research_x.memory.research_artifacts import build_execution_artifacts
+from research_x.memory.research_artifacts import (
+    build_execution_artifacts,
+    build_pre_execution_artifacts,
+)
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
@@ -151,6 +154,7 @@ def run_objective_route_execution(
         "skipped_provider_roles": skipped_provider_roles,
         "source_bundle_restoration_failures": source_bundle_restoration_failures,
     }
+    metadata.update(build_pre_execution_artifacts(plan))
     metadata.update(
         build_execution_artifacts(
             plan,
@@ -188,6 +192,68 @@ def format_objective_route_execution(execution: ObjectiveRouteExecution) -> str:
         f"primary_route: {execution.plan.primary_route}",
         f"selected_routes: {', '.join(execution.selected_routes) or '-'}",
     ]
+    task_frame = execution.metadata.get("research_task_frame") or {}
+    if isinstance(task_frame, dict) and task_frame:
+        lines.append(
+            "research_task_frame: "
+            f"objective={task_frame.get('objective_type', '-')} "
+            f"local_x_db_primary={task_frame.get('local_x_db_primary', False)} "
+            f"goal={task_frame.get('primary_goal', '-')}"
+        )
+    graph = execution.metadata.get("search_plan_graph") or {}
+    if isinstance(graph, dict) and graph:
+        nodes = graph.get("nodes") if isinstance(graph.get("nodes"), list) else []
+        variants = (
+            graph.get("query_variants") if isinstance(graph.get("query_variants"), list) else []
+        )
+        lines.append(
+            "search_plan_graph: "
+            f"nodes={len(nodes)} variants={len(variants)} "
+            f"contract={graph.get('contract', '-')}"
+        )
+        for node in nodes[:6]:
+            if isinstance(node, dict):
+                lines.append(
+                    "  - "
+                    f"{node.get('route_arm', '-')} "
+                    f"roles={','.join(str(role) for role in node.get('provider_roles', []) or [])} "
+                    f"quota={node.get('quota_policy', '-')}"
+                )
+    provider_matrix = execution.metadata.get("provider_capability_matrix") or {}
+    if isinstance(provider_matrix, dict) and provider_matrix:
+        rows = (
+            provider_matrix.get("rows")
+            if isinstance(provider_matrix.get("rows"), list)
+            else []
+        )
+        gated = [
+            str(row.get("provider"))
+            for row in rows
+            if isinstance(row, dict) and str(row.get("status")) == "gated"
+        ]
+        lines.append(
+            "provider_capability_matrix: "
+            f"rows={len(rows)} gated={','.join(gated[:8]) or '-'} "
+            f"contract={provider_matrix.get('contract', '-')}"
+        )
+    personalization = execution.metadata.get("personalization_policy") or {}
+    if isinstance(personalization, dict) and personalization:
+        disallowed = ",".join(
+            str(use) for use in personalization.get("disallowed_uses", []) or []
+        )
+        lines.append(
+            "personalization_policy: "
+            f"mode={personalization.get('mode', '-')} "
+            f"always_on={personalization.get('always_on_personal_boost', False)} "
+            f"disallowed={disallowed}"
+        )
+    user_signal = execution.metadata.get("user_signal_policy") or {}
+    if isinstance(user_signal, dict) and user_signal:
+        lines.append(
+            "user_signal_policy: "
+            f"scope={user_signal.get('route_scope', '-')} "
+            f"evidence={user_signal.get('evidence_status', '-')}"
+        )
     for index, result in enumerate(execution.arm_results):
         quota = " quota_skipped" if result.provider_quota_skipped else ""
         lines.append(
@@ -195,6 +261,83 @@ def format_objective_route_execution(execution: ObjectiveRouteExecution) -> str:
             f"evidence={result.evidence_count} citations={result.citation_count} "
             f"stop={result.stop_condition or '-'} escalation={result.escalation_trigger or '-'}"
             f"{quota}"
+        )
+    brief = execution.metadata.get("research_brief") or {}
+    if isinstance(brief, dict) and brief:
+        lines.append(
+            "research_brief: "
+            f"evidence={brief.get('evidence_total', 0)} "
+            f"citations={brief.get('citation_total', 0)} "
+            f"gaps={brief.get('gap_count', 0)} "
+            f"claim_support={brief.get('claim_support_status', '-')}"
+        )
+        next_actions = brief.get("next_actions") or []
+        if next_actions:
+            lines.append(f"next_actions: {', '.join(str(action) for action in next_actions)}")
+    coverage = execution.metadata.get("result_coverage_map") or {}
+    if isinstance(coverage, dict) and coverage:
+        executed_routes = ",".join(
+            str(route) for route in coverage.get("executed_routes", []) or []
+        )
+        provider_skipped = ",".join(
+            str(route) for route in coverage.get("provider_quota_skipped_routes", []) or []
+        )
+        lines.append(
+            "result_coverage: "
+            f"executed={executed_routes or '-'} "
+            f"evidence={coverage.get('evidence_total', 0)} "
+            f"citations={coverage.get('citation_total', 0)} "
+            f"provider_skipped={provider_skipped or '-'}"
+        )
+    episode = execution.metadata.get("search_episode_trace") or {}
+    if isinstance(episode, dict) and episode:
+        events = episode.get("events") if isinstance(episode.get("events"), list) else []
+        lines.append(
+            "search_episode_trace: "
+            f"events={len(events)} stop={episode.get('stop_reason', '-')} "
+            f"contract={episode.get('contract', '-')}"
+        )
+    reader_quality = execution.metadata.get("reader_quality_profile") or {}
+    if isinstance(reader_quality, dict) and reader_quality:
+        lines.append(
+            "reader_quality_profile: "
+            f"status={reader_quality.get('status', '-')} "
+            f"external_routes={reader_quality.get('external_route_count', 0)} "
+            f"urls={reader_quality.get('discovered_url_count', 0)}"
+        )
+    gaps = execution.metadata.get("evidence_gap") or {}
+    gap_rows = gaps.get("gaps") if isinstance(gaps, dict) else []
+    if isinstance(gap_rows, list) and gap_rows:
+        lines.append("evidence_gaps:")
+        for gap in gap_rows[:6]:
+            if isinstance(gap, dict):
+                lines.append(f"  - {gap.get('gap_id', '-')}: {gap.get('message', '')}")
+    serp = execution.metadata.get("serp_flattening_audit") or {}
+    if isinstance(serp, dict) and serp:
+        checks = serp.get("checks") if isinstance(serp.get("checks"), dict) else {}
+        lines.append(
+            "serp_flattening: "
+            f"status={serp.get('status', '-')} "
+            f"rank_evidence={checks.get('rank_used_as_evidence', False)} "
+            f"snippet_evidence={checks.get('snippet_used_as_evidence', False)}"
+        )
+    source_signals = execution.metadata.get("source_quality_signals")
+    if isinstance(source_signals, list) and source_signals:
+        lines.append("source_quality:")
+        for signal in source_signals[:6]:
+            if isinstance(signal, dict):
+                lines.append(
+                    "  - "
+                    f"{signal.get('source_kind', '-')}: {signal.get('quality_class', '-')}"
+                    f" evidence={signal.get('evidence_status', '-')}"
+                )
+    claim = execution.metadata.get("claim_support_check") or {}
+    if isinstance(claim, dict) and claim:
+        lines.append(
+            "claim_support: "
+            f"status={claim.get('status', '-')} "
+            f"citations={claim.get('citation_count', 0)} "
+            f"evidence={claim.get('evidence_count', 0)}"
         )
     return "\n".join(lines)
 
