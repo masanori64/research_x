@@ -118,6 +118,14 @@ When an important decision is uncertain:
 Record only durable conclusions in Markdown. Keep transient exploration out of the docs unless it
 changes a design decision.
 
+For iterative research, review, or design loops, do not treat one completed loop as sufficient by
+default. At the end of every loop, explicitly re-evaluate the stop condition by asking: "If the user
+now said this is not finished and asked me to continue, would I find a non-duplicate next loop to
+run?" If the answer is yes, run the next loop without waiting. Stop only when the next loop would
+produce no new non-duplicate issue, counterargument, design difference, or implementation
+difference, or when the remaining work has moved to a separate human-intervention gate such as API
+keys, billing, legal/ToS, irreversible deletion, or an unresolved user decision.
+
 ## Git Publish Policy
 
 When the user asks for implementation work in this repository, commit and push the completed scoped
