@@ -11,7 +11,9 @@ Use this skill before editing repository Markdown.
 
 - `AGENTS.md`: always-read agent rules, command policy, safety freezes, trigger routing, publish
   policy, and completion notification.
-- `README.md`: high-level human/repository reference and implemented CLI surface.
+- `README.codex.md`: compact Codex-facing repository reference. Use this for routine agent
+  orientation instead of `README.md`.
+- `README.md`: human/GitHub repository entry point only.
 - `PROJECT.md`: short milestone tracker and current gates.
 - `docs/memory-pipeline-v2.md`: detailed current memory/search architecture and durable decisions.
 - `docs/memory-pipeline-archive.md`: indexed historical notes. Inspect the index first and read only

@@ -14,7 +14,9 @@ see what is implemented, what is gated, and what comes next.
 ## Documentation Boundary
 
 - `AGENTS.md`: always-read agent rules, command policy, completion notification, publish policy.
-- `README.md`: human repository entry point and current CLI surface.
+- `README.codex.md`: compact Codex-facing repository reference. Use this for routine agent
+  orientation instead of `README.md`.
+- `README.md`: human/GitHub repository entry point only.
 - `PROJECT.md`: short memory-search milestone tracker.
 - `docs/memory-pipeline-v2.md`: detailed source of truth for the AI-callable evidence pipeline.
 - `docs/memory-pipeline-archive.md`: indexed historical decision archive; inspect targeted sections
@@ -76,161 +78,32 @@ Raw acquisition data remains canonical and must not be replaced by summaries or 
 
 ## Implemented Foundation
 
-Implemented memory subsystems are grouped by behavior rather than file inventory:
+Current foundation is implemented through the no-spend/provider-gated boundary:
 
-- corpus/schema/search/context: rebuildable `memory_documents`, FTS, local search, context chunks,
-  retrieval-text FTS projections, citation annotations, evidence bundles, and source-bundle
-  restoration;
-- derived/relations/freshness: place, author, ticker-event, topic-thread derived docs; quote,
-  media, bookmark, duplicate, same-topic, stale/newer, and optional judged relation edges;
-- external/reader/llm_context: fake/Serper URL discovery, fake/HTTP/Jina Reader contract, extracted
-  external context chunks, and fake/Brave-style LLM context role;
-- answer/workflow/eval: bounded workflows, answer artifacts, answer citations, route eval cases,
-  stored eval runs, question-type coverage, and feedback records;
-- portfolio/rerank/retrieval_strategy: evidence-first portfolio eval, guarded RRF, route strategy
-  catalog, fake-first rerank contract, and real reranker entry points behind provider gates;
-- embeddings/media_embeddings: real text embedding providers, diagnostic-only `local_hash`,
-  provider/profile/source-hash coverage, Gemini Embedding 2 text and native media contracts, media
-  search, native-media source-bundle restoration, and optional local vector projection acceleration
-  over one current embedding scope;
-- OCR/media_roles/observations: no-spend OCR quality profiling, region/crop contracts, engine
-  routing, second-pass metadata, corrected-text profiles, OCR chunk promotion, media role
-  annotations, candidate-set OCR, and Codex/VLM observation import as inference annotations;
-- objective_routes/objective_executor/final_skeleton: ObjectiveRoutePlan, no-spend route execution,
-  route fallback/escalation traces, provider-skip metadata, research-task/search-plan/coverage/gap
-  artifacts, CLI/app run inspection surfaces, and final skeleton preflight up to the
-  provider-quota gate;
-- api_budget/api_lane_estimate/audit: local API budget policies, usage ledger, kill switch,
-  monitoring commands, offline lane estimates, claim/citation and lineage audit checks, strict
-  audit checks, and pytest diagnostics.
+- canonical X store, normalized memory documents, derived cards, relations, and source bundles;
+- search/evidence/context/citation/answer/workflow/eval surfaces;
+- external discovery, Reader, LLM-context, rerank, embedding, OCR/media, and managed-reference
+  contracts behind fake/local or provider gates;
+- ObjectiveRoutePolicy execution traces, research-control artifacts, projection lineage, API budget
+  guard, strict audit, and pytest diagnostics.
 
-## Implemented Command Surface
-
-Representative current commands:
-
-```text
-memory api-budget
-memory api-usage
-memory api-watch
-memory api-lane-estimate
-memory build-corpus
-memory build-derived
-memory audit
-memory build-embeddings
-memory embedding-estimate
-memory embedding-specs
-memory embedding-coverage
-memory build-vector-projection
-memory vector-projection-coverage
-memory media-embedding-estimate
-memory build-media-embeddings
-memory media-embedding-coverage
-memory media-search
-memory ocr-estimate
-memory media-role-estimate
-memory media-role-build
-memory media-role-coverage
-memory build-ocr-evidence
-memory ocr-coverage
-memory ocr-promote-chunks
-memory ocr-second-pass
-memory media-observation-add
-memory media-observation-import
-memory media-observation-coverage
-memory ocr-search
-memory build-relations
-memory relations
-memory judge-relations
-memory search
-memory plan
-memory evidence
-memory context
-memory answer
-memory workflow
-memory external-search
-memory extract-url
-memory llm-context
-memory feedback
-memory export-corpus2skill
-memory eval
-memory portfolio-eval
-memory eval-runs
-memory eval-show
-memory question-types
-memory objective-routes
-memory objective-execute
-memory research-runs
-memory show-run
-memory final-skeleton-preflight
-memory build-retrieval-text
-memory retrieval-text-coverage
-memory retrieval-strategies
-memory rerank
-```
-
-Use `uv run python -m research_x memory --help` as the command surface check.
+Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m research_x memory
+--help` for the current command surface.
 
 ## Completed Milestones
 
-### V2 Evidence Objects
-
-- [x] Build corpus, derived docs, relations, search results, context chunks, citations, answers,
-      workflow traces, feedback, eval cases, and audit checks over the canonical X store.
-- [x] Add external URL discovery, reader/extract, LLM-context, and answer citation contracts without
-      making external Web artifacts canonical truth.
-- [x] Add Corpus2Skill export as a navigation-map boundary, not as source evidence.
-- [x] Add opt-in Corpus2Skill bundle advisory files for explicit Codex navigation metadata without
-      hook installation, skill autoload, provider calls, or citation status.
-- [x] Add repo Skill metadata so Codex native implicit Skill selection can discover recurring
-      research_x workflows without adding a project-local prompt-routing layer.
-
-### Evidence/Skill/Workflow Alignment
-
-- [x] Realign strategy defaults so embeddings are optional recall arms rather than the production
-      center.
-- [x] Expose Corpus2Skill navigation, bounded workflow orchestration, API embedding portfolio,
-      rerank stages, claim verification, freshness lineage, and media routes in one strategy
-      catalog.
-- [x] Keep diagnostic `local_hash` blocked from promotion.
-
-### Provider Lane Preflight And Budget Guard
-
-- [x] Split provider candidates into embedding, rerank, reader/OCR/media, external search,
-      classifier, answer, relation judge, and managed-RAG reference lanes.
-- [x] Keep strategy-catalog candidates and API-lane estimate rows aligned for the runnable provider
-      arms, while leaving legacy, local-compatible, and auth-gated references explicitly gated.
-- [x] Distinguish embedding technical canaries and eval slices from production-scope embedding
-      builds; limited text embedding runs do not count as full search indexes.
-- [x] Add no-spend `api-lane-estimate`, checked default price seeding, local API budget policy,
-      usage ledger, kill switch, app/CLI monitoring, and guarded provider call sites.
-- [x] Freeze paid, free-tier, trial-credit, and zero-dollar quota calls unless explicitly lifted in
-      the current conversation.
-
-### Objective-Fit Media Evidence
-
-- [x] Add media embedding schema, media input resolution, Gemini Embedding 2 native media provider
-      support, media embedding estimate/build/coverage/search commands, and media source-bundle
-      restoration.
-- [x] Add OCR Evidence Quality Pipeline storage and commands: quality profiling, deterministic
-      region/crop contracts, reading order, engine routing, fake OCR, second-pass metadata,
-      corrected-text profiles, chunk promotion, coverage, and OCR search.
-- [x] Add media role classification and evidence actions as no-spend routing annotations.
-- [x] Add Codex/VLM media observations as inference annotations that can help search without
-      becoming raw facts.
-
-### Final Skeleton Execution Surface
-
-- [x] Add QueryTransform and RetrievalTextProfile artifacts so generated query/search text is not
-      mistaken for evidence.
-- [x] Split eval surfaces into route, retrieval, context, citation, answer, and abstention gates.
-- [x] Add ObjectiveRoutePlan and no-spend ObjectiveRouteExecution with primary route, fallback
-      routes, escalation triggers, provider-skip traces, candidate-set OCR, and source-bundle
-      restoration failure metadata.
-- [x] Add research-control artifacts so URL discovery, query fan-out, provider summaries, and
-      personalization signals stay citation-excluded until restored into source bundles and context
-      chunks.
-- [x] Add projection generation, index membership, trust boundary, taint flags, account/source
-      visibility, allowed sinks, and final-skeleton preflight.
+- [x] V2 evidence objects, source-bundle restoration, context chunks, citations, answers, workflows,
+      feedback, evals, and audit checks over the canonical X store.
+- [x] Evidence/Skill/Workflow alignment: embeddings, Corpus2Skill, graph summaries, labels, query
+      transforms, and VLM observations are route hints or recall arms, not source truth.
+- [x] Provider-lane preflight and API Budget Guard: provider roles, offline estimates, price
+      catalog, usage ledger, kill switch, app/CLI monitor, and no-quota freeze.
+- [x] Objective-fit media evidence: media embeddings, OCR quality/evidence contracts, media roles,
+      candidate-set OCR, and Codex/VLM observations as inference annotations.
+- [x] Final skeleton execution surface: ObjectiveRoutePlan, no-spend route execution,
+      research-control artifacts, projection lineage, trust boundaries, and final preflight.
+- [x] Native Codex Skill metadata for recurring research_x workflows without a project-local
+      prompt-routing layer.
 
 ## Current Gates
 

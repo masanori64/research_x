@@ -44,7 +44,7 @@ uv run pytest ...
 uv run ruff check src\research_x tests
 ```
 
-Keep lint targets explicit and consistent with `README.md` and `PROJECT.md`.
+Keep lint targets explicit and consistent with `README.codex.md` and `PROJECT.md`.
 If `uv run pytest` appears slow or stuck, do not keep guessing manually. Use the repository
 diagnostic runner to isolate the slow unit:
 
@@ -107,7 +107,7 @@ matched Skill still has unfinished non-duplicate work, continue instead of final
 
 For the memory-search project, read `docs/memory-pipeline-v2.md` before making design changes. It is
 the current source of truth for the AI-callable evidence pipeline. `PROJECT.md` tracks the
-implementation milestones, and `README.md` is the high-level repository reference.
+implementation milestones, and `README.codex.md` is the compact repository reference for Codex.
 
 The memory-search architecture is Evidence/Skill/Workflow first. Real API embeddings are optional
 recall arms inside a workflow-gated portfolio, not the top-level system objective. Diagnostic
@@ -128,7 +128,10 @@ the existing source-of-truth file instead, so Codex does not have to scan a spre
 Keep Markdown stable and sparse:
 
 - `AGENTS.md`: durable agent rules and repository working policy.
-- `README.md`: high-level human/repository reference and implemented CLI surface.
+- `README.codex.md`: compact Codex-facing repository reference. Use this instead of `README.md`
+  for routine Codex orientation.
+- `README.md`: human/GitHub repository entry point only. Do not read it for routine Codex work
+  unless the task is explicitly about public README content.
 - `PROJECT.md`: short milestone tracker only.
 - `docs/memory-pipeline-v2.md`: detailed memory/search architecture and decision notes.
 - `docs/memory-pipeline-archive.md`: indexed historical notes; inspect the index first and read

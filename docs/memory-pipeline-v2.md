@@ -1,4 +1,4 @@
-# AI-Callable Memory Search Pipeline V2
+﻿# AI-Callable Memory Search Pipeline V2
 
 This document is the implementation-facing target architecture for the active memory-search work in
 `research_x`.
@@ -128,7 +128,8 @@ Keep the design surface small.
 - `docs/memory-pipeline-archive.md` stores historical decision notes. Use its index to find and read
   only relevant old sections when a current decision needs prior research or rejected alternatives.
 - `PROJECT.md` is only the implementation milestone tracker.
-- `README.md` is only the short repository reference.
+- `README.codex.md` is the compact Codex repository reference.
+- `README.md` is the human/GitHub repository entry point.
 - `AGENTS.md` tells coding agents which file to read; it must not duplicate the architecture.
 - Do not add another memory-architecture Markdown file unless the user explicitly asks.
 - When changing the design, update this file first, then adjust `PROJECT.md` only if the milestone
@@ -654,432 +655,42 @@ local source lookup
 
 ## Evidence / Skill / Workflow First Retrieval Policy
 
-Initial production policy:
+Active policy summary:
 
-1. Preserve raw evidence, derived document views, exact/FTS/metadata search, relations, source
-   bundles, Corpus2Skill navigation hints, and bounded workflow traces as the top-level system.
-2. Use real API embeddings as optional recall arms inside a workflow-gated adaptive portfolio.
-   `local_hash` is diagnostic wiring only and is never a production or promotion candidate.
-   Rerank, reader/extract, OCR, and managed-RAG references are separate provider lanes, not
-   embedding substitutes.
-3. Route exact, date, URL, account, bookmark, ticker, place, quote, and media-expansion questions
-   through non-vector evidence first.
-4. Allow ambiguous semantic, cross-lingual, learning-map, author-stance, and media-text routes to
-   run real API embedding arms in parallel with non-vector engines when the workflow gate decides
-   they are useful.
-5. Never put OpenAI, Gemini, Voyage, Jina, Cohere, Mistral, or OpenAI-compatible vectors into one
-   shared vector space. Treat each provider/model/profile/dimension as a separate candidate engine.
-6. Fuse candidate lists with rank-level methods such as RRF, route weighting, or bounded reranking;
-   do not average raw scores from unrelated engines.
-7. Before context or answer generation, restore every candidate hit to its source bundle: original
-   tweet, quoted tweet, media, author, bookmark ownership, external source, and relation metadata.
-8. Corpus2Skill is a navigation map and skill-routing hint. It is not citation-ready evidence unless
-   the workflow opens source documents and turns them into context chunks with citations.
+- Evidence / Source Bundle First remains the center. Retrieval arms, route policy, embeddings, OCR,
+  Corpus2Skill, graph summaries, labels, query transforms, media roles, observations, and scores are
+  candidate or navigation signals until restored into source bundles and citation-ready context.
+- ObjectiveRoutePolicy selects primary, fallback, and escalation routes. It is a workflow control
+  layer, not evidence and not a replacement for source-bundle restoration.
+- Real provider embeddings, rerankers, Reader/OCR, external search, classifiers, answer engines,
+  relation judges, and managed-RAG references remain behind provider gates and API Budget Guard.
+- `local_hash` and fake providers are diagnostic wiring checks only.
+- QueryTransform, HyDE/subqueries, RetrievalTextProfile, Corpus2Skill summaries, graph/community
+  summaries, VLM observations, router confidence, embedding scores, and reranker scores are hints.
+  They must not be used as answer citations by themselves.
+- Personalization is route-scoped ranking policy. It must be gated by intent and evaluation, not
+  applied as a global boost.
+- Search indexes and projections must track source hashes, projection generation, index membership,
+  stale/tombstone status, backfills, and temporal validity.
+- External Web text, OCR output, tweet text, media text, and tool output are untrusted data until the
+  relevant source-sink, evidence, and citation gates pass.
 
-The embedding spec includes:
+Operational rule:
 
 ```text
-provider
-model
-dimensions
-embedding_profile
-text_template_version
-source_doc_hash
+query
+  -> ObjectiveRoutePolicy
+  -> candidate arms
+  -> Source Bundle Restoration
+  -> guarded fusion / rerank
+  -> Context Chunk Construction
+  -> Citation Verification
+  -> Answer or Abstain
+  -> Eval / feedback / rebuild
 ```
 
-Text embedding execution stages are explicit:
-
-- `technical_canary`: a small provider/API, output-dimension, DB persistence, coverage, and budget
-  guard check. This is the default meaning of `--limit 1/10/100` when no stage is specified. It is
-  not an index-quality claim.
-- `eval_slice`: a bounded provider/profile comparison slice. It should use a stable representative
-  selection policy such as doc-type round robin. It is not a production index.
-- `production_scope`: the selected provider/profile scope intended for real search coverage. A
-  production-scope build must not be silently limited by an arbitrary `--limit`; route-specific
-  production arms cover their route-specific document scope, not just a smoke-test prefix.
-
-This differs from OCR. OCR remains per-media evidence preparation and can be selective in production
-because many media items do not need text extraction. Text embedding, once an arm is adopted for a
-scope, must index that whole scope.
-
-Native media embeddings use a separate contract from text embeddings. Text embeddings index
-`memory_documents` and are current only when `source_doc_hash` and `embedding_text_hash` match the
-document row. Raw media embeddings index saved local media files and are current only when the
-media file hash and media metadata hash match:
-
-```text
-media_id
-doc_id = media:<media_id>
-source_tweet_id
-provider
-model
-dimensions
-embedding_profile
-input_template_version
-mime_type
-local_path
-media_url
-media_file_hash
-media_metadata_hash
-input_parts_json
-```
-
-The first native media embedding provider is Gemini `gemini-embedding-2`, with
-`embedding_profile=native_multimodal_media`, `dimensions=1536`, and
-`input_template_version=gemini-media-input-v1`. Initial media inputs are local image/PDF files only:
-`image/jpeg`, `image/png`, `image/webp`, and `application/pdf`. Missing files, zero-byte files,
-unsupported MIME types, and files over the configured byte limit are skipped and must appear in
-coverage output.
-
-Media evidence has three levels:
-
-- `raw_media_match`: a vector match against a media file. This is a candidate signal only.
-- `media_source_evidence`: the hit restored to `media_id`, source tweet, media URL/local path,
-  bookmark account, author, quote relation, and source bundle metadata.
-- `media_content_evidence`: OCR, caption, or VLM text exists as citation-ready context chunks and
-  can support claims about image/PDF content.
-
-Raw Gemini media embedding hits must default to `unconfirmed_media_match`. They cannot support
-image-content claims until OCR/caption/VLM text is available as context chunks.
-
-`task_prompt_version` is still a future extension for providers that expose prompt/task variants
-that need versioned routing beyond the current document/query task type.
-
-Candidate strategies:
-
-- `baseline_hybrid_foundation`
-- `corpus2skill_navigation`
-- `bounded_workflow_orchestration`
-- `contextual_bm25`
-- `rerank_stage`
-- `claim_citation_verification`
-- `freshness_lineage`
-- `api_embedding_portfolio`
-- `general_memory`
-- `jp_multilingual`
-- `learning_long`
-- `code_technical`
-- `media_text_bridge`
-- `exact_metadata_first` (non-embedding guard for places, tickers, dates, handles, URLs)
-
-Current evaluation rule:
-
-- Default strategy selection must start from evidence, skill navigation, source bundles, and bounded
-  workflow routing, not from general_memory.
-- `api_embedding_portfolio` expands real API semantic candidates only when explicitly requested in
-  the current implementation. Automatic workflow-triggered semantic portfolio expansion is a later
-  policy/implementation step, not current behavior.
-- portfolio-eval compares lexical, relation/source-bundle, Corpus2Skill navigation hints,
-  workflow routing, optional real API embedding arms, and explicit bounded rerank arms under the
-  same route-level cases.
-- local_hash remains diagnostic and must be blocked from promotion.
-- Semantic arm quality requires real API embeddings; the whole evidence pipeline must not depend on
-  an embedding index being present.
-
-Current strategy classification:
-
-- implemented baseline: `baseline_hybrid_foundation` with FTS, LIKE, metadata, retrieval-text FTS,
-  semantic when explicitly configured, exact-anchor visibility, relation expansion, RRF metadata,
-  and source-bundle restoration;
-- workflow-first next candidates: `corpus2skill_navigation`, `bounded_workflow_orchestration`,
-  source-bundle restoration, and route-gated portfolio selection;
-- implemented non-evidence retrieval projection: `contextual_bm25` through
-  `RetrievalTextProfile` rows and FTS, with source-hash and citation-exclusion audit;
-- high-value candidate stage: `rerank_stage`;
-- implemented audit gates: `claim_citation_verification` and `freshness_lineage`;
-- real API embedding recall arms are role-specific, not one generic text bucket:
-  `embedding_general_memory`, `embedding_jp_multilingual`, `embedding_learning_long`,
-  `embedding_contextual_learning`, `embedding_code_technical`, and
-  `embedding_media_text_bridge`;
-- rerank arms: Voyage `rerank-2.5`, Cohere `rerank-v4.0-pro` /
-  `rerank-v4.0-fast`, and Jina `jina-reranker-v3`, always after source-bundle restoration and
-  never as a first-stage source of truth;
-- reader/OCR/media arms: Jina Reader for URL/PDF extraction; Mistral `mistral-ocr-2512` as the
-  fixed OCR eval candidate; Mistral `mistral-ocr-latest` only as an explicit alias-tracking
-  check, not the default production/eval model;
-- Japanese/cross-lingual recall: route-gated challengers such as Voyage/Jina/Gemini;
-- long-form learning and concept maps: route-gated challengers such as Voyage, OpenAI large,
-  Jina, Corpus2Skill maps, topic threads, and relation expansion;
-- code/API/repository material: `code_technical` challengers such as Mistral
-  `codestral-embed-2505` and Voyage `voyage-code-3`, only for route-specific evals;
-- media/OCR/caption routes: `media_text_bridge` challengers only after media docs expose
-  citation-ready OCR, caption, alt text, or VLM text;
-- Gemini text embedding uses `gemini-embedding-2` for runnable Gemini API text tests. It is
-  confirmed as a Gemini API model, so `gemini-embedding-001` is legacy comparison only.
-- Native Gemini Embedding 2 multimodal use is implemented through the separate
-  `native_multimodal_media` contract, not `api_embedding_portfolio`. Vertex AI
-  `multimodalembedding@001` remains a separate GCP auth/project/location reference.
-- Voyage contextual chunks use `voyage-context-4` as the current candidate. Older
-  `voyage-context-3` comparison rows are removed from the active catalog to avoid redundant
-  provider lanes.
-- Jina `jina-embeddings-v5-omni-small` can enter the text portfolio only as a text-only
-  `media_text_bridge` candidate over OCR/caption/alt_text/VLM text. Native image/PDF URL or file
-  ingestion remains a separate media evidence contract.
-- OCR is not a recall arm. It is an evidence-preparation lane that turns image/PDF media into
-  citation-ready text. Because all-media OCR can dominate cost, `api-lane-estimate` defaults to a
-  stratified calibration scope and requires `--ocr-scope all` for full lower-bound pricing.
-- API lane row names should match strategy candidate names where practical. If an estimate row needs
-  an alias, the mapping must be clear in the row metadata or recommended plan so agents do not think
-  a catalog candidate disappeared.
-- Managed RAG systems such as OpenAI File Search and Gemini File Search are reference lanes only.
-  They may compare UX and citation behavior but must not replace local raw X evidence, account
-  ownership, or source-bundle restoration.
-- exact entities, dates, tickers, handles, and places: keep FTS/metadata/relations/derived cards as
-  the guardrail before adding dense-provider complexity.
-
-Use `memory retrieval-strategies` to inspect these profiles and
-`memory portfolio-eval --strategy <id>` to add eligible candidate semantic or rerank arms to the
-comparison gate.
-
-Risk:
-
-- scores across embedding profiles are not directly comparable;
-- routing errors can hide good evidence;
-- profile proliferation increases cost and rebuild complexity.
-- workflow gates can under-call embeddings when semantic recall is needed, or over-call them when
-  exact evidence is already enough.
-
-Therefore portfolio routing and profile splitting must be evaluation-driven, not assumption-driven.
-
-Objective-fit performance priority:
-
-- The upper architecture is a constraint, not the scoring objective. The objective is performance:
-  the correct, useful answer for the user's input with enough evidence and no unsupported claims.
-  Quantitative metrics such as route recall, citation precision, answer usefulness, and abstention
-  correctness are instruments for that objective, not the objective itself.
-- Do not remove strong provider arms merely because a simpler local route exists. Keep strong arms
-  as challengers, measure their contribution, and promote them when evals win.
-- Do not run every strong arm by default merely because it might help. Choose arms by query route
-  and answer objective, then expand only when evals or failure analysis show missing evidence.
-- OCR should not be skipped for cost alone. Use native media recall and media-text retrieval to
-  target OCR where it can improve media-grounded evidence, then expand OCR scope only when targeted
-  OCR underperforms.
-- `memory api-lane-estimate` exposes `objective_fit_router_baseline` as the first-pass plan and
-  route expansions such as `jp_multilingual_route`, `learning_long_route`,
-  `code_technical_route`, and `media_grounded_route`. It separates comparison/high-cost options
-  such as older contextual embeddings, latest OCR alias tracking, and full OCR lower-bound pricing.
-
-ObjectiveRoutePlan integration:
-
-- The current single `WorkflowRoute` remains for compatibility, but the objective-fit path uses an
-  `ObjectiveRoutePlan` with `primary_route`, `fallback_routes`, `must_run_guards`,
-  `escalation_triggers`, `stop_conditions`, `budget_policy`, and `planned_provider_roles`.
-- The router must not choose only one brittle route. It selects a primary route plus fallback routes
-  and explicit escalation triggers.
-- Current Evidence/Skill/Workflow is `candidate_a_current_baseline`: a strong default candidate,
-  not an unquestioned final architecture.
-- The router is not evidence. It is a policy/execution layer that decides which existing evidence
-  components run first, which fallback arms may run, which escalation conditions are allowed, and
-  where to stop.
-- `ObjectiveRouteExecution` is the no-spend execution layer for this policy. It must call existing
-  evidence components instead of replacing them:
-  - `candidate_a_current_baseline` calls the existing bounded workflow without answer/provider
-    calls;
-  - `exact_metadata_social` calls local FTS/metadata/relation search and context creation;
-  - `media_evidence` inspects restored media/OCR evidence and may escalate to local OCR estimate or
-    existing stored OCR chunks, but does not create fake evidence implicitly;
-  - `skill_map` and `graph_sensemaking` use existing derived documents/relations as navigation
-    hints, not final evidence;
-  - semantic, rerank, managed-RAG, external Web, and provider-backed agentic arms remain skipped
-    while the no-quota provider freeze is active unless a local/fake implementation is explicitly
-    selected.
-- Route execution records a trace: selected route arm, fallback use, escalation triggers, stop
-  condition, evidence counts, citation counts, and whether provider quota was skipped. This trace is
-  an operational audit artifact, not evidence.
-- Route examples:
-  - `single_fact_conditioned`: primary `exact_metadata_social`, fallback
-    `candidate_a_current_baseline` and `semantic_embedding_portfolio`;
-  - `media_grounded`: primary `media_evidence`, fallback `exact_metadata_social`,
-    `semantic_embedding_portfolio`, and `candidate_a_current_baseline`, escalation
-    `ocr_quality_pipeline`;
-  - `temporal_freshness`: primary `candidate_a_current_baseline`, fallback
-    `external_web_context` and `bounded_agentic_workflow`;
-  - `exploratory_map`: primary `skill_map`, fallback `graph_sensemaking` and
-    `semantic_embedding_portfolio`.
-
-QueryTransform and retrieval text policy:
-
-- Query transforms are allowed when they improve recall or decomposition, but every transformed
-  query must be recorded as a separate artifact with:
-  - `parent_query_id`;
-  - `transform_kind`;
-  - generated text;
-  - preserved anchors;
-  - allowed routes;
-  - drift flags;
-  - `citation_excluded=true`.
-- Retrieval-only text must not overwrite source text or context chunks. Store it under an explicit
-  `retrieval_text_profile`, such as `raw_compact`, `contextual_bm25`, `learned_sparse`,
-  `hypothetical_query`, or `doc_expansion`.
-- HyDE text, query decomposition, RAG-Fusion variants, SPLADE/doc expansion terms, and contextual
-  retrieval strings are search aids only. They may influence candidate discovery and route traces,
-  but they cannot support answer claims directly.
-- The current no-spend implementation stores deterministic `raw_compact` and `contextual_bm25`
-  `RetrievalTextProfile` rows, mirrors them into an FTS projection, and exposes build/coverage
-  commands. Search may use those rows as a retrieval arm, but citations must still point back to
-  source bundles or context chunks.
-- Retrieval-text audit should fail when a projection claims to be active/current/citation-ready
-  while its source hash, citation-exclusion flag, or source document link is invalid. A missing
-  optional projection is coverage debt, not source evidence failure.
-
-Evaluation gate policy:
-
-- Promotion is never decided by answer text alone. Evaluate at least these separable gates:
-  - `route_eval`: did the route choose enough entry points and avoid unsafe narrowing?
-  - `retrieval_eval`: did candidate arms retrieve the expected source bundles?
-  - `context_eval`: did selected chunks contain relevant, non-noisy context?
-  - `citation_eval`: does each claim cite the correct source/chunk/region?
-  - `answer_eval`: is the answer useful and faithful to cited context?
-  - `abstention_eval`: did the workflow refuse, defer, or ask for more context when evidence was
-    absent, stale, contradictory, subjective, or underspecified?
-- Failure analysis must separate retrieval failure, context selection failure, citation failure,
-  answer-generation failure, and overconfident self-knowledge.
-- Provider-based judges may be added only behind budget guard and calibration. A small human or
-  deterministic validation set must remain the promotion reference when possible.
-
-Personalization and exploration policy:
-
-- A `user_model` is a ranking policy, not a fact source. Bookmark ownership, account history,
-  implicit feedback, explicit feedback, profile cards, and active-learning labels can weight
-  candidates, but must not become citations.
-- Personalization should be route scoped. Known-item/refinding, subjective preference,
-  exploratory learning, freshness check, and media-grounded routes may use different personal,
-  neutral, diverse, and exploratory weights.
-- Diversity and novelty may be explicit route goals, but should be evaluated separately from
-  citation precision so exploratory results do not degrade grounded answers.
-
-Projection and temporal operations policy:
-
-- Search indexes, embeddings, sparse representations, retrieval text, Corpus2Skill maps, graph
-  summaries, OCR chunks, and long-context layouts are projections over raw/source-bundle data.
-- Projections must track source hashes, generation IDs, builder/template/provider versions,
-  membership status, stale/tombstone/deferred state, and coverage.
-- Backfills and rebuilds produce new projection generations. They must not rewrite past answer
-  artifacts; past answers remain tied to the evidence and generation active at the time.
-- Freshness and obsolescence are relations, not deletion. Prefer `newer_than`,
-  `obsolete_candidate`, `supports`, `contradicts`, and temporal validity metadata over removing old
-  evidence.
-
-Local vector projection policy:
-
-- Local vector indexes such as turbovec are acceleration projections, not evidence stores and not
-  the source of truth. They may only return document/media identifiers that must be restored to
-  source bundles before context, citation, answer, or eval use.
-- The source of truth remains SQLite tables and local files: raw X data, `memory_documents`,
-  `memory_embeddings`, media rows, relation rows, context chunks, and citation annotations.
-- A local vector projection is valid only for one explicit embedding provider/model/dimension/
-  profile/template scope. It must not mix vectors from different embedding spaces.
-- Projection builds must use current `memory_embeddings` rows whose source and embedding text hashes
-  still match `memory_documents`. Incomplete or stale scopes should fail before writing a usable
-  projection.
-- Projection membership must be recorded in `memory_projection_generations` and
-  `memory_index_membership`, including stable artifact IDs, source hashes, backend name, bit width,
-  index file path, and generation metadata.
-- High-compression vector engines can broaden Codex's usable local memory by reducing RAM and search
-  latency, but they do not solve evidence quality, query planning, OCR, labels, graph navigation,
-  source quality, or claim support by themselves.
-- Framework wrappers for young vector engines are optional convenience layers. Prefer direct
-  projection contracts in this repository until duplicate-ID, upsert, and data-loss semantics are
-  proven safe by local tests.
-
-Security and source-sink policy:
-
-- Retrieved tweet text, OCR text, external Web text, media-derived text, tool output, and generated
-  retrieval text are untrusted data.
-- Every chunk/tool call/provider request should carry trust boundary, taint flags, data
-  classification, source visibility, account scope, and allowed sinks when the workflow can send or
-  act on the data.
-- The route planner must be driven by trusted user query, local configuration, and policy. Untrusted
-  retrieved/OCR/external text must not directly choose tools, provider calls, writes, external
-  fetches, or secret-adjacent operations.
-- Prompt wrappers and provenance markers are useful, but not sufficient. Deterministic source-sink
-  gates, allowlists, approval policy, and audit traces are the core defense.
-
-OCR Evidence Quality Pipeline:
-
-- OCR is the standard sub-workflow for `media_grounded` escalation, not a loose add-on.
-- The current implementation target is no-spend completion: implement the local quality, region,
-  routing, promotion, and test contracts without calling Mistral or any other provider. Provider OCR
-  execution, including free-tier quota, remains blocked by the no-quota policy.
-- The media route flow is:
-
-```text
-media_recall
-  -> media_source_evidence
-  -> media_quality_profile
-  -> text_region_detection / crop contract
-  -> engine_routing
-  -> raw_ocr_storage
-  -> confidence / quality gate
-  -> second_pass when needed
-  -> context_chunk + citation promotion
-  -> media_content_evidence
-```
-
-- Initial OCR provider is Mistral `mistral-ocr-2512`; `fake` is the no-network test provider.
-  Mistral docs use `mistral-ocr-latest` in examples, and community alias tables indicate it can
-  point at `mistral-ocr-2512`, but alias movement is unsuitable for repeatable DB evidence evals.
-  Therefore `2512` stays fixed by default and `latest` is only an explicit drift check.
-  Qualitatively, Mistral OCR 3 is a practical document-OCR candidate, not an unusable experiment:
-  official docs expose OCR, structured annotations, confidence scores, tables, and document QnA,
-  and third-party/community reports treat it as a strong document parser. The production caveat is
-  reliability and evidence granularity, not basic OCR capability. PDF/API paths can show intermittent
-  service errors, and community reports still call out bbox/annotation limitations, so Mistral OCR
-  must remain behind retry, fallback, confidence, bbox/region, and citation-promotion gates.
-  PaddleOCR / PaddleOCR-VL / manga OCR remain optional local providers behind the same provider
-  contract.
-- Store raw OCR, corrected text, and caption/VLM text as separate profiles. Never overwrite raw OCR
-  with normalized or LLM-corrected text.
-- OCR source granularity is `media_id + page_index + region_index + bbox + source_image_hash`.
-- `memory_context_chunks` and `memory_citation_annotations` are the promotion target. A media item
-  becomes `media_content_evidence` only after OCR/caption/VLM text has been promoted into
-  citation-ready chunks.
-- OCR sampling is `stratified_calibration`, not a flat random 100. Default strata are
-  `document_or_table`, `screenshot_or_ui`, `manga_or_vertical_text`,
-  `general_japanese_image`, `alt_text_missing`, `media_recall_top_hit`, and
-  `tweet_text_insufficient`.
-- Full OCR remains explicit-only. Expand OCR scope only when targeted OCR fails answer-correctness
-  evals for media-grounded questions.
-- Local completion requirements while provider calls are frozen:
-  - `ocr-estimate` must expose media quality flags, skipped reasons, strata, and engine routes
-    without writing DB rows or calling providers.
-  - Region detection must create citation-granular regions with `bbox`, `reading_order`,
-    `region_hash`, and `source_image_hash`. The first local detector may use deterministic image
-    heuristics and whole-media fallback; it must still persist region-level evidence.
-  - Engine routing must classify `document_pdf_or_table`, `screenshot_or_ui_text`,
-    `japanese_general_image`, `manga_or_vertical_text`, and `no_text_likely`.
-  - Low confidence, empty OCR despite high text likelihood, direct media-query relevance, and
-    important routes must be marked as second-pass candidates. The second-pass contract is local
-    metadata and optional fake/local processing until provider quota is allowed.
-  - `corrected_text` and caption/VLM text are separate profiles. Corrected text may be stored as a
-    derived search helper, but raw OCR plus bbox citation remains the preferred answer evidence.
-  - `ocr-promote-chunks` must be able to promote stored OCR rows into context chunks without
-    rerunning OCR.
-  - Local optional providers such as PaddleOCR/PaddleOCR-VL/manga OCR stay behind the same provider
-    contract; adding their dependency or model execution is a separate local-provider step.
-
-Media role and observation policy:
-
-- Media processing starts from a local, no-spend role estimate before OCR. Roles are multi-label and
-  include `photo_place_food`, `photo_product_object`, `photo_person_event`, `document_page`,
-  `slide_or_presentation`, `screenshot_ui`, `code_or_error_screenshot`, `chart_or_graph`,
-  `table_or_form`, `diagram_or_architecture`, `scientific_figure`, `map_or_location`,
-  `meme_or_image_macro`, `manga_or_vertical_comic`, `illustration_or_art`,
-  `decorative_or_reaction`, and `unknown_media`.
-- Role estimates map to evidence actions: `none_source_only`, `caption_candidate`,
-  `ocr_candidate`, `ocr_layout_candidate`, `chart_or_visual_reasoning_candidate`, and
-  `hybrid_ocr_vlm_candidate`.
-- Role estimates are stored as `memory_visual_recall_evidence.evidence_level =
-  media_role_profile` with `citation_ready = 0`; they are routing annotations only.
-- Candidate-set OCR is the default orchestration target. Objective execution may OCR only the
-  restored candidate media IDs for the current route, not the whole media corpus. Full OCR remains
-  explicit-only and must be justified by media-grounded eval failures.
-- Codex or VLM observations are stored as `memory_ocr_texts.text_profile = codex_observation` or
-  `vlm_caption` with `evidence_status = inference`. They preserve raw observation text,
-  provider/model/session metadata, prompt or user intent when available, and source image hash.
-- `raw_ocr` chunks can support image text claims as facts. `caption`, `vlm_caption`,
-  `codex_observation`, and corrected OCR profiles support search helpers or inference only unless a
-  later review explicitly promotes them under a stronger evidence contract.
+Detailed historical notes for this policy were moved to
+`docs/memory-pipeline-archive.md` section `2026-06-08: Retrieval Policy Detail Archived From Active V2`.
 
 ## API Budget Guard
 
