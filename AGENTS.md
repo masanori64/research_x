@@ -99,6 +99,9 @@ Prompt-dependent triggers:
   relevant trace or evidence state before considering the task done;
 - provider-facing work: use `.agents/skills/research-x-provider-gate/SKILL.md` before any embedding,
   rerank, OCR, Reader, external search, LLM-context, classifier, answer, or managed-RAG action.
+- visible ChatGPT web control or ChatGPT consultation from Codex: use
+  `.agents/skills/research-x-chatgpt-control/SKILL.md`. Keep it visible, user-directed, and
+  citation-excluded unless sources are separately restored into evidence.
 
 Before sending a final answer, re-check the newest user request and any active repo Skill. If a
 matched Skill still has unfinished non-duplicate work, continue instead of finalizing.

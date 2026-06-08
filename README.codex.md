@@ -61,6 +61,17 @@ Top-level:
 ```text
 run, pipeline, bookmarks, tweets, tweet-stages, db-show, label-existing,
 accounts, auth, app, progress, notify, adapters, memory, test-diagnose
+codex-chatgpt-control
+```
+
+Visible ChatGPT consultation planning:
+
+```text
+codex-chatgpt-control doctor
+codex-chatgpt-control capabilities
+codex-chatgpt-control plan
+codex-chatgpt-control render
+codex-chatgpt-control run-plan
 ```
 
 Memory-search:
@@ -110,12 +121,13 @@ memory export-corpus2skill
 
 ## Repo Skills
 
-Repo Skills live under `.agents/skills/` and use Codex native implicit invocation through
-`agents/openai.yaml`.
+Repo Skills live under `.agents/skills/` and use Codex native implicit invocation through each
+skill's `agents/openai.yaml`.
 
 - `research-x-skillization-intake`: recurring Codex behavior and instruction-surface placement.
 - `research-x-decision-loop`: research/review/audit loops and stop-condition checks.
 - `research-x-doc-governance`: Markdown placement, archival, and drift checks.
+- `research-x-chatgpt-control`: visible, user-directed ChatGPT web consultation from Codex.
 - `research-x-goal-runner`: long goal phase continuation.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: app/CLI/workflow trace visibility.

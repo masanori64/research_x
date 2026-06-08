@@ -358,6 +358,148 @@ def main(argv: list[str] | None = None) -> int:
     )
     test_diagnose_parser.add_argument("--json", action="store_true")
 
+    chatgpt_control_parser = subparsers.add_parser(
+        "codex-chatgpt-control",
+        help="plan, render, and diagnose visible ChatGPT web consultation from Codex",
+    )
+    chatgpt_control_subparsers = chatgpt_control_parser.add_subparsers(
+        dest="chatgpt_control_command",
+        required=True,
+    )
+    chatgpt_control_doctor_parser = chatgpt_control_subparsers.add_parser(
+        "doctor",
+        help="check local runtime prerequisites without touching ChatGPT web",
+    )
+    chatgpt_control_doctor_parser.add_argument(
+        "--check-global-package",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="check whether the npm package is installed globally without network access",
+    )
+    chatgpt_control_doctor_parser.add_argument("--json", action="store_true")
+    chatgpt_control_capabilities_parser = chatgpt_control_subparsers.add_parser(
+        "capabilities",
+        help="show local upstream command/workflow contract without touching ChatGPT web",
+    )
+    chatgpt_control_capabilities_parser.add_argument("--json", action="store_true")
+    chatgpt_control_plan_parser = chatgpt_control_subparsers.add_parser(
+        "plan",
+        help="write a local redacted ChatGPT consultation plan artifact",
+    )
+    chatgpt_control_plan_parser.add_argument(
+        "--prompt",
+        default="",
+        help="prompt to plan; required for prompt-sending workflows",
+    )
+    chatgpt_control_plan_parser.add_argument("--task-kind", default="second_opinion")
+    chatgpt_control_plan_parser.add_argument(
+        "--workflow",
+        choices=[
+            "runner_run",
+            "runner_plan",
+            "runner_stream",
+            "responses_create",
+            "ask",
+            "ask_in_thread",
+            "ask_with_files",
+            "ask_and_download",
+            "run_messages",
+            "open_thread",
+            "read_latest",
+            "copy_latest",
+            "download_latest",
+            "doctor",
+        ],
+        default="runner_run",
+        help="upstream visible ChatGPT workflow represented by this plan",
+    )
+    chatgpt_control_plan_parser.add_argument("--out", default="runs/chatgpt_control")
+    chatgpt_control_plan_parser.add_argument("--agent-name", default="chatgpt-consultant")
+    chatgpt_control_plan_parser.add_argument("--instructions", default=None)
+    chatgpt_control_plan_parser.add_argument(
+        "--instructions-mode",
+        choices=["visible_prefix", "visible_setup_message", "metadata_only"],
+        default="visible_prefix",
+    )
+    chatgpt_control_plan_parser.add_argument("--thread-url", default=None)
+    chatgpt_control_plan_parser.add_argument(
+        "--existing-tab",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    chatgpt_control_plan_parser.add_argument("--file", action="append", default=[])
+    chatgpt_control_plan_parser.add_argument(
+        "--download-dir",
+        default=None,
+        help="approved local download directory for ask_and_download plans",
+    )
+    chatgpt_control_plan_parser.add_argument(
+        "--response-format",
+        choices=["markdown", "visible_text", "normalized_text", "html", "blocks", "all"],
+        default="markdown",
+    )
+    chatgpt_control_plan_parser.add_argument("--max-prompts-per-run", type=int, default=1)
+    chatgpt_control_plan_parser.add_argument("--max-threads-opened-per-run", type=int, default=1)
+    chatgpt_control_plan_parser.add_argument("--max-messages-read-per-run", type=int, default=3)
+    chatgpt_control_plan_parser.add_argument(
+        "--max-report-bytes-per-run",
+        type=int,
+        default=2_000_000,
+    )
+    chatgpt_control_plan_parser.add_argument(
+        "--include-prompt",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="store the full prompt in the local artifact instead of only hash/preview",
+    )
+    chatgpt_control_plan_parser.add_argument(
+        "--include-report-content",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="allow downstream SDK reports to include prompt/response content",
+    )
+    chatgpt_control_plan_parser.add_argument("--json", action="store_true")
+    chatgpt_control_render_parser = chatgpt_control_subparsers.add_parser(
+        "render",
+        help="render a Node or Python SDK invocation from a saved plan",
+    )
+    chatgpt_control_render_parser.add_argument("--plan", required=True)
+    chatgpt_control_render_parser.add_argument(
+        "--language",
+        choices=["node", "python"],
+        default="node",
+    )
+    chatgpt_control_run_parser = chatgpt_control_subparsers.add_parser(
+        "run-plan",
+        help="execute a saved plan through codex-chatgpt-control when explicitly allowed",
+    )
+    chatgpt_control_run_parser.add_argument("--plan", required=True)
+    chatgpt_control_run_parser.add_argument(
+        "--prompt",
+        default=None,
+        help="prompt override when the saved plan redacted prompt content",
+    )
+    chatgpt_control_run_parser.add_argument(
+        "--backend-command",
+        action="append",
+        default=[],
+        help="backend command token; repeat to avoid shell parsing",
+    )
+    chatgpt_control_run_parser.add_argument(
+        "--allow-visible-chatgpt",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="required before the command may operate a visible ChatGPT web session",
+    )
+    chatgpt_control_run_parser.add_argument(
+        "--allow-npx-package",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="allow npx package resolution if no local backend executable is installed",
+    )
+    chatgpt_control_run_parser.add_argument("--timeout-seconds", type=float, default=None)
+    chatgpt_control_run_parser.add_argument("--json", action="store_true")
+
     memory_parser = subparsers.add_parser(
         "memory",
         help="build and query the local AI-callable memory search layer",
@@ -2418,6 +2560,12 @@ def main(argv: list[str] | None = None) -> int:
             else format_test_diagnostic_results(results)
         )
         return 0 if all(result.status == "passed" for result in results) else 2
+    if args.command == "codex-chatgpt-control":
+        try:
+            return _handle_codex_chatgpt_control_command(args)
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
     if args.command == "memory":
         try:
             return _handle_memory_command(args)
@@ -3965,6 +4113,88 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         )
         return 0
     raise AssertionError(f"unhandled memory command {args.memory_command}")
+
+
+def _handle_codex_chatgpt_control_command(args: argparse.Namespace) -> int:
+    if args.chatgpt_control_command == "doctor":
+        from research_x.codex_chatgpt_control import (
+            doctor_report_json,
+            format_doctor_report,
+            run_doctor,
+        )
+
+        report = run_doctor(check_global_package=args.check_global_package)
+        print(doctor_report_json(report) if args.json else format_doctor_report(report))
+        return 0
+    if args.chatgpt_control_command == "capabilities":
+        from research_x.codex_chatgpt_control import (
+            format_local_capabilities,
+            local_capabilities,
+            local_capabilities_json,
+        )
+
+        payload = local_capabilities()
+        print(local_capabilities_json() if args.json else format_local_capabilities(payload))
+        return 0
+    if args.chatgpt_control_command == "plan":
+        from research_x.codex_chatgpt_control import (
+            build_control_plan,
+            control_plan_json,
+            format_control_plan,
+        )
+
+        plan, plan_path = build_control_plan(
+            prompt=args.prompt,
+            task_kind=args.task_kind,
+            out_dir=args.out,
+            workflow=args.workflow,
+            agent_name=args.agent_name,
+            instructions=args.instructions,
+            instructions_mode=args.instructions_mode,
+            thread_url=args.thread_url,
+            existing_tab=args.existing_tab,
+            files=tuple(args.file),
+            download_dir=args.download_dir,
+            response_format=args.response_format,
+            include_prompt=args.include_prompt,
+            include_report_content=args.include_report_content,
+            max_prompts_per_run=args.max_prompts_per_run,
+            max_threads_opened_per_run=args.max_threads_opened_per_run,
+            max_messages_read_per_run=args.max_messages_read_per_run,
+            max_report_bytes_per_run=args.max_report_bytes_per_run,
+        )
+        print(
+            control_plan_json(plan, plan_path=plan_path)
+            if args.json
+            else format_control_plan(plan, plan_path=plan_path)
+        )
+        return 0
+    if args.chatgpt_control_command == "render":
+        from research_x.codex_chatgpt_control import load_control_plan, render_invocation
+
+        plan = load_control_plan(args.plan)
+        print(render_invocation(plan, language=args.language))
+        return 0
+    if args.chatgpt_control_command == "run-plan":
+        from research_x.codex_chatgpt_control import (
+            execute_control_plan,
+            execution_result_json,
+            format_execution_result,
+            load_control_plan,
+        )
+
+        plan = load_control_plan(args.plan)
+        result = execute_control_plan(
+            plan,
+            prompt=args.prompt,
+            backend_command=tuple(args.backend_command) if args.backend_command else None,
+            allow_visible_chatgpt=args.allow_visible_chatgpt,
+            allow_npx_package=args.allow_npx_package,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(execution_result_json(result) if args.json else format_execution_result(result))
+        return 0 if result.get("ok") else 2
+    raise AssertionError(f"unhandled codex-chatgpt-control command {args.chatgpt_control_command}")
 
 
 def _require_fixture_provider_opt_in(
