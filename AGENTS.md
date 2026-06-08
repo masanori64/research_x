@@ -67,7 +67,9 @@ Use the audit as an execution checklist, not as passive text. Before the first t
 the newest request into the active buckets below, carry forward the latest explicit sub-agent
 permission or ban from this conversation, and choose the matching behavior. If the request asks to
 add a recurring Codex behavior or reduce instruction bloat, use the repo skill
-`research-x-skillization-intake` when available before editing durable instructions.
+`research-x-skillization-intake` before editing durable instructions. If the current session has
+not discovered that repo skill yet, read
+`.agents/skills/research-x-skillization-intake/SKILL.md` directly as the fallback.
 
 Always-on triggers:
 
@@ -86,8 +88,9 @@ Prompt-dependent triggers:
   language: activate the Decision Quality loop and keep looping until the explicit stop condition is
   satisfied;
 - recurring Codex behavior, skillization, AGENTS.md bloat, or instruction-surface placement: use
-  `research-x-skillization-intake` to decide whether the behavior belongs in prompt context,
-  `AGENTS.md`, repository docs, a repo skill, hook, plugin, MCP, or automation;
+  `research-x-skillization-intake` or
+  `.agents/skills/research-x-skillization-intake/SKILL.md` to decide whether the behavior belongs in
+  prompt context, `AGENTS.md`, repository docs, a repo skill, hook, plugin, MCP, or automation;
 - `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
   target or a real human-intervention gate is reached;
 - sub-agent permission or ban: update the current sub-agent policy from the latest explicit user
