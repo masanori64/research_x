@@ -56,6 +56,39 @@ The diagnostic runner executes pytest through `uv`, bounds each file or test nod
 child process trees, and reports the exact slow/failed target. Use it before narrowing the suite in
 an ad hoc way.
 
+## Prompt Trigger Audit
+
+At the start of every user request, classify the prompt against the repository rules before acting.
+This audit may be internal unless the user asks for the classification, but the behavior must follow
+the active triggers. Do not wait for the user to restate `AGENTS.md` when the prompt clearly matches
+a trigger.
+
+Always-on triggers:
+
+- no-quota provider freeze: active unless the current conversation explicitly lifts it;
+- command policy: use `uv` command forms for Python tooling;
+- completion notification: run the notify command at the end of the work session;
+- git publish policy: commit and push scoped implementation work when complete and separable.
+
+Prompt-dependent triggers:
+
+- implementation or code-change request: inspect `git status`, preserve unrelated changes, make the
+  change, verify it, then commit/push when scoped work is complete;
+- design, architecture, provider, or memory-search change: update the relevant Markdown source of
+  truth before code, then implement;
+- research, review, audit, "もう一度", "loop", "徹底", "終わっていない", or similar continuation
+  language: activate the Decision Quality loop and keep looping until the explicit stop condition is
+  satisfied;
+- `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
+  target or a real human-intervention gate is reached;
+- sub-agent permission or ban: update the current sub-agent policy from the latest explicit user
+  instruction and apply it for the current task;
+- app/UI observability concern: treat hidden workflow state as an implementation gap, not just a UI
+  wording issue, and expose the relevant trace or evidence state before considering the task done.
+
+Before sending a final answer, re-run the trigger audit against the newest user request. If any
+active trigger still has unfinished non-duplicate work, continue instead of finalizing.
+
 ## Project Architecture
 
 For the memory-search project, read `docs/memory-pipeline-v2.md` before making design changes. It is
