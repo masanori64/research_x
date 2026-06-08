@@ -1501,6 +1501,21 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="write corpus.jsonl plus manifest.json for the official Corpus2Skill compiler",
     )
+    memory_export_parser.add_argument(
+        "--openai-agent-yaml",
+        action="store_true",
+        help="include advisory agents/openai.yaml metadata in the bundle",
+    )
+    memory_export_parser.add_argument(
+        "--hook-advisory",
+        action="store_true",
+        help="include an inert hook advisory note in the bundle",
+    )
+    memory_export_parser.add_argument(
+        "--openai-agent-name",
+        default=None,
+        help="skill-style name referenced by the advisory OpenAI agent metadata",
+    )
     memory_export_parser.add_argument("--limit", type=int, default=None)
     memory_eval_parser = memory_subparsers.add_parser(
         "eval",
@@ -3628,15 +3643,24 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             summary_as_dict,
         )
 
+        if args.openai_agent_name and not (args.openai_agent_yaml or args.hook_advisory):
+            raise ValueError(
+                "pass --openai-agent-yaml or --hook-advisory when using --openai-agent-name"
+            )
         if args.bundle_dir:
             summary = export_corpus2skill_bundle(
                 args.db,
                 args.bundle_dir,
                 limit=args.limit,
                 doc_types=tuple(args.doc_type),
+                include_openai_agent=args.openai_agent_yaml,
+                include_hook_advisory=args.hook_advisory,
+                openai_agent_name=args.openai_agent_name or "research-x-memory-navigation",
             )
             print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
             return 0
+        if args.openai_agent_yaml or args.hook_advisory:
+            raise ValueError("pass --bundle-dir when using advisory agent export options")
         if not args.out:
             raise ValueError("pass --out for JSONL export or --bundle-dir for bundle export")
         count = export_corpus2skill_jsonl(

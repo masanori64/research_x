@@ -25,3 +25,12 @@ independent work that can proceed without conflicting edits.
 5. Integrate results yourself. Do not let sub-agents own the final decision.
 6. Close completed sub-agents unless an immediate follow-up needs retained context.
 7. If a result is shallow, send a targeted follow-up naming the missing axis or counterargument.
+
+## Trigger Examples
+
+- Positive: "sub-agents allowed", "parallel agents permitted",
+  "エージェントを並列で使って".
+- Policy audit only: "エージェント仕様を確認して",
+  "loopとエージェントに関して仕様書通り従って".
+- Negative: do not spawn sub-agents when the latest explicit instruction bans, pauses, or does not
+  permit them.

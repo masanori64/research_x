@@ -179,6 +179,8 @@ Use `uv run python -m research_x memory --help` as the command surface check.
 - [x] Add external URL discovery, reader/extract, LLM-context, and answer citation contracts without
       making external Web artifacts canonical truth.
 - [x] Add Corpus2Skill export as a navigation-map boundary, not as source evidence.
+- [x] Add opt-in Corpus2Skill bundle advisory files for explicit Codex navigation metadata without
+      hook installation, skill autoload, provider calls, or citation status.
 
 ### Evidence/Skill/Workflow Alignment
 

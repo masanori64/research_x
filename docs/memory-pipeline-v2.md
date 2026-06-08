@@ -1290,6 +1290,13 @@ memory export-corpus2skill -> Corpus2Skill-compatible navigation-map input bound
 memory audit            -> rebuild/index health gate
 ```
 
+`memory export-corpus2skill` may optionally include an `agents/openai.yaml` metadata file and an
+inert hook advisory note inside the exported bundle. These files are navigation hints for Codex-like
+agents only. The generated OpenAI metadata disables implicit invocation; explicit use can still
+point an agent at the bundle as a navigation map. These files do not install hooks, do not autoload
+skills, do not call providers, and are not evidence. Any answer still has to return through
+source-bundle restoration, context chunks, and citations.
+
 What may need refactoring later:
 
 - semantic recall-arm quality still needs real API provider indexes and route evals over the real

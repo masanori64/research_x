@@ -48,6 +48,8 @@ class Corpus2SkillBundleSummary:
     out_dir: str
     corpus_path: str
     manifest_path: str
+    openai_agent_path: str | None
+    hook_advisory_path: str | None
     documents: int
     by_doc_type: dict[str, int]
     doc_types: tuple[str, ...]
@@ -104,12 +106,16 @@ def export_corpus2skill_bundle(
     *,
     limit: int | None = None,
     doc_types: tuple[str, ...] = (),
+    include_openai_agent: bool = False,
+    include_hook_advisory: bool = False,
+    openai_agent_name: str = "research-x-memory-navigation",
 ) -> Corpus2SkillBundleSummary:
     path = Path(db_path)
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=True)
     corpus_path = output / "corpus.jsonl"
     manifest_path = output / "manifest.json"
+    safe_openai_agent_name = _normalize_agent_name(openai_agent_name)
     resolved_doc_types = _normalize_doc_types(doc_types)
     with sqlite3.connect(path, timeout=60) as conn, corpus_path.open(
         "w",
@@ -121,6 +127,16 @@ def export_corpus2skill_bundle(
         for row in rows:
             handle.write(json.dumps(_corpus2skill_record(row), ensure_ascii=False) + "\n")
     by_doc_type = dict(sorted(Counter(str(row["doc_type"]) for row in rows).items()))
+    openai_agent_path = (
+        _write_openai_agent_yaml(output, safe_openai_agent_name)
+        if include_openai_agent
+        else None
+    )
+    hook_advisory_path = (
+        _write_hook_advisory(output, safe_openai_agent_name)
+        if include_hook_advisory
+        else None
+    )
     manifest = {
         "format": "corpus2skill-jsonl-bundle-v1",
         "db_path": str(path),
@@ -148,6 +164,13 @@ def export_corpus2skill_bundle(
             "contents": "title + compact_text + body + metadata",
             "metadata": "trace data for research_x; Corpus2Skill may ignore extra fields",
         },
+        "agent_advisory": {
+            "openai_agent_path": str(openai_agent_path) if openai_agent_path else None,
+            "hook_advisory_path": str(hook_advisory_path) if hook_advisory_path else None,
+            "contract": "navigation_metadata_only_not_evidence",
+            "hook_installation": "not_installed",
+            "provider_quota": "no_provider_calls",
+        },
     }
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
@@ -158,6 +181,8 @@ def export_corpus2skill_bundle(
         out_dir=str(output),
         corpus_path=str(corpus_path),
         manifest_path=str(manifest_path),
+        openai_agent_path=str(openai_agent_path) if openai_agent_path else None,
+        hook_advisory_path=str(hook_advisory_path) if hook_advisory_path else None,
         documents=len(rows),
         by_doc_type=by_doc_type,
         doc_types=resolved_doc_types,
@@ -239,6 +264,78 @@ def _corpus2skill_record(row: sqlite3.Row) -> dict[str, Any]:
             "research_x_metadata": _loads_json(row["metadata_json"], default={}),
         },
     }
+
+
+def _write_openai_agent_yaml(output: Path, agent_name: str) -> Path:
+    agents_dir = output / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = _normalize_agent_name(agent_name)
+    path = agents_dir / "openai.yaml"
+    default_prompt = (
+        f"Use ${safe_name} only as a navigation hint over the exported research_x memory "
+        "bundle. Restore source bundles and verify context chunks/citations before answering."
+    )
+    lines = [
+        "interface:",
+        "  display_name: \"Research X Memory Navigation\"",
+        "  short_description: \"Navigate research_x memory evidence\"",
+        f"  default_prompt: {_yaml_quote(default_prompt)}",
+        "policy:",
+        "  allow_implicit_invocation: false",
+        "dependencies:",
+        "  tools: []",
+        "research_x:",
+        f"  skill_name: {_yaml_quote(safe_name)}",
+        "  bundle_contract: \"corpus2skill-jsonl-bundle-v1\"",
+        "  evidence_policy: \"navigation_hint_only_not_citation_evidence\"",
+        "  provider_quota: \"no_provider_calls\"",
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def _write_hook_advisory(output: Path, agent_name: str) -> Path:
+    agents_dir = output / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = _normalize_agent_name(agent_name)
+    path = agents_dir / "hook_advisory.md"
+    text = "\n".join(
+        [
+            "# Hook Advisory",
+            "",
+            "This file is inert. It is not `hooks.json`, does not install a hook, and must not be",
+            "treated as executable configuration.",
+            "",
+            "Suggested use:",
+            "",
+            f"- If a prompt explicitly mentions `${safe_name}` or this exported bundle, add a",
+            "  short",
+            "  advisory note that Corpus2Skill output is a navigation map, not answer evidence.",
+            "- Do not block prompts or force skill autoload from this file.",
+            "- Do not call external providers from hook logic.",
+            "- Final answers still need source-bundle restoration, context chunks, and citations.",
+        ]
+    )
+    path.write_text(text + "\n", encoding="utf-8")
+    return path
+
+
+def _normalize_agent_name(agent_name: str) -> str:
+    value = agent_name.strip()
+    if not value:
+        raise ValueError("openai agent name must not be empty")
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+    if any(char not in allowed for char in value):
+        raise ValueError(
+            "openai agent name may contain only letters, numbers, hyphen, underscore, or dot"
+        )
+    return value
+
+
+def _yaml_quote(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    escaped = escaped.replace("\r", "\\r").replace("\n", "\\n")
+    return f'"{escaped}"'
 
 
 def _tweet_documents(conn: sqlite3.Connection) -> list[MemoryDocument]:

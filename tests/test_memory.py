@@ -263,6 +263,12 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
     )
     exported = export_corpus2skill_jsonl(db_path, out_path)
     bundle = export_corpus2skill_bundle(db_path, tmp_path / "c2s_bundle")
+    advisory_bundle = export_corpus2skill_bundle(
+        db_path,
+        tmp_path / "c2s_advisory",
+        include_openai_agent=True,
+        include_hook_advisory=True,
+    )
     filtered_bundle = export_corpus2skill_bundle(
         db_path,
         tmp_path / "c2s_bookmarks",
@@ -280,13 +286,35 @@ def test_memory_feedback_and_corpus2skill_export(tmp_path: Path) -> None:
         for line in Path(bundle.corpus_path).read_text(encoding="utf-8").splitlines()
     ]
     manifest = json.loads(Path(bundle.manifest_path).read_text(encoding="utf-8"))
+    advisory_manifest = json.loads(
+        Path(advisory_bundle.manifest_path).read_text(encoding="utf-8")
+    )
     filtered_manifest = json.loads(
         Path(filtered_bundle.manifest_path).read_text(encoding="utf-8")
     )
     assert bundle.documents == 5
+    assert bundle.openai_agent_path is None
+    assert bundle.hook_advisory_path is None
+    assert not (Path(bundle.out_dir) / "agents").exists()
     assert bundle_rows[0]["metadata"]["research_x_metadata"]
     assert manifest["format"] == "corpus2skill-jsonl-bundle-v1"
     assert manifest["compile_hint"][:3] == ["uv", "run", "python"]
+    assert manifest["agent_advisory"]["openai_agent_path"] is None
+    assert advisory_bundle.openai_agent_path
+    assert advisory_bundle.hook_advisory_path
+    openai_agent_text = Path(advisory_bundle.openai_agent_path).read_text(encoding="utf-8")
+    hook_advisory_text = Path(advisory_bundle.hook_advisory_path).read_text(
+        encoding="utf-8"
+    )
+    assert "allow_implicit_invocation: false" in openai_agent_text
+    assert "skill_name: \"research-x-memory-navigation\"" in openai_agent_text
+    assert "navigation_hint_only_not_citation_evidence" in openai_agent_text
+    assert "api_key" not in openai_agent_text.lower()
+    assert "This file is inert" in hook_advisory_text
+    assert "does not install a hook" in hook_advisory_text
+    assert not (Path(advisory_bundle.out_dir) / "hooks.json").exists()
+    assert not (Path(advisory_bundle.out_dir) / "hooks").exists()
+    assert advisory_manifest["agent_advisory"]["provider_quota"] == "no_provider_calls"
     assert filtered_bundle.documents == 1
     assert filtered_manifest["filters"]["doc_types"] == ["bookmark_doc"]
 
@@ -4229,6 +4257,7 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
         )
         == 0
     )
+    cli_bundle_dir = tmp_path / "c2s_cli_bundle"
     assert (
         main(
             [
@@ -4237,14 +4266,63 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 "--db",
                 str(db_path),
                 "--bundle-dir",
-                str(tmp_path / "c2s_cli_bundle"),
+                str(cli_bundle_dir),
                 "--doc-type",
                 "bookmark_doc",
                 "--limit",
                 "2",
+                "--openai-agent-yaml",
+                "--hook-advisory",
             ]
         )
         == 0
+    )
+    assert (cli_bundle_dir / "agents" / "openai.yaml").exists()
+    assert (cli_bundle_dir / "agents" / "hook_advisory.md").exists()
+    assert (
+        main(
+            [
+                "memory",
+                "export-corpus2skill",
+                "--db",
+                str(db_path),
+                "--out",
+                str(tmp_path / "bad-corpus.jsonl"),
+                "--openai-agent-yaml",
+            ]
+        )
+        == 1
+    )
+    assert (
+        main(
+            [
+                "memory",
+                "export-corpus2skill",
+                "--db",
+                str(db_path),
+                "--bundle-dir",
+                str(tmp_path / "bad-c2s"),
+                "--openai-agent-name",
+                "custom-agent",
+            ]
+        )
+        == 1
+    )
+    assert (
+        main(
+            [
+                "memory",
+                "export-corpus2skill",
+                "--db",
+                str(db_path),
+                "--bundle-dir",
+                str(tmp_path / "bad-agent-name"),
+                "--openai-agent-yaml",
+                "--openai-agent-name",
+                "bad agent name",
+            ]
+        )
+        == 1
     )
     assert main(["memory", "build-relations", "--db", str(db_path)]) == 0
     assert main(

@@ -90,9 +90,12 @@ Prompt-dependent triggers:
 - `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
   target or a real human-intervention gate is reached, using
   `.agents/skills/research-x-goal-runner/SKILL.md` for the detailed loop;
-- sub-agent permission or ban: update the current sub-agent policy from the latest explicit user
-  instruction in this conversation, not only the newest message. Use
-  `.agents/skills/research-x-parallel-review/SKILL.md` when sub-agent work is permitted and useful;
+- sub-agent policy prompt: when the user permits, bans, pauses, mentions, or asks to follow/check
+  agent, sub-agent, エージェント, parallel, or 並列-agent behavior, update the current sub-agent
+  policy from the latest explicit user instruction in this conversation, not only the newest
+  message. Mentioning the topic fires the policy check; spawning still requires explicit
+  permission. Use `.agents/skills/research-x-parallel-review/SKILL.md` when sub-agent work is
+  permitted and useful;
 - app/UI observability concern: treat hidden workflow state as an implementation gap, not just a UI
   wording issue. Use `.agents/skills/research-x-observability-review/SKILL.md` to expose the
   relevant trace or evidence state before considering the task done;

@@ -631,7 +631,9 @@ uv run python -m research_x memory eval `
   --strict
 uv run python -m research_x memory export-corpus2skill `
   --db runs/x_data.sqlite3 `
-  --bundle-dir runs/corpus2skill_x_memory
+  --bundle-dir runs/corpus2skill_x_memory `
+  --openai-agent-yaml `
+  --hook-advisory
 uv run python -m research_x memory context `
   --db runs/x_data.sqlite3 `
   --query "北千住で保存したピザ店"
@@ -894,6 +896,9 @@ citation-ready context.
 
 Add one or more `--doc-type` values to `memory export-corpus2skill` when a narrower navigation-map
 corpus is useful, for example `--doc-type topic_thread --doc-type author_profile`.
+Add `--openai-agent-yaml` and `--hook-advisory` only when the exported bundle should carry
+Codex-facing navigation metadata. The generated files are advisory and explicit-use only; they do
+not install hooks, consume provider quota, autoload skills, or become citation evidence.
 
 `fake` providers are for deterministic wiring tests only. `memory audit --strict` flags stored
 fake/fixture artifacts, diagnostic-only `local_hash` embeddings, missing relations, incomplete
