@@ -1,6 +1,6 @@
 ---
 name: research-x-provider-gate
-description: Use before provider-facing work involving embeddings, rerank, OCR, Reader, external search, LLM context, classifiers, answer engines, managed RAG, budget guard, no-quota freeze, or API lane estimates.
+description: Use before any provider-facing or quota-sensitive work in research_x: embeddings, rerank, OCR, Reader, external search, LLM context, classifiers, answer engines, managed RAG, API lane estimates, budget guard, no-quota freeze, pricing, or real API verification.
 ---
 
 # research-x Provider Gate

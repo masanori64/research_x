@@ -1,6 +1,6 @@
 ---
 name: research-x-doc-governance
-description: Use when updating AGENTS.md, README.md, PROJECT.md, docs/memory-pipeline-v2.md, or docs/memory-pipeline-archive.md, especially to prevent Markdown bloat, archive old notes, or fix documentation drift.
+description: Use when updating or reorganizing research_x Markdown such as AGENTS.md, README.md, PROJECT.md, docs/memory-pipeline-v2.md, or docs/memory-pipeline-archive.md, especially for Markdown bloat, source-of-truth drift, archive moves, or scope cleanup.
 ---
 
 # research-x Doc Governance

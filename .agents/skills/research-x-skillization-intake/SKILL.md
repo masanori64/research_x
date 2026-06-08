@@ -1,6 +1,6 @@
 ---
 name: research-x-skillization-intake
-description: Use when adding recurring Codex behavior, reducing AGENTS.md bloat, creating or updating repo skills, or deciding whether a new instruction belongs in prompt context, AGENTS.md, README.md, PROJECT.md, docs/memory-pipeline-v2.md, docs/memory-pipeline-archive.md, a repo skill, hook, plugin, MCP, or automation.
+description: Use when adding recurring Codex behavior, improving native Skill invocation, reducing AGENTS.md bloat, creating or updating repo skills, or deciding whether an instruction belongs in prompt context, AGENTS.md, README.md, PROJECT.md, docs, a repo Skill, hook, plugin, MCP, automation, or no durable surface.
 ---
 
 # research-x Skillization Intake

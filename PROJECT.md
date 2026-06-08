@@ -181,6 +181,8 @@ Use `uv run python -m research_x memory --help` as the command surface check.
 - [x] Add Corpus2Skill export as a navigation-map boundary, not as source evidence.
 - [x] Add opt-in Corpus2Skill bundle advisory files for explicit Codex navigation metadata without
       hook installation, skill autoload, provider calls, or citation status.
+- [x] Add repo Skill metadata so Codex native implicit Skill selection can discover recurring
+      research_x workflows without adding a project-local prompt-routing layer.
 
 ### Evidence/Skill/Workflow Alignment
 

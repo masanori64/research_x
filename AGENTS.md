@@ -56,17 +56,15 @@ The diagnostic runner executes pytest through `uv`, bounds each file or test nod
 child process trees, and reports the exact slow/failed target. Use it before narrowing the suite in
 an ad hoc way.
 
-## Prompt Trigger Audit
+## Native Skill Invocation
 
-At the start of every user request, classify the prompt against the repository rules before acting.
-This audit may be internal unless the user asks for the classification, but the behavior must follow
-the active triggers. Do not wait for the user to restate `AGENTS.md` when the prompt clearly matches
-a trigger.
+This repository uses Codex native Skill selection as the main recurring-workflow mechanism. At the
+start of each request, let the available Skill descriptions guide whether a repo Skill applies; if
+the native Skill is not loaded but the task clearly matches a listed workflow, read the referenced
+`SKILL.md` directly.
 
-Use the audit as an execution checklist, not as passive text. Before the first tool call, classify
-the newest request into the active buckets below, carry forward the latest explicit sub-agent
-permission or ban from this conversation, and choose the matching behavior. For repo skills, use the
-skill when it is discovered; otherwise read the listed `SKILL.md` path directly.
+Use this section as a small dispatcher, not as a full algorithm. The detailed workflow belongs in
+the Skill file so `AGENTS.md` stays short and Codex can rely on progressive disclosure.
 
 Always-on triggers:
 
@@ -102,8 +100,8 @@ Prompt-dependent triggers:
 - provider-facing work: use `.agents/skills/research-x-provider-gate/SKILL.md` before any embedding,
   rerank, OCR, Reader, external search, LLM-context, classifier, answer, or managed-RAG action.
 
-Before sending a final answer, re-run the trigger audit against the newest user request. If any
-active trigger still has unfinished non-duplicate work, continue instead of finalizing.
+Before sending a final answer, re-check the newest user request and any active repo Skill. If a
+matched Skill still has unfinished non-duplicate work, continue instead of finalizing.
 
 ## Project Architecture
 

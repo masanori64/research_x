@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Memory Workflow"
+  short_description: "Apply Evidence/Source Bundle First rules to memory-search, OCR, provider, route, context, citation, and eval work."
+  default_prompt: "Use this for research_x AI-callable memory-search, retrieval strategy, source bundle, OCR/media, context chunk, citation, eval, or workflow trace implementation."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

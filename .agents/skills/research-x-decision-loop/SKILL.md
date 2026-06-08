@@ -1,6 +1,6 @@
 ---
 name: research-x-decision-loop
-description: Use for architecture, provider, research, review, audit, or design decisions that require repo inspection, primary/secondary evidence, counterarguments, repeated loop checks, and explicit stop-condition evaluation.
+description: Use for research_x architecture, provider, research, review, audit, or design decisions when the user asks to search, verify, loop, continue, re-evaluate, check counterarguments, avoid premature stopping, or decide whether enough evidence exists.
 ---
 
 # research-x Decision Loop

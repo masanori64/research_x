@@ -1,6 +1,6 @@
 ---
 name: research-x-observability-review
-description: Use when app, CLI, or workflow state is too black-box, progress is unclear, or route, evidence, gap, source-quality, citation, budget, media, OCR, or run inspection surfaces need review.
+description: Use when the user says app, CLI, job, workflow, route, evidence, gap, source-quality, citation, budget, media, OCR, or run state is unclear, black-box, missing progress, hard to inspect, or needs a better monitoring/review surface.
 ---
 
 # research-x Observability Review

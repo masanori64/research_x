@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Decision Loop"
+  short_description: "Loop research, review, audit, and architecture decisions until no non-duplicate issue remains."
+  default_prompt: "Use this when a research_x task asks for search, verification, repeated loops, counterarguments, continuation, or a stop-condition check."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

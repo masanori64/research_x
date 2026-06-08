@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Goal Runner"
+  short_description: "Continue goal-like work phase by phase until a target state or human gate is reached."
+  default_prompt: "Use this when the user defines a goal, asks to continue autonomously, or expects implementation/review/test/commit/push phases until a target state."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

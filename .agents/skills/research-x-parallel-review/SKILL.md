@@ -1,6 +1,6 @@
 ---
 name: research-x-parallel-review
-description: Use when sub-agent work is permitted and the task can be split into independent research, code inspection, implementation, or verification roles without blocking the main critical path.
+description: Use when the latest user instruction permits sub-agents or parallel agents and the task can be split into independent research, code inspection, implementation, verification, explorer, worker, or sidecar roles without blocking the main critical path.
 ---
 
 # research-x Parallel Review

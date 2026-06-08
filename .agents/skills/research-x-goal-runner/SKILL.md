@@ -1,6 +1,6 @@
 ---
 name: research-x-goal-runner
-description: Use when a user-defined goal, /goal, or goal-like target asks Codex to keep working phase by phase until a target state or human-intervention gate is reached.
+description: Use when the user defines or resumes a /goal, goal-like target, or long autonomous run where Codex should continue phase by phase through implementation, review, verification, commit, and push until the target state or a human-intervention gate is reached.
 ---
 
 # research-x Goal Runner

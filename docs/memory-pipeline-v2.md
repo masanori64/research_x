@@ -1297,6 +1297,11 @@ point an agent at the bundle as a navigation map. These files do not install hoo
 skills, do not call providers, and are not evidence. Any answer still has to return through
 source-bundle restoration, context chunks, and citations.
 
+Repository recurring workflows use Codex native Skill discovery rather than a project-local prompt
+router. The active repo Skills live under `.agents/skills/`, each has trigger-oriented frontmatter,
+and each includes `agents/openai.yaml` with implicit invocation enabled. This keeps automatic
+workflow selection on Codex's own Skill mechanism while leaving hooks out of the normal path.
+
 What may need refactoring later:
 
 - semantic recall-arm quality still needs real API provider indexes and route evals over the real
