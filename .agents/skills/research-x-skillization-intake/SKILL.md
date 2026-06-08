@@ -34,6 +34,18 @@ surface.
    - what must not be duplicated in the skill;
    - positive and negative trigger examples when the boundary is risky.
 
+## Existing Repo Skills
+
+- `research-x-decision-loop`: research, review, audit, design loop, and stop-condition mechanics.
+- `research-x-doc-governance`: Markdown placement, archive, and drift checks.
+- `research-x-goal-runner`: long goal phase loop and human-intervention gates.
+- `research-x-memory-workflow`: memory-search architecture and implementation invariants.
+- `research-x-observability-review`: hidden app/CLI/workflow state and trace visibility.
+- `research-x-parallel-review`: sub-agent role design when sub-agent use is permitted.
+- `research-x-provider-gate`: no-quota and provider-facing lane checks.
+
+Prefer updating one of these before creating another adjacent skill.
+
 ## Guardrails
 
 - Do not move no-quota freeze, `uv` command policy, completion notification, git publish policy,

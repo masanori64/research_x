@@ -25,6 +25,18 @@ see what is implemented, what is gated, and what comes next.
 
 Do not add new memory-architecture Markdown files unless the user explicitly asks.
 
+Current repo skills:
+
+- `research-x-skillization-intake`: route new recurring Codex behavior to the right instruction
+  surface.
+- `research-x-decision-loop`: detailed research, review, audit, and loop-stop mechanics.
+- `research-x-doc-governance`: Markdown placement, archival, and drift checks.
+- `research-x-goal-runner`: long goal phase loop and human-intervention gates.
+- `research-x-memory-workflow`: memory-search architecture and implementation invariants.
+- `research-x-observability-review`: app/CLI/workflow state visibility review.
+- `research-x-parallel-review`: sub-agent role design and integration when permitted.
+- `research-x-provider-gate`: no-quota and provider-facing lane checks.
+
 ## Goal
 
 Build a local, user-specific search tool over the existing X collection DB. The tool should let an
