@@ -63,6 +63,12 @@ This audit may be internal unless the user asks for the classification, but the 
 the active triggers. Do not wait for the user to restate `AGENTS.md` when the prompt clearly matches
 a trigger.
 
+Use the audit as an execution checklist, not as passive text. Before the first tool call, classify
+the newest request into the active buckets below, carry forward the latest explicit sub-agent
+permission or ban from this conversation, and choose the matching behavior. If the request asks to
+add a recurring Codex behavior or reduce instruction bloat, use the repo skill
+`research-x-skillization-intake` when available before editing durable instructions.
+
 Always-on triggers:
 
 - no-quota provider freeze: active unless the current conversation explicitly lifts it;
@@ -79,10 +85,13 @@ Prompt-dependent triggers:
 - research, review, audit, "もう一度", "loop", "徹底", "終わっていない", or similar continuation
   language: activate the Decision Quality loop and keep looping until the explicit stop condition is
   satisfied;
+- recurring Codex behavior, skillization, AGENTS.md bloat, or instruction-surface placement: use
+  `research-x-skillization-intake` to decide whether the behavior belongs in prompt context,
+  `AGENTS.md`, repository docs, a repo skill, hook, plugin, MCP, or automation;
 - `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
   target or a real human-intervention gate is reached;
 - sub-agent permission or ban: update the current sub-agent policy from the latest explicit user
-  instruction and apply it for the current task;
+  instruction in this conversation, not only the newest message, and apply it for the current task;
 - app/UI observability concern: treat hidden workflow state as an implementation gap, not just a UI
   wording issue, and expose the relevant trace or evidence state before considering the task done.
 

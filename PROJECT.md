@@ -20,6 +20,8 @@ see what is implemented, what is gated, and what comes next.
 - `docs/memory-pipeline-archive.md`: indexed historical decision archive; inspect targeted sections
   only when prior research is needed.
 - `docs/pipeline.md`: acquisition/auth/provider pipeline details.
+- `.agents/skills`: repo-scoped Codex workflow playbooks. Skills hold repeatable procedures that
+  would otherwise bloat `AGENTS.md`; they are not memory-architecture source files.
 
 Do not add new memory-architecture Markdown files unless the user explicitly asks.
 
