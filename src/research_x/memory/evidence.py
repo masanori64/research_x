@@ -25,6 +25,7 @@ def build_evidence_bundle(
     semantic_base_url: str | None = None,
     semantic_weight: float = 3.0,
     semantic_candidates: int = 80,
+    semantic_backend: str = "sqlite",
 ) -> dict[str, Any]:
     path = Path(db_path)
     plan = build_query_plan(query)
@@ -43,6 +44,7 @@ def build_evidence_bundle(
         semantic_base_url=semantic_base_url,
         semantic_weight=semantic_weight,
         semantic_candidates=semantic_candidates,
+        semantic_backend=semantic_backend,
     )
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row

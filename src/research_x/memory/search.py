@@ -51,6 +51,7 @@ def search_memory(
     semantic_base_url: str | None = None,
     semantic_weight: float = 3.0,
     semantic_candidates: int = 80,
+    semantic_backend: str = "sqlite",
 ) -> tuple[MemorySearchResult, ...]:
     path = Path(db_path)
     if not path.exists():
@@ -120,7 +121,7 @@ def search_memory(
             )
         )
         if semantic_provider:
-            semantic_hits = semantic_search_memory(
+            semantic_hits = _semantic_hits(
                 path,
                 query,
                 provider=None if semantic_provider == "auto" else semantic_provider,
@@ -133,6 +134,7 @@ def search_memory(
                 limit=semantic_candidates,
                 doc_type=doc_type,
                 account=account,
+                semantic_backend=semantic_backend,
             )
             raw_rows.extend(
                 _with_semantic_contributions(
@@ -175,7 +177,7 @@ def search_memory(
     semantic_by_doc = {hit.doc_id: hit for hit in semantic_hits}
     if semantic_provider:
         semantic_by_doc.update(
-            semantic_scores_for_doc_ids(
+            _semantic_scores(
                 path,
                 query,
                 tuple(candidate["doc_id"] for candidate in candidates),
@@ -186,6 +188,7 @@ def search_memory(
                 text_template_version=semantic_template_version,
                 api_key_env=semantic_api_key_env,
                 base_url=semantic_base_url,
+                semantic_backend=semantic_backend,
             )
         )
     semantic_rerank_ranks = _semantic_rerank_ranks(semantic_by_doc)
@@ -315,6 +318,127 @@ def search_memory_retrieval_text_only(
 
 def results_as_dicts(results: tuple[MemorySearchResult, ...]) -> list[dict[str, Any]]:
     return [asdict(result) for result in results]
+
+
+def _semantic_hits(
+    db_path: Path,
+    query: str,
+    *,
+    provider: str | None,
+    model: str | None,
+    dimensions: int | None,
+    embedding_profile: str | None,
+    text_template_version: str | None,
+    api_key_env: str | None,
+    base_url: str | None,
+    limit: int,
+    doc_type: str | None,
+    account: str | None,
+    semantic_backend: str,
+) -> tuple[SemanticHit, ...]:
+    resolved_backend = _resolve_semantic_backend(semantic_backend)
+    if resolved_backend == "sqlite":
+        return semantic_search_memory(
+            db_path,
+            query,
+            provider=provider,
+            model=model,
+            dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
+            api_key_env=api_key_env,
+            base_url=base_url,
+            limit=limit,
+            doc_type=doc_type,
+            account=account,
+        )
+    from research_x.memory.vector_projection import search_vector_projection
+
+    return search_vector_projection(
+        db_path,
+        query,
+        provider=provider,
+        model=model,
+        dimensions=dimensions,
+        embedding_profile=embedding_profile,
+        text_template_version=text_template_version,
+        backend=None,
+        limit=limit,
+        doc_type=doc_type,
+        account=account,
+    )
+
+
+def _semantic_scores(
+    db_path: Path,
+    query: str,
+    doc_ids: tuple[str, ...],
+    *,
+    provider: str | None,
+    model: str | None,
+    dimensions: int | None,
+    embedding_profile: str | None,
+    text_template_version: str | None,
+    api_key_env: str | None,
+    base_url: str | None,
+    semantic_backend: str,
+) -> dict[str, SemanticScore]:
+    if not doc_ids:
+        return {}
+    resolved_backend = _resolve_semantic_backend(semantic_backend)
+    if resolved_backend == "sqlite":
+        return semantic_scores_for_doc_ids(
+            db_path,
+            query,
+            doc_ids,
+            provider=provider,
+            model=model,
+            dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
+            api_key_env=api_key_env,
+            base_url=base_url,
+        )
+    from research_x.memory.vector_projection import search_vector_projection
+
+    hits = search_vector_projection(
+        db_path,
+        query,
+        provider=provider,
+        model=model,
+        dimensions=dimensions,
+        embedding_profile=embedding_profile,
+        text_template_version=text_template_version,
+        backend=None,
+        limit=len(set(doc_ids)),
+        doc_ids=tuple(dict.fromkeys(doc_ids)),
+    )
+    by_doc = {
+        hit.doc_id: SemanticScore(
+            doc_id=hit.doc_id,
+            similarity=hit.similarity,
+            provider=hit.provider,
+            model=hit.model,
+            dimensions=hit.dimensions,
+            embedding_profile=hit.embedding_profile,
+            text_template_version=hit.text_template_version,
+        )
+        for hit in hits
+    }
+    missing = set(doc_ids) - set(by_doc)
+    if missing:
+        raise RuntimeError(
+            "local vector projection is incomplete for the candidate set: "
+            f"{len(by_doc)}/{len(set(doc_ids))} candidate documents indexed"
+        )
+    return by_doc
+
+
+def _resolve_semantic_backend(semantic_backend: str) -> str:
+    resolved = (semantic_backend or "sqlite").strip().lower()
+    if resolved not in {"sqlite", "projection"}:
+        raise ValueError(f"unknown semantic backend: {semantic_backend}")
+    return resolved
 
 
 def format_search_results(

@@ -529,6 +529,26 @@ profile/template is `general_memory` / `memory-doc-embedding-v1` when an embeddi
 Use `memory embedding-coverage` after derived-document rebuilds to see which document types are
 missing or stale before running semantic evals.
 
+Local vector projections are optional acceleration artifacts over one current `memory_embeddings`
+scope. They do not create evidence and do not replace SQLite as the source of truth. Use the
+portable `numpy` backend for validation, or install the optional `local-vector` extra and pass
+`--backend turbovec` when local semantic search needs a compressed high-speed projection:
+
+```powershell
+uv run python -m research_x memory build-vector-projection `
+  --db runs/x_data.sqlite3 `
+  --provider local_hash `
+  --dimensions 64 `
+  --backend numpy
+
+uv run python -m research_x memory search `
+  --db runs/x_data.sqlite3 `
+  --query "robot paper" `
+  --semantic-provider local_hash `
+  --semantic-dimensions 64 `
+  --semantic-backend projection
+```
+
 Memory command surface:
 
 ```text
@@ -541,6 +561,8 @@ memory build-embeddings   Build versioned semantic indexes with real API provide
 memory embedding-specs    Print resolved embedding provider/model/profile/template specs.
 memory audit              Check production readiness and diagnostic/fake artifacts.
 memory embedding-coverage Show embedding coverage/staleness by doc_type.
+memory build-vector-projection Build a local vector projection file from one current embedding scope.
+memory vector-projection-coverage Show local vector projection coverage and artifact staleness.
 memory media-embedding-estimate Estimate saved media files, staleness, skips, and API calls for native media embeddings.
 memory build-media-embeddings Build native media embeddings for local image/PDF media files.
 memory media-embedding-coverage Show native media embedding coverage by mime/status.

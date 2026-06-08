@@ -2893,6 +2893,11 @@ dependencies = [
     { name = "twscrape" },
 ]
 
+[package.optional-dependencies]
+local-vector = [
+    { name = "turbovec" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -2912,9 +2917,11 @@ requires-dist = [
     { name = "scrapling", specifier = ">=0.2.99" },
     { name = "scrapy", specifier = ">=2.16.0" },
     { name = "scweet", specifier = ">=4.0.0" },
+    { name = "turbovec", marker = "extra == 'local-vector'", specifier = ">=0.7.0" },
     { name = "twikit", specifier = ">=2.3.3" },
     { name = "twscrape", specifier = ">=0.17.0" },
 ]
+provides-extras = ["local-vector"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3548,6 +3555,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/79/37/5cb90f04990260d2caceb6093560c6cefafca1ec522c1e43be01ca658244/trimesh-4.12.2.tar.gz", hash = "sha256:c8ca31571ac00b112e4e160e66a2d4c3491df321f056bd33806be0485d1af9d9", size = 842220, upload-time = "2026-05-01T00:57:43.333Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/05/98/716a473cfb24750858ddd5d14e6527539dd206583a46408d08eeb2844a75/trimesh-4.12.2-py3-none-any.whl", hash = "sha256:b5b5afa63c5272345f2858f7676bc8c217dc8a89f4fadf6193fe10a81b5ff2aa", size = 741043, upload-time = "2026-05-01T00:57:40.763Z" },
+]
+
+[[package]]
+name = "turbovec"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e1/f6/adbdaca6f0023a0d1887a63c332f37938644c714989af51c779fadb42b80/turbovec-0.7.0.tar.gz", hash = "sha256:35a5d29a7db962dbe59c56c93e6b8a685228d2d3e3e2fdef9e126c860bb581ce", size = 168791, upload-time = "2026-05-30T13:17:05.165Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/55/5e0c31ccbde716859ec81a8c4dc197973c40e0519a54778b26121d5f8056/turbovec-0.7.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:f57159e5d197879849bf532a14bef13ffeb6cc37fe7eec9cd5c833061c8dc03f", size = 834972, upload-time = "2026-05-30T13:16:57.569Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/42/08535de942011b644dc4ca856082bbe7365f6244ae2b80afe55bc4f76225/turbovec-0.7.0-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:99cb2a6a841b760b00e097c4bdef1b8697f0a1edaf67e91df1f488a5a353c4ba", size = 6113489, upload-time = "2026-05-30T13:16:59.651Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/5d/ad86864477be969dc9f934ef2c10c515096ba69790068df77605c989709e/turbovec-0.7.0-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:cd30062633060f6a0f66217fc789853155927ff46b524172df0494490bca306f", size = 13111465, upload-time = "2026-05-30T13:17:01.272Z" },
+    { url = "https://files.pythonhosted.org/packages/76/9a/1f8d8acfe5666871b794047ffcb7312b3d720e277c9d395dbaf7d79e3b1f/turbovec-0.7.0-cp39-abi3-win_amd64.whl", hash = "sha256:79e29e1e431d897d2de482abc96a5623bba26eea71cec27db57c1c1212b26997", size = 659245, upload-time = "2026-05-30T13:17:03.489Z" },
 ]
 
 [[package]]

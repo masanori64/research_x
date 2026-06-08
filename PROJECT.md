@@ -77,7 +77,8 @@ Implemented memory subsystems are grouped by behavior rather than file inventory
   catalog, fake-first rerank contract, and real reranker entry points behind provider gates;
 - embeddings/media_embeddings: real text embedding providers, diagnostic-only `local_hash`,
   provider/profile/source-hash coverage, Gemini Embedding 2 text and native media contracts, media
-  search, and native-media source-bundle restoration;
+  search, native-media source-bundle restoration, and optional local vector projection acceleration
+  over one current embedding scope;
 - OCR/media_roles/observations: no-spend OCR quality profiling, region/crop contracts, engine
   routing, second-pass metadata, corrected-text profiles, OCR chunk promotion, media role
   annotations, candidate-set OCR, and Codex/VLM observation import as inference annotations;
@@ -104,6 +105,8 @@ memory build-embeddings
 memory embedding-estimate
 memory embedding-specs
 memory embedding-coverage
+memory build-vector-projection
+memory vector-projection-coverage
 memory media-embedding-estimate
 memory build-media-embeddings
 memory media-embedding-coverage

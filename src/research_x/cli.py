@@ -51,6 +51,8 @@ MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES = [
     "sequential",
     "doc-type-round-robin",
 ]
+MEMORY_SEMANTIC_BACKEND_CHOICES = ["sqlite", "projection"]
+MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES = ["numpy", "turbovec"]
 
 
 def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
@@ -667,6 +669,50 @@ def main(argv: list[str] | None = None) -> int:
     memory_embedding_coverage_parser.add_argument("--embedding-profile", default=None)
     memory_embedding_coverage_parser.add_argument("--text-template-version", default=None)
     memory_embedding_coverage_parser.add_argument("--json", action="store_true")
+    memory_vector_projection_parser = memory_subparsers.add_parser(
+        "build-vector-projection",
+        help="build a local vector projection file from one current memory_embeddings scope",
+    )
+    memory_vector_projection_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_vector_projection_parser.add_argument(
+        "--provider",
+        required=True,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES[1:],
+    )
+    memory_vector_projection_parser.add_argument("--model", default=None)
+    memory_vector_projection_parser.add_argument("--dimensions", type=int, default=None)
+    memory_vector_projection_parser.add_argument("--embedding-profile", default="general_memory")
+    memory_vector_projection_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_vector_projection_parser.add_argument(
+        "--backend",
+        default="numpy",
+        choices=MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES,
+    )
+    memory_vector_projection_parser.add_argument("--bit-width", type=int, default=4)
+    memory_vector_projection_parser.add_argument("--out-dir", default=None)
+    memory_vector_projection_parser.add_argument("--doc-type", default=None)
+    memory_vector_projection_parser.add_argument("--account", default=None)
+    memory_vector_projection_parser.add_argument("--json", action="store_true")
+    memory_vector_projection_coverage_parser = memory_subparsers.add_parser(
+        "vector-projection-coverage",
+        help="show local vector projection coverage, staleness, and artifact status",
+    )
+    memory_vector_projection_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_vector_projection_coverage_parser.add_argument("--generation-id", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--provider", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--model", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--dimensions", type=int, default=None)
+    memory_vector_projection_coverage_parser.add_argument("--embedding-profile", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--text-template-version", default=None)
+    memory_vector_projection_coverage_parser.add_argument(
+        "--backend",
+        default=None,
+        choices=MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES,
+    )
+    memory_vector_projection_coverage_parser.add_argument("--json", action="store_true")
     memory_media_embedding_estimate_parser = memory_subparsers.add_parser(
         "media-embedding-estimate",
         help="estimate saved media files, staleness, skips, and calls for native media embeddings",
@@ -1008,6 +1054,12 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_parser.add_argument("--semantic-base-url", default=None)
     memory_search_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_search_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_search_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+        help="semantic scoring backend: sqlite matrix scan or local vector projection",
+    )
     _add_api_budget_options(memory_search_parser)
     memory_plan_parser = memory_subparsers.add_parser(
         "plan",
@@ -1036,6 +1088,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_evidence_parser.add_argument("--semantic-base-url", default=None)
     memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_evidence_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_evidence_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
     _add_api_budget_options(memory_evidence_parser)
     memory_context_parser = memory_subparsers.add_parser(
         "context",
@@ -1059,6 +1116,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_context_parser.add_argument("--semantic-base-url", default=None)
     memory_context_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_context_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_context_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
     memory_context_parser.add_argument(
         "--external-run-id",
         default=None,
@@ -1112,6 +1174,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_answer_parser.add_argument("--semantic-base-url", default=None)
     memory_answer_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_answer_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_answer_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
     memory_answer_parser.add_argument(
         "--external-run-id",
         default=None,
@@ -1180,6 +1247,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_workflow_parser.add_argument("--semantic-base-url", default=None)
     memory_workflow_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_workflow_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_workflow_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
     memory_workflow_parser.add_argument(
         "--external-run-id",
         default=None,
@@ -1454,6 +1526,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_eval_parser.add_argument("--semantic-base-url", default=None)
     memory_eval_parser.add_argument("--semantic-weight", type=float, default=3.0)
     memory_eval_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_eval_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
     memory_eval_parser.add_argument(
         "--answer-provider",
         choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
@@ -2803,6 +2880,47 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         )
         print(embedding_coverage_json(report) if args.json else format_embedding_coverage(report))
         return 0
+    if args.memory_command == "build-vector-projection":
+        from research_x.memory.vector_projection import (
+            build_vector_projection,
+            format_vector_projection_summary,
+            summary_json,
+        )
+
+        summary = build_vector_projection(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            backend=args.backend,
+            bit_width=args.bit_width,
+            out_dir=args.out_dir,
+            doc_type=args.doc_type,
+            account=args.account,
+        )
+        print(summary_json(summary) if args.json else format_vector_projection_summary(summary))
+        return 0
+    if args.memory_command == "vector-projection-coverage":
+        from research_x.memory.vector_projection import (
+            coverage_json,
+            format_vector_projection_coverage,
+            vector_projection_coverage,
+        )
+
+        report = vector_projection_coverage(
+            args.db,
+            generation_id=args.generation_id,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            backend=args.backend,
+        )
+        print(coverage_json(report) if args.json else format_vector_projection_coverage(report))
+        return 0
     if args.memory_command == "media-embedding-estimate":
         from research_x.memory.media_embeddings import (
             estimate_media_embedding_build,
@@ -3141,6 +3259,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
         )
         print(format_search_results(results, json_output=args.json))
         return 0
@@ -3167,6 +3286,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
         )
         print(evidence_bundle_json(bundle))
         return 0
@@ -3198,6 +3318,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
             external_run_id=args.external_run_id,
             external_reader_provider=args.external_provider,
             external_limit=args.external_limit,
@@ -3244,6 +3365,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
             external_run_id=args.external_run_id,
             external_reader_provider=args.external_provider,
             external_limit=args.external_limit,
@@ -3318,6 +3440,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
             external_run_id=args.external_run_id,
             external_reader_provider=args.external_provider,
             external_limit=args.external_limit,
@@ -3523,6 +3646,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             semantic_base_url=args.semantic_base_url,
             semantic_weight=args.semantic_weight,
             semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
             answer_provider=args.answer_provider,
             answer_model=args.answer_model,
             answer_api_key_env=args.answer_api_key_env,

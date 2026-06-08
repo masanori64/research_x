@@ -20,6 +20,11 @@ dependencies = [
     "twscrape>=0.17.0",
 ]
 
+[project.optional-dependencies]
+local-vector = [
+    "turbovec>=0.7.0",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3.0",

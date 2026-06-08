@@ -102,6 +102,10 @@ from research_x.memory.search import (
     strong_anchor_terms_for_query,
 )
 from research_x.memory.source_kinds import classify_external_source_kind
+from research_x.memory.vector_projection import (
+    build_vector_projection,
+    vector_projection_coverage,
+)
 from research_x.memory.workflow import plan_workflow_route, run_memory_workflow, workflow_json
 
 
@@ -386,6 +390,117 @@ def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:
 
     assert row[:2] == ("general_memory", "memory-doc-embedding-v1")
     assert row[2]
+
+
+def test_memory_vector_projection_backend_searches_existing_embeddings(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    summary = build_vector_projection(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backend="numpy",
+        out_dir=tmp_path / "vector-indexes",
+    )
+    coverage = vector_projection_coverage(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backend="numpy",
+    )
+    results = search_memory(
+        db_path,
+        "robot paper",
+        limit=3,
+        semantic_provider="local_hash",
+        semantic_dimensions=64,
+        semantic_backend="projection",
+    )
+
+    assert summary.backend == "numpy"
+    assert summary.documents == 5
+    assert Path(summary.index_path).exists()
+    assert Path(summary.mapping_path).exists()
+    assert coverage.status == "ok"
+    assert coverage.current_memberships == 5
+    assert results
+    assert any(result.score_components["semantic"] > 0 for result in results)
+    assert any(
+        contribution["engine"] in {"semantic", "semantic_rerank"}
+        for result in results
+        for contribution in result.metadata["engine_contributions"]
+    )
+
+
+def test_memory_vector_projection_coverage_detects_stale_source_hash(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+    build_vector_projection(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backend="numpy",
+        out_dir=tmp_path / "vector-indexes",
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE memory_documents
+            SET source_doc_hash = 'changed-source-hash'
+            WHERE doc_id = (
+                SELECT doc_id
+                FROM memory_documents
+                ORDER BY doc_id
+                LIMIT 1
+            )
+            """
+        )
+
+    coverage = vector_projection_coverage(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backend="numpy",
+    )
+
+    assert coverage.status == "stale"
+    assert coverage.stale_memberships == 1
+
+
+def test_memory_vector_projection_coverage_respects_doc_type_scope(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    summary = build_vector_projection(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backend="numpy",
+        doc_type="tweet_doc",
+        out_dir=tmp_path / "vector-indexes",
+    )
+    coverage = vector_projection_coverage(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backend="numpy",
+    )
+
+    assert summary.documents == 2
+    assert coverage.status == "ok"
+    assert coverage.expected_documents == 2
+    assert coverage.current_memberships == 2
+    assert coverage.missing_memberships == 0
 
 
 def test_memory_embedding_coverage_reports_missing_doc_types(tmp_path: Path) -> None:

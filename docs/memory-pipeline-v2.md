@@ -952,6 +952,28 @@ Projection and temporal operations policy:
   `obsolete_candidate`, `supports`, `contradicts`, and temporal validity metadata over removing old
   evidence.
 
+Local vector projection policy:
+
+- Local vector indexes such as turbovec are acceleration projections, not evidence stores and not
+  the source of truth. They may only return document/media identifiers that must be restored to
+  source bundles before context, citation, answer, or eval use.
+- The source of truth remains SQLite tables and local files: raw X data, `memory_documents`,
+  `memory_embeddings`, media rows, relation rows, context chunks, and citation annotations.
+- A local vector projection is valid only for one explicit embedding provider/model/dimension/
+  profile/template scope. It must not mix vectors from different embedding spaces.
+- Projection builds must use current `memory_embeddings` rows whose source and embedding text hashes
+  still match `memory_documents`. Incomplete or stale scopes should fail before writing a usable
+  projection.
+- Projection membership must be recorded in `memory_projection_generations` and
+  `memory_index_membership`, including stable artifact IDs, source hashes, backend name, bit width,
+  index file path, and generation metadata.
+- High-compression vector engines can broaden Codex's usable local memory by reducing RAM and search
+  latency, but they do not solve evidence quality, query planning, OCR, labels, graph navigation,
+  source quality, or claim support by themselves.
+- Framework wrappers for young vector engines are optional convenience layers. Prefer direct
+  projection contracts in this repository until duplicate-ID, upsert, and data-loss semantics are
+  proven safe by local tests.
+
 Security and source-sink policy:
 
 - Retrieved tweet text, OCR text, external Web text, media-derived text, tool output, and generated
@@ -1235,6 +1257,7 @@ Current implementation maps into V2 like this:
 memory_documents        -> Layer 1 searchable documents
 memory_document_fts     -> Layer 2 lexical retrieval
 memory_embeddings       -> Layer 2 semantic retrieval with profile/template/source-hash provenance
+memory vector-projection -> Layer 2 acceleration projection over one current embedding scope
 memory_relations        -> Layer 2 relation expansion / future graph base
 memory judge-relations  -> optional support/contradiction relation judge over freshness candidates
 memory_external_runs    -> Layer 3 external provider run metadata

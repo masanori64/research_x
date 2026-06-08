@@ -1239,7 +1239,8 @@ def _embedding_rows(
         f"""
         SELECT
             e.doc_id, e.provider, e.model, e.dimensions,
-            e.embedding_profile, e.text_template_version, e.embedding
+            e.embedding_profile, e.text_template_version, e.embedding,
+            e.source_doc_hash, e.embedded_text_hash
         FROM memory_embeddings e
         JOIN memory_documents d ON d.doc_id = e.doc_id
         WHERE e.provider = ?

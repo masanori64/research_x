@@ -129,6 +129,7 @@ def build_context_bundle(
     semantic_base_url: str | None = None,
     semantic_weight: float = 3.0,
     semantic_candidates: int = 80,
+    semantic_backend: str = "sqlite",
     external_run_id: str | None = None,
     external_reader_provider: str = "fake",
     external_limit: int = 5,
@@ -151,6 +152,7 @@ def build_context_bundle(
         "semantic_base_url": semantic_base_url,
         "semantic_weight": semantic_weight,
         "semantic_candidates": semantic_candidates,
+        "semantic_backend": semantic_backend,
         "external_run_id": external_run_id,
         "external_reader_provider": external_reader_provider,
         "external_limit": external_limit,
@@ -175,6 +177,7 @@ def build_context_bundle(
         semantic_base_url=semantic_base_url,
         semantic_weight=semantic_weight,
         semantic_candidates=semantic_candidates,
+        semantic_backend=semantic_backend,
     )
     finished_at = _utc_now()
     hits = list(evidence["hits"])
