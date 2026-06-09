@@ -80,7 +80,10 @@ Prompt-dependent triggers:
 - design, architecture, provider, or memory-search change: update the relevant Markdown source of
   truth before code, then use `.agents/skills/research-x-memory-workflow/SKILL.md` when applicable;
 - research, review, audit, "もう一度", "loop", "徹底", "終わっていない", or similar continuation
-  language: use `.agents/skills/research-x-decision-loop/SKILL.md`;
+  language: use `.agents/skills/research-x-decision-loop/SKILL.md`. If the active explicit
+  sub-agent policy requires exploration/research sidecars, also use
+  `.agents/skills/research-x-parallel-review/SKILL.md` for non-trivial exploration/research tasks,
+  regardless of which other Skill is primary;
 - recurring Codex behavior, skillization, AGENTS.md bloat, or instruction-surface placement: use
   `research-x-skillization-intake` or
   `.agents/skills/research-x-skillization-intake/SKILL.md` to decide whether the behavior belongs in
@@ -92,8 +95,9 @@ Prompt-dependent triggers:
   agent, sub-agent, エージェント, parallel, or 並列-agent behavior, update the current sub-agent
   policy from the latest explicit user instruction in this conversation, not only the newest
   message. Mentioning the topic fires the policy check; spawning still requires explicit
-  permission. Use `.agents/skills/research-x-parallel-review/SKILL.md` when sub-agent work is
-  permitted and useful;
+  permission. If the active policy requires sub-agents for exploration, use
+  `.agents/skills/research-x-parallel-review/SKILL.md` for exploration even when another Skill also
+  applies;
 - app/UI observability concern: treat hidden workflow state as an implementation gap, not just a UI
   wording issue. Use `.agents/skills/research-x-observability-review/SKILL.md` to expose the
   relevant trace or evidence state before considering the task done;
@@ -180,3 +184,8 @@ When sub-agent use is explicitly permitted and a task can be split into independ
 `.agents/skills/research-x-parallel-review/SKILL.md` for role design and integration. The parent
 agent remains responsible for checking outputs, integrating changes, verification, notification, and
 publish steps.
+
+If the active user policy says exploration must use sub-agents, treat that as a standing
+exploration-sidecar requirement until the user revokes it. Spawn bounded read-only research or
+explorer agents for non-trivial exploration tasks, while keeping urgent blocking work on the parent
+agent's critical path.
