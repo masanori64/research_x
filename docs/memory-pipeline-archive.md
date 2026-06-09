@@ -79,6 +79,62 @@ Implementation impact:
 - Do not use auto-adopt, optimizer self-scoring, whole-skill rewrites, validation on training-only
   examples, or provider-backed smoke tests during provider freeze.
 
+Follow-up community/deep-dive deltas:
+
+- The strongest community signal is still persistent memory for Codex, not isolated prompt
+  optimization. Recent Reddit/OpenAI Codex discussions repeatedly frame the problem as Markdown
+  files becoming stale or unsearchable, while memory MCPs add structured durable facts, session FTS,
+  and reusable skill/procedure storage. Treat this as a real user pain signal, but not as proof that
+  any one memory vendor is safe to install.
+- Add `mem-evolved`, `CORE`, `AutoMem`, `memories.sh`, `codex-memory`, `memoryOSS`, and
+  `RecallWorks/Recall` to the watchlist.
+  - `mem-evolved` is notable because it combines durable memory, full-text session search, and
+    reusable skill storage in a local MCP-oriented package discussed in the Codex community.
+  - `CORE` has the highest observed community discussion among the checked Codex memory examples
+    and its temporal/provenance graph fits the user's preference for evolving personal context, but
+    Reddit comments also raise packaging, documentation, and auditability concerns.
+  - `AutoMem` and `memoryOSS` strengthen the graph+vector+trust-threshold direction, but they add
+    more infrastructure or hidden policy surface than the current repo should adopt blindly.
+  - `memories.sh` is important because it exposes lifecycle-aware local tools such as session start,
+    checkpoint, snapshot, and consolidation. This maps directly to Codex handoff/compaction pain.
+  - `codex-memory` is a lightweight local-first SQLite/FTS5 candidate with TOON prompt export; it is
+    simpler than graph memory and may be useful as a low-risk benchmark/control.
+- Long-running Codex harnesses are a separate axis from memory.
+  - `Long Long Run` and long-horizon skill discussions reinforce the need for a durable mainline,
+    intent-noise reduction, side-thread tolerance, and stop guards.
+  - The useful design delta is not bulk-installing those skills; it is keeping exploration,
+    promotion, failed-path checkpoints, and completion gates explicit.
+- Skill evolution research moved forward after the earlier note.
+  - `SkillGrad` adds an explicit gradient-like update pattern with momentum over recurring
+    diagnostics.
+  - `SkillSmith` argues that raw skill injection wastes tokens and proposes compiling skills into
+    minimal runtime interfaces. This supports keeping `AGENTS.md` small and using progressive
+    disclosure rather than loading large skill bodies by default.
+- Updated staged adoption order for Codex-wide tools:
+  1. fix native Skill discoverability and frontmatter correctness;
+  2. keep Basic Memory/local Markdown as the first low-risk memory candidate;
+  3. evaluate lightweight local memory candidates (`codex-memory`, `memories.sh`, `mem-evolved`) as
+     controls before cloud memory;
+  4. evaluate cloud/graph memory candidates (`Supermemory`, `Mem0`, `CORE`, `AutoMem`) only behind
+     explicit opt-in, scoped projects, no auto-capture default, and source/audit review;
+  5. evaluate SkillOpt-Sleep as a dry-run proposal engine only after runner paths, quota controls,
+     and Codex skill-path handling are adapted.
+- Additional high-community-signal deltas:
+  - Prefer OpenAI's official plugin surface and role-specific plugin templates before third-party
+    shims when the goal is general Codex augmentation. The official direction is plugin bundles
+    containing skills, apps/connectors, MCP entries, assets, and workflows.
+  - Add `agentmemory` as a serious but risky Codex-native memory candidate. Its value is broad
+    Codex plugin/hook/MCP coverage; its risk is equally broad lifecycle hooks, auto-capture, version
+    drift, and privileged memory writes.
+  - Add `context-mode` and token-reduction workflows to the watchlist because part of the "memory"
+    pain is actually context-output control and token-budget leakage, not missing recall alone.
+  - Treat package-supply-chain attacks against Codex-adjacent tooling as a first-class install
+    risk. A clean GitHub page is insufficient evidence; published artifacts, package names, pinned
+    versions, and hook privileges must be checked before installation.
+  - Skill directories and marketplace rankings are discovery aids only. Directory rank, stars, or
+    install count can identify candidates, but cannot justify installation without source and
+    behavior review.
+
 Primary sources checked:
 
 - Codex Skills/MCP/Plugins/Hooks manual sections: https://developers.openai.com/codex/skills,
@@ -100,6 +156,19 @@ Primary sources checked:
 - GEPA/TextGrad/Trace2Skill references:
   https://github.com/gepa-ai/gepa, https://github.com/zou-group/textgrad,
   https://github.com/Qwen-Applications/Trace2Skill
+- Community/deep-dive follow-up references:
+  https://www.reddit.com/r/OpenaiCodex/comments/1tq4hjb/codex_memory_across_sessions_i_extracted_hermes/,
+  https://www.reddit.com/r/OpenaiCodex/comments/1nvce9p/gpt5codex_is_game_changer_with_memory_mcp/,
+  https://github.com/RedPlanetHQ/core, https://automem.ai/,
+  https://memories.sh/docs/mcp-server, https://alphaonedev.github.io/codex-memory/,
+  https://memoryoss.com/, https://www.recall.works/,
+  https://github.com/huahuadeliaoliao/long-long-run,
+  https://arxiv.org/abs/2605.27760, https://arxiv.org/abs/2605.15215,
+  https://openai.com/index/codex-for-every-role-tool-workflow/,
+  https://help.openai.com/en/articles/20001256-plugins-in-codex/,
+  https://github.com/rohitg00/agentmemory,
+  https://www.reddit.com/r/codex/comments/1tyxkzj/how_i_cut_codex_token_use_from_138mday_to_20mday/,
+  https://thehackernews.com/2026/06/openai-codex-authentication-tokens.html
 
 ### 2026-05-31: External Search And Codex-Customization Candidates
 

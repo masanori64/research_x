@@ -1,6 +1,6 @@
 ---
 name: research-x-memory-workflow
-description: Use when implementing or reviewing research_x memory-search pipeline work: Evidence/Source Bundle First, ObjectiveRoutePolicy, source restoration, context chunks, citations, API lanes, OCR/media, evals, workflow traces, app observability, retrieval strategy, or AI-callable local search.
+description: "Use when implementing or reviewing research_x memory-search pipeline work: Evidence/Source Bundle First, ObjectiveRoutePolicy, source restoration, context chunks, citations, API lanes, OCR/media, evals, workflow traces, app observability, retrieval strategy, or AI-callable local search."
 ---
 
 # research-x Memory Workflow
