@@ -23,8 +23,83 @@ or old source links. Do not scan the whole archive by default.
 | Evidence/Skill/Workflow first, API embedding portfolio, workflow-gated adaptive routing | Archived Retrieval Portfolio Decision Notes |
 | Gemini Embedding 2 media evidence contract | Active source: docs/memory-pipeline-v2.md |
 | Retrieval policy detailed notes moved out of active V2 | 2026-06-08: Retrieval Policy Detail Archived From Active V2 |
+| Codex-wide external tools, memory MCP, retrospective/fluent, SkillOpt/Sleep | 2026-06-09: Codex-Wide External Tool Candidates |
 
 ## Decision Notes
+
+### 2026-06-09: Codex-Wide External Tool Candidates
+
+Scope:
+
+- Treat these as Codex-wide external tools or skills, not as `research_x` product features.
+- Do not install or call any hosted memory, search, optimization, or provider-backed API while the
+  no-quota freeze is active.
+- Prefer original upstream implementations and contracts over homemade substitutes.
+
+Decision:
+
+- Use Codex's official surface split:
+  - Skill for repeatable procedure;
+  - MCP for live memory/context/actions;
+  - Plugin when bundling Skill + MCP + hooks/assets for distribution;
+  - Hook only for deterministic lifecycle gates;
+  - `AGENTS.md` only for short always-on policy.
+- Do not bulk-install `majiayu000/spellbook`.
+  - `codex-retrospective` is a copy-as-skill candidate only after adapting it to proposal-only
+    output, tiny diffs, concrete session evidence, and human approval.
+  - `codex-fluent` remains pattern-only until Codex local-state paths and archive safety are
+    verified. Never delete; report, handoff, backup, then archive.
+- Do not globally install Microsoft SkillOpt-Sleep yet.
+  - It is the strongest current skill-optimization candidate because SkillOpt has Codex-harness
+    evidence and validation-gated skill edits.
+  - The checked Codex plugin still writes a custom prompt and user skill, while the engine retains
+    Claude-oriented defaults such as `~/.claude`, `CLAUDE.md`, and global Python runner paths.
+  - Use it only as staged/read-only research until adapted for Codex skill paths, `AGENTS.md`,
+    `uv`-based execution, Codex session sources, and no-quota hard disable of real backends.
+- Treat RPT as a diagnostic prompt-optimization pattern, not as the Codex skill optimizer.
+- Treat EvoSkill as a material challenger because it has a Codex harness, but defer it under
+  no-quota freeze. It should be a bounded benchmark experiment, not a Codex-wide install.
+- Do not install Supermemory or Mem0 globally while the freeze is active.
+  - Supermemory's hosted MCP is a viable Codex-compatible memory surface, but cloud memory,
+    auto-capture, project scoping, and quota/privacy policy need explicit user approval.
+  - Mem0 has clearer Codex plugin/MCP docs and lifecycle hooks, but the same auto-capture and
+    quota risks are stronger.
+  - Basic Memory is the strongest local/no-cloud counterweight found: local MCP plus Markdown
+    project storage, less automatic but more auditable.
+
+Implementation impact:
+
+- For future Codex-wide memory, start with a disabled-by-default MCP profile, explicit tool
+  approval, scoped project tags, and no auto-capture hooks unless the user explicitly opts in.
+- Recalled memory is advisory. It must not override current repository files, explicit user
+  instructions, or source-of-truth docs.
+- For future Codex-wide self-improvement, use a staged proposal flow:
+  transcript/task evidence -> proposed tiny Skill/AGENTS diff -> held-out or deterministic checks
+  -> user approval -> backed-up adoption.
+- Do not use auto-adopt, optimizer self-scoring, whole-skill rewrites, validation on training-only
+  examples, or provider-backed smoke tests during provider freeze.
+
+Primary sources checked:
+
+- Codex Skills/MCP/Plugins/Hooks manual sections: https://developers.openai.com/codex/skills,
+  https://developers.openai.com/codex/mcp, https://developers.openai.com/codex/plugins,
+  https://developers.openai.com/codex/plugins/build, https://developers.openai.com/codex/hooks
+- Supermemory: https://github.com/supermemoryai/supermemory and
+  https://supermemory.ai/docs/supermemory-mcp/mcp
+- Mem0 Codex integration: https://docs.mem0.ai/integrations/codex
+- Basic Memory Codex integration: https://docs.basicmemory.com/integrations/codex
+- Spellbook retrospective/fluent:
+  https://github.com/majiayu000/spellbook/tree/main/skills/codex-retrospective and
+  https://github.com/majiayu000/spellbook/tree/main/skills/codex-fluent
+- Claude Code self-improving loop:
+  https://zenn.dev/sonicgarden/articles/claude-code-self-improving-loop
+- Reflective Prompt Tuning: https://arxiv.org/abs/2605.21781
+- SkillOpt and SkillOpt-Sleep: https://github.com/microsoft/SkillOpt and
+  https://arxiv.org/html/2605.23904v2
+- EvoSkill: https://github.com/sentient-agi/EvoSkill
+- GEPA/TextGrad/Trace2Skill references:
+  https://github.com/gepa-ai/gepa, https://github.com/zou-group/textgrad,
+  https://github.com/Qwen-Applications/Trace2Skill
 
 ### 2026-05-31: External Search And Codex-Customization Candidates
 
