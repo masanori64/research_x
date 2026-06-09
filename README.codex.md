@@ -119,7 +119,7 @@ Repo Skills live under `.agents/skills/` and use Codex native implicit invocatio
 - `research-x-goal-runner`: long goal phase continuation.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: app/CLI/workflow trace visibility.
-- `research-x-parallel-review`: sub-agent role design when permitted.
+- `research-x-parallel-review`: sub-agent role design when permitted or required for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
 
 ## Verification

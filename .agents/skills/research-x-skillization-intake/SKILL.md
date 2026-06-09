@@ -41,7 +41,8 @@ surface.
 - `research-x-goal-runner`: long goal phase loop and human-intervention gates.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: hidden app/CLI/workflow state and trace visibility.
-- `research-x-parallel-review`: sub-agent role design when sub-agent use is permitted.
+- `research-x-parallel-review`: sub-agent role design when sub-agent use is permitted or required
+  for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
 
 Prefer updating one of these before creating another adjacent skill.

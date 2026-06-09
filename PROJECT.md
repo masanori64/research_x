@@ -36,7 +36,8 @@ Current repo skills:
 - `research-x-goal-runner`: long goal phase loop and human-intervention gates.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: app/CLI/workflow state visibility review.
-- `research-x-parallel-review`: sub-agent role design and integration when permitted.
+- `research-x-parallel-review`: sub-agent role design and integration when permitted or required
+  for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
 
 ## Goal
