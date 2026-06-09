@@ -1,7 +1,7 @@
 interface:
   display_name: "research_x Doc Governance"
-  short_description: "Keep AGENTS, README, PROJECT, and memory pipeline Markdown sparse and aligned."
-  default_prompt: "Use this before updating, reorganizing, archiving, or de-bloating research_x Markdown and source-of-truth files."
+  short_description: "Keep AGENTS, README, README.codex, PROJECT, pipeline docs, and memory pipeline Markdown sparse and aligned."
+  default_prompt: "Use this before updating, reorganizing, archiving, or de-bloating research_x Markdown and source-of-truth files, including AGENTS.md, README.md, README.codex.md, PROJECT.md, docs/pipeline.md, and memory pipeline docs."
 
 policy:
   allow_implicit_invocation: true

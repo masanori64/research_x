@@ -1,14 +1,14 @@
 ---
 name: research-x-parallel-review
-description: Use when the latest user instruction permits sub-agents or parallel agents and the task can be split into independent research, code inspection, implementation, verification, explorer, worker, or sidecar roles without blocking the main critical path.
+description: Use when the active user policy permits sub-agents, requires exploration sidecars, or asks for parallel agents, and the task can be split into independent research, code inspection, implementation, verification, explorer, worker, or sidecar roles without blocking the main critical path.
 ---
 
 # research-x Parallel Review
 
-Use this skill only when the active explicit user instruction permits sub-agents and the task has
-independent work that can proceed without conflicting edits. If the active user policy says
-exploration must use sub-agents, apply this skill to every non-trivial exploration or research task
-even when another Skill is the primary workflow.
+Use this skill only when the active user policy permits sub-agents, requires exploration sidecars,
+or asks for parallel agents, and the task has independent work that can proceed without conflicting
+edits. If the active user policy says exploration must use sub-agents, apply this skill to every
+non-trivial exploration or research task even when another Skill is the primary workflow.
 
 ## Workflow
 

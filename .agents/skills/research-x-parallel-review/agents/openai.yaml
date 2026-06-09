@@ -1,7 +1,7 @@
 interface:
   display_name: "research_x Parallel Review"
-  short_description: "Plan bounded sub-agent roles when the latest user instruction permits parallel agents."
-  default_prompt: "Use this when the latest user instruction permits sub-agents or parallel agents and the task can be split into independent explorer, research, worker, or verifier roles."
+  short_description: "Plan bounded sub-agent roles when the active user policy permits or requires parallel agents."
+  default_prompt: "Use this when the active user policy permits sub-agents, requires exploration sidecars, or asks for parallel agents, and the task can be split into independent explorer, research, worker, or verifier roles."
 
 policy:
   allow_implicit_invocation: true
