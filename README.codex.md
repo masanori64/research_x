@@ -124,6 +124,12 @@ uv run python -m research_x memory governance tombstone --artifact-kind memory_d
 uv run python -m research_x memory governance list --json
 ```
 
+PromptContract/MNP deterministic checks:
+
+```powershell
+uv run pytest tests\test_prompt_contracts.py
+```
+
 Codex improvement pipeline:
 
 ```powershell

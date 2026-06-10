@@ -241,6 +241,10 @@ Already implemented from the inbox direction:
   and source hash/reference. Active tombstones suppress matching `memory_document` or source-tweet
   artifacts from search results, but v1 does not physically delete source rows, rewrite citations,
   or create cross-project personal memory.
+- PromptContract/MNP deterministic checks for read-only memory routing and allowed/forbidden tool
+  boundaries. They validate local prompt contracts and virtual endpoint manifests without calling an
+  LLM or provider, and they are guardrail tests around code-owned tools rather than runtime
+  authority.
 
 Residual design that may be implemented later, if a scoped task justifies it:
 
@@ -259,9 +263,9 @@ Residual design that may be implemented later, if a scoped task justifies it:
 - Physical deletion workflows and cross-project personal memory sync for source-backed governance.
   They remain opt-in only and require explicit source restoration, deletion audit, tombstone, and
   retention semantics before use.
-- PromptContract/MNP tests for read-only intent routing and allowed/forbidden tool boundaries. They
-  are contract artifacts around code-owned tools, not replacements for auth, DB writes,
-  transactions, provider policy, or source-bundle restoration.
+- Real-model PromptContract/MNP validation, Prompt-as-Server runtime behavior, or use of MNP as a
+  backend authority. Those remain out of scope until provider, auth, DB-write, transaction, and
+  source-restoration boundaries are explicitly reviewed.
 - Skill/source manifest review for any third-party Skill or plugin considered for this repo. It is a
   security/governance surface, not a memory-search source object.
 
@@ -1017,8 +1021,8 @@ directly improve the current evidence pipeline:
    assembly and inspection surfaces.
 2. Extend research intake beyond the implemented dry-run/manual/local/fake path only after defining
    fetch policy, source-bundle restoration, and provider-gate review.
-3. Add prompt-contract or ImprovementSignal tests only when they protect an observed recurring
-   failure, route miss, doc drift, or provider/security boundary.
+3. Extend PromptContract/MNP beyond the implemented deterministic local checks only after a
+   provider/security review defines model, auth, DB-write, and source-restoration boundaries.
 4. Add source-backed profile/contradiction/forgetting objects only after defining deletion,
    tombstone, and source-restoration semantics.
 

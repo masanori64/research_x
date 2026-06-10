@@ -164,6 +164,8 @@ No-spend closure state:
   without mutating stored context chunks or citation anchors.
 - Source-backed memory governance is implemented for profile, contradiction, retention, forgetting,
   and tombstone records; active tombstones suppress matching local memory search artifacts.
+- PromptContract/MNP deterministic checks are implemented for read-only routing and
+  allowed/forbidden tool boundaries without LLM/provider validation.
 
 Remaining gates:
 
@@ -176,7 +178,8 @@ Scoped no-spend residuals from the inbox design, before any provider work:
 
 - budget/offload coverage for additional bulky tool outputs beyond context/workflow/answer JSON;
 - physical deletion and cross-project sync for source-backed governance records;
-- deterministic PromptContract/MNP tests for read-only routing and allowed/forbidden tools;
+- real-model PromptContract/MNP validation or Prompt-as-Server runtime behavior after provider,
+  auth, DB-write, and source-restoration review;
 - Skill/source manifest review updates only if third-party Skills or plugins are considered later.
 
 Do not implement hosted Supermemory sync, cross-project personal memory by default, proxy scraping
