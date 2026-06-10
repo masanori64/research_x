@@ -15,6 +15,7 @@ from research_x.memory.context import (
     ContextChunk,
     build_context_bundle,
 )
+from research_x.memory.context_budget import ContextBudgetPolicy, budgeted_json
 from research_x.memory.llm_context import LLMContextBundle, fetch_llm_context_to_context
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.schema import ensure_memory_schema
@@ -571,8 +572,20 @@ def plan_workflow_route(plan: QueryPlan, *, requested_route: str = "auto") -> Wo
     return _route("local_memory_search", "default_local_search")
 
 
-def workflow_json(workflow: MemoryWorkflow) -> str:
-    return json.dumps(workflow.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+def workflow_json(
+    workflow: MemoryWorkflow,
+    *,
+    budget_policy: ContextBudgetPolicy | None = None,
+) -> str:
+    payload = workflow.as_dict()
+    if budget_policy is not None:
+        return budgeted_json(
+            payload,
+            policy=budget_policy,
+            payload_kind="memory_workflow",
+            run_id=workflow.workflow_id,
+        )
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def format_workflow(workflow: MemoryWorkflow) -> str:

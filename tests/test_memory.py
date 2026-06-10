@@ -2,6 +2,7 @@ import io
 import json
 import sqlite3
 import urllib.error
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -10,13 +11,14 @@ from research_x.cli import main
 from research_x.memory import embeddings, media_embeddings
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
-from research_x.memory.answer import build_memory_answer
+from research_x.memory.answer import answer_json, build_memory_answer
 from research_x.memory.api_lane_estimate import (
     build_api_lane_estimate_report,
     discover_external_urls,
 )
 from research_x.memory.audit import audit_memory_db
-from research_x.memory.context import build_context_bundle
+from research_x.memory.context import build_context_bundle, context_bundle_json
+from research_x.memory.context_budget import ContextBudgetPolicy, budget_json_payload
 from research_x.memory.corpus import (
     build_memory_corpus,
     export_corpus2skill_bundle,
@@ -3179,6 +3181,175 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
     assert citations == len(bundle.citation_annotations)
     assert answers == 0
     assert workflows == 0
+
+
+def test_context_budget_offloads_large_chunk_text_with_restore_pointer(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    bundle = build_context_bundle(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        doc_type="bookmark_doc",
+        store=False,
+    )
+    long_text = bundle.context_chunks[0].chunk_text + "\n" + ("long context " * 200)
+    long_chunk = replace(bundle.context_chunks[0], chunk_text=long_text)
+    long_bundle = replace(bundle, context_chunks=(long_chunk,))
+    policy = ContextBudgetPolicy(
+        max_output_chars=900,
+        max_inline_chunk_chars=120,
+        preview_chars=40,
+        offload_dir=tmp_path / "offloads",
+    )
+
+    payload = json.loads(context_bundle_json(long_bundle, budget_policy=policy))
+    pointer = payload["context_chunks"][0]["metadata"]["offload_pointer"]
+    artifact = json.loads(Path(pointer["artifact_path"]).read_text(encoding="utf-8"))
+
+    assert payload["context_budget"]["offloaded_item_count"] == 1
+    assert payload["context_budget"]["non_destructive"] is True
+    assert "context text offloaded" in payload["context_chunks"][0]["chunk_text"]
+    assert pointer["sha256"] == artifact["pointer"]["sha256"]
+    assert artifact["content"] == long_text
+    assert artifact["source_anchor"]["chunk_id"] == long_chunk.chunk_id
+    assert artifact["source_anchor"]["citation_refs"][0]["citation_id"]
+    assert long_bundle.context_chunks[0].chunk_text == long_text
+
+
+def test_context_budget_noops_without_policy(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    bundle = build_context_bundle(db_path, "強化学習 ロボット", limit=1, store=False)
+
+    payload = json.loads(context_bundle_json(bundle))
+
+    assert "context_budget" not in payload
+    assert payload["context_chunks"][0]["chunk_text"] == bundle.context_chunks[0].chunk_text
+
+
+def test_context_budget_can_budget_nested_workflow_like_payload(tmp_path: Path) -> None:
+    payload = {
+        "workflow_id": "workflow-test",
+        "context_bundle": {
+            "run_id": "context-test",
+            "context_chunks": [
+                {
+                    "chunk_id": "chunk-test",
+                    "source_kind": "local_x_db",
+                    "source_id": "doc-1",
+                    "source_url": "https://x.com/a/status/1",
+                    "chunk_text": "nested context " * 120,
+                    "metadata": {},
+                }
+            ],
+            "citation_annotations": [
+                {
+                    "citation_id": "citation-test",
+                    "chunk_id": "chunk-test",
+                    "source_kind": "local_x_db",
+                    "source_id": "doc-1",
+                    "source_url": "https://x.com/a/status/1",
+                    "field_path": "context_chunks[0]",
+                    "evidence_status": "fact",
+                }
+            ],
+        },
+    }
+    policy = ContextBudgetPolicy(
+        max_output_chars=500,
+        max_inline_chunk_chars=80,
+        preview_chars=30,
+        offload_dir=tmp_path / "offloads",
+    )
+
+    budgeted = budget_json_payload(payload, policy=policy, payload_kind="memory_workflow")
+    pointer = budgeted.payload["context_bundle"]["context_chunks"][0]["metadata"][
+        "offload_pointer"
+    ]
+
+    assert budgeted.payload["context_budget"]["payload_kind"] == "memory_workflow"
+    assert pointer["citation_refs"][0]["citation_id"] == "citation-test"
+    assert Path(pointer["artifact_path"]).exists()
+
+
+def test_memory_context_cli_writes_budgeted_output(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    exit_code = main(
+        [
+            "memory",
+            "context",
+            "--db",
+            str(db_path),
+            "--query",
+            "強化学習 ロボット",
+            "--limit",
+            "1",
+            "--no-store",
+            "--context-budget-max-chars",
+            "900",
+            "--context-budget-chunk-chars",
+            "80",
+            "--context-budget-preview-chars",
+            "30",
+            "--context-offload-dir",
+            str(tmp_path / "offloads"),
+        ]
+    )
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    pointer = payload["context_chunks"][0]["metadata"]["offload_pointer"]
+
+    assert exit_code == 0
+    assert payload["context_budget"]["offloaded_item_count"] >= 1
+    assert Path(pointer["artifact_path"]).exists()
+
+
+def test_answer_and_workflow_json_accept_context_budget_policy(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    policy = ContextBudgetPolicy(
+        max_output_chars=900,
+        max_inline_chunk_chars=80,
+        preview_chars=30,
+        offload_dir=tmp_path / "offloads",
+    )
+
+    answer = build_memory_answer(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="fake",
+        store=False,
+    )
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="none",
+        store=False,
+    )
+
+    answer_payload = json.loads(answer_json(answer, budget_policy=policy))
+    workflow_payload = json.loads(workflow_json(workflow, budget_policy=policy))
+
+    assert answer_payload["context_budget"]["payload_kind"] == "memory_answer"
+    assert workflow_payload["context_budget"]["payload_kind"] == "memory_workflow"
+    assert answer_payload["context_budget"]["offloaded_item_count"] >= 1
+    assert workflow_payload["context_budget"]["offloaded_item_count"] >= 1
 
 
 def test_memory_context_can_include_external_run_chunks(tmp_path: Path) -> None:

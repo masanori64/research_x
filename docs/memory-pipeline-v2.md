@@ -231,11 +231,17 @@ Already implemented from the inbox direction:
   `ResearchCandidate` rows, metadata-only snapshots, deterministic scoring, and `ResearchBrief`
   review artifacts. These are review/control artifacts only; they do not become evidence until a
   later fetch/extract path restores source bundles and context chunks.
+- `ContextBudgetPolicy` for output-time context/workflow/answer JSON budgeting with local
+  offload-pointer artifacts. It may replace oversized inline `context_chunks[*].chunk_text` fields
+  in CLI/output payloads with previews plus hashes and file pointers, but it must not mutate stored
+  context chunks, citation annotations, source-bundle restoration data, raw payload hashes, or
+  answer-generation inputs.
 
 Residual design that may be implemented later, if a scoped task justifies it:
 
-- `ContextBudgetPolicy` and file-pointer offload for long tool/search/workflow outputs. Critical
-  source bundles, raw payloads, hashes, and citation anchors must not be compressed away.
+- Automatic budget policy for additional bulky tool outputs beyond context/workflow/answer JSON.
+  Any future expansion must keep restore pointers, hashes, source references, and citation anchors
+  visible in the inline payload.
 - Networked research intake beyond the dry-run/manual/local path: public fetches, hosted search,
   Reader/extract, LLM summaries, provider rerank, and automatic promotion into evidence. Discovery
   hints remain non-evidence until fetched/restored into source bundles and context chunks.

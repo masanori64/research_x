@@ -160,6 +160,8 @@ No-spend closure state:
 - exact-anchor, relation, and retrieval-text arms are visible in portfolio/eval;
 - deterministic claim/citation and freshness/projection lineage checks are part of audit.
 - dry-run research intake is implemented for manual URL, local note, and fake search sources.
+- ContextBudgetPolicy/offload pointers are implemented for context/workflow/answer JSON outputs
+  without mutating stored context chunks or citation anchors.
 
 Remaining gates:
 
@@ -170,7 +172,7 @@ Remaining gates:
 
 Scoped no-spend residuals from the inbox design, before any provider work:
 
-- ContextBudgetPolicy / offload-pointer contracts for long tool/search/workflow outputs;
+- budget/offload coverage for additional bulky tool outputs beyond context/workflow/answer JSON;
 - source-backed profile, contradiction, tombstone, forgetting, and retention semantics;
 - deterministic PromptContract/MNP tests for read-only routing and allowed/forbidden tools;
 - Skill/source manifest review updates only if third-party Skills or plugins are considered later.

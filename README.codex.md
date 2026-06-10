@@ -108,6 +108,13 @@ memory llm-context
 memory export-corpus2skill
 ```
 
+Context/output budget:
+
+```powershell
+uv run python -m research_x memory context --query "..." --context-budget-max-chars 32000 --context-offload-dir runs\context_offloads
+uv run python -m research_x memory workflow --query "..." --json --context-budget-max-chars 32000
+```
+
 Codex improvement pipeline:
 
 ```powershell

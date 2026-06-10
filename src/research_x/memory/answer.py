@@ -20,6 +20,7 @@ from research_x.memory.context import (
     ContextChunk,
     build_context_bundle,
 )
+from research_x.memory.context_budget import ContextBudgetPolicy, budgeted_json
 from research_x.memory.schema import ensure_memory_schema
 
 ANSWER_ENGINE_ROLE = "answer_engine"
@@ -429,8 +430,20 @@ def build_memory_answer(
     return answer
 
 
-def answer_json(answer: MemoryAnswer) -> str:
-    return json.dumps(answer.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+def answer_json(
+    answer: MemoryAnswer,
+    *,
+    budget_policy: ContextBudgetPolicy | None = None,
+) -> str:
+    payload = answer.as_dict()
+    if budget_policy is not None:
+        return budgeted_json(
+            payload,
+            policy=budget_policy,
+            payload_kind="memory_answer",
+            run_id=answer.context_bundle.run_id,
+        )
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def store_memory_answer(db_path: str | Path, answer: MemoryAnswer) -> None:

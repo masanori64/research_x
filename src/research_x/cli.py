@@ -79,6 +79,33 @@ def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_context_budget_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--context-budget-max-chars",
+        type=int,
+        default=None,
+        help="maximum JSON payload chars before context chunk text is offloaded",
+    )
+    parser.add_argument(
+        "--context-budget-chunk-chars",
+        type=int,
+        default=None,
+        help="maximum inline chars for each context chunk text",
+    )
+    parser.add_argument(
+        "--context-budget-preview-chars",
+        type=int,
+        default=None,
+        help="preview chars kept inline for offloaded context chunk text",
+    )
+    parser.add_argument(
+        "--context-offload-dir",
+        type=Path,
+        default=None,
+        help="directory for local context offload pointer artifacts",
+    )
+
+
 def _api_budget_for_args(args: argparse.Namespace):
     if not hasattr(args, "api_budget_policy"):
         return contextlib.nullcontext()
@@ -1151,6 +1178,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_context_budget_options(memory_context_parser)
     _add_api_budget_options(memory_context_parser)
     memory_answer_parser = memory_subparsers.add_parser(
         "answer",
@@ -1222,6 +1250,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_context_budget_options(memory_answer_parser)
     _add_api_budget_options(memory_answer_parser)
     memory_workflow_parser = memory_subparsers.add_parser(
         "workflow",
@@ -1337,6 +1366,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow storing deterministic fake provider output for tests only",
     )
+    _add_context_budget_options(memory_workflow_parser)
     _add_api_budget_options(memory_workflow_parser)
     memory_external_parser = memory_subparsers.add_parser(
         "external-search",
@@ -3367,7 +3397,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             external_max_bytes=args.external_max_bytes,
             store=store,
         )
-        print(context_bundle_json(bundle))
+        print(context_bundle_json(bundle, budget_policy=_context_budget_policy_for_args(args)))
         return 0
     if args.memory_command == "answer":
         from research_x.memory.answer import answer_json, build_memory_answer
@@ -3422,7 +3452,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             max_context_chars=args.max_context_chars,
             store=store,
         )
-        print(answer_json(answer))
+        print(answer_json(answer, budget_policy=_context_budget_policy_for_args(args)))
         return 0
     if args.memory_command == "workflow":
         from research_x.memory.workflow import (
@@ -3515,7 +3545,10 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             max_steps=args.max_steps,
             store=store,
         )
-        print(workflow_json(workflow) if args.json else format_workflow(workflow))
+        if args.json:
+            print(workflow_json(workflow, budget_policy=_context_budget_policy_for_args(args)))
+        else:
+            print(format_workflow(workflow))
         return 1 if workflow.status == "error" else 0
     if args.memory_command == "external-search":
         from research_x.memory.external import external_evidence_json, search_external_evidence
@@ -3980,6 +4013,34 @@ def _require_fixture_provider_opt_in(
         f"{role} provider 'fake' is diagnostic-only. "
         "Pass --no-store for a dry wiring check, or pass --allow-fixture-provider "
         "when intentionally writing fixture rows to a test DB."
+    )
+
+
+def _context_budget_policy_for_args(args: argparse.Namespace):
+    if not hasattr(args, "context_budget_max_chars"):
+        return None
+    values = (
+        args.context_budget_max_chars,
+        args.context_budget_chunk_chars,
+        args.context_budget_preview_chars,
+        args.context_offload_dir,
+    )
+    if all(value is None for value in values):
+        return None
+
+    from research_x.memory.context_budget import (
+        DEFAULT_CONTEXT_OFFLOAD_DIR,
+        ContextBudgetPolicy,
+    )
+
+    defaults = ContextBudgetPolicy()
+    return ContextBudgetPolicy(
+        max_output_chars=args.context_budget_max_chars or defaults.max_output_chars,
+        max_inline_chunk_chars=(
+            args.context_budget_chunk_chars or defaults.max_inline_chunk_chars
+        ),
+        preview_chars=args.context_budget_preview_chars or defaults.preview_chars,
+        offload_dir=args.context_offload_dir or DEFAULT_CONTEXT_OFFLOAD_DIR,
     )
 
 

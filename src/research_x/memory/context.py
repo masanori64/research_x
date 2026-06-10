@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.context_budget import ContextBudgetPolicy, budgeted_json
 from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.reader import (
     ReaderContextBundle,
@@ -244,8 +245,20 @@ def build_context_bundle(
     return bundle
 
 
-def context_bundle_json(bundle: ContextBundle) -> str:
-    return json.dumps(bundle.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+def context_bundle_json(
+    bundle: ContextBundle,
+    *,
+    budget_policy: ContextBudgetPolicy | None = None,
+) -> str:
+    payload = bundle.as_dict()
+    if budget_policy is not None:
+        return budgeted_json(
+            payload,
+            policy=budget_policy,
+            payload_kind="context_bundle",
+            run_id=bundle.run_id,
+        )
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def _chunk(
