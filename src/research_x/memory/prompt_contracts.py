@@ -27,6 +27,7 @@ class PromptContract:
     forbidden_tools: tuple[str, ...]
     provider_gated_tools: tuple[str, ...]
     injection_markers: tuple[str, ...]
+    write_intent_markers: tuple[str, ...]
     required_guards: tuple[str, ...]
 
     def as_dict(self) -> dict[str, Any]:
@@ -45,6 +46,7 @@ class PromptContractEvaluation:
     blocked_tools: tuple[str, ...]
     provider_gate_hits: tuple[str, ...]
     injection_hits: tuple[str, ...]
+    write_intent_hits: tuple[str, ...]
     status: str
     notes: tuple[str, ...]
 
@@ -179,6 +181,23 @@ READ_ONLY_MEMORY_PROMPT_CONTRACT = PromptContract(
         "system prompt",
         "--allow-unpriced-api",
     ),
+    write_intent_markers=(
+        "add feedback",
+        "db write",
+        "delete",
+        "forget",
+        "insert",
+        "mark as",
+        "mutate",
+        "record feedback",
+        "restore",
+        "save feedback",
+        "store result",
+        "suppress",
+        "tombstone",
+        "update",
+        "write to db",
+    ),
     required_guards=(
         "source_bundle_restoration",
         "citation_required_before_answer",
@@ -226,13 +245,21 @@ def evaluate_prompt_contract(
     injection_hits = tuple(
         marker for marker in contract.injection_markers if marker in normalized
     )
-    route = _route_prompt(normalized, blocked_tools=blocked_tools)
+    write_intent_hits = tuple(
+        marker for marker in contract.write_intent_markers if marker in normalized
+    )
+    route = _route_prompt(
+        normalized,
+        blocked_tools=blocked_tools,
+        write_intent_hits=write_intent_hits,
+    )
     notes = _notes(
         blocked_tools=blocked_tools,
         provider_gate_hits=provider_gate_hits,
         injection_hits=injection_hits,
+        write_intent_hits=write_intent_hits,
     )
-    status = "rejected" if blocked_tools or injection_hits else "ok"
+    status = "rejected" if blocked_tools or injection_hits or write_intent_hits else "ok"
     return PromptContractEvaluation(
         contract_id=contract.contract_id,
         prompt=prompt,
@@ -244,6 +271,7 @@ def evaluate_prompt_contract(
         blocked_tools=blocked_tools,
         provider_gate_hits=provider_gate_hits,
         injection_hits=injection_hits,
+        write_intent_hits=write_intent_hits,
         status=status,
         notes=notes,
     )
@@ -295,14 +323,34 @@ def mnp_manifest_json() -> str:
 
 def _requested_tools(normalized_prompt: str) -> tuple[str, ...]:
     tools: list[str] = []
-    for alias, tool_id in TOOL_ALIASES.items():
-        if alias in normalized_prompt and tool_id not in tools:
+    for pattern, tool_id in _tool_patterns().items():
+        if pattern in normalized_prompt and tool_id not in tools:
             tools.append(tool_id)
     return tuple(tools)
 
 
-def _route_prompt(normalized_prompt: str, *, blocked_tools: tuple[str, ...]) -> str:
-    if blocked_tools:
+def _tool_patterns() -> dict[str, str]:
+    patterns: dict[str, str] = {}
+    for endpoint in MNP_VIRTUAL_ENDPOINTS:
+        for pattern in (
+            endpoint.tool_id,
+            endpoint.endpoint_id,
+            endpoint.tool_id.replace("-", "_"),
+            endpoint.endpoint_id.replace("-", "_"),
+        ):
+            patterns[_normalize(pattern)] = endpoint.tool_id
+    for alias, tool_id in TOOL_ALIASES.items():
+        patterns[_normalize(alias)] = tool_id
+    return patterns
+
+
+def _route_prompt(
+    normalized_prompt: str,
+    *,
+    blocked_tools: tuple[str, ...],
+    write_intent_hits: tuple[str, ...],
+) -> str:
+    if blocked_tools or write_intent_hits:
         return "needs_human_review"
     if any(term in normalized_prompt for term in ("citation", "cite", "source bundle")):
         return "read_only_citation_context"
@@ -318,6 +366,7 @@ def _notes(
     blocked_tools: tuple[str, ...],
     provider_gate_hits: tuple[str, ...],
     injection_hits: tuple[str, ...],
+    write_intent_hits: tuple[str, ...],
 ) -> tuple[str, ...]:
     notes: list[str] = [
         "PromptContract/MNP checks are deterministic local guardrail tests.",
@@ -329,6 +378,8 @@ def _notes(
         notes.append("Provider-gated tool request detected while no-quota freeze is active.")
     if injection_hits:
         notes.append("Prompt-injection marker detected.")
+    if write_intent_hits:
+        notes.append("Write intent detected in a read-only prompt contract.")
     return tuple(notes)
 
 

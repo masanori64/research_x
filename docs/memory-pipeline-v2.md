@@ -1011,20 +1011,22 @@ What should not be deleted:
 ## Remaining Implementation Order
 
 The V2 foundation through schema, context chunks, citations, answers, workflow traces, route-level
-evals, strategy defaults, Corpus2Skill export/navigation, and portfolio comparison is implemented.
-Do not repeat those phases unless a verification step finds a regression.
+evals, strategy defaults, Corpus2Skill export/navigation, portfolio comparison, dry-run research
+intake, context-output budgeting, source-backed governance with tombstone/restore hardening, and
+deterministic PromptContract/MNP checks with write-intent/direct-tool detection is implemented. Do
+not repeat those phases unless a verification step finds a regression.
 
 No-spend residuals from the 2026-06-10 inbox triage should be scoped before provider work when they
 directly improve the current evidence pipeline:
 
-1. Add `ContextBudgetPolicy` / offload-pointer contracts only after checking current context
-   assembly and inspection surfaces.
-2. Extend research intake beyond the implemented dry-run/manual/local/fake path only after defining
+1. Extend research intake beyond the implemented dry-run/manual/local/fake path only after defining
    fetch policy, source-bundle restoration, and provider-gate review.
-3. Extend PromptContract/MNP beyond the implemented deterministic local checks only after a
+2. Extend PromptContract/MNP beyond the implemented deterministic local checks only after a
    provider/security review defines model, auth, DB-write, and source-restoration boundaries.
-4. Add source-backed profile/contradiction/forgetting objects only after defining deletion,
-   tombstone, and source-restoration semantics.
+3. Extend source-backed governance beyond local records and tombstone suppression only after
+   defining physical deletion, cross-project sync, source-restoration, and retention semantics.
+4. Extend ContextBudgetPolicy beyond context/workflow/answer JSON only after identifying a concrete
+   bulky tool output that needs reversible local offload pointers.
 
 Provider-gated next work order:
 

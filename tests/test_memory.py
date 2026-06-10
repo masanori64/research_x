@@ -415,6 +415,65 @@ def test_source_backed_governance_record_is_stored_and_listed(tmp_path: Path) ->
     assert records[0].source_anchor["restore_required_before_answer_use"] is True
 
 
+def test_source_backed_governance_records_cover_non_tombstone_types(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    records = [
+        add_governance_record(
+            db_path,
+            governance_type="contradiction",
+            subject_kind="memory_document",
+            subject_id="bookmark:acct:tweet-1",
+            statement="Newer source may contradict this saved post.",
+            source_kind="memory_document",
+            source_id="tweet:tweet-2",
+            source_anchor={"doc_id": "tweet:tweet-2"},
+            confidence=0.7,
+        ),
+        add_governance_record(
+            db_path,
+            governance_type="retention",
+            subject_kind="memory_document",
+            subject_id="bookmark:acct:tweet-1",
+            statement="Keep while source tweet remains in the local project corpus.",
+            source_kind="memory_document",
+            source_id="bookmark:acct:tweet-1",
+            source_anchor={"doc_id": "bookmark:acct:tweet-1"},
+            retention_policy="source_lifetime",
+        ),
+        add_governance_record(
+            db_path,
+            governance_type="forgetting",
+            subject_kind="memory_document",
+            subject_id="bookmark:acct:tweet-1",
+            statement="User asked to review this local memory for possible suppression.",
+            source_kind="manual",
+            source_id="forget-review",
+            source_anchor={"request_id": "forget-review"},
+        ),
+    ]
+
+    listed = list_governance_records(
+        db_path,
+        subject_kind="memory_document",
+        subject_id="bookmark:acct:tweet-1",
+        limit=10,
+    )
+
+    assert {record.governance_type for record in listed} >= {
+        "contradiction",
+        "retention",
+        "forgetting",
+    }
+    assert {record.record_id for record in records}.issubset(
+        {record.record_id for record in listed}
+    )
+
+
 def test_governance_requires_source_backing(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
@@ -474,6 +533,56 @@ def test_governance_tombstone_suppresses_search_without_deleting_source(
 
     assert restored.status == "restored"
     assert target_doc_id in {result.doc_id for result in restored_results}
+
+
+def test_governance_tweet_tombstone_suppresses_source_tweet_candidates(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    before = search_memory(db_path, "強化学習 ロボット", limit=10)
+    assert "tweet-1" in {result.source_tweet_id for result in before}
+
+    add_tombstone(
+        db_path,
+        artifact_kind="tweet",
+        artifact_id="tweet-1",
+        reason="suppress all local memory artifacts sourced from tweet-1",
+        source_kind="manual",
+        source_id="tweet-suppression-test",
+        source_anchor={"tweet_id": "tweet-1"},
+    )
+    after = search_memory(db_path, "強化学習 ロボット", limit=10)
+
+    assert "tweet-1" not in {result.source_tweet_id for result in after}
+
+
+def test_expired_governance_tombstone_does_not_suppress_search(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    before = search_memory(db_path, "強化学習 ロボット", limit=5)
+    target_doc_id = before[0].doc_id
+    add_governance_record(
+        db_path,
+        governance_type="tombstone",
+        subject_kind="artifact:memory_document",
+        subject_id=target_doc_id,
+        statement="expired suppression should not affect current search",
+        source_kind="manual",
+        source_id="expired-test",
+        source_anchor={"doc_id": target_doc_id},
+        expires_at="2000-01-01T00:00:00Z",
+    )
+
+    after = search_memory(db_path, "強化学習 ロボット", limit=5)
+
+    assert target_doc_id in {result.doc_id for result in after}
 
 
 def test_memory_governance_cli_round_trip(
@@ -542,6 +651,80 @@ def test_memory_governance_cli_round_trip(
     assert created["governance_type"] == "tombstone"
     assert listed[0]["record_id"] == created["record_id"]
     assert checked["tombstoned"] is True
+
+
+def test_memory_governance_cli_restore_is_visible_with_include_inactive(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    assert (
+        main(
+            [
+                "memory",
+                "governance",
+                "tombstone",
+                "--db",
+                str(db_path),
+                "--artifact-kind",
+                "memory_document",
+                "--artifact-id",
+                "bookmark:acct:tweet-1",
+                "--reason",
+                "temporary cli suppression",
+                "--source-kind",
+                "manual",
+                "--source-id",
+                "cli-restore-test",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    created = json.loads(capsys.readouterr().out)
+
+    assert (
+        main(
+            [
+                "memory",
+                "governance",
+                "restore",
+                "--db",
+                str(db_path),
+                "--record-id",
+                created["record_id"],
+                "--reason",
+                "restore for test",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    restored = json.loads(capsys.readouterr().out)
+
+    assert (
+        main(
+            [
+                "memory",
+                "governance",
+                "list",
+                "--db",
+                str(db_path),
+                "--include-inactive",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    listed = json.loads(capsys.readouterr().out)
+
+    assert restored["status"] == "restored"
+    assert {
+        (record["record_id"], record["status"]) for record in listed
+    } >= {(created["record_id"], "restored")}
 
 
 def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:

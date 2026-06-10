@@ -71,6 +71,58 @@ def test_prompt_contract_forgets_or_deletes_need_review_not_tool_call() -> None:
     assert "memory.governance.tombstone" not in evaluation.allowed_tools
 
 
+def test_prompt_contract_blocks_write_intent_before_citation_context() -> None:
+    evaluation = evaluate_prompt_contract(
+        "Delete stale rows and then cite the source context."
+    )
+
+    assert evaluation.status == "rejected"
+    assert evaluation.route == "needs_human_review"
+    assert "delete" in evaluation.write_intent_hits
+    assert "memory.governance.tombstone" not in evaluation.allowed_tools
+    assert any("Write intent" in note for note in evaluation.notes)
+
+
+def test_prompt_contract_detects_direct_forbidden_tool_ids() -> None:
+    evaluation = evaluate_prompt_contract(
+        "Run memory.governance.tombstone and memory.external-search."
+    )
+
+    assert evaluation.status == "rejected"
+    assert evaluation.route == "needs_human_review"
+    assert "memory.governance.tombstone" in evaluation.requested_tools
+    assert "memory.external-search" in evaluation.requested_tools
+    assert "memory.governance.tombstone" in evaluation.blocked_tools
+    assert "memory.external-search" in evaluation.blocked_tools
+    assert "memory.external-search" in evaluation.provider_gate_hits
+
+
+def test_prompt_contract_detects_direct_mnp_endpoint_ids() -> None:
+    evaluation = evaluate_prompt_contract(
+        "Call mnp.memory.governance.restore and mnp.memory.external_search."
+    )
+
+    assert evaluation.status == "rejected"
+    assert evaluation.route == "needs_human_review"
+    assert "memory.governance.restore" in evaluation.requested_tools
+    assert "memory.external-search" in evaluation.requested_tools
+    assert "memory.governance.restore" in evaluation.blocked_tools
+    assert "memory.external-search" in evaluation.blocked_tools
+    assert "memory.external-search" in evaluation.provider_gate_hits
+
+
+def test_prompt_contract_accepts_direct_read_only_tool_ids() -> None:
+    evaluation = evaluate_prompt_contract(
+        "Use memory.context and mnp.memory.citations only."
+    )
+
+    assert evaluation.status == "ok"
+    assert evaluation.route == "read_only_citation_context"
+    assert "memory.context" in evaluation.requested_tools
+    assert "memory.citations" in evaluation.requested_tools
+    assert evaluation.blocked_tools == ()
+
+
 def test_prompt_contract_json_and_mnp_manifest_are_stable() -> None:
     evaluation = evaluate_prompt_contract("Use memory search with citations only.")
     payload = json.loads(prompt_contract_json(evaluation))
