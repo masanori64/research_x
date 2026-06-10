@@ -117,6 +117,14 @@ uv run python -m research_x.codex_improvement propose
 uv run python -m research_x.codex_improvement validate
 ```
 
+Research intake dry-run:
+
+```powershell
+uv run python -m research_x.research_intake validate
+uv run python -m research_x.research_intake discover --out runs\research_intake\discovery_run.json
+uv run python -m research_x.research_intake brief --run runs\research_intake\discovery_run.json --out runs\research_intake\research_brief.md
+```
+
 ## Repo Skills
 
 Repo Skills live under `.agents/skills/` and use Codex native implicit invocation through

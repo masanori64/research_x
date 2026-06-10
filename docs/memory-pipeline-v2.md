@@ -227,15 +227,18 @@ Already implemented from the inbox direction:
 - Corpus2Skill export/navigation as an advisory map, not citation-ready evidence.
 - Native repo Skill metadata for recurring `research_x` workflows, without a project-local prompt
   router.
+- Dry-run research intake contracts for `InterestProfile`, `SourceRegistry`, normalized
+  `ResearchCandidate` rows, metadata-only snapshots, deterministic scoring, and `ResearchBrief`
+  review artifacts. These are review/control artifacts only; they do not become evidence until a
+  later fetch/extract path restores source bundles and context chunks.
 
 Residual design that may be implemented later, if a scoped task justifies it:
 
 - `ContextBudgetPolicy` and file-pointer offload for long tool/search/workflow outputs. Critical
   source bundles, raw payloads, hashes, and citation anchors must not be compressed away.
-- Automated research intake beyond the current external-search/read/extract lanes: explicit
-  interest profiles, source subscriptions, candidate normalization, snapshots, scoring, and
-  ResearchBrief artifacts. Discovery hints remain non-evidence until fetched/restored into source
-  bundles and context chunks.
+- Networked research intake beyond the dry-run/manual/local path: public fetches, hosted search,
+  Reader/extract, LLM summaries, provider rerank, and automatic promotion into evidence. Discovery
+  hints remain non-evidence until fetched/restored into source bundles and context chunks.
 - Proposal-only `ImprovementSignal` capture for repeated Codex failures, route misses, doc drift,
   provider-gate violations, and eval failures. It may produce candidate reports or PRs, but must not
   auto-merge `AGENTS.md`, repo Skills, provider policy, or architecture docs.
@@ -1000,8 +1003,8 @@ directly improve the current evidence pipeline:
 
 1. Add `ContextBudgetPolicy` / offload-pointer contracts only after checking current context
    assembly and inspection surfaces.
-2. Add automated research-intake profiles/subscriptions/snapshots only as dry-run or local/manual
-   URL workflows first.
+2. Extend research intake beyond the implemented dry-run/manual/local/fake path only after defining
+   fetch policy, source-bundle restoration, and provider-gate review.
 3. Add prompt-contract or ImprovementSignal tests only when they protect an observed recurring
    failure, route miss, doc drift, or provider/security boundary.
 4. Add source-backed profile/contradiction/forgetting objects only after defining deletion,

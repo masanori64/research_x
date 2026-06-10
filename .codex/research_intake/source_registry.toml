@@ -1,0 +1,65 @@
+registry_id = "research_x_default_dry_run_sources"
+
+[[sources]]
+source_id = "manual_openai_codex_docs"
+source_type = "manual_url"
+locator = "https://developers.openai.com/codex/"
+enabled_when = "always"
+title = "OpenAI Codex documentation landing page"
+quality_hint = "official"
+topics = ["Codex Skills", "agent workflow"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "review_before_fetch"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "local_inbox_research_notes"
+source_type = "local_note"
+locator = "_codex_inbox design inventory and current source-of-truth docs"
+enabled_when = "always"
+title = "Local inbox design notes"
+quality_hint = "medium"
+topics = ["source manifest", "provider freeze", "research intake"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "project_private"
+prompt_injection_review = "not_applicable_local_note"
+
+[[sources]]
+source_id = "fake_codex_research_discovery"
+source_type = "fake_search"
+locator = "codex ai tools research"
+enabled_when = "always"
+title = "Synthetic Codex research discovery"
+quality_hint = "unknown"
+topics = ["Codex Skills", "provider freeze", "dry-run research intake"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "synthetic"
+prompt_injection_review = "not_applicable_synthetic"
+
+[[sources]]
+source_id = "future_provider_search"
+source_type = "serper"
+locator = "codex ai tools"
+enabled_when = "disabled"
+title = "Future provider-backed search placeholder"
+quality_hint = "unknown"
+topics = ["Codex Skills"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"

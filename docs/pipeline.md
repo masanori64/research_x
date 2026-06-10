@@ -34,6 +34,10 @@ Future automated intake must keep these boundaries:
 
 - Local corpus lookup, manual URL registration, and fake/local dry-runs are the default no-provider
   path.
+- The first implemented intake lane is dry-run only: `InterestProfile` + `SourceRegistry`
+  configuration can produce normalized candidates, deterministic scores, metadata-only snapshots,
+  and a review `ResearchBrief`, but it must not fetch URLs, call provider search, call Reader/LLM
+  extraction, or write citation-ready evidence.
 - Public network fetches require explicit fetch policy, content hash, fetched-at timestamp,
   source-kind metadata, storage-rights notes, and prompt-injection handling before they can feed
   context chunks.

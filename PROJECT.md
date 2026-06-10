@@ -85,6 +85,8 @@ Current foundation is implemented through the no-spend/provider-gated boundary:
 - search/evidence/context/citation/answer/workflow/eval surfaces;
 - external discovery, Reader, LLM-context, rerank, embedding, OCR/media, and managed-reference
   contracts behind fake/local or provider gates;
+- dry-run research intake with InterestProfile/SourceRegistry TOML, normalized candidates,
+  metadata-only snapshots, deterministic scoring, ResearchBrief generation, and no-provider tests;
 - ObjectiveRoutePolicy execution traces, research-control artifacts, projection lineage, API budget
   guard, strict audit, and pytest diagnostics.
 
@@ -157,6 +159,7 @@ No-spend closure state:
 - strict audit exposes hidden no-spend gaps if new `needs_*` statuses are introduced;
 - exact-anchor, relation, and retrieval-text arms are visible in portfolio/eval;
 - deterministic claim/citation and freshness/projection lineage checks are part of audit.
+- dry-run research intake is implemented for manual URL, local note, and fake search sources.
 
 Remaining gates:
 
@@ -168,8 +171,6 @@ Remaining gates:
 Scoped no-spend residuals from the inbox design, before any provider work:
 
 - ContextBudgetPolicy / offload-pointer contracts for long tool/search/workflow outputs;
-- automated research-intake profiles, subscriptions, snapshots, scoring, and ResearchBrief
-  artifacts, starting with dry-run or local/manual URL flows;
 - source-backed profile, contradiction, tombstone, forgetting, and retention semantics;
 - deterministic PromptContract/MNP tests for read-only routing and allowed/forbidden tools;
 - Skill/source manifest review updates only if third-party Skills or plugins are considered later.

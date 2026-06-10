@@ -1,0 +1,21 @@
+profile_id = "codex_ai_tools"
+title = "Codex AI tools research intake"
+include_topics = [
+  "Codex Skills",
+  "agent workflow",
+  "source manifest",
+  "provider freeze",
+]
+exclude_topics = [
+  "unofficial backend API",
+  "proxy scraping",
+]
+preferred_sources = [
+  "manual_openai_codex_docs",
+  "local_inbox_research_notes",
+  "fake_codex_research_discovery",
+]
+recency_half_life_days = 45
+minimum_source_quality = "unknown"
+privacy_boundary = "project_local_only"
+network_mode = "dry-run"
