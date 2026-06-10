@@ -105,6 +105,9 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       research-control artifacts, projection lineage, trust boundaries, and final preflight.
 - [x] Native Codex Skill metadata for recurring research_x workflows without a project-local
       prompt-routing layer.
+- [x] Codex inbox design placement: implemented vs residual design from `_codex_inbox` is mapped to
+      `docs/memory-pipeline-v2.md`, `docs/pipeline.md`, and the decision archive without new
+      AGENTS.md, Skill, or code surfaces.
 
 ## Current Gates
 
@@ -156,6 +159,21 @@ Remaining gates:
   external-search, LLM-context, or managed-RAG calls;
 - local-dependency gate: PaddleOCR/PaddleOCR-VL/manga OCR, local Qwen-style endpoints, and OSS
   Corpus2Skill compiler execution.
+
+Scoped no-spend residuals from the inbox design, before any provider work:
+
+- ContextBudgetPolicy / offload-pointer contracts for long tool/search/workflow outputs;
+- automated research-intake profiles, subscriptions, snapshots, scoring, and ResearchBrief
+  artifacts, starting with dry-run or local/manual URL flows;
+- proposal-only ImprovementSignal capture for recurring Codex failures, route misses, doc drift,
+  provider-gate violations, and eval failures;
+- source-backed profile, contradiction, tombstone, forgetting, and retention semantics;
+- deterministic PromptContract/MNP tests for read-only routing and allowed/forbidden tools;
+- Skill/source manifest review only if third-party Skills or plugins are considered later.
+
+Do not implement hosted Supermemory sync, cross-project personal memory by default, proxy scraping
+defaults, unofficial ChatGPT backend APIs, bulk Skill installs, or Prompt-as-Server as backend
+replacement in this repo.
 
 ## Implementation Rules
 

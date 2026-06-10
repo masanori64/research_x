@@ -24,8 +24,52 @@ or old source links. Do not scan the whole archive by default.
 | Gemini Embedding 2 media evidence contract | Active source: docs/memory-pipeline-v2.md |
 | Retrieval policy detailed notes moved out of active V2 | 2026-06-08: Retrieval Policy Detail Archived From Active V2 |
 | Codex-wide external tools, memory MCP, retrospective/fluent, SkillOpt/Sleep | 2026-06-09: Codex-Wide External Tool Candidates |
+| `_codex_inbox` design package placement, implemented/residual split | 2026-06-10: Codex Inbox Design Package Placement |
 
 ## Decision Notes
+
+### 2026-06-10: Codex Inbox Design Package Placement
+
+Scope:
+
+- `_codex_inbox` contained a 2026-06-09 Codex design package, source inventory, context export, and
+  reproducibility scripts.
+- The package was reviewed as input material, not as an active instruction. Its broad execution
+  prompt conflicted with the later docs-only/no-code/no-Skill/no-AGENTS request and is not adopted.
+
+Placement decision:
+
+- Active memory/search architecture and implementation residuals live in
+  `docs/memory-pipeline-v2.md`.
+- External research-intake fetching, snapshot, auth, storage-rights, proxy, and network/provider
+  policy lives in `docs/pipeline.md`.
+- Short implemented/residual state lives in `PROJECT.md`.
+- Detailed file-by-file inbox inventory lives in `docs/codex-inbox-inventory.md`.
+- Global Codex foundation ideas, such as generic skill review, security review, planning files,
+  context budget, and self-improvement intake, are outside `research_x` unless separately requested.
+
+Implemented overlap found:
+
+- Source-bundle-first evidence objects, context chunks, citations, answers, workflows, evals, audit,
+  ObjectiveRoutePolicy, research-control artifacts, provider budget guard, app/CLI inspection,
+  external search/read/LLM-context fake/provider-gated lanes, Corpus2Skill export, and native repo
+  Skill metadata already cover much of the inbox plan.
+
+Residuals retained as scoped candidates:
+
+- ContextBudgetPolicy/offload pointers;
+- automated research intake profiles/subscriptions/snapshots/scoring/ResearchBrief artifacts;
+- proposal-only ImprovementSignal capture and validation gates;
+- source-backed profile/contradiction/tombstone/forgetting policy;
+- deterministic PromptContract/MNP tests;
+- Skill/source manifest review if third-party Skills/plugins are later considered.
+
+Rejected or moved out of repo scope:
+
+- hosted Supermemory sync, cross-project personal memory by default, Webshare/proxy defaults,
+  unofficial ChatGPT backend APIs, bulk Skill catalog installs, Prompt-as-Server backend
+  replacement, generated `/mnt/data` scripts as repo tooling, and the broad execution prompt as an
+  active instruction.
 
 ### 2026-06-09: Codex-Wide External Tool Candidates
 

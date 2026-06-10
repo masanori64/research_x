@@ -207,6 +207,55 @@ Current active decisions:
   search primary then secondary sources when needed, treat sources as inputs, evaluate alternatives,
   and loop when new uncertainty appears.
 
+### 2026-06-10: Codex Inbox Design Placement
+
+The `_codex_inbox` design package is an input review package, not a new source of truth and not an
+active execution prompt. Durable memory/search decisions from it belong in this file; fetch,
+snapshot, auth, and network-provider policy belongs in `docs/pipeline.md`; bulky source-review
+history belongs in `docs/memory-pipeline-archive.md`; short implementation status belongs in
+`PROJECT.md`.
+
+Already implemented from the inbox direction:
+
+- Evidence/source-bundle first invariants, context chunks, citation annotations, answer artifacts,
+  workflow traces, eval persistence, and audit checks.
+- ObjectiveRoutePolicy execution, research-control artifacts, no-spend route execution, and
+  CLI/app inspection surfaces for research runs.
+- External discovery, Reader/extract, LLM-context, embedding, rerank, OCR/media, and managed
+  reference contracts as fake/local or provider-gated lanes.
+- API Budget Guard, provider role separation, price/usage ledger, kill switch, and no-quota freeze.
+- Corpus2Skill export/navigation as an advisory map, not citation-ready evidence.
+- Native repo Skill metadata for recurring `research_x` workflows, without a project-local prompt
+  router.
+
+Residual design that may be implemented later, if a scoped task justifies it:
+
+- `ContextBudgetPolicy` and file-pointer offload for long tool/search/workflow outputs. Critical
+  source bundles, raw payloads, hashes, and citation anchors must not be compressed away.
+- Automated research intake beyond the current external-search/read/extract lanes: explicit
+  interest profiles, source subscriptions, candidate normalization, snapshots, scoring, and
+  ResearchBrief artifacts. Discovery hints remain non-evidence until fetched/restored into source
+  bundles and context chunks.
+- Proposal-only `ImprovementSignal` capture for repeated Codex failures, route misses, doc drift,
+  provider-gate violations, and eval failures. It may produce candidate reports or PRs, but must not
+  auto-merge `AGENTS.md`, repo Skills, provider policy, or architecture docs.
+- Source-backed memory governance for inferred profiles, contradictions, tombstones, forgetting, and
+  retention. Cross-project personal memory remains opt-in only and outside the default pipeline.
+- PromptContract/MNP tests for read-only intent routing and allowed/forbidden tool boundaries. They
+  are contract artifacts around code-owned tools, not replacements for auth, DB writes,
+  transactions, provider policy, or source-bundle restoration.
+- Skill/source manifest review for any third-party Skill or plugin considered for this repo. It is a
+  security/governance surface, not a memory-search source object.
+
+Not adopted into `research_x` from the inbox package:
+
+- hosted Supermemory or cross-project personal memory by default;
+- Webshare/proxy scraping defaults;
+- unofficial ChatGPT backend APIs;
+- bulk global installation of third-party Skill catalogs;
+- Prompt-as-Server as a backend replacement;
+- the broad `12_codex_execution_prompt.md` as an instruction for this repository.
+
 ## Research Control Artifacts
 
 AI-callable search needs a control plane that prevents external discovery from becoming a flattened
@@ -943,7 +992,19 @@ The V2 foundation through schema, context chunks, citations, answers, workflow t
 evals, strategy defaults, Corpus2Skill export/navigation, and portfolio comparison is implemented.
 Do not repeat those phases unless a verification step finds a regression.
 
-Next work order:
+No-spend residuals from the 2026-06-10 inbox triage should be scoped before provider work when they
+directly improve the current evidence pipeline:
+
+1. Add `ContextBudgetPolicy` / offload-pointer contracts only after checking current context
+   assembly and inspection surfaces.
+2. Add automated research-intake profiles/subscriptions/snapshots only as dry-run or local/manual
+   URL workflows first.
+3. Add prompt-contract or ImprovementSignal tests only when they protect an observed recurring
+   failure, route miss, doc drift, or provider/security boundary.
+4. Add source-backed profile/contradiction/forgetting objects only after defining deletion,
+   tombstone, and source-restoration semantics.
+
+Provider-gated next work order:
 
 1. Estimate real API embedding cost and coverage for explicit provider/profile candidates.
 2. Build selected real API embedding arms only after the estimate is accepted.

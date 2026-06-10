@@ -24,6 +24,30 @@ sources, treat search results as evidence inputs rather than automatic truth, co
 against the user's goal and local data shape, and loop again when the evaluation exposes a new
 uncertainty.
 
+## External Research Intake Boundary
+
+The 2026-06-10 `_codex_inbox` research-intake design maps to this file only for acquisition,
+fetching, auth, storage-rights, and network/provider policy. The memory/search object model and
+evidence contract stay in `docs/memory-pipeline-v2.md`.
+
+Future automated intake must keep these boundaries:
+
+- Local corpus lookup, manual URL registration, and fake/local dry-runs are the default no-provider
+  path.
+- Public network fetches require explicit fetch policy, content hash, fetched-at timestamp,
+  source-kind metadata, storage-rights notes, and prompt-injection handling before they can feed
+  context chunks.
+- Provider-backed search or extraction such as Serper, Brave, Jina, OpenAI, Gemini, Voyage, Cohere,
+  or Mistral remains blocked by the no-quota freeze unless the user explicitly lifts it in the
+  current conversation and the API Budget Guard preflight passes.
+- Proxy-backed collection such as Webshare is rejected by default until legal/ToS/rate-limit,
+  account, privacy, and security review is complete.
+- ChatGPT conversation import must use official export data or explicit user-provided files, not
+  unofficial backend endpoints.
+- Discovery ranks, snippets, community comments, AI summaries, and generated research briefs are
+  candidate or review signals. They are not evidence until the source is fetched/restored, chunked,
+  and cited through the memory pipeline.
+
 ## Provider Roles
 
 | Provider | Pipeline role |
