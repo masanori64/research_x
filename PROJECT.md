@@ -108,6 +108,9 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
 - [x] Codex inbox design placement: implemented vs residual design from `_codex_inbox` is mapped to
       `docs/memory-pipeline-v2.md`, `docs/pipeline.md`, and the decision archive without new
       AGENTS.md, Skill, or code surfaces.
+- [x] Skill/source manifest lock: `.codex/skill_manifest.lock` and
+      `.codex/vendor_sources.lock.md` record enabled repo-local Skills and disabled third-party
+      source candidates, with validation coverage.
 
 ## Current Gates
 
@@ -169,7 +172,7 @@ Scoped no-spend residuals from the inbox design, before any provider work:
   provider-gate violations, and eval failures;
 - source-backed profile, contradiction, tombstone, forgetting, and retention semantics;
 - deterministic PromptContract/MNP tests for read-only routing and allowed/forbidden tools;
-- Skill/source manifest review only if third-party Skills or plugins are considered later.
+- Skill/source manifest review updates only if third-party Skills or plugins are considered later.
 
 Do not implement hosted Supermemory sync, cross-project personal memory by default, proxy scraping
 defaults, unofficial ChatGPT backend APIs, bulk Skill installs, or Prompt-as-Server as backend
