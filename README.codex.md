@@ -108,6 +108,15 @@ memory llm-context
 memory export-corpus2skill
 ```
 
+Codex improvement pipeline:
+
+```powershell
+uv run python -m research_x.codex_improvement capture ...
+uv run python -m research_x.codex_improvement triage
+uv run python -m research_x.codex_improvement propose
+uv run python -m research_x.codex_improvement validate
+```
+
 ## Repo Skills
 
 Repo Skills live under `.agents/skills/` and use Codex native implicit invocation through

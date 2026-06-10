@@ -111,6 +111,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
 - [x] Skill/source manifest lock: `.codex/skill_manifest.lock` and
       `.codex/vendor_sources.lock.md` record enabled repo-local Skills and disabled third-party
       source candidates, with validation coverage.
+- [x] ImprovementSignal pipeline: local-only capture, deterministic triage, proposal-only candidate
+      reports, rejected buffer, schema, and validation tests without provider calls.
 
 ## Current Gates
 
@@ -168,8 +170,6 @@ Scoped no-spend residuals from the inbox design, before any provider work:
 - ContextBudgetPolicy / offload-pointer contracts for long tool/search/workflow outputs;
 - automated research-intake profiles, subscriptions, snapshots, scoring, and ResearchBrief
   artifacts, starting with dry-run or local/manual URL flows;
-- proposal-only ImprovementSignal capture for recurring Codex failures, route misses, doc drift,
-  provider-gate violations, and eval failures;
 - source-backed profile, contradiction, tombstone, forgetting, and retention semantics;
 - deterministic PromptContract/MNP tests for read-only routing and allowed/forbidden tools;
 - Skill/source manifest review updates only if third-party Skills or plugins are considered later.

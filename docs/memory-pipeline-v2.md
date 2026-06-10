@@ -239,6 +239,9 @@ Residual design that may be implemented later, if a scoped task justifies it:
 - Proposal-only `ImprovementSignal` capture for repeated Codex failures, route misses, doc drift,
   provider-gate violations, and eval failures. It may produce candidate reports or PRs, but must not
   auto-merge `AGENTS.md`, repo Skills, provider policy, or architecture docs.
+  The v1 implementation is local-only: JSONL signal capture, deterministic triage, proposal-only
+  candidate reports, rejected-edit buffers, schema validation, and no-provider tests. It must not
+  call LLMs, external search, hosted memory, provider APIs, or connector tools.
 - Source-backed memory governance for inferred profiles, contradictions, tombstones, forgetting, and
   retention. Cross-project personal memory remains opt-in only and outside the default pipeline.
 - PromptContract/MNP tests for read-only intent routing and allowed/forbidden tool boundaries. They

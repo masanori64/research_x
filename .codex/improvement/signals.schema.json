@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "research_x ImprovementSignal",
+  "type": "object",
+  "required": [
+    "signal_id",
+    "created_at",
+    "source_type",
+    "source_ref",
+    "severity",
+    "project_scope",
+    "symptom",
+    "root_cause_hypothesis",
+    "affected_artifacts",
+    "proposed_change_type",
+    "evidence",
+    "privacy_level",
+    "status"
+  ],
+  "properties": {
+    "signal_id": {
+      "type": "string",
+      "pattern": "^sig_[A-Za-z0-9_.:-]+$"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "source_type": {
+      "enum": [
+        "user_feedback",
+        "workflow_trace",
+        "eval_failure",
+        "test_failure",
+        "codex_error",
+        "doc_drift",
+        "provider_gate_violation",
+        "skill_route_miss",
+        "security_review",
+        "manual"
+      ]
+    },
+    "source_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "enum": ["low", "medium", "high", "blocker"]
+    },
+    "project_scope": {
+      "enum": ["global", "research_x", "stack_specific"]
+    },
+    "symptom": {
+      "type": "string",
+      "minLength": 1
+    },
+    "root_cause_hypothesis": {
+      "type": "string"
+    },
+    "affected_artifacts": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "proposed_change_type": {
+      "enum": [
+        "skill_update",
+        "agents_update",
+        "docs_update",
+        "eval_case",
+        "code_change",
+        "security_review",
+        "provider_policy_update",
+        "manifest_update",
+        "no_change"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": {"type": "string"},
+          "ref": {"type": "string"},
+          "hash": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "privacy_level": {
+      "enum": ["public", "project_private", "sensitive_redacted"]
+    },
+    "status": {
+      "enum": [
+        "new",
+        "triaged",
+        "candidate_generated",
+        "rejected",
+        "accepted_for_pr",
+        "merged"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": true
+}
