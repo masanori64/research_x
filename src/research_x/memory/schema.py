@@ -568,6 +568,27 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             metadata_json TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS memory_governance_records (
+            record_id TEXT PRIMARY KEY,
+            governance_type TEXT NOT NULL,
+            subject_kind TEXT NOT NULL,
+            subject_id TEXT NOT NULL,
+            statement TEXT NOT NULL,
+            status TEXT NOT NULL,
+            confidence REAL NOT NULL,
+            source_kind TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            source_url TEXT,
+            source_hash TEXT,
+            source_anchor_json TEXT NOT NULL,
+            retention_policy TEXT NOT NULL,
+            expires_at TEXT,
+            supersedes_record_id TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_memory_documents_doc_type
             ON memory_documents(doc_type);
         CREATE INDEX IF NOT EXISTS idx_memory_documents_source_tweet
@@ -652,6 +673,12 @@ def ensure_memory_schema(conn: sqlite3.Connection) -> None:
             ON memory_visual_recall_evidence(media_id, evidence_level);
         CREATE INDEX IF NOT EXISTS idx_memory_user_ranking_signals_subject
             ON memory_user_ranking_signals(subject_kind, subject_id, route_scope);
+        CREATE INDEX IF NOT EXISTS idx_memory_governance_subject
+            ON memory_governance_records(subject_kind, subject_id, status);
+        CREATE INDEX IF NOT EXISTS idx_memory_governance_type_status
+            ON memory_governance_records(governance_type, status, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_memory_governance_source
+            ON memory_governance_records(source_kind, source_id);
         """
     )
     _migrate_memory_documents(conn)

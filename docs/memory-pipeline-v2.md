@@ -236,6 +236,11 @@ Already implemented from the inbox direction:
   in CLI/output payloads with previews plus hashes and file pointers, but it must not mutate stored
   context chunks, citation annotations, source-bundle restoration data, raw payload hashes, or
   answer-generation inputs.
+- Source-backed memory governance records for profile hints, contradiction notes, retention
+  policies, forgetting requests, and tombstones. Each governance record must carry a source anchor
+  and source hash/reference. Active tombstones suppress matching `memory_document` or source-tweet
+  artifacts from search results, but v1 does not physically delete source rows, rewrite citations,
+  or create cross-project personal memory.
 
 Residual design that may be implemented later, if a scoped task justifies it:
 
@@ -251,8 +256,9 @@ Residual design that may be implemented later, if a scoped task justifies it:
   The v1 implementation is local-only: JSONL signal capture, deterministic triage, proposal-only
   candidate reports, rejected-edit buffers, schema validation, and no-provider tests. It must not
   call LLMs, external search, hosted memory, provider APIs, or connector tools.
-- Source-backed memory governance for inferred profiles, contradictions, tombstones, forgetting, and
-  retention. Cross-project personal memory remains opt-in only and outside the default pipeline.
+- Physical deletion workflows and cross-project personal memory sync for source-backed governance.
+  They remain opt-in only and require explicit source restoration, deletion audit, tombstone, and
+  retention semantics before use.
 - PromptContract/MNP tests for read-only intent routing and allowed/forbidden tool boundaries. They
   are contract artifacts around code-owned tools, not replacements for auth, DB writes,
   transactions, provider policy, or source-bundle restoration.

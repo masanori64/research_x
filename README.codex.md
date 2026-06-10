@@ -105,6 +105,7 @@ memory media-observation-coverage
 memory external-search
 memory extract-url
 memory llm-context
+memory governance
 memory export-corpus2skill
 ```
 
@@ -113,6 +114,14 @@ Context/output budget:
 ```powershell
 uv run python -m research_x memory context --query "..." --context-budget-max-chars 32000 --context-offload-dir runs\context_offloads
 uv run python -m research_x memory workflow --query "..." --json --context-budget-max-chars 32000
+```
+
+Source-backed memory governance:
+
+```powershell
+uv run python -m research_x memory governance add --type profile --subject-kind topic --subject-id "..." --statement "..." --source-kind memory_document --source-id "..."
+uv run python -m research_x memory governance tombstone --artifact-kind memory_document --artifact-id "..." --reason "..." --source-kind manual --source-id "..."
+uv run python -m research_x memory governance list --json
 ```
 
 Codex improvement pipeline:

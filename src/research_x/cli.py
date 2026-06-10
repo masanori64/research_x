@@ -1514,6 +1514,87 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="optional workflow route this feedback applies to",
     )
+    memory_governance_parser = memory_subparsers.add_parser(
+        "governance",
+        help="manage source-backed memory governance records",
+    )
+    memory_governance_subparsers = memory_governance_parser.add_subparsers(
+        dest="governance_command",
+        required=True,
+    )
+    governance_add_parser = memory_governance_subparsers.add_parser(
+        "add",
+        help="add a source-backed governance record",
+    )
+    governance_add_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_add_parser.add_argument(
+        "--type",
+        required=True,
+        choices=["profile", "contradiction", "retention", "forgetting"],
+    )
+    governance_add_parser.add_argument("--subject-kind", required=True)
+    governance_add_parser.add_argument("--subject-id", required=True)
+    governance_add_parser.add_argument("--statement", required=True)
+    governance_add_parser.add_argument("--source-kind", required=True)
+    governance_add_parser.add_argument("--source-id", required=True)
+    governance_add_parser.add_argument("--source-url", default=None)
+    governance_add_parser.add_argument("--source-hash", default=None)
+    governance_add_parser.add_argument("--source-anchor", action="append", default=[])
+    governance_add_parser.add_argument("--metadata", action="append", default=[])
+    governance_add_parser.add_argument("--confidence", type=float, default=1.0)
+    governance_add_parser.add_argument("--retention-policy", default="source_lifetime")
+    governance_add_parser.add_argument("--expires-at", default=None)
+    governance_add_parser.add_argument("--json", action="store_true")
+    governance_tombstone_parser = memory_governance_subparsers.add_parser(
+        "tombstone",
+        help="add an active tombstone for a local artifact",
+    )
+    governance_tombstone_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_tombstone_parser.add_argument("--artifact-kind", required=True)
+    governance_tombstone_parser.add_argument("--artifact-id", required=True)
+    governance_tombstone_parser.add_argument("--reason", required=True)
+    governance_tombstone_parser.add_argument("--source-kind", required=True)
+    governance_tombstone_parser.add_argument("--source-id", required=True)
+    governance_tombstone_parser.add_argument("--source-url", default=None)
+    governance_tombstone_parser.add_argument("--source-hash", default=None)
+    governance_tombstone_parser.add_argument("--source-anchor", action="append", default=[])
+    governance_tombstone_parser.add_argument("--metadata", action="append", default=[])
+    governance_tombstone_parser.add_argument(
+        "--retention-policy",
+        default="suppress_until_restored",
+    )
+    governance_tombstone_parser.add_argument("--json", action="store_true")
+    governance_restore_parser = memory_governance_subparsers.add_parser(
+        "restore",
+        help="restore a tombstone/governance record by marking it inactive",
+    )
+    governance_restore_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_restore_parser.add_argument("--record-id", required=True)
+    governance_restore_parser.add_argument("--reason", required=True)
+    governance_restore_parser.add_argument("--json", action="store_true")
+    governance_list_parser = memory_governance_subparsers.add_parser(
+        "list",
+        help="list source-backed governance records",
+    )
+    governance_list_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_list_parser.add_argument(
+        "--type",
+        choices=["profile", "contradiction", "retention", "forgetting", "tombstone"],
+        default=None,
+    )
+    governance_list_parser.add_argument("--subject-kind", default=None)
+    governance_list_parser.add_argument("--subject-id", default=None)
+    governance_list_parser.add_argument("--include-inactive", action="store_true")
+    governance_list_parser.add_argument("--limit", type=int, default=50)
+    governance_list_parser.add_argument("--json", action="store_true")
+    governance_check_parser = memory_governance_subparsers.add_parser(
+        "check",
+        help="check whether an artifact is actively tombstoned",
+    )
+    governance_check_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_check_parser.add_argument("--artifact-kind", required=True)
+    governance_check_parser.add_argument("--artifact-id", required=True)
+    governance_check_parser.add_argument("--json", action="store_true")
     memory_export_parser = memory_subparsers.add_parser(
         "export-corpus2skill",
         help="export memory_documents to Corpus2Skill-compatible JSONL",
@@ -3669,6 +3750,105 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         )
         print(f"feedback: {feedback_id}")
         return 0
+    if args.memory_command == "governance":
+        from research_x.memory.governance import (
+            add_governance_record,
+            add_tombstone,
+            format_governance_records,
+            governance_records_json,
+            is_artifact_tombstoned,
+            list_governance_records,
+            restore_governance_record,
+        )
+
+        if args.governance_command == "add":
+            record = add_governance_record(
+                args.db,
+                governance_type=args.type,
+                subject_kind=args.subject_kind,
+                subject_id=args.subject_id,
+                statement=args.statement,
+                source_kind=args.source_kind,
+                source_id=args.source_id,
+                source_url=args.source_url,
+                source_hash=args.source_hash,
+                source_anchor=_parse_key_value_pairs(args.source_anchor),
+                confidence=args.confidence,
+                retention_policy=args.retention_policy,
+                expires_at=args.expires_at,
+                metadata=_parse_key_value_pairs(args.metadata),
+            )
+            print(
+                json.dumps(record.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"governance: {record.record_id}"
+            )
+            return 0
+        if args.governance_command == "tombstone":
+            record = add_tombstone(
+                args.db,
+                artifact_kind=args.artifact_kind,
+                artifact_id=args.artifact_id,
+                reason=args.reason,
+                source_kind=args.source_kind,
+                source_id=args.source_id,
+                source_url=args.source_url,
+                source_hash=args.source_hash,
+                source_anchor=_parse_key_value_pairs(args.source_anchor),
+                retention_policy=args.retention_policy,
+                metadata=_parse_key_value_pairs(args.metadata),
+            )
+            print(
+                json.dumps(record.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"governance tombstone: {record.record_id}"
+            )
+            return 0
+        if args.governance_command == "restore":
+            record = restore_governance_record(
+                args.db,
+                record_id=args.record_id,
+                reason=args.reason,
+            )
+            print(
+                json.dumps(record.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"governance restored: {record.record_id}"
+            )
+            return 0
+        if args.governance_command == "list":
+            records = list_governance_records(
+                args.db,
+                governance_type=args.type,
+                subject_kind=args.subject_kind,
+                subject_id=args.subject_id,
+                include_inactive=args.include_inactive,
+                limit=args.limit,
+            )
+            print(
+                governance_records_json(records)
+                if args.json
+                else format_governance_records(records)
+            )
+            return 0
+        if args.governance_command == "check":
+            tombstoned = is_artifact_tombstoned(
+                args.db,
+                artifact_kind=args.artifact_kind,
+                artifact_id=args.artifact_id,
+            )
+            payload = {
+                "artifact_kind": args.artifact_kind,
+                "artifact_id": args.artifact_id,
+                "tombstoned": tombstoned,
+            }
+            print(
+                json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"tombstoned={str(tombstoned).lower()}"
+            )
+            return 0
+        raise AssertionError(f"unhandled governance command {args.governance_command}")
     if args.memory_command == "export-corpus2skill":
         from research_x.memory.corpus import (
             export_corpus2skill_bundle,
@@ -4042,6 +4222,19 @@ def _context_budget_policy_for_args(args: argparse.Namespace):
         preview_chars=args.context_budget_preview_chars or defaults.preview_chars,
         offload_dir=args.context_offload_dir or DEFAULT_CONTEXT_OFFLOAD_DIR,
     )
+
+
+def _parse_key_value_pairs(values: list[str]) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError(f"expected key=value: {value}")
+        key, raw = value.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"empty key in key=value pair: {value}")
+        parsed[key] = raw
+    return parsed
 
 
 def _resolve_fixture_sensitive_store(

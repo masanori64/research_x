@@ -43,6 +43,13 @@ from research_x.memory.evidence import build_evidence_bundle
 from research_x.memory.external import search_external_evidence
 from research_x.memory.feedback import add_feedback, feedback_scores_for_docs
 from research_x.memory.final_skeleton import run_final_skeleton_preflight
+from research_x.memory.governance import (
+    add_governance_record,
+    add_tombstone,
+    is_artifact_tombstoned,
+    list_governance_records,
+    restore_governance_record,
+)
 from research_x.memory.judge_relations import judge_memory_relations
 from research_x.memory.llm_context import fetch_llm_context_to_context
 from research_x.memory.media_embeddings import (
@@ -374,6 +381,167 @@ def test_memory_feedback_scores_are_query_aware(tmp_path: Path) -> None:
 
     assert current_scores["bookmark:acct:tweet-1"] > 0
     assert unrelated_scores["bookmark:acct:tweet-1"] < current_scores["bookmark:acct:tweet-1"]
+
+
+def test_source_backed_governance_record_is_stored_and_listed(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    record = add_governance_record(
+        db_path,
+        governance_type="profile",
+        subject_kind="topic",
+        subject_id="reinforcement-learning",
+        statement="User repeatedly saves reinforcement-learning robot examples.",
+        source_kind="memory_document",
+        source_id="bookmark:acct:tweet-1",
+        source_url="https://x.com/a/status/tweet-1",
+        source_hash="hash-1",
+        source_anchor={"doc_id": "bookmark:acct:tweet-1"},
+        confidence=0.8,
+        retention_policy="source_lifetime",
+    )
+    records = list_governance_records(
+        db_path,
+        governance_type="profile",
+        subject_kind="topic",
+        subject_id="reinforcement-learning",
+    )
+
+    assert records == (record,)
+    assert records[0].metadata["citation_excluded"] is True
+    assert records[0].source_anchor["source_backed"] is True
+    assert records[0].source_anchor["restore_required_before_answer_use"] is True
+
+
+def test_governance_requires_source_backing(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    with pytest.raises(ValueError, match="source_id is required"):
+        add_governance_record(
+            db_path,
+            governance_type="profile",
+            subject_kind="topic",
+            subject_id="missing-source",
+            statement="invalid",
+            source_kind="memory_document",
+            source_id="",
+        )
+
+
+def test_governance_tombstone_suppresses_search_without_deleting_source(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    before = search_memory(db_path, "強化学習 ロボット", limit=5)
+    target_doc_id = before[0].doc_id
+    tombstone = add_tombstone(
+        db_path,
+        artifact_kind="memory_document",
+        artifact_id=target_doc_id,
+        reason="user requested suppression for this local memory artifact",
+        source_kind="manual",
+        source_id="test-request",
+        source_anchor={"test": "tombstone"},
+    )
+    after = search_memory(db_path, "強化学習 ロボット", limit=5)
+
+    assert is_artifact_tombstoned(
+        db_path,
+        artifact_kind="memory_document",
+        artifact_id=target_doc_id,
+    )
+    assert target_doc_id not in {result.doc_id for result in after}
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT doc_id FROM memory_documents WHERE doc_id = ?",
+            (target_doc_id,),
+        ).fetchone()
+    assert row is not None
+
+    restored = restore_governance_record(
+        db_path,
+        record_id=tombstone.record_id,
+        reason="test restore",
+    )
+    restored_results = search_memory(db_path, "強化学習 ロボット", limit=5)
+
+    assert restored.status == "restored"
+    assert target_doc_id in {result.doc_id for result in restored_results}
+
+
+def test_memory_governance_cli_round_trip(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    exit_code = main(
+        [
+            "memory",
+            "governance",
+            "tombstone",
+            "--db",
+            str(db_path),
+            "--artifact-kind",
+            "memory_document",
+            "--artifact-id",
+            "bookmark:acct:tweet-1",
+            "--reason",
+            "cli suppression",
+            "--source-kind",
+            "manual",
+            "--source-id",
+            "cli-test",
+            "--source-anchor",
+            "doc_id=bookmark:acct:tweet-1",
+            "--json",
+        ]
+    )
+    created = json.loads(capsys.readouterr().out)
+    list_code = main(
+        [
+            "memory",
+            "governance",
+            "list",
+            "--db",
+            str(db_path),
+            "--type",
+            "tombstone",
+            "--json",
+        ]
+    )
+    listed = json.loads(capsys.readouterr().out)
+    check_code = main(
+        [
+            "memory",
+            "governance",
+            "check",
+            "--db",
+            str(db_path),
+            "--artifact-kind",
+            "memory_document",
+            "--artifact-id",
+            "bookmark:acct:tweet-1",
+            "--json",
+        ]
+    )
+    checked = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert list_code == 0
+    assert check_code == 0
+    assert created["governance_type"] == "tombstone"
+    assert listed[0]["record_id"] == created["record_id"]
+    assert checked["tombstoned"] is True
 
 
 def test_memory_local_embeddings_and_semantic_search(tmp_path: Path) -> None:

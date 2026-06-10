@@ -14,6 +14,7 @@ from research_x.memory.embeddings import (
     semantic_search_memory,
 )
 from research_x.memory.feedback import feedback_scores_for_docs
+from research_x.memory.governance import active_tombstone_ids
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.relations import relation_summary_for_docs
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
@@ -157,7 +158,10 @@ def search_memory(
                 plan=plan,
             )
         )
-        candidates = _filter_anchor_candidates(_merge_candidates(raw_rows), plan)
+        candidates = _filter_governance_tombstones(
+            conn,
+            _filter_anchor_candidates(_merge_candidates(raw_rows), plan),
+        )
         doc_ids = tuple(candidate["doc_id"] for candidate in candidates)
         tweet_ids = tuple(
             str(candidate["source_tweet_id"])
@@ -228,21 +232,24 @@ def search_memory_fts_only(
         ensure_memory_schema(conn)
         if memory_document_count(conn) == 0:
             raise RuntimeError("memory_documents is empty; run memory build-corpus first")
-        candidates = _filter_anchor_candidates(
-            _merge_candidates(
-                _with_engine_contributions(
-                    _fts_search(
-                        conn,
-                        plan,
-                        limit=max(resolved_limit * 8, 50),
-                        doc_type=doc_type,
-                        account=account,
-                    ),
-                    "fts",
-                    plan=plan,
-                )
+        candidates = _filter_governance_tombstones(
+            conn,
+            _filter_anchor_candidates(
+                _merge_candidates(
+                    _with_engine_contributions(
+                        _fts_search(
+                            conn,
+                            plan,
+                            limit=max(resolved_limit * 8, 50),
+                            doc_type=doc_type,
+                            account=account,
+                        ),
+                        "fts",
+                        plan=plan,
+                    )
+                ),
+                plan,
             ),
-            plan,
         )
         latest_observed_at = _latest_observed_at(conn)
     results = [
@@ -281,21 +288,24 @@ def search_memory_retrieval_text_only(
         ensure_memory_schema(conn)
         if memory_document_count(conn) == 0:
             raise RuntimeError("memory_documents is empty; run memory build-corpus first")
-        candidates = _filter_anchor_candidates(
-            _merge_candidates(
-                _with_engine_contributions(
-                    _retrieval_text_search(
-                        conn,
-                        plan,
-                        limit=max(resolved_limit * 8, 50),
-                        doc_type=doc_type,
-                        account=account,
-                    ),
-                    "retrieval_text",
-                    plan=plan,
-                )
+        candidates = _filter_governance_tombstones(
+            conn,
+            _filter_anchor_candidates(
+                _merge_candidates(
+                    _with_engine_contributions(
+                        _retrieval_text_search(
+                            conn,
+                            plan,
+                            limit=max(resolved_limit * 8, 50),
+                            doc_type=doc_type,
+                            account=account,
+                        ),
+                        "retrieval_text",
+                        plan=plan,
+                    )
+                ),
+                plan,
             ),
-            plan,
         )
         latest_observed_at = _latest_observed_at(conn)
     results = [
@@ -314,7 +324,6 @@ def search_memory_retrieval_text_only(
     ]
     results.sort(key=lambda result: (result.score, _date_sort_value(result.metadata)), reverse=True)
     return tuple(results[:resolved_limit])
-
 
 def results_as_dicts(results: tuple[MemorySearchResult, ...]) -> list[dict[str, Any]]:
     return [asdict(result) for result in results]
@@ -789,6 +798,38 @@ def _filter_anchor_candidates(
     if not anchors:
         return candidates
     return [candidate for candidate in candidates if _candidate_has_anchor(candidate, anchors)]
+
+
+def _filter_governance_tombstones(
+    conn: sqlite3.Connection,
+    candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not candidates:
+        return []
+    doc_ids = tuple(str(candidate["doc_id"]) for candidate in candidates)
+    tweet_ids = tuple(
+        str(candidate["source_tweet_id"])
+        for candidate in candidates
+        if candidate.get("source_tweet_id")
+    )
+    tombstoned_docs = active_tombstone_ids(
+        conn,
+        artifact_kind="memory_document",
+        artifact_ids=doc_ids,
+    )
+    tombstoned_tweets = active_tombstone_ids(
+        conn,
+        artifact_kind="tweet",
+        artifact_ids=tweet_ids,
+    )
+    if not tombstoned_docs and not tombstoned_tweets:
+        return candidates
+    return [
+        candidate
+        for candidate in candidates
+        if str(candidate["doc_id"]) not in tombstoned_docs
+        and str(candidate.get("source_tweet_id") or "") not in tombstoned_tweets
+    ]
 
 
 def _strong_anchor_terms(plan: QueryPlan) -> tuple[str, ...]:
