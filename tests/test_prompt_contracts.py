@@ -83,6 +83,23 @@ def test_prompt_contract_blocks_write_intent_before_citation_context() -> None:
     assert any("Write intent" in note for note in evaluation.notes)
 
 
+def test_prompt_contract_rejects_write_intent_synonyms() -> None:
+    cases = (
+        ("Please remove this memory and show citation.", "remove"),
+        ("Erase the saved document and provide source bundle.", "erase"),
+        ("Purge old record then use memory.context.", "purge"),
+        ("Clear the saved memory and show citation.", "clear"),
+        ("Drop this memory record and show context.", "drop"),
+    )
+
+    for prompt, marker in cases:
+        evaluation = evaluate_prompt_contract(prompt)
+
+        assert evaluation.status == "rejected"
+        assert evaluation.route == "needs_human_review"
+        assert marker in evaluation.write_intent_hits
+
+
 def test_prompt_contract_detects_direct_forbidden_tool_ids() -> None:
     evaluation = evaluate_prompt_contract(
         "Run memory.governance.tombstone and memory.external-search."
