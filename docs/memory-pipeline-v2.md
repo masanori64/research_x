@@ -245,29 +245,54 @@ Already implemented from the inbox direction:
   boundaries. They validate local prompt contracts and virtual endpoint manifests without calling an
   LLM or provider, and they are guardrail tests around code-owned tools rather than runtime
   authority.
+- Skill/source manifest lock and local-only `ImprovementSignal` capture/triage/proposal artifacts
+  exist as Codex-foundation adjuncts. They are repository governance and agent-behavior control
+  surfaces, not memory/search evidence and not answer citations.
 
-Residual design that may be implemented later, if a scoped task justifies it:
+### 2026-06-10: No-Spend Foundation V1 Closure
+
+The current repo state is pinned as the completed `research_x` no-spend foundation v1. This means
+the local evidence pipeline is complete through canonical X storage, normalized and derived memory
+documents, source-bundle restoration, local retrieval arms, context chunks, citations, answer and
+workflow artifacts, eval/audit surfaces, dry-run research intake, context-output budgeting,
+source-backed governance, deterministic PromptContract/MNP checks, and local Codex-governance
+adjuncts.
+
+Do not treat the following categories as unfinished v1 work. They are post-v1 work and must be
+scoped under the correct boundary before implementation starts.
+
+Future local hardening:
 
 - Automatic budget policy for additional bulky tool outputs beyond context/workflow/answer JSON.
   Any future expansion must keep restore pointers, hashes, source references, and citation anchors
   visible in the inline payload.
-- Networked research intake beyond the dry-run/manual/local path: public fetches, hosted search,
-  Reader/extract, LLM summaries, provider rerank, and automatic promotion into evidence. Discovery
-  hints remain non-evidence until fetched/restored into source bundles and context chunks.
-- Proposal-only `ImprovementSignal` capture for repeated Codex failures, route misses, doc drift,
-  provider-gate violations, and eval failures. It may produce candidate reports or PRs, but must not
-  auto-merge `AGENTS.md`, repo Skills, provider policy, or architecture docs.
-  The v1 implementation is local-only: JSONL signal capture, deterministic triage, proposal-only
-  candidate reports, rejected-edit buffers, schema validation, and no-provider tests. It must not
-  call LLMs, external search, hosted memory, provider APIs, or connector tools.
-- Physical deletion workflows and cross-project personal memory sync for source-backed governance.
-  They remain opt-in only and require explicit source restoration, deletion audit, tombstone, and
-  retention semantics before use.
+- Additional deterministic tests, audit checks, or CLI/app inspection polish over existing
+  fake/local lanes when they protect a concrete regression or usability gap.
+- Physical deletion workflows for local memory artifacts only after source restoration, deletion
+  audit, tombstone, retention, and restore semantics are explicit. V1 suppresses active tombstones;
+  it does not physically delete source rows or rewrite prior citations.
+
+Provider-gated expansion:
+
+- Networked research intake beyond the dry-run/manual/local/fake path: public fetches, hosted
+  search, Reader/extract, LLM summaries, provider rerank, and automatic promotion into evidence.
+  Discovery hints remain non-evidence until fetched/restored into source bundles and context chunks.
+- Real embedding, rerank, Reader/Jina extraction, OCR, classifier, answer, relation judge,
+  external-search, LLM-context, and managed-RAG calls.
 - Real-model PromptContract/MNP validation, Prompt-as-Server runtime behavior, or use of MNP as a
   backend authority. Those remain out of scope until provider, auth, DB-write, transaction, and
   source-restoration boundaries are explicitly reviewed.
-- Skill/source manifest review for any third-party Skill or plugin considered for this repo. It is a
-  security/governance surface, not a memory-search source object.
+
+Separate Codex foundation:
+
+- Future `ImprovementSignal` behavior that edits or proposes edits to global Codex behavior,
+  `AGENTS.md`, repo Skills, plugins, hooks, MCP, connector policy, or provider policy. The v1
+  implementation is local-only JSONL capture, deterministic triage, proposal-only reports,
+  rejected-edit buffers, schema validation, and no-provider tests.
+- Skill/source manifest review when third-party Skills or plugins are considered for this repo.
+  This is a security/governance surface, not a memory-search source object.
+- Cross-project personal memory sync and global source-backed governance. Cross-project memory is
+  not part of the `research_x` memory-search v1 contract.
 
 Not adopted into `research_x` from the inbox package:
 
@@ -1008,27 +1033,25 @@ What should not be deleted:
 - local app/bookmark/tweet acquisition flow;
 - existing memory CLI commands, unless replaced by compatible wrappers.
 
-## Remaining Implementation Order
+## Post-V1 Implementation Boundaries
 
-The V2 foundation through schema, context chunks, citations, answers, workflow traces, route-level
-evals, strategy defaults, Corpus2Skill export/navigation, portfolio comparison, dry-run research
-intake, context-output budgeting, source-backed governance with tombstone/restore hardening, and
-deterministic PromptContract/MNP checks with write-intent/direct-tool detection is implemented. Do
-not repeat those phases unless a verification step finds a regression.
+The V2 no-spend foundation v1 through schema, context chunks, citations, answers, workflow traces,
+route-level evals, strategy defaults, Corpus2Skill export/navigation, portfolio comparison, dry-run
+research intake, context-output budgeting, source-backed governance with tombstone/restore
+hardening, deterministic PromptContract/MNP checks with write-intent/direct-tool detection, and
+local Codex-governance adjuncts is implemented. Do not repeat those phases unless a verification
+step finds a regression.
 
-No-spend residuals from the 2026-06-10 inbox triage should be scoped before provider work when they
-directly improve the current evidence pipeline:
+Future local hardening:
 
-1. Extend research intake beyond the implemented dry-run/manual/local/fake path only after defining
-   fetch policy, source-bundle restoration, and provider-gate review.
-2. Extend PromptContract/MNP beyond the implemented deterministic local checks only after a
-   provider/security review defines model, auth, DB-write, and source-restoration boundaries.
-3. Extend source-backed governance beyond local records and tombstone suppression only after
-   defining physical deletion, cross-project sync, source-restoration, and retention semantics.
-4. Extend ContextBudgetPolicy beyond context/workflow/answer JSON only after identifying a concrete
+1. Extend ContextBudgetPolicy beyond context/workflow/answer JSON only after identifying a concrete
    bulky tool output that needs reversible local offload pointers.
+2. Extend source-backed governance beyond active tombstone suppression only after defining local
+   physical-deletion audit, source restoration, retention, and restore semantics.
+3. Add deterministic tests, audit checks, or CLI/app inspection polish only when they protect a
+   concrete regression or observed review gap.
 
-Provider-gated next work order:
+Provider-gated work:
 
 1. Estimate real API embedding cost and coverage for explicit provider/profile candidates.
 2. Build selected real API embedding arms only after the estimate is accepted.
@@ -1036,8 +1059,23 @@ Provider-gated next work order:
    arms.
 4. Promote an embedding provider/profile only when route-level evals show improvement after
    source-bundle restoration and citation checks.
-5. Add automatic workflow-triggered semantic portfolio expansion only as a separate policy and
+5. Extend research intake beyond the implemented dry-run/manual/local/fake path only after defining
+   fetch policy, source-bundle restoration, storage-rights, prompt-injection, and provider-gate
+   review.
+6. Extend PromptContract/MNP beyond deterministic local checks only after provider/security review
+   defines model, auth, DB-write, transaction, and source-restoration boundaries.
+7. Add automatic workflow-triggered semantic portfolio expansion only as a separate policy and
    implementation change after explicit evals justify it.
+
+Separate Codex foundation:
+
+1. Treat Skill/source manifest review updates for third-party Skills or plugins as
+   security/governance work, not memory-search evidence work.
+2. Treat `ImprovementSignal` changes that affect global Codex behavior, `AGENTS.md`, repo Skills,
+   plugins, hooks, MCP, connectors, or provider policy as separate Codex foundation work.
+3. Keep cross-project personal memory, hosted memory sync, and global source-backed memory
+   governance outside the `research_x` no-spend foundation v1 contract unless a separate project
+   scope explicitly adopts them.
 
 ## Deletion / Rewrite Policy
 

@@ -35,6 +35,11 @@ Core invariant:
 raw source != searchable document != search result != context chunk != citation != answer
 ```
 
+No-spend foundation v1 is pinned as complete as of 2026-06-10. Post-v1 work must be classified
+before implementation as future local hardening, provider-gated expansion, local-dependency
+execution, or separate Codex foundation work. Use `PROJECT.md` for the short tracker and
+`docs/memory-pipeline-v2.md` for detailed boundaries.
+
 ## Mandatory Runtime Rules
 
 - Use `uv` command forms only:

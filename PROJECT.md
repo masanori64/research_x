@@ -77,9 +77,9 @@ Raw acquisition data remains canonical and must not be replaced by summaries or 
 - `accounts`
 - `provider_runs`
 
-## Implemented Foundation
+## No-Spend Foundation V1
 
-Current foundation is implemented through the no-spend/provider-gated boundary:
+Pinned on 2026-06-10. Current foundation is complete through the no-spend/provider-gated boundary:
 
 - canonical X store, normalized memory documents, derived cards, relations, and source bundles;
 - search/evidence/context/citation/answer/workflow/eval surfaces;
@@ -88,7 +88,17 @@ Current foundation is implemented through the no-spend/provider-gated boundary:
 - dry-run research intake with InterestProfile/SourceRegistry TOML, normalized candidates,
   metadata-only snapshots, deterministic scoring, ResearchBrief generation, and no-provider tests;
 - ObjectiveRoutePolicy execution traces, research-control artifacts, projection lineage, API budget
-  guard, strict audit, and pytest diagnostics.
+  guard, strict audit, and pytest diagnostics;
+- ContextBudgetPolicy/offload pointers for context/workflow/answer JSON outputs without mutating
+  stored chunks, citation anchors, or answer inputs;
+- source-backed memory governance for profile, contradiction, retention, forgetting, and tombstone
+  records, with active tombstone suppression and restore visibility tests;
+- PromptContract/MNP deterministic checks for read-only routing, allowed/forbidden tool boundaries,
+  write-intent rejection, and direct tool/endpoint id detection.
+
+Do not reopen these foundation phases unless a verification step finds a regression. New work should
+be classified as future local hardening, provider-gated expansion, local-dependency execution, or a
+separate Codex foundation task before implementation starts.
 
 Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m research_x memory
 --help` for the current command surface.
@@ -151,9 +161,9 @@ These are not hidden future work, but they require explicit local dependency/mod
 The provider contracts and export boundaries exist; dependency installation and model execution are
 separate gated steps.
 
-## Next Work
+## Post-V1 Work Boundaries
 
-No-spend closure state:
+Completed no-spend closure state:
 
 - strategy catalog statuses are classified as implemented/candidate, human gate, or reference-only;
 - strict audit exposes hidden no-spend gaps if new `needs_*` statuses are introduced;
@@ -167,20 +177,34 @@ No-spend closure state:
 - PromptContract/MNP deterministic checks are implemented for read-only routing and
   allowed/forbidden tool boundaries without LLM/provider validation.
 
-Remaining gates:
-
-- provider-quota gate: real embedding, rerank, Reader, OCR, classifier, answer, relation judge,
-  external-search, LLM-context, or managed-RAG calls;
-- local-dependency gate: PaddleOCR/PaddleOCR-VL/manga OCR, local Qwen-style endpoints, and OSS
-  Corpus2Skill compiler execution.
-
-Scoped no-spend residuals from the inbox design, before any provider work:
+Future local hardening:
 
 - budget/offload coverage for additional bulky tool outputs beyond context/workflow/answer JSON;
-- physical deletion and cross-project sync for source-backed governance records;
+- CLI/app review polish for existing trace, governance, intake, and prompt-contract inspection
+  surfaces when real use exposes missing visibility;
+- additional deterministic evals over existing fake/local lanes when they protect a concrete
+  regression.
+
+Provider-gated expansion:
+
+- real embedding, rerank, Reader, OCR, classifier, answer, relation judge, external-search,
+  LLM-context, or managed-RAG calls;
+- networked research intake beyond dry-run/manual/local/fake discovery;
 - real-model PromptContract/MNP validation or Prompt-as-Server runtime behavior after provider,
-  auth, DB-write, and source-restoration review;
-- Skill/source manifest review updates only if third-party Skills or plugins are considered later.
+  auth, DB-write, transaction, and source-restoration review.
+
+Local-dependency execution:
+
+- PaddleOCR/PaddleOCR-VL/manga OCR local providers;
+- local or OpenAI-compatible Qwen embedding/rerank endpoints;
+- OSS Corpus2Skill compiler execution over exported bundles.
+
+Separate Codex foundation:
+
+- Skill/source manifest review updates if third-party Skills or plugins are considered later;
+- ImprovementSignal changes that affect global Codex behavior, AGENTS.md, repo Skills, plugins,
+  hooks, MCP, or connector policy;
+- cross-project personal memory, hosted memory sync, or global source-backed memory governance.
 
 Do not implement hosted Supermemory sync, cross-project personal memory by default, proxy scraping
 defaults, unofficial ChatGPT backend APIs, bulk Skill installs, or Prompt-as-Server as backend
