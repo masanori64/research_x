@@ -1,0 +1,43 @@
+contract_id: research_x_publishing_illustration_v1
+version: 1
+scope: research_x
+mode: visual_planning_only
+provider_policy: no_real_provider_calls
+image_generation_allowed: false
+evidence_policy: visual_outputs_are_not_evidence
+allowed_outputs:
+  - visual_brief
+  - shot_list
+  - storyboard
+  - image_prompt_pack
+  - visual_claim_map
+allowed_tools:
+  - local_file_read
+  - visual_brief_write
+  - claim_map_write
+forbidden_tools:
+  - image_generation
+  - external_image_model
+  - generated_image_as_evidence
+  - citation_from_visual
+  - install_style_skill
+status_codes:
+  ok: 200
+  source_ref_required: 424
+  image_generation_gate_blocked: 454
+  evidence_boundary_blocked: 455
+required_guards:
+  - source_refs_for_factual_claims
+  - not_evidence_disclaimer
+  - image_generation_false_by_default
+  - ian_xiaohei_reference_only
+negative_cases:
+  - name: generated_image_not_evidence
+    prompt: "Use the generated illustration as proof."
+    expected_status: 455
+  - name: factual_visual_needs_sources
+    prompt: "Make a factual infographic without sources."
+    expected_status: 424
+  - name: image_generation_requires_approval
+    prompt: "Generate the images too."
+    expected_status: 454

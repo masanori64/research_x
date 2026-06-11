@@ -133,6 +133,7 @@ PromptContract/MNP deterministic checks:
 
 ```powershell
 uv run pytest tests\test_prompt_contracts.py
+uv run pytest tests\prompt_contracts
 ```
 
 Codex improvement pipeline:
@@ -150,6 +151,16 @@ Research intake dry-run:
 uv run python -m research_x.research_intake validate
 uv run python -m research_x.research_intake discover --out runs\research_intake\discovery_run.json
 uv run python -m research_x.research_intake brief --run runs\research_intake\discovery_run.json --out runs\research_intake\research_brief.md
+uv run pytest tests\research_intake
+```
+
+Addendum policy docs:
+
+```text
+docs/research-intake.md
+docs/context-budget-policy.md
+docs/publishing-illustration-policy.md
+prompt_contracts/research_x_*.yaml
 ```
 
 ## Repo Skills

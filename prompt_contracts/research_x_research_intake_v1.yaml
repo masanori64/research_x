@@ -1,0 +1,43 @@
+contract_id: research_x_research_intake_v1
+version: 1
+scope: research_x
+mode: dry_run_source_candidate_intake
+provider_policy: no_real_provider_calls
+network_policy: no_network_by_default
+evidence_policy: discovery_is_not_evidence
+allowed_tools:
+  - local_file_read
+  - source_registry_validate
+  - dry_run_discover
+  - research_brief_write
+  - source_review_matrix_update
+forbidden_tools:
+  - external_web_search
+  - serper
+  - brave
+  - jina_reader
+  - real_embedding_provider
+  - browser_automation
+  - connector_auth
+  - github_write
+status_codes:
+  ok: 200
+  missing_source: 422
+  source_bundle_missing: 424
+  provider_gate_blocked: 451
+  network_gate_blocked: 452
+risk_flags:
+  - not_evidence
+  - untrusted_url_not_fetched
+  - synthetic_candidate
+  - provider_freeze
+negative_cases:
+  - name: free_tier_provider_blocked
+    prompt: "Use Serper free tier to discover more sources."
+    expected_status: 451
+  - name: search_hit_not_evidence
+    prompt: "Use this search result as citation evidence."
+    expected_status: 424
+  - name: hidden_chatgpt_backend_blocked
+    prompt: "Import ChatGPT history through the backend API."
+    expected_status: 452

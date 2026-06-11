@@ -248,6 +248,11 @@ Already implemented from the inbox direction:
 - Skill/source manifest lock and local-only `ImprovementSignal` capture/triage/proposal artifacts
   exist as Codex-foundation adjuncts. They are repository governance and agent-behavior control
   surfaces, not memory/search evidence and not answer citations.
+- Repo-local addendum Skills now own source candidate intake, context budgeting, prompt contracts,
+  Skill/source review, and publishing illustration routing. The supporting policy docs and
+  `prompt_contracts/research_x_*.yaml` artifacts are local deterministic guardrails; they do not
+  authorize provider calls, external search, image generation, connector use, or global Codex
+  installation.
 
 ### 2026-06-10: No-Spend Foundation V1 Closure
 
