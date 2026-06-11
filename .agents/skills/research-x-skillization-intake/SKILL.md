@@ -35,6 +35,8 @@ narrowest project-local `research_x` surface for behavior that belongs in this r
    - source-of-truth files to read;
    - what must not be duplicated in the skill;
    - positive and negative trigger examples when the boundary is risky.
+6. Before creating or enabling a Skill from third-party material, route through
+   `research-x-skill-source-review` and require a manifest/source-lock decision.
 
 ## Existing Repo Skills
 
@@ -46,8 +48,39 @@ narrowest project-local `research_x` surface for behavior that belongs in this r
 - `research-x-parallel-review`: sub-agent role design when sub-agent use is permitted or required
   for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
+- `research-x-research-intake`: source candidate classification and source-bundle intake handoff.
+- `research-x-context-budget`: context pack, offload, compression, and evidence-preservation
+  budgeting.
+- `research-x-prompt-contract`: prompt/schema/status/tool-boundary contracts and prompt tests.
+- `research-x-skill-source-review`: third-party or internal source/Skill trust, pin, gate, reject,
+  or reference-only decisions.
+- `research-x-publishing-illustration`: output-layer visual briefs, shot lists, and storyboards that
+  do not replace evidence.
 
 Prefer updating one of these before creating another adjacent skill.
+
+## Routing Table
+
+| Request type | Route |
+|---|---|
+| External source intake, source registry, community signal, research candidate | `research-x-research-intake` |
+| Context pack, compression, offload, budget, Headroom candidate | `research-x-context-budget` |
+| Prompt schema, MNP-like contract, allowed/forbidden tools, prompt tests | `research-x-prompt-contract` |
+| Third-party Skill/source adoption, import, trust, pin, install decision | `research-x-skill-source-review` |
+| Article visual brief, storyboard, Xiaohei-style explanatory plan | `research-x-publishing-illustration` |
+| Memory/source-bundle invariant, retrieval route, citation, evidence workflow | `research-x-memory-workflow` |
+| Provider/API/network permission, quota, budget, external search | `research-x-provider-gate` |
+| Markdown source-of-truth placement or archive drift | `research-x-doc-governance` |
+
+## Skill Creation Precheck
+
+- Check existing owner overlap before creating a new Skill.
+- Require a distinct trigger, outputs, negative triggers, and verification path.
+- Require source review when the idea comes from third-party material.
+- Require a manifest entry for repo-owned Skills and source-lock entries for durable external
+  candidates.
+- Keep publishing/illustration as an output-layer route; do not dismiss it as duplicate of bitmap
+  generation when the request is for visual planning.
 
 ## Guardrails
 

@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Skill Source Review"
+  short_description: "Review third-party Skill/source candidates for trust, pinning, gates, rejection, or reference-only use."
+  default_prompt: "Use this before research_x adopts, imports, enables, installs, adapts, or trusts third-party Skills, source packages, repositories, tools, connectors, catalogs, prompt packages, or source-derived workflows."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

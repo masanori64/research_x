@@ -6,6 +6,25 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "validate_skill_manifest.py"
+NEW_REPO_SKILLS = {
+    "research-x-research-intake",
+    "research-x-context-budget",
+    "research-x-prompt-contract",
+    "research-x-skill-source-review",
+    "research-x-publishing-illustration",
+}
+REQUIRED_NEW_SKILL_SECTIONS = (
+    "## Purpose",
+    "## Use When",
+    "## Do Not Use When",
+    "## Inputs",
+    "## Outputs",
+    "## Steps",
+    "## Safety Gates",
+    "## Negative Triggers",
+    "## Verification",
+    "## Manifest Obligations",
+)
 
 
 def _load_validator():
@@ -24,6 +43,30 @@ def test_skill_manifest_lock_is_valid() -> None:
         source_lock_path=REPO_ROOT / ".codex" / "vendor_sources.lock.md",
     )
     assert errors == []
+
+
+def test_new_repo_skills_are_manifested_and_complete() -> None:
+    validator = _load_validator()
+    manifest = validator.load_manifest(REPO_ROOT / ".codex" / "skill_manifest.lock")
+    entries = {entry["name"]: entry for entry in manifest["entries"]}
+
+    assert set(entries) >= NEW_REPO_SKILLS
+    for name in NEW_REPO_SKILLS:
+        entry = entries[name]
+        assert entry["entry_type"] == "repo_skill"
+        assert entry["enabled"] is True
+        assert entry["implicit_invocation"] is True
+        skill_path = REPO_ROOT / entry["source"]
+        agent_path = skill_path.parent / "agents" / "openai.yaml"
+        assert skill_path.exists()
+        assert agent_path.exists()
+
+        skill_text = skill_path.read_text(encoding="utf-8")
+        for section in REQUIRED_NEW_SKILL_SECTIONS:
+            assert section in skill_text, f"{name} is missing {section}"
+
+        agent_text = agent_path.read_text(encoding="utf-8")
+        assert "allow_implicit_invocation: true" in agent_text
 
 
 def test_external_enabled_requires_pin_review_and_negative_tests(tmp_path: Path) -> None:

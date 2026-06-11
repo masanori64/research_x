@@ -33,3 +33,31 @@ Use this skill for memory-search architecture or implementation work.
 3. Preserve no-spend/fake-first verification unless the user explicitly lifts the provider freeze.
 4. Expose hidden run state through CLI/app traces when the user reports black-box behavior.
 5. Verify with explicit `uv` commands and commit/push scoped changes.
+
+## Harness And Retrieval Portfolio Eval
+
+- Treat retrieval arms as candidates until eval shows source-bundle restoration and citation
+  integrity.
+- Portfolio eval must report restoration rate, unsupported context chunks, route gaps, and
+  provider-gated lanes separately.
+- Harness changes must expose route decisions and failure modes through traceable CLI/app surfaces.
+
+## Contradiction, Forgetting, And Profile Governance
+
+- Inferred profile, preference, or memory-governance facts require source references.
+- Contradictions must keep both source bundles; do not silently overwrite one with another.
+- Forgetting must distinguish raw source, derived document, search projection, context chunk, and
+  tombstone policy.
+- Hosted or cross-project memory runtimes are architecture references only unless a separate privacy
+  and provider gate approves them.
+
+## Handoffs
+
+- From `research-x-research-intake`: accept only candidates with provenance, risk flags, and a
+  source-bundle restoration path.
+- To `research-x-context-budget`: pass source pointers, hashes, trace paths, and evidence-critical
+  items that must not be destructively compressed.
+- To `research-x-prompt-contract`: require explicit source-bundle, provider, allowed-tool, and
+  forbidden-tool constraints for memory prompts.
+- To `research-x-publishing-illustration`: provide claim/source maps only; generated visuals are
+  output artifacts, not evidence.

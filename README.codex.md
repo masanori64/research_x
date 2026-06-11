@@ -165,6 +165,12 @@ Repo Skills live under `.agents/skills/` and use Codex native implicit invocatio
 - `research-x-observability-review`: app/CLI/workflow trace visibility.
 - `research-x-parallel-review`: sub-agent role design when permitted or required for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
+- `research-x-research-intake`: source candidate classification and source-bundle handoff.
+- `research-x-context-budget`: context pack, compression, offload, and evidence-preserving budget.
+- `research-x-prompt-contract`: prompt schema/status/tool-boundary contracts and prompt tests.
+- `research-x-skill-source-review`: third-party source/Skill trust, pin, gate, reject, or reference
+  decisions.
+- `research-x-publishing-illustration`: visual briefs, shot lists, and storyboards outside evidence.
 
 ## Verification
 

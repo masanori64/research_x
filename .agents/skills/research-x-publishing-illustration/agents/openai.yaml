@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Publishing Illustration"
+  short_description: "Turn source-aware articles or briefs into visual plans, shot lists, and storyboards without treating images as evidence."
+  default_prompt: "Use this when research_x work asks for article illustration, visual briefs, shot lists, storyboards, image prompt packs, Xiaohei-style explanatory visuals, or publishing visuals while preserving citation and image-generation gates."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

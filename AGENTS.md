@@ -106,6 +106,19 @@ Prompt-dependent triggers:
   `research-x-skillization-intake` or
   `.agents/skills/research-x-skillization-intake/SKILL.md` to decide whether the behavior belongs in
   prompt context, `AGENTS.md`, repository docs, a repo skill, hook, plugin, MCP, or automation;
+- source candidate intake, research-source expansion, source registry, community signal, paper,
+  repo, article, export, or discovery-to-source-bundle handoff: use
+  `.agents/skills/research-x-research-intake/SKILL.md`;
+- context pack, context budget, compression, offload, Headroom candidate, large trace, or
+  handoff-capsule work: use `.agents/skills/research-x-context-budget/SKILL.md`;
+- prompt schema, MNP-like contract, allowed/forbidden tools, prompt regression, or prompt-injection
+  test work: use `.agents/skills/research-x-prompt-contract/SKILL.md`;
+- third-party Skill/source adoption, source trust, pinning, enable/reject/reference-only decision,
+  or vendor/source lock update: use `.agents/skills/research-x-skill-source-review/SKILL.md`;
+- article-to-visual, publishing illustration, storyboard, shot list, image prompt pack, or
+  Xiaohei-style explanatory visual plan: use
+  `.agents/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
+  normal explicit image-generation gate and are never evidence;
 - `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
   target or a real human-intervention gate is reached, using
   `.agents/skills/research-x-goal-runner/SKILL.md` for the detailed loop;

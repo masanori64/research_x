@@ -38,7 +38,7 @@ tool.
 | S23 | `gpt-backend-api` | official OpenAI docs checked instead | Unofficial backend rejected. |
 | S24 | `searxng`, `webshare` | https://docs.searxng.org/ and https://www.webshare.io/ | SearXNG optional discovery hint; Webshare rejected default. |
 | S25 | `ai-assistant-workspace` | https://github.com/karaage0703/ai-assistant-workspace | Reference only. |
-| S26 | `ian-xiaohei-illustrations` | https://github.com/helloianneo/ian-xiaohei-illustrations | Creative optional; not research_x core. |
+| S26 | `ian-xiaohei-illustrations` | https://github.com/helloianneo/ian-xiaohei-illustrations | Creative optional/reference; explicit visual-planning only, not research_x core or evidence, and no image generation without gate. |
 | S28 | `matt-pocock-skills` | https://github.com/mattpocock/skills | Reference only. |
 
 ## Source Refs Not Manifest Entries

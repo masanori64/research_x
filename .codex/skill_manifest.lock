@@ -6,6 +6,8 @@ generated_from = [
   "docs/codex-inbox-inventory.md",
   "_codex_inbox/extracted/design_package/codex_design_package_20260609_1826/07_skill_registry_and_installation_policy.md",
   "_codex_inbox/extracted/design_package/codex_design_package_20260609_1826/source_inventory.json",
+  "_codex_inbox/extracted/20260611_addendum/design_package/20260611_complete_design_package/03_DECISION_LOCK.md",
+  "_codex_inbox/extracted/20260611_addendum/design_package/20260611_complete_design_package/research_x/08_research_x_manifest_docs_tests.md",
 ]
 
 [policy]
@@ -146,6 +148,86 @@ allowed_scripts = "repo_policy"
 commit = ""
 negative_trigger_tests = "repo_policy"
 notes = "Existing repo skill for instruction-surface placement and AGENTS bloat control."
+
+[[entries]]
+name = "research-x-research-intake"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-research-intake/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for source candidate classification, provenance, risk flags, and source-bundle intake handoff."
+
+[[entries]]
+name = "research-x-context-budget"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-context-budget/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for context packs, offload, compression decisions, and evidence-preserving budget handoff."
+
+[[entries]]
+name = "research-x-prompt-contract"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-prompt-contract/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for prompt contracts, schema/status behavior, allowed/forbidden tools, and prompt regression cases."
+
+[[entries]]
+name = "research-x-skill-source-review"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-skill-source-review/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "medium"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for third-party and internal Skill/source trust, pin, gate, reject, and reference-only decisions."
+
+[[entries]]
+name = "research-x-publishing-illustration"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-publishing-illustration/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "medium"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for output-layer visual briefs, shot lists, and storyboards; generated images are gated and never evidence."
 
 [[entries]]
 name = "superpowers"
