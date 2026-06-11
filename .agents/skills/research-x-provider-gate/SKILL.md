@@ -6,6 +6,8 @@ description: "Use before any provider-facing or quota-sensitive work in research
 # research-x Provider Gate
 
 Use this skill before implementing, estimating, or running provider-facing lanes.
+The global Provider And External Action Gate blocks external actions by default; this skill applies
+the stricter `research_x` no-quota rule and API Budget Guard expectations to provider-facing lanes.
 
 ## Rules
 

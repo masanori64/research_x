@@ -6,6 +6,8 @@ description: Use when updating or reorganizing research_x Markdown such as AGENT
 # research-x Doc Governance
 
 Use this skill before editing repository Markdown.
+Global handoff and session-hygiene skills handle context packaging and session upkeep; this skill
+governs `research_x` repository Markdown placement and source-of-truth ownership.
 
 ## File Roles
 

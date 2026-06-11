@@ -8,6 +8,8 @@ description: Use when adding recurring Codex behavior, improving native Skill in
 Use this skill before adding durable agent instructions or new repeatable workflows to this
 repository. Its job is to keep `AGENTS.md` small and route new behavior to the narrowest durable
 surface.
+Global Skill Hygiene decides whether a Skill is worth adding at all; this skill decides the
+narrowest project-local `research_x` surface for behavior that belongs in this repository.
 
 ## Workflow
 

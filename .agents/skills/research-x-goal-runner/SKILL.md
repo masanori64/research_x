@@ -6,6 +6,8 @@ description: Use when the user defines or resumes a /goal, goal-like target, or 
 # research-x Goal Runner
 
 Use this skill for long-running implementation goals.
+Global handoff and session-hygiene skills handle context export and session upkeep; this skill
+governs `research_x` phase execution toward a target state.
 
 ## Workflow
 
