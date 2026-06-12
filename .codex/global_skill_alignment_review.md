@@ -2,12 +2,16 @@
 
 Date: 2026-06-11
 
+Post-install audit addendum: 2026-06-12
+
 Scope: alignment review between the production global `AGENTS.md` skill context and
 `research_x` repo-local Skill context.
 
-This is a review artifact only. It does not authorize edits to `AGENTS.md`, `README.codex.md`,
-`.agents/skills`, `.codex/skill_manifest.lock`, source code, tests, scripts, source bundles,
-archives, or `_codex_inbox`.
+This is a review artifact. The original 2026-06-11 review did not authorize edits to
+`AGENTS.md`, `README.codex.md`, `.agents/skills`, `.codex/skill_manifest.lock`, source code, tests,
+scripts, source bundles, archives, or `_codex_inbox`. The 2026-06-12 addendum updates only
+lock/test/review metadata for the installed repo-local Skill set and external source pins; it does
+not authorize changing production repo-local Skill behavior.
 
 ## Reviewed Inputs
 
@@ -23,7 +27,9 @@ archives, or `_codex_inbox`.
   - `.codex/skill_manifest.lock`
   - `.codex/vendor_sources.lock.md`
 
-No provider, browser, GitHub, ChatGPT connector, or network action was used.
+No provider, browser, GitHub write, ChatGPT connector, or install action was used for the original
+review. The 2026-06-12 addendum used read-only upstream LICENSE/ref checks for `superpowers` and
+`ian-xiaohei-illustrations`; no external code was cloned, imported, enabled, or executed.
 
 ## Executive Judgment
 
@@ -36,6 +42,10 @@ alignment risk is not contradiction; it is gradual duplication of general Codex-
 only generic restatements after confirming that the project-specific owner, command form, provider
 freeze, architecture invariant, manifest lock, and validation behavior remain visible.
 
+The 2026-06-12 post-install audit confirms the production repo-local Skill folders are lean:
+each installed Skill directory contains only `SKILL.md` and `agents/openai.yaml`, and no stale
+candidate, install-pending, or `_foundation_work` wording was detected in `.agents/skills`.
+
 ## Classification Summary
 
 | Area | Classification | Reason |
@@ -44,7 +54,7 @@ freeze, architecture invariant, manifest lock, and validation behavior remain vi
 | `uv` command policy in `AGENTS.md` / `README.codex.md` | DO_NOT_TOUCH | Project runtime rule; removing it risks global Python/pytest/ruff use. |
 | completion notification rule | DO_NOT_TOUCH | Project workflow rule with exact command. |
 | memory/search architecture invariants | DO_NOT_TOUCH | Core `research_x` project behavior, not global Codex behavior. |
-| Skill dispatcher in `AGENTS.md` | KEEP | Repo-specific trigger routing for 8 local Skills. |
+| Skill dispatcher in `AGENTS.md` | KEEP | Repo-specific trigger routing for 13 local Skills. |
 | repeated Skill hygiene language | THIN | Global `Codex-Wide Skill Hygiene` now owns general Skill creation/install criteria. |
 | `research-x-skillization-intake` | KEEP / CLARIFY | Repo owner for instruction-surface placement; should explicitly remain project-local. |
 | `research-x-provider-gate` | DO_NOT_TOUCH / CLARIFY | Repo owner for no-quota and provider lane mechanics; global owns general external-action default. |
@@ -219,23 +229,36 @@ Recommended future clarification:
 
 ## Repo-Local Skill Invocation Width
 
-All 8 repo-local `agents/openai.yaml` files set `policy.allow_implicit_invocation: true` and have
+All 13 repo-local `agents/openai.yaml` files set `policy.allow_implicit_invocation: true` and have
 empty tool dependencies.
 
 | Skill | Current width | Review |
 |---|---|---|
+| `research-x-context-budget` | Medium | Acceptable. Owns context packs, compression, offload, source pointers, and handoff-ready state without replacing evidence or durable docs. |
 | `research-x-decision-loop` | Medium | Acceptable. Description is broad but scoped to `research_x` and explicit loop/review language. |
 | `research-x-doc-governance` | Medium | Acceptable. Broad over Markdown, but constrained to named repo files and drift/archive tasks. |
 | `research-x-goal-runner` | Medium | Acceptable. Goal-like wording is broad, but workflow requires target state/human gate. |
 | `research-x-memory-workflow` | Medium | Acceptable. Broad memory/search terms are necessary for this repo's core domain. |
 | `research-x-observability-review` | Medium | Acceptable. Many trigger nouns, but all map to hidden app/CLI/workflow state. |
 | `research-x-parallel-review` | Low/Medium | Safe enough because it requires active user permission or standing sub-agent policy. |
+| `research-x-prompt-contract` | Medium | Acceptable. Owns prompt schema, status, tool-boundary, and injection-resistance contract checks. |
 | `research-x-provider-gate` | Medium | Should remain implicit because provider mistakes are high-risk. |
+| `research-x-publishing-illustration` | Low/Medium | Acceptable. Output-layer visual planning only; image generation and evidence replacement remain gated. |
+| `research-x-research-intake` | Medium | Acceptable. Owns source candidate classification and source-bundle handoff; not final citation answers or real provider search. |
+| `research-x-skill-source-review` | Medium | Acceptable. Owns trust, pin, enable/reject/reference-only decisions; distinct from Skill creation or installation. |
 | `research-x-skillization-intake` | Medium | Acceptable, but most likely to overlap with global Skill Hygiene; future clarification would reduce ambiguity. |
 
 No immediate `allow_implicit_invocation` change is recommended. The broadest Skill is
 `research-x-skillization-intake`, but its role is intentionally repo-local placement after the
 global "existing capability first" check.
+
+Production folder check:
+
+- All 13 repo-local Skill directories contain exactly `SKILL.md` and `agents/openai.yaml`.
+- No stale candidate, install-pending, `_foundation_work`, `SMOKE_CHECK`, or rollback-note wording
+  was detected in `.agents/skills`.
+- The five addendum Skills added after the original review have the expected required sections and
+  scoped negative boundaries in `SKILL.md`.
 
 ## Over-Repetition Review
 
@@ -350,10 +373,30 @@ Do not thin:
 - connector/credential-bearing source restrictions
 - reference-only source decisions
 
+## External Source Pin Addendum
+
+The 2026-06-12 post-install audit checked source pin metadata for external Skill/source candidates
+that affected the repo-local addendum package.
+
+| Source | State | Review |
+|---|---|---|
+| `superpowers` | `pinned_license_checked`, disabled | MIT license and `v5.1.0` peeled commit `f2cbfbefebbfef77321e4c9abc9e949826bea9d7` checked. It remains disabled; full source/script/hook audit and negative trigger tests are still required before any enablement. |
+| `ian-xiaohei-illustrations` | `pinned_license_checked`, disabled | MIT license and `v1.0.0` ref `686575741a61e2c0be5e4c6d3615ebf6217dd322` checked. It remains creative optional/reference only, not `research_x` evidence, and image generation still requires the normal gate. |
+
+These pin checks are not install permission and do not authorize importing external code into
+production repo-local Skills.
+
+Not completed in this addendum:
+
+- Full source/script/hook audit for `superpowers`.
+- Pin/license review for the remaining disabled, reference-only, blocked, or rejected external
+  manifest entries that still have blank or `TBD_PINNED_COMMIT` commit values.
+- Any production behavior change to `.agents/skills`.
+
 ## Future Edit Candidates
 
-No edits are requested or performed in this review. If a later task asks for alignment edits, the
-lowest-risk order is:
+The 2026-06-12 addendum made only lock/test/review-artifact updates. If a later task asks for
+alignment edits, the lowest-risk order is:
 
 1. Add short CLARIFY boundary sentences to relevant repo Skills.
 2. Thin generic Skill hygiene repetition from `research-x-skillization-intake` only after those
@@ -365,6 +408,6 @@ lowest-risk order is:
 
 ## Final Assessment
 
-The repo-local Skill set is aligned with global G10/G11 context. The project Skills should remain
-enabled and implicitly invocable. The main future work is documentation thinning and boundary
+The 13-Skill repo-local set is aligned with global G10/G11 context. The project Skills should
+remain enabled and implicitly invocable. The main future work is documentation thinning and boundary
 clarification, not functional Skill changes.

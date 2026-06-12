@@ -23,7 +23,7 @@ tool.
 | repo | `research-x-*` repo Skills | `.agents/skills/*/SKILL.md` | Enabled repo-local only. |
 | S08 | `headroom` | https://github.com/chopratejas/headroom | Disabled; security/local-dependency gate. |
 | S09 | `supermemory` | https://github.com/supermemoryai/supermemory | Disabled; architecture reference only. |
-| S11 | `superpowers` | https://github.com/obra/superpowers | Disabled; review then optional. |
+| S11 | `superpowers` | https://github.com/obra/superpowers | Disabled; review then optional. MIT license and `v5.1.0` peeled commit `f2cbfbefebbfef77321e4c9abc9e949826bea9d7` checked 2026-06-12; no full source/script/hook audit yet. |
 | S12 | `superclaude-framework` | https://github.com/SuperClaude-Org/SuperClaude_Framework | Reference only for Codex. |
 | S13 | `minimax-skills` | https://github.com/MiniMax-AI/skills | Disabled; stack-specific optional. |
 | S14 | `anthropic-official-skills` | https://github.com/anthropics/skills | Format reference only. |
@@ -38,7 +38,7 @@ tool.
 | S23 | `gpt-backend-api` | official OpenAI docs checked instead | Unofficial backend rejected. |
 | S24 | `searxng`, `webshare` | https://docs.searxng.org/ and https://www.webshare.io/ | SearXNG optional discovery hint; Webshare rejected default. |
 | S25 | `ai-assistant-workspace` | https://github.com/karaage0703/ai-assistant-workspace | Reference only. |
-| S26 | `ian-xiaohei-illustrations` | https://github.com/helloianneo/ian-xiaohei-illustrations | Creative optional/reference; explicit visual-planning only, not research_x core or evidence, and no image generation without gate. |
+| S26 | `ian-xiaohei-illustrations` | https://github.com/helloianneo/ian-xiaohei-illustrations | Creative optional/reference; MIT license and `v1.0.0` ref `686575741a61e2c0be5e4c6d3615ebf6217dd322` checked 2026-06-12; explicit visual-planning only, not research_x core or evidence, and no image generation without gate. |
 | S28 | `matt-pocock-skills` | https://github.com/mattpocock/skills | Reference only. |
 
 ## Source Refs Not Manifest Entries

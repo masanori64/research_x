@@ -238,12 +238,12 @@ scope = "global_optional"
 decision = "review_then_optional"
 enabled = false
 implicit_invocation = false
-review_status = "unreviewed"
+review_status = "pinned_license_checked"
 risk = "medium"
 allowed_scripts = "disabled"
-commit = "TBD_PINNED_COMMIT"
+commit = "f2cbfbefebbfef77321e4c9abc9e949826bea9d7"
 negative_trigger_tests = "required_before_enable"
-notes = "TDD/spec-first workflow candidate; check repo rule conflicts before any install."
+notes = "MIT license and v5.1.0 peeled commit checked 2026-06-12; still disabled. Full source/script/hook audit and negative trigger tests required before enablement."
 
 [[entries]]
 name = "superclaude-framework"
@@ -430,12 +430,12 @@ scope = "creative_optional"
 decision = "not_research_x_core"
 enabled = false
 implicit_invocation = false
-review_status = "reference_only"
+review_status = "pinned_license_checked"
 risk = "low"
 allowed_scripts = "disabled"
-commit = "TBD_PINNED_COMMIT"
+commit = "686575741a61e2c0be5e4c6d3615ebf6217dd322"
 negative_trigger_tests = "not_applicable"
-notes = "Creative skill packaging reference only."
+notes = "MIT license and v1.0.0 ref checked 2026-06-12; creative optional/reference only, not research_x evidence, and no image generation without gate."
 
 [[entries]]
 name = "headroom"

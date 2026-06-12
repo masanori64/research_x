@@ -3,6 +3,8 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+UNPINNED_VALUES = {"", "TBD", "TBD_PINNED_COMMIT", "latest", "main", "master"}
+
 
 def test_vendor_lock_keeps_external_sources_disabled_or_reference_only() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
@@ -24,8 +26,40 @@ def test_ian_xiaohei_is_creative_optional_not_evidence_or_enabled() -> None:
     assert entry["enabled"] is False
     assert entry["scope"] == "creative_optional"
     assert entry["decision"] == "not_research_x_core"
+    assert entry["review_status"] == "pinned_license_checked"
+    assert entry["commit"] == "686575741a61e2c0be5e4c6d3615ebf6217dd322"
     assert "not research_x core or evidence" in vendor_lock
     assert "no image generation without gate" in vendor_lock
+    assert "v1.0.0" in vendor_lock
+
+
+def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
+    manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
+    entry = next(entry for entry in manifest["entries"] if entry["name"] == "superpowers")
+    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+
+    assert entry["enabled"] is False
+    assert entry["implicit_invocation"] is False
+    assert entry["review_status"] == "pinned_license_checked"
+    assert entry["commit"] == "f2cbfbefebbfef77321e4c9abc9e949826bea9d7"
+    assert entry["negative_trigger_tests"] == "required_before_enable"
+    assert "no full source/script/hook audit yet" in vendor_lock
+
+
+def test_unpinned_external_entries_are_not_enabled_or_approved() -> None:
+    manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
+    entries = manifest["entries"]
+    unpinned_external_entries = [
+        entry
+        for entry in entries
+        if entry["entry_type"] != "repo_skill" and str(entry["commit"]) in UNPINNED_VALUES
+    ]
+
+    assert unpinned_external_entries
+    for entry in unpinned_external_entries:
+        assert entry["enabled"] is False, entry["name"]
+        assert entry["implicit_invocation"] is False, entry["name"]
+        assert entry["review_status"] != "approved", entry["name"]
 
 
 def test_vendor_lock_is_not_install_permission() -> None:
