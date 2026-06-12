@@ -128,6 +128,23 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
 
 ## Current Gates
 
+### Pre-API Local Preflight
+
+Updated on 2026-06-12. No real provider API calls were made.
+
+- `c697b60 Fix local memory preflight checks`: fixed local retrieval-text/FTS rebuild and
+  coverage checks plus offline API lane estimate stability. Real DB local preflight reached
+  `retrieval-text-coverage` full coverage and `memory audit --strict` only reports the expected
+  provider-embedding gap.
+- `514a31d Fix memory eval preflight routing`: fixed real-DB eval route/query gaps for
+  contradiction, media+quote, and broad DB topic-map queries. `memory eval --strict` now passes all
+  built-in cases with `--answer-provider none`.
+- `memory portfolio-eval` now has `--case-limit` and `--fast` for bounded offline preflight before
+  configuring provider candidate arms.
+
+Next API-facing step remains gated: run offline estimate/status first, then review the projected
+cost and smallest useful scoped provider run before lifting the no-quota freeze.
+
 ### Provider-Quota Gate
 
 Do not run real provider API calls while the no-quota freeze is active. This includes paid usage,
