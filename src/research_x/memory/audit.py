@@ -753,25 +753,20 @@ def _freshness_lineage_issues(conn: sqlite3.Connection) -> dict[str, int]:
                 """
             ).fetchone()[0]
         )
-        orphaned_retrieval_text_fts = int(
-            conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM memory_retrieval_text_fts f
-                LEFT JOIN memory_retrieval_text_profiles p ON p.profile_id = f.profile_id
-                WHERE p.profile_id IS NULL
-                """
-            ).fetchone()[0]
+        profile_ids = {
+            str(row["profile_id"])
+            for row in conn.execute("SELECT profile_id FROM memory_retrieval_text_profiles")
+        }
+        fts_profile_ids = tuple(
+            str(row["profile_id"])
+            for row in conn.execute("SELECT profile_id FROM memory_retrieval_text_fts")
         )
-        missing_retrieval_text_fts = int(
-            conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM memory_retrieval_text_profiles p
-                LEFT JOIN memory_retrieval_text_fts f ON f.profile_id = p.profile_id
-                WHERE f.profile_id IS NULL
-                """
-            ).fetchone()[0]
+        fts_profile_id_set = set(fts_profile_ids)
+        orphaned_retrieval_text_fts = sum(
+            1 for profile_id in fts_profile_ids if profile_id not in profile_ids
+        )
+        missing_retrieval_text_fts = sum(
+            1 for profile_id in profile_ids if profile_id not in fts_profile_id_set
         )
         if citation_included_retrieval_text:
             issues["retrieval_text_not_citation_excluded"] = citation_included_retrieval_text

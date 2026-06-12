@@ -9,9 +9,17 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from research_x.memory.api_budget import upsert_api_price
-from research_x.memory.embeddings import estimate_memory_embedding_build
-from research_x.memory.media_embeddings import estimate_media_embedding_build
+from research_x.memory.api_budget import rough_text_tokens, upsert_api_price
+from research_x.memory.document_hashes import (
+    memory_document_embedding_text,
+    memory_document_source_hash,
+    text_hash,
+)
+from research_x.memory.embeddings import DEFAULT_TEXT_TEMPLATE_VERSION
+from research_x.memory.media_embeddings import (
+    MediaEmbeddingEstimate,
+    estimate_media_embedding_build,
+)
 from research_x.memory.schema import ensure_memory_schema
 
 SOURCE_GEMINI_PRICING = "https://ai.google.dev/gemini-api/docs/pricing"
@@ -96,6 +104,35 @@ class _OperationArm:
     source_url: str
     status: str
     notes: str
+
+
+@dataclass(frozen=True)
+class _TextDocumentEstimate:
+    doc_id: str
+    source_doc_hash: str
+    embedded_text_hash: str
+    input_chars: int
+    input_tokens: int
+
+
+@dataclass(frozen=True)
+class _PreparedTextCorpus:
+    db_path: str
+    documents: tuple[_TextDocumentEstimate, ...]
+    embeddings: dict[tuple[str, str, int, str, str, str], tuple[str, str]]
+
+
+@dataclass(frozen=True)
+class _TextEmbeddingEstimate:
+    documents: int
+    selected: int
+    missing: int
+    stale_text: int
+    stale_source: int
+    current: int
+    estimated_input_chars: int
+    estimated_input_tokens: int
+    estimated_input_cost: float | None
 
 
 DEFAULT_PRICE_CATALOG_ROWS: tuple[PriceCatalogRow, ...] = (
@@ -336,7 +373,15 @@ def build_api_lane_estimate_report(
 ) -> ApiLaneEstimateReport:
     rows: list[ApiLaneEstimateRow] = []
     rows.extend(_text_embedding_rows(db_path))
-    rows.extend(_media_embedding_rows(db_path, max_file_bytes=max_file_bytes))
+    media_estimate = estimate_media_embedding_build(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        dimensions=1536,
+        embedding_profile="native_multimodal_media",
+        max_file_bytes=max_file_bytes,
+    )
+    rows.extend(_media_embedding_rows(media_estimate))
     rows.extend(
         _rerank_rows(
             rerank_query_count=rerank_query_count,
@@ -353,11 +398,10 @@ def build_api_lane_estimate_report(
     )
     rows.extend(
         _ocr_rows(
-            db_path,
-            max_file_bytes=max_file_bytes,
             scope=ocr_scope,
             limit=ocr_limit,
             include_latest=include_latest_ocr,
+            media_estimate=media_estimate,
         )
     )
     rows.extend(
@@ -465,6 +509,7 @@ def format_api_lane_estimate(report: ApiLaneEstimateReport) -> str:
 def _text_embedding_rows(
     db_path: str | Path,
 ) -> tuple[ApiLaneEstimateRow, ...]:
+    corpus = _prepare_text_embedding_corpus(db_path)
     arms = [
         _TextArm(
             "embedding_general_memory",
@@ -622,14 +667,7 @@ def _text_embedding_rows(
     ]
     rows = []
     for arm in arms:
-        estimate = estimate_memory_embedding_build(
-            db_path,
-            provider=arm.provider,
-            model=arm.model,
-            dimensions=arm.dimensions,
-            embedding_profile=arm.embedding_profile,
-            price_per_million_input_tokens=arm.price_per_million_input_tokens,
-        )
+        estimate = _estimate_text_embedding_arm(corpus, arm)
         rows.append(
             ApiLaneEstimateRow(
                 lane=arm.lane,
@@ -670,19 +708,107 @@ def _text_embedding_rows(
     return tuple(rows)
 
 
-def _media_embedding_rows(
-    db_path: str | Path,
-    *,
-    max_file_bytes: int,
-) -> tuple[ApiLaneEstimateRow, ...]:
-    estimate = estimate_media_embedding_build(
-        db_path,
-        provider="gemini",
-        model="gemini-embedding-2",
-        dimensions=1536,
-        embedding_profile="native_multimodal_media",
-        max_file_bytes=max_file_bytes,
+def _prepare_text_embedding_corpus(db_path: str | Path) -> _PreparedTextCorpus:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        doc_rows = conn.execute(
+            """
+            SELECT doc_id, title, compact_text, body, metadata_json
+            FROM memory_documents
+            ORDER BY observed_at DESC, doc_id
+            """
+        ).fetchall()
+        if not doc_rows:
+            raise RuntimeError("memory_documents is empty; run memory build-corpus first")
+        embedding_rows = conn.execute(
+            """
+            SELECT
+                doc_id, provider, model, dimensions, embedding_profile,
+                text_template_version, source_doc_hash, embedded_text_hash
+            FROM memory_embeddings
+            """
+        ).fetchall()
+    documents: list[_TextDocumentEstimate] = []
+    for row in doc_rows:
+        text = memory_document_embedding_text(row)
+        documents.append(
+            _TextDocumentEstimate(
+                doc_id=str(row["doc_id"]),
+                source_doc_hash=memory_document_source_hash(row),
+                embedded_text_hash=text_hash(text),
+                input_chars=len(text),
+                input_tokens=rough_text_tokens(text),
+            )
+        )
+    embeddings = {
+        (
+            str(row["provider"]),
+            str(row["model"]),
+            int(row["dimensions"]),
+            str(row["embedding_profile"]),
+            str(row["text_template_version"]),
+            str(row["doc_id"]),
+        ): (str(row["source_doc_hash"] or ""), str(row["embedded_text_hash"] or ""))
+        for row in embedding_rows
+    }
+    return _PreparedTextCorpus(
+        db_path=str(path),
+        documents=tuple(documents),
+        embeddings=embeddings,
     )
+
+
+def _estimate_text_embedding_arm(
+    corpus: _PreparedTextCorpus,
+    arm: _TextArm,
+) -> _TextEmbeddingEstimate:
+    counts = {"missing": 0, "stale_text": 0, "stale_source": 0, "current": 0}
+    input_chars = 0
+    input_tokens = 0
+    spec_prefix = (
+        arm.provider,
+        arm.model,
+        arm.dimensions,
+        arm.embedding_profile,
+        DEFAULT_TEXT_TEMPLATE_VERSION,
+    )
+    for doc in corpus.documents:
+        existing = corpus.embeddings.get((*spec_prefix, doc.doc_id))
+        if existing is None:
+            status = "missing"
+        elif existing[0] != doc.source_doc_hash:
+            status = "stale_source"
+        elif existing[1] != doc.embedded_text_hash:
+            status = "stale_text"
+        else:
+            status = "current"
+        counts[status] += 1
+        if status != "current":
+            input_chars += doc.input_chars
+            input_tokens += doc.input_tokens
+    estimated_cost = None
+    if arm.price_per_million_input_tokens is not None:
+        estimated_cost = (input_tokens / 1_000_000) * arm.price_per_million_input_tokens
+    return _TextEmbeddingEstimate(
+        documents=len(corpus.documents),
+        selected=len(corpus.documents) - counts["current"],
+        missing=counts["missing"],
+        stale_text=counts["stale_text"],
+        stale_source=counts["stale_source"],
+        current=counts["current"],
+        estimated_input_chars=input_chars,
+        estimated_input_tokens=input_tokens,
+        estimated_input_cost=estimated_cost,
+    )
+
+
+def _media_embedding_rows(
+    estimate: MediaEmbeddingEstimate,
+) -> tuple[ApiLaneEstimateRow, ...]:
     image_count = sum(
         count
         for mime, count in estimate.by_mime_type.items()
@@ -826,8 +952,9 @@ def _reader_rows(
     reader_url_limit: int,
     reader_max_chars: int,
 ) -> tuple[ApiLaneEstimateRow, ...]:
-    urls = discover_external_urls(db_path)
-    selected = min(len(urls), max(0, reader_url_limit))
+    resolved_limit = max(0, reader_url_limit)
+    urls = () if resolved_limit == 0 else discover_external_urls(db_path, limit=resolved_limit)
+    selected = min(len(urls), resolved_limit)
     # Jina Reader billing is token-based in the Search Foundation API family. Use a conservative
     # extracted-context upper bound so URL fanout is visible before a network request.
     tokens = selected * max(1, (max(0, reader_max_chars) + 1) // 2)
@@ -844,7 +971,7 @@ def _reader_rows(
             unit="input_token",
             estimated_cost_usd=cost,
             cost_basis=(
-                f"min({len(urls)} discovered external URLs, limit={reader_url_limit}) "
+                f"min({len(urls)} discovered external URLs, limit={resolved_limit}) "
                 f"* max_chars={reader_max_chars} / 2 rough tokens"
             ),
             source_url=SOURCE_JINA_MODELS,
@@ -857,27 +984,21 @@ def _reader_rows(
                 "selected_urls": selected,
                 "sample_urls": urls[:10],
                 "reader_max_chars": reader_max_chars,
+                "url_discovery_limit": resolved_limit,
+                "url_discovery_capped": resolved_limit > 0 and len(urls) >= resolved_limit,
             },
         ),
     )
 
 
 def _ocr_rows(
-    db_path: str | Path,
     *,
-    max_file_bytes: int,
     scope: str,
     limit: int,
     include_latest: bool,
+    media_estimate: MediaEmbeddingEstimate,
 ) -> tuple[ApiLaneEstimateRow, ...]:
-    estimate = estimate_media_embedding_build(
-        db_path,
-        provider="gemini",
-        model="gemini-embedding-2",
-        dimensions=1536,
-        embedding_profile="native_multimodal_media",
-        max_file_bytes=max_file_bytes,
-    )
+    estimate = media_estimate
     full_page_lower_bound = estimate.selected
     normalized_scope = scope.strip().lower().replace("-", "_")
     if normalized_scope not in {"none", "sample", "candidate_set", "all"}:
@@ -985,9 +1106,12 @@ def _managed_rag_rows(
     )
 
 
-def discover_external_urls(db_path: str | Path) -> tuple[str, ...]:
+def discover_external_urls(db_path: str | Path, *, limit: int | None = None) -> tuple[str, ...]:
     path = Path(db_path)
     if not path.exists():
+        return ()
+    resolved_limit = None if limit is None or limit < 0 else limit
+    if resolved_limit == 0:
         return ()
     urls: set[str] = set()
     with sqlite3.connect(path, timeout=60) as conn:
@@ -996,6 +1120,8 @@ def discover_external_urls(db_path: str | Path) -> tuple[str, ...]:
         if _table_exists(conn, "memory_external_items"):
             for row in conn.execute("SELECT url FROM memory_external_items WHERE url IS NOT NULL"):
                 _add_external_url(urls, row["url"])
+                if _limit_reached(urls, resolved_limit):
+                    break
         if _table_exists(conn, "memory_documents"):
             for row in conn.execute(
                 """
@@ -1006,9 +1132,15 @@ def discover_external_urls(db_path: str | Path) -> tuple[str, ...]:
                    OR metadata_json LIKE '%http%'
                 """
             ):
-                _extract_urls(urls, row["body"])
-                _extract_urls(urls, row["compact_text"])
-                _extract_urls(urls, row["metadata_json"])
+                _extract_urls(urls, row["body"], limit=resolved_limit)
+                if _limit_reached(urls, resolved_limit):
+                    break
+                _extract_urls(urls, row["compact_text"], limit=resolved_limit)
+                if _limit_reached(urls, resolved_limit):
+                    break
+                _extract_urls(urls, row["metadata_json"], limit=resolved_limit)
+                if _limit_reached(urls, resolved_limit):
+                    break
         if _table_exists(conn, "tweets"):
             for row in conn.execute(
                 """
@@ -1018,17 +1150,25 @@ def discover_external_urls(db_path: str | Path) -> tuple[str, ...]:
                 """
             ):
                 # tweet.url is usually an X source URL and is intentionally filtered out.
-                _extract_urls(urls, row["url"])
-                _extract_urls(urls, row["text"])
-                _extract_urls(urls, row["raw_json"])
-    return tuple(sorted(urls))
+                _extract_urls(urls, row["url"], limit=resolved_limit)
+                if _limit_reached(urls, resolved_limit):
+                    break
+                _extract_urls(urls, row["text"], limit=resolved_limit)
+                if _limit_reached(urls, resolved_limit):
+                    break
+                _extract_urls(urls, row["raw_json"], limit=resolved_limit)
+                if _limit_reached(urls, resolved_limit):
+                    break
+    return tuple(sorted(urls)[:resolved_limit])
 
 
-def _extract_urls(urls: set[str], text: Any) -> None:
+def _extract_urls(urls: set[str], text: Any, *, limit: int | None = None) -> None:
     if not text:
         return
     for match in _URL_RE.findall(str(text)):
         _add_external_url(urls, match.rstrip(".,;:!?]}>"))
+        if _limit_reached(urls, limit):
+            return
 
 
 def _add_external_url(urls: set[str], url: Any) -> None:
@@ -1046,6 +1186,10 @@ def _add_external_url(urls: set[str], url: Any) -> None:
     if parsed.netloc.lower().endswith(".x.com") or parsed.netloc.lower().endswith(".twitter.com"):
         return
     urls.add(value)
+
+
+def _limit_reached(urls: set[str], limit: int | None) -> bool:
+    return limit is not None and len(urls) >= limit
 
 
 def _memory_document_count(db_path: str | Path) -> int:

@@ -61,8 +61,7 @@ def build_retrieval_text_profiles(
         if rebuild:
             _delete_profiles(conn, selected_profiles)
         rows = _profile_rows(documents, profiles=selected_profiles, now=now)
-        for row in rows:
-            _upsert_profile(conn, row)
+        _upsert_profiles(conn, rows, refresh_fts=not rebuild)
         conn.commit()
         fts_rows = _fts_count(conn)
     return RetrievalTextBuildSummary(
@@ -106,12 +105,13 @@ def retrieval_text_coverage(db_path: str | Path) -> RetrievalTextCoverage:
                 )
         profile_records = conn.execute(
             """
-            SELECT p.doc_id, p.retrieval_text_profile, p.source_doc_hash,
+            SELECT p.profile_id, p.doc_id, p.retrieval_text_profile, p.source_doc_hash,
                    d.title, d.body, d.compact_text, d.metadata_json
             FROM memory_retrieval_text_profiles p
             LEFT JOIN memory_documents d ON d.doc_id = p.doc_id
             """
         ).fetchall()
+        profile_ids = {str(record["profile_id"]) for record in profile_records}
         for record in profile_records:
             profile = str(record["retrieval_text_profile"])
             doc_id = str(record["doc_id"])
@@ -130,25 +130,16 @@ def retrieval_text_coverage(db_path: str | Path) -> RetrievalTextCoverage:
                 """
             ).fetchone()[0]
         )
-        orphaned_fts_rows = int(
-            conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM memory_retrieval_text_fts f
-                LEFT JOIN memory_retrieval_text_profiles p ON p.profile_id = f.profile_id
-                WHERE p.profile_id IS NULL
-                """
-            ).fetchone()[0]
+        fts_profile_ids = tuple(
+            str(row["profile_id"])
+            for row in conn.execute("SELECT profile_id FROM memory_retrieval_text_fts")
         )
-        profiles_missing_fts_rows = int(
-            conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM memory_retrieval_text_profiles p
-                LEFT JOIN memory_retrieval_text_fts f ON f.profile_id = p.profile_id
-                WHERE f.profile_id IS NULL
-                """
-            ).fetchone()[0]
+        fts_profile_id_set = set(fts_profile_ids)
+        orphaned_fts_rows = sum(
+            1 for profile_id in fts_profile_ids if profile_id not in profile_ids
+        )
+        profiles_missing_fts_rows = sum(
+            1 for profile_id in profile_ids if profile_id not in fts_profile_id_set
         )
         missing_by_profile = {
             profile: max(0, len(doc_ids - actual.get(profile, set())))
@@ -280,8 +271,15 @@ def _compact_metadata(value: str) -> str:
     return f"metadata: {json.dumps(useful, ensure_ascii=False, sort_keys=True)}"
 
 
-def _upsert_profile(conn: sqlite3.Connection, row: dict[str, Any]) -> None:
-    conn.execute(
+def _upsert_profiles(
+    conn: sqlite3.Connection,
+    rows: tuple[dict[str, Any], ...],
+    *,
+    refresh_fts: bool,
+) -> None:
+    if not rows:
+        return
+    conn.executemany(
         """
         INSERT INTO memory_retrieval_text_profiles (
             profile_id, doc_id, retrieval_text_profile, retrieval_text,
@@ -298,25 +296,29 @@ def _upsert_profile(conn: sqlite3.Connection, row: dict[str, Any]) -> None:
             created_at=excluded.created_at,
             metadata_json=excluded.metadata_json
         """,
-        row,
+        rows,
     )
-    conn.execute(
-        "DELETE FROM memory_retrieval_text_fts WHERE profile_id = ?",
-        (row["profile_id"],),
-    )
-    conn.execute(
+    if refresh_fts:
+        conn.executemany(
+            "DELETE FROM memory_retrieval_text_fts WHERE profile_id = ?",
+            [(row["profile_id"],) for row in rows],
+        )
+    conn.executemany(
         """
         INSERT INTO memory_retrieval_text_fts (
             profile_id, doc_id, retrieval_text_profile, retrieval_text
         )
         VALUES (?, ?, ?, ?)
         """,
-        (
-            row["profile_id"],
-            row["doc_id"],
-            row["retrieval_text_profile"],
-            row["retrieval_text"],
-        ),
+        [
+            (
+                row["profile_id"],
+                row["doc_id"],
+                row["retrieval_text_profile"],
+                row["retrieval_text"],
+            )
+            for row in rows
+        ],
     )
 
 
@@ -324,19 +326,13 @@ def _delete_profiles(conn: sqlite3.Connection, profiles: tuple[str, ...]) -> Non
     if not profiles:
         return
     placeholders = ",".join("?" for _ in profiles)
-    rows = conn.execute(
+    conn.execute(
         f"""
-        SELECT profile_id
-        FROM memory_retrieval_text_profiles
+        DELETE FROM memory_retrieval_text_fts
         WHERE retrieval_text_profile IN ({placeholders})
         """,
         profiles,
-    ).fetchall()
-    for row in rows:
-        conn.execute(
-            "DELETE FROM memory_retrieval_text_fts WHERE profile_id = ?",
-            (row["profile_id"],),
-        )
+    )
     conn.execute(
         f"""
         DELETE FROM memory_retrieval_text_profiles

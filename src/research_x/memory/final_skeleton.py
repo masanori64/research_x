@@ -115,11 +115,7 @@ def run_final_skeleton_preflight(
                 "memory_query_transforms",
                 query_transforms,
             )
-            _insert_many(
-                conn,
-                "memory_retrieval_text_profiles",
-                retrieval_profiles,
-            )
+            _insert_retrieval_text_profiles(conn, retrieval_profiles)
             _insert_many(
                 conn,
                 "memory_projection_generations",
@@ -631,6 +627,36 @@ def _insert_many(
         f"({', '.join(columns)}) VALUES ({placeholders})"
     )
     conn.executemany(sql, [tuple(row[column] for column in columns) for row in rows])
+
+
+def _insert_retrieval_text_profiles(
+    conn: sqlite3.Connection,
+    rows: tuple[dict[str, Any], ...],
+) -> None:
+    if not rows:
+        return
+    _insert_many(conn, "memory_retrieval_text_profiles", rows)
+    conn.executemany(
+        "DELETE FROM memory_retrieval_text_fts WHERE profile_id = ?",
+        [(row["profile_id"],) for row in rows],
+    )
+    conn.executemany(
+        """
+        INSERT INTO memory_retrieval_text_fts (
+            profile_id, doc_id, retrieval_text_profile, retrieval_text
+        )
+        VALUES (?, ?, ?, ?)
+        """,
+        [
+            (
+                row["profile_id"],
+                row["doc_id"],
+                row["retrieval_text_profile"],
+                row["retrieval_text"],
+            )
+            for row in rows
+        ],
+    )
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:

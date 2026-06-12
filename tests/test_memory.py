@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from research_x.cli import main
+from research_x.memory import api_lane_estimate as memory_api_lane_estimate
 from research_x.memory import embeddings, media_embeddings
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
@@ -2093,6 +2094,15 @@ def test_memory_final_skeleton_preflight_writes_no_spend_contracts(tmp_path: Pat
             json.loads(retrieval_profile[1])["contract"]
             == "retrieval_text_profile_is_projection_not_source"
         )
+        missing_fts = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM memory_retrieval_text_profiles p
+            LEFT JOIN memory_retrieval_text_fts f ON f.profile_id = p.profile_id
+            WHERE f.profile_id IS NULL
+            """
+        ).fetchone()[0]
+        assert missing_fts == 0
 
         gate_names = {
             row[0]
@@ -2403,6 +2413,30 @@ def test_memory_api_lane_estimate_ocr_requires_explicit_full_scope(tmp_path: Pat
     assert "mistral_ocr_latest" not in default_rows
     assert all_rows["mistral_ocr_2512"].selected_units >= 0
     assert "mistral_ocr_latest" in all_rows
+
+
+def test_memory_api_lane_estimate_zero_reader_limit_skips_url_discovery(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+
+    def fail_discovery(_db_path: str | Path, *, limit: int | None = None) -> tuple[str, ...]:
+        raise AssertionError("reader URL discovery should be skipped when limit is zero")
+
+    monkeypatch.setattr(memory_api_lane_estimate, "discover_external_urls", fail_discovery)
+
+    report = build_api_lane_estimate_report(
+        db_path,
+        reader_url_limit=0,
+        ocr_scope="none",
+    )
+    rows = {row.name: row for row in report.rows}
+
+    assert rows["jina_reader_extract"].extra["discovered_external_urls"] == 0
+    assert rows["jina_reader_extract"].selected_units == 0
 
 
 def test_memory_discover_external_urls_filters_x_sources(tmp_path: Path) -> None:
