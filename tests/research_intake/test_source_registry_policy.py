@@ -36,8 +36,10 @@ def test_source_registry_local_sources_are_metadata_only() -> None:
         assert source.quality_hint in {"official", "high", "medium", "unknown", "low"}
 
 
-def test_research_intake_policy_doc_locks_discovery_not_evidence() -> None:
-    policy = Path("docs/research-intake.md").read_text(encoding="utf-8")
+def test_research_intake_skill_locks_discovery_not_evidence() -> None:
+    policy = Path(".agents/skills/research-x-research-intake/SKILL.md").read_text(
+        encoding="utf-8"
+    )
 
     assert "candidate locator != fetched source != source bundle" in policy
     assert "allow_network` must be false" in policy

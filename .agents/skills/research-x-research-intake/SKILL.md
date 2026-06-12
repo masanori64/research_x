@@ -18,6 +18,8 @@ as evidence. It turns candidate material into a bounded intake decision and hand
 - Preserve provenance, access boundary, privacy boundary, and risk flags before any source-bundle
   handoff.
 - Keep discovery results separate from citation-ready evidence.
+- Keep the intake path local and dry-run by default:
+  `candidate locator != fetched source != source bundle != context chunk != citation`.
 
 ## Use When
 
@@ -53,6 +55,34 @@ as evidence. It turns candidate material into a bounded intake decision and hand
   injection risk, community reliability, or ToS/legal concern.
 - Handoff target: source registry, source review matrix, memory workflow, or rejected/deferred list.
 
+## Default Mode
+
+- Default network mode is `dry-run`.
+- Default fetch mode is `metadata_only`.
+- `allow_network` must be false.
+- `allow_provider` must be false.
+- Provider-backed sources must stay disabled while the no-quota freeze is active.
+- Allowed dry-run source types are `manual_url`, `local_note`, and `fake_search`.
+- Provider-gated source types such as `serper`, `brave`, `jina`, `openai`, `gemini`, and managed
+  RAG can be recorded only as disabled future entries.
+
+## Required Provenance
+
+Every accepted candidate needs:
+
+- locator or local path;
+- source type;
+- source owner or registry source ID where known;
+- source quality hint;
+- storage-rights decision;
+- prompt-injection review state;
+- source-bundle restoration gate.
+
+Use explicit risk flags rather than burying risk in prose: `not_evidence`,
+`untrusted_url_not_fetched`, `synthetic_candidate`, `local_note_not_source_bundle`,
+`provider_freeze`, `network_required`, `license_unknown`, and
+`prompt_injection_review_required`.
+
 ## Steps
 
 1. Identify the locator, source type, objective, and privacy boundary.
@@ -73,6 +103,8 @@ as evidence. It turns candidate material into a bounded intake decision and hand
   approved.
 - No proxy scraping default.
 - No source-bundle promotion without restorable original source, provenance, and citation path.
+- Dry-run candidates and research briefs remain review/control artifacts until
+  `research-x-memory-workflow` can restore source bundles and context chunks.
 
 ## Negative Triggers
 

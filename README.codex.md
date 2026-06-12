@@ -154,10 +154,11 @@ uv run python -m research_x.research_intake brief --run runs\research_intake\dis
 uv run pytest tests\research_intake
 ```
 
-Addendum policy docs:
+Addendum policy surfaces:
 
 ```text
-docs/research-intake.md
+.agents/skills/research-x-research-intake/SKILL.md
+.codex/research_intake/
 docs/context-budget-policy.md
 docs/publishing-illustration-policy.md
 prompt_contracts/research_x_*.yaml

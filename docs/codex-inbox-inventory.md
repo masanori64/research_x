@@ -99,7 +99,7 @@ personal-agent-foundation review.
 
 | Inbox claim | Current repo position | Resolution |
 |---|---|---|
-| Add detailed docs such as `docs/research-intake.md` and `docs/memory-privacy-and-forgetting.md`. | Current governance says `docs/memory-pipeline-v2.md` is the detailed memory/search source of truth and new memory-architecture Markdown should not be added unless explicitly requested. | Fold durable architecture into `docs/memory-pipeline-v2.md`; use `docs/pipeline.md` for acquisition/fetch/auth/network policy; archive bulky history. |
+| Add detailed docs such as `docs/research-intake.md` and `docs/memory-privacy-and-forgetting.md`. | Current governance says `docs/memory-pipeline-v2.md` is the detailed memory/search source of truth and new memory-architecture Markdown should not be added unless explicitly requested. | Keep research-intake workflow policy in `research-x-research-intake`; use `docs/pipeline.md` for acquisition/fetch/auth/network policy; archive bulky history. |
 | Add or strengthen several new repo Skills. | Current repo already has focused Skills for doc governance, skillization, provider gate, memory workflow, observability, decision loop, goal runner, and parallel review. | Do not add adjacent Skills unless a concrete recurring gap survives trigger/overlap review. |
 | Use `.codex/skills` or `.codex/improvement` as local workflow surface. | Current repo Skills live under `.agents/skills` and native metadata is already wired. | Treat `.codex/improvement` as optional artifact storage only; do not move repo Skills. |
 | CLI examples use `uv run memory ...`. | Repo command policy requires `uv run python -m research_x ...`. | Any future copied commands must be rewritten. |
