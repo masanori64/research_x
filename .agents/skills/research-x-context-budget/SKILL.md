@@ -17,6 +17,9 @@ sources, cite compressed text, or install context-compression tools.
   safely summarized.
 - Preserve source-bundle references, citation anchors, hashes, run IDs, and failure states.
 - Keep generated summaries and compressed context as hints rather than evidence.
+- Keep the boundary explicit:
+  `compressed summary != source bundle`, `offload pointer != citation`, and
+  `context preview != answer evidence`.
 
 ## Use When
 
@@ -46,6 +49,21 @@ sources, cite compressed text, or install context-compression tools.
 - Drop list: discarded or deferred items with reasons.
 - Gate list: evidence that cannot be compressed destructively.
 
+## Offload Pointer Requirements
+
+Every offloaded context item must include:
+
+- `pointer_id`;
+- `artifact_path`;
+- `sha256`;
+- `char_count` and `byte_count`;
+- source fields where available;
+- citation refs where available;
+- restore hint.
+
+The original text must remain recoverable from the artifact path, and the hash must verify before
+the offloaded text is used as source-sensitive context.
+
 ## Steps
 
 1. Classify items as `evidence_critical`, `citation_anchor`, `search_candidate`,
@@ -61,15 +79,17 @@ sources, cite compressed text, or install context-compression tools.
 ## Safety Gates
 
 - Compression must not replace source bundles, citations, or original run traces.
-- Headroom or other compression dependencies are gated until pinned, reviewed, local-only checked,
-  and covered by citation-integrity verification.
+- Headroom or similar tools are optional adapters, not default dependencies. They are gated until
+  source-reviewed, pinned, local-only checked, secret-surface reviewed, and covered by
+  citation-integrity verification.
 - Never prefer token savings over evidence restoration.
 
 ## Negative Triggers
 
 - "Summarize everything and delete the originals" is rejected.
-- "Cite the compressed summary" is rejected.
+- "Cite the compressed summary" / "Do not cite compressed summaries" is rejected.
 - "Install Headroom now" is gated until explicit approval and review.
+- "Install compression tools from a design note alone" is rejected.
 - "Drop source refs to fit the prompt" is rejected.
 
 ## Verification

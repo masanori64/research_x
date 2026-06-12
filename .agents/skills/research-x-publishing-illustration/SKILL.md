@@ -16,6 +16,9 @@ replace source bundles.
 - Convert factual or explanatory content into a structured visual plan.
 - Preserve claim/source boundaries through a visual claim map.
 - Keep image generation explicit, optional, and gated.
+- Keep the boundary explicit:
+  `visual brief != source`, `generated image != citation`, and
+  `style reference != factual support`.
 
 ## Use When
 
@@ -47,6 +50,17 @@ replace source bundles.
 - Generation gate stating whether image generation is allowed. Default is false.
 - Handoff to `imagegen` only when the user explicitly requests generation and policy allows it.
 
+## Claim Map
+
+Factual visuals need a claim map:
+
+- `claim`: factual statement or explanatory claim.
+- `source_ref`: source bundle or local document reference.
+- `visual_role`: how the claim is represented visually.
+- `must_not_imply`: unsupported inference the visual must avoid.
+
+If source references are absent, the output must be marked draft-only or non-factual.
+
 ## Steps
 
 1. Identify whether the requested visual is explanatory, editorial, promotional, or evidence-like.
@@ -61,12 +75,16 @@ replace source bundles.
 - Generated images are not evidence or citations.
 - Visual plans cannot replace source bundles, citations, or answer support.
 - Image generation is false by default.
+- A visual brief can be produced locally, but actual bitmap generation requires explicit user
+  intent and the normal image-generation workflow.
 - ian-xiaohei-style work remains explicit optional creative output, not a core `research_x` evidence
-  lane.
+  lane. `ian-xiaohei-illustrations` remains creative optional/reference material and must not be
+  installed or enabled without source review.
 
 ## Negative Triggers
 
 - "Use this image as proof" is rejected.
+- "Do not use an image as proof" remains the default.
 - "Make a factual infographic without sources" needs source refs or must be marked draft-only.
 - "Generate the images too" requires explicit image-generation approval.
 - "Ignore the sources and capture the vibe" can produce only non-factual visual drafts.

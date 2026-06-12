@@ -3,7 +3,7 @@ created_at = "2026-06-10"
 owner = "research_x"
 purpose = "Lock repo-local Skills and third-party source candidates before any install or enable step."
 generated_from = [
-  "docs/codex-inbox-inventory.md",
+  ".codex/codex-inbox-inventory.md",
   "_codex_inbox/extracted/design_package/codex_design_package_20260609_1826/07_skill_registry_and_installation_policy.md",
   "_codex_inbox/extracted/design_package/codex_design_package_20260609_1826/source_inventory.json",
   "_codex_inbox/extracted/20260611_addendum/design_package/20260611_complete_design_package/03_DECISION_LOCK.md",

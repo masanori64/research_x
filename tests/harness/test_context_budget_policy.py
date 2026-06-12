@@ -53,8 +53,10 @@ def test_context_budget_offload_preserves_restore_pointer_and_citation_refs(
     assert payload["context_chunks"][0]["chunk_text"] == original_text
 
 
-def test_context_budget_policy_doc_rejects_citing_compressed_summaries() -> None:
-    policy_doc = Path("docs/context-budget-policy.md").read_text(encoding="utf-8")
+def test_context_budget_skill_rejects_citing_compressed_summaries() -> None:
+    policy_doc = Path(".agents/skills/research-x-context-budget/SKILL.md").read_text(
+        encoding="utf-8"
+    )
 
     assert "compressed summary != source bundle" in policy_doc
     assert "Do not cite compressed summaries" in policy_doc

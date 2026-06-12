@@ -158,9 +158,9 @@ Addendum policy surfaces:
 
 ```text
 .agents/skills/research-x-research-intake/SKILL.md
+.agents/skills/research-x-context-budget/SKILL.md
+.agents/skills/research-x-publishing-illustration/SKILL.md
 .codex/research_intake/
-docs/context-budget-policy.md
-docs/publishing-illustration-policy.md
 prompt_contracts/research_x_*.yaml
 ```
 

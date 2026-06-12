@@ -16,8 +16,10 @@ def test_publishing_illustration_contract_keeps_generation_gated() -> None:
     assert "citation_from_visual" in text
 
 
-def test_publishing_illustration_policy_requires_claim_map_and_sources() -> None:
-    text = Path("docs/publishing-illustration-policy.md").read_text(encoding="utf-8")
+def test_publishing_illustration_skill_requires_claim_map_and_sources() -> None:
+    text = Path(".agents/skills/research-x-publishing-illustration/SKILL.md").read_text(
+        encoding="utf-8"
+    )
 
     assert "visual brief != source" in text
     assert "generated image != citation" in text

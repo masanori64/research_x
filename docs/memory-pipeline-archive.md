@@ -44,7 +44,7 @@ Placement decision:
 - External research-intake fetching, snapshot, auth, storage-rights, proxy, and network/provider
   policy lives in `docs/pipeline.md`.
 - Short implemented/residual state lives in `PROJECT.md`.
-- Detailed file-by-file inbox inventory lives in `docs/codex-inbox-inventory.md`.
+- Detailed file-by-file inbox inventory lives in `.codex/codex-inbox-inventory.md`.
 - Global Codex foundation ideas, such as generic skill review, security review, planning files,
   context budget, and self-improvement intake, are outside `research_x` unless separately requested.
 
