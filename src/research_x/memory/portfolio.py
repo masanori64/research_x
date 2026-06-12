@@ -40,6 +40,17 @@ BASELINE_ARM_NAMES = {
     "source_bundle_context",
     "workflow_route",
 }
+DEFAULT_BASELINE_ARMS = (
+    "fts_only",
+    "exact_anchor",
+    "retrieval_text",
+    "relation_expansion",
+    "corpus2skill_navigation",
+    "source_bundle_context",
+    "workflow_route",
+    "local_hybrid",
+)
+FAST_BASELINE_ARMS = ("fts_only", "retrieval_text", "local_hybrid")
 
 
 @dataclass(frozen=True)
@@ -267,6 +278,8 @@ def run_portfolio_eval(
     db_path: str | Path,
     *,
     cases: tuple[EvalCase, ...] | None = None,
+    case_limit: int | None = None,
+    fast: bool = False,
     semantic_specs: tuple[PortfolioSemanticSpec, ...] = (),
     reranker_specs: tuple[PortfolioRerankerSpec, ...] = (),
     limit: int = 5,
@@ -276,9 +289,15 @@ def run_portfolio_eval(
     min_agreement: int = 2,
 ) -> PortfolioEvalReport:
     resolved_cases = cases or DEFAULT_EVAL_CASES
+    if case_limit is not None:
+        resolved_cases = resolved_cases[: max(1, case_limit)]
     resolved_fusion_mode = _resolve_fusion_mode(fusion_mode)
+    resolved_baseline_arms = FAST_BASELINE_ARMS if fast else DEFAULT_BASELINE_ARMS
     semantic_index_cache = _load_semantic_indexes(db_path, semantic_specs)
     parameters = {
+        "case_limit": max(1, case_limit) if case_limit is not None else None,
+        "fast": bool(fast),
+        "baseline_arms": list(resolved_baseline_arms),
         "limit": max(1, limit),
         "arm_limit": max(1, arm_limit),
         "rrf_k": float(rrf_k),
@@ -299,6 +318,7 @@ def run_portfolio_eval(
             fusion_mode=resolved_fusion_mode,
             min_agreement=max(1, min_agreement),
             semantic_index_cache=semantic_index_cache,
+            baseline_arms=resolved_baseline_arms,
         )
         for case in resolved_cases
     )
@@ -402,20 +422,32 @@ def _run_case(
     fusion_mode: str,
     min_agreement: int,
     semantic_index_cache: dict[str, LoadedSemanticIndex | str],
+    baseline_arms: tuple[str, ...],
 ) -> PortfolioCaseResult:
     arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]] = []
-    arm_payloads.append(_run_fts_only_arm(db_path, case.query, limit=arm_limit))
-    arm_payloads.append(_run_exact_anchor_arm(db_path, case.query, limit=arm_limit))
-    arm_payloads.append(_run_retrieval_text_arm(db_path, case.query, limit=arm_limit))
-    arm_payloads.append(_run_relation_expansion_arm(db_path, case.query, limit=arm_limit))
-    arm_payloads.append(
-        _run_corpus2skill_navigation_arm(db_path, case.query, limit=arm_limit)
-    )
-    arm_payloads.append(_run_source_bundle_context_arm(db_path, case.query, limit=arm_limit))
-    arm_payloads.append(_run_workflow_route_arm(db_path, case.query, limit=arm_limit))
-    arm_payloads.append(
-        _run_arm(db_path, case.query, name="local_hybrid", spec=None, limit=arm_limit)
-    )
+    enabled_baseline_arms = set(baseline_arms)
+    if "fts_only" in enabled_baseline_arms:
+        arm_payloads.append(_run_fts_only_arm(db_path, case.query, limit=arm_limit))
+    if "exact_anchor" in enabled_baseline_arms:
+        arm_payloads.append(_run_exact_anchor_arm(db_path, case.query, limit=arm_limit))
+    if "retrieval_text" in enabled_baseline_arms:
+        arm_payloads.append(_run_retrieval_text_arm(db_path, case.query, limit=arm_limit))
+    if "relation_expansion" in enabled_baseline_arms:
+        arm_payloads.append(_run_relation_expansion_arm(db_path, case.query, limit=arm_limit))
+    if "corpus2skill_navigation" in enabled_baseline_arms:
+        arm_payloads.append(
+            _run_corpus2skill_navigation_arm(db_path, case.query, limit=arm_limit)
+        )
+    if "source_bundle_context" in enabled_baseline_arms:
+        arm_payloads.append(
+            _run_source_bundle_context_arm(db_path, case.query, limit=arm_limit)
+        )
+    if "workflow_route" in enabled_baseline_arms:
+        arm_payloads.append(_run_workflow_route_arm(db_path, case.query, limit=arm_limit))
+    if "local_hybrid" in enabled_baseline_arms:
+        arm_payloads.append(
+            _run_arm(db_path, case.query, name="local_hybrid", spec=None, limit=arm_limit)
+        )
     for index, spec in enumerate(semantic_specs, start=1):
         name = spec.name or _semantic_arm_name(spec, index=index)
         arm_payloads.append(

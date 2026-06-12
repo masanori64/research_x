@@ -1694,6 +1694,17 @@ def main(argv: list[str] | None = None) -> int:
         help="optional JSON/JSONL eval cases file; omit to use built-in route cases",
     )
     memory_portfolio_eval_parser.add_argument("--limit", type=int, default=5)
+    memory_portfolio_eval_parser.add_argument(
+        "--case-limit",
+        type=int,
+        default=None,
+        help="optional maximum number of eval cases to run; useful for bounded preflight",
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="run a lightweight local-arm subset for quick offline preflight",
+    )
     memory_portfolio_eval_parser.add_argument("--arm-limit", type=int, default=20)
     memory_portfolio_eval_parser.add_argument("--rrf-k", type=float, default=60.0)
     memory_portfolio_eval_parser.add_argument(
@@ -3981,6 +3992,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         report = run_portfolio_eval(
             args.db,
             cases=cases,
+            case_limit=args.case_limit,
+            fast=args.fast,
             semantic_specs=parse_portfolio_semantic_specs(semantic_spec_values),
             reranker_specs=parse_portfolio_reranker_specs(reranker_spec_values),
             limit=args.limit,

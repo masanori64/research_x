@@ -843,6 +843,16 @@ def _strong_anchor_terms(plan: QueryPlan) -> tuple[str, ...]:
 def _is_strong_anchor_term(term: str) -> bool:
     cleaned = term.strip()
     folded = cleaned.casefold()
+    if folded in {
+        "反対",
+        "反対意見",
+        "矛盾",
+        "同じ話",
+        "contradict",
+        "contradiction",
+        "support",
+    }:
+        return True
     if cleaned.startswith(("@", "#")) and len(cleaned) >= 3:
         return True
     if "://" in cleaned or folded.startswith("www."):

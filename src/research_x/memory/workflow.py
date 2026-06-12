@@ -555,6 +555,8 @@ def plan_workflow_route(plan: QueryPlan, *, requested_route: str = "auto") -> Wo
         return _route("current_fact_check", "freshness_or_current_fact_check")
     if plan.author_terms or "author" in intents:
         return _route("author_stance", "author_intent")
+    if "media" in intents and "quote_context" in intents:
+        return _route("media_context", "media_quote_intent")
     if "quote_context" in intents:
         return _route("quote_context", "quote_intent")
     if "adult_comic" in intents:

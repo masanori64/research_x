@@ -261,12 +261,23 @@ def build_query_plan(query: str) -> QueryPlan:
         _append(exact_terms, token)
 
     for profile in INTENT_PROFILES:
-        if any(_contains(normalized, trigger) for trigger in profile.triggers):
+        matched_triggers = tuple(
+            trigger for trigger in profile.triggers if _contains(normalized, trigger)
+        )
+        if (
+            profile.intent_id == "author"
+            and _looks_like_contradiction_check(normalized)
+        ):
+            matched_triggers = tuple(
+                trigger
+                for trigger in matched_triggers
+                if trigger not in {"意見", "発言"}
+            )
+        if matched_triggers:
             intents.append(profile.intent_id)
-            for trigger in profile.triggers:
-                if _contains(normalized, trigger):
-                    _append(terms, trigger)
-                    _append(exact_terms, trigger)
+            for trigger in matched_triggers:
+                _append(terms, trigger)
+                _append(exact_terms, trigger)
             for expansion in profile.expansions:
                 _append(terms, expansion)
             for doc_type, weight in profile.doc_type_weights.items():
@@ -324,6 +335,12 @@ def build_query_plan(query: str) -> QueryPlan:
     if excludes_old:
         _remove_terms(terms, "古い", "古くなった", "obsolete", "除いて", "除外")
         _remove_terms(exact_terms, "古い", "古くなった", "obsolete", "除いて", "除外")
+    if _looks_like_broad_topic_map(normalized):
+        _remove_terms(terms, "DB")
+        _remove_terms(exact_terms, "DB")
+        for term in ("関心", "領域", "保存"):
+            _append(terms, term)
+        doc_type_weights["topic_thread"] = doc_type_weights.get("topic_thread", 0.0) + 3.0
 
     return QueryPlan(
         original_query=query,
@@ -353,6 +370,28 @@ def _normalize(value: str) -> str:
 
 def _contains(text: str, term: str) -> bool:
     return _normalize(term).casefold() in text.casefold()
+
+
+def _looks_like_contradiction_check(text: str) -> bool:
+    return any(
+        _contains(text, term)
+        for term in (
+            "矛盾",
+            "反対意見",
+            "反対",
+            "同じ話",
+            "contradict",
+            "contradiction",
+            "support",
+        )
+    )
+
+
+def _looks_like_broad_topic_map(text: str) -> bool:
+    return any(
+        _contains(text, term)
+        for term in ("関心領域", "db 全体", "db全体", "DB 全体", "DB全体")
+    )
 
 
 def _append(values: list[str], value: str) -> None:

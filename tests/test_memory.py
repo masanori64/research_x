@@ -1197,6 +1197,25 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
     )
 
 
+def test_memory_portfolio_eval_case_limit_limits_default_cases(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    report = run_portfolio_eval(db_path, case_limit=1, fast=True, limit=1, arm_limit=2)
+
+    assert len(report.cases) == 1
+    assert report.cases[0].query == DEFAULT_EVAL_CASES[0].query
+    assert report.parameters["case_limit"] == 1
+    assert report.parameters["fast"] is True
+    assert [arm.name for arm in report.cases[0].arms] == [
+        "fts_only",
+        "retrieval_text",
+        "local_hybrid",
+    ]
+
+
 def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
     try:
         parse_portfolio_semantic_spec("provider=local_hash,dimensions=64,bad=value")
@@ -3998,12 +4017,29 @@ def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
     contradiction_fact = plan_workflow_route(
         build_query_plan("同じ話で反対意見や矛盾している保存投稿はある？")
     )
+    media_quote = plan_workflow_route(
+        build_query_plan("引用tweetの中にある画像付き投稿を引用関係ごと出して")
+    )
 
     assert recent_learning.route == "learning_map"
     assert recent_learning.recommended_doc_types[0] == "topic_thread"
     assert current_fact.route == "current_fact_check"
     assert current_fact.wants_external_context is True
     assert contradiction_fact.route == "current_fact_check"
+    assert media_quote.route == "media_context"
+
+
+def test_memory_query_plan_handles_broad_topic_scope_and_contradiction_anchors() -> None:
+    broad_plan = build_query_plan("DB 全体で最近増えている関心領域を出して")
+    contradiction_anchors = strong_anchor_terms_for_query(
+        "同じ話で反対意見や矛盾している保存投稿はある？"
+    )
+
+    assert "DB" not in broad_plan.search_terms
+    assert "DB" not in broad_plan.exact_terms
+    assert broad_plan.doc_type_weights["topic_thread"] >= 3.0
+    assert {"関心", "領域", "保存"}.issubset(set(broad_plan.search_terms))
+    assert {"反対", "矛盾"}.issubset(set(contradiction_anchors))
 
 
 def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
@@ -5101,6 +5137,9 @@ def test_memory_cli_commands(tmp_path: Path, capsys) -> None:
                 str(db_path),
                 "--cases",
                 str(cli_eval_cases),
+                "--case-limit",
+                "1",
+                "--fast",
                 "--limit",
                 "1",
                 "--arm-limit",
