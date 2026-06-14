@@ -1144,8 +1144,8 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
     )
     result = report.cases[0]
 
-    assert result.status == "ok"
-    assert not result.fusion_regressed
+    assert result.status == "needs_review"
+    assert any("denoising gate" in note for note in result.notes)
     assert {
         "fts_only",
         "exact_anchor",
@@ -1824,6 +1824,12 @@ def test_memory_objective_execute_can_run_explicit_fake_candidate_ocr(
     assert execution.arm_results[0].stop_condition == (
         "media_content_evidence_with_citation_ready_chunk"
     )
+    coverage = execution.metadata["result_coverage_map"]
+    route_row = coverage["route_rows"][0]
+    assert coverage["candidate_total"] >= coverage["citation_total"]
+    assert route_row["candidate_count"] >= route_row["citation_count"]
+    assert 0.0 <= coverage["citation_ready_yield"] <= 1.0
+    assert 0.0 <= route_row["citation_ready_yield"] <= 1.0
 
 
 def test_memory_objective_execute_skips_provider_freshness_fallbacks(tmp_path: Path) -> None:
@@ -2850,6 +2856,68 @@ def test_memory_portfolio_required_term_gap_is_review_only_for_unanswerable_case
         memory_portfolio._case_status(conditionally_answerable, conditional_notes, [hit])
         == "needs_review"
     )
+
+
+def test_memory_portfolio_denoising_gate_blocks_promotion() -> None:
+    hit = memory_portfolio.PortfolioHit(
+        rank=1,
+        bundle_key="tweet:1",
+        doc_id="tweet:1",
+        doc_type="tweet_doc",
+        tweet_id="1",
+        score=1.0,
+        title="candidate",
+        compact_text="candidate",
+        contributions=({"arm": "semantic_candidate", "rank": 1},),
+        metadata={},
+    )
+    summary = memory_portfolio.PortfolioDenoisingSummary(
+        candidate_count=1,
+        unique_candidate_count=1,
+        fused_count=1,
+        filtered_candidate_count=0,
+        source_restorable_count=1,
+        citation_ready_count=0,
+        unsupported_context_count=1,
+        single_arm_only_count=1,
+        multi_arm_agreement_count=0,
+        baseline_backed_count=0,
+        deferred_single_arm_count=0,
+        noisy_survivor_count=1,
+        drop_reasons={},
+    )
+    case = memory_portfolio.PortfolioCaseResult(
+        query="robot",
+        question_type="single_fact_conditioned",
+        status="ok",
+        notes=tuple(memory_portfolio._denoising_notes(summary)),  # noqa: SLF001
+        best_arm_name=None,
+        best_arm_status=None,
+        fusion_improved=False,
+        fusion_regressed=False,
+        arms=(),
+        fused_hits=(hit,),
+        required_terms_found=True,
+        preferred_doc_type_found=True,
+        required_feature_found=True,
+        denoising=summary,
+    )
+
+    assert memory_portfolio._case_status(  # noqa: SLF001
+        EvalCase(query="robot", required_any_terms=()),
+        list(case.notes),
+        [hit],
+    ) == "needs_review"
+    verdict = memory_portfolio._promotion_verdict(  # noqa: SLF001
+        (case,),
+        (),
+        (memory_portfolio.PortfolioSemanticSpec(provider="candidate"),),
+        (),
+    )
+
+    assert verdict.status == "hold"
+    assert not verdict.promotable
+    assert any("denoising gate" in blocker for blocker in verdict.blockers)
 
 
 def test_memory_audit_flags_local_hash_as_diagnostic(tmp_path: Path) -> None:

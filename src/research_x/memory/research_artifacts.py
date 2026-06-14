@@ -292,7 +292,11 @@ def _result_coverage_map(
         status_counts[status] += 1
         evidence_count = int(getattr(result, "evidence_count", 0) or 0)
         citation_count = int(getattr(result, "citation_count", 0) or 0)
-        candidate_count = _candidate_count(output, fallback=evidence_count)
+        candidate_count = max(
+            _candidate_count(output, fallback=evidence_count),
+            evidence_count,
+            citation_count,
+        )
         unsupported_context_count = max(0, evidence_count - citation_count)
         if evidence_count <= 0 and candidate_count > 0 and citation_count <= 0:
             unsupported_context_count = candidate_count

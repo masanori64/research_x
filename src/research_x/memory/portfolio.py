@@ -528,9 +528,10 @@ def _run_case(
         fusion_mode=fusion_mode,
         min_agreement=min_agreement,
     )
-    notes = _case_notes(case, fused_hits)
-    status = _case_status(case, notes, fused_hits)
     denoising = _denoising_summary(arm_payloads, fused_hits)
+    notes = _case_notes(case, fused_hits)
+    notes.extend(_denoising_notes(denoising))
+    status = _case_status(case, notes, fused_hits)
     best_arm = _best_case_arm(tuple(arm for arm, _hits in arm_payloads))
     best_arm_status = best_arm.case_status if best_arm else None
     fusion_improved = _status_strength(status) > _status_strength(best_arm_status)
@@ -1632,6 +1633,21 @@ def _case_notes(case: EvalCase, hits: list[PortfolioHit]) -> list[str]:
     return notes
 
 
+def _denoising_notes(summary: PortfolioDenoisingSummary) -> list[str]:
+    notes: list[str] = []
+    if summary.noisy_survivor_count:
+        notes.append(
+            f"denoising gate: {summary.noisy_survivor_count} noisy single-arm survivor(s)"
+        )
+    elif summary.unsupported_context_count:
+        notes.append(
+            f"denoising gate: {summary.unsupported_context_count} unsupported context candidate(s)"
+        )
+    if summary.fused_count and summary.citation_ready_count <= 0:
+        notes.append("denoising gate: no citation-ready fused hit")
+    return notes
+
+
 def _case_status(case: EvalCase, notes: list[str], hits: list[PortfolioHit]) -> str:
     if not hits:
         return "ok" if _case_allows_no_hits(case) else "fail"
@@ -1746,6 +1762,7 @@ def _promotion_verdict(
         blockers.append(
             f"fused result regressed on {regressed_cases} case(s) against the best arm"
         )
+    blockers.extend(_denoising_promotion_blockers(cases))
     if any(summary.error for summary in arm_summaries):
         errored = ", ".join(
             f"{summary.name}:{summary.error}" for summary in arm_summaries if summary.error
@@ -1777,6 +1794,34 @@ def _promotion_verdict(
         best_single_fail=best_single.fail if best_single else 0,
         blockers=tuple(blockers),
     )
+
+
+def _denoising_promotion_blockers(
+    cases: tuple[PortfolioCaseResult, ...],
+) -> list[str]:
+    unsupported_cases = sum(
+        1 for case in cases if case.denoising.unsupported_context_count > 0
+    )
+    noisy_survivors = sum(case.denoising.noisy_survivor_count for case in cases)
+    no_citation_ready_cases = sum(
+        1
+        for case in cases
+        if case.denoising.fused_count > 0 and case.denoising.citation_ready_count <= 0
+    )
+    blockers = []
+    if unsupported_cases:
+        blockers.append(
+            f"denoising gate has {unsupported_cases} case(s) with unsupported context"
+        )
+    if noisy_survivors:
+        blockers.append(
+            f"denoising gate has {noisy_survivors} noisy single-arm survivor(s)"
+        )
+    if no_citation_ready_cases:
+        blockers.append(
+            f"denoising gate has {no_citation_ready_cases} case(s) with no citation-ready hit"
+        )
+    return blockers
 
 
 def _case_status_counts(statuses: Any) -> dict[str, int]:
