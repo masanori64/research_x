@@ -9,6 +9,8 @@ Use this skill only when the active user policy permits sub-agents, requires exp
 or asks for parallel agents, and the task has independent work that can proceed without conflicting
 edits. If the active user policy says exploration must use sub-agents, apply this skill to every
 non-trivial exploration or research task even when another Skill is the primary workflow.
+For exploration or research sidecars, also apply
+`../../skill-references/search-quality-contract.md` when integrating their results.
 
 ## Workflow
 

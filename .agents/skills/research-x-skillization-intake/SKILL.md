@@ -56,6 +56,9 @@ narrowest project-local `research_x` surface for behavior that belongs in this r
   or reference-only decisions.
 - `research-x-publishing-illustration`: output-layer visual briefs, shot lists, and storyboards that
   do not replace evidence.
+- `.agents/skill-references/search-quality-contract.md`: shared baseline for search/research/source
+  review/provider/local-memory output quality. Update this shared reference before duplicating
+  quality rules across individual Skills.
 
 Prefer updating one of these before creating another adjacent skill.
 

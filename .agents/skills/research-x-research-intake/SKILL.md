@@ -11,6 +11,8 @@ paper, article, documentation page, community thread, or manually supplied note.
 
 This skill is not permission to browse, call a search API, use a provider, or treat discovery output
 as evidence. It turns candidate material into a bounded intake decision and handoff.
+For discovery or source-review outputs, also apply
+`../../skill-references/search-quality-contract.md` before accepting a candidate.
 
 ## Purpose
 

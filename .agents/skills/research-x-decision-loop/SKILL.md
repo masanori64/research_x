@@ -9,6 +9,8 @@ Use this skill when a decision could change architecture, provider choices, evid
 workflow behavior, or durable repository instructions.
 Global retrospective and sleep-cycle skills optimize Codex behavior over time; this skill is for
 current `research_x` architecture, review, audit, and design decisions.
+For search or research outputs, also apply
+`../../skill-references/search-quality-contract.md` before final judgment.
 
 ## Workflow
 

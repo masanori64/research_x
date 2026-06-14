@@ -8,6 +8,9 @@ description: "Use when implementing or reviewing research_x memory-search pipeli
 Use this skill for memory-search architecture or implementation work.
 `basic-memory-cli` handles the user's separate Basic Memory knowledge base; this skill governs the
 `research_x` X evidence pipeline and citation-ready memory workflow.
+For AI-callable local search, evidence review, or retrieval-quality outputs, also apply
+`../../skill-references/search-quality-contract.md` before promoting results to answers or durable
+decisions.
 
 ## Source Files
 

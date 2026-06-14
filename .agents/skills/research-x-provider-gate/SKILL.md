@@ -8,6 +8,9 @@ description: "Use before any provider-facing or quota-sensitive work in research
 Use this skill before implementing, estimating, or running provider-facing lanes.
 The global Provider And External Action Gate blocks external actions by default; this skill applies
 the stricter `research_x` no-quota rule and API Budget Guard expectations to provider-facing lanes.
+For provider-facing search, pricing, or quality comparisons, also apply
+`../../skill-references/search-quality-contract.md` so skipped lanes, source classes, and residual
+gaps remain visible.
 
 ## Rules
 
