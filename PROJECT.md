@@ -146,6 +146,10 @@ Updated on 2026-06-12. No real provider API calls were made.
   Gemini Google Search/File Search so those waiting lanes are visible before any API quota is
   enabled. Model-dependent answer/classifier/relation-judge costs still require an explicit
   provider/model price row before real execution.
+- 2026-06-14 provider research is captured in `docs/memory-pipeline-v2.md`: free-tier provider use
+  is still quota use, local/open alternatives are the no-provider baseline, and paid lanes are most
+  likely to matter for broad fresh Web discovery, anti-bot/dynamic extraction, complex OCR/VLM, and
+  hard judge/answer tasks. No real provider APIs were called during the review.
 
 Next API-facing step remains gated: run offline estimate/status first, then review the projected
 cost and smallest useful scoped provider run before lifting the no-quota freeze.

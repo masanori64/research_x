@@ -875,6 +875,74 @@ Pricing confidence:
   the no-quota freeze, even explicit price rows and `--allow-unpriced-api` do not authorize provider
   calls.
 
+2026-06-14 provider cost and free-alternative research note:
+
+- This note compresses the previous provider-cost/free-alternative scan and the paid-vs-free
+  quality-gap scan into one residual decision context for the future API go-sign.
+- No real provider APIs were called. The review used public primary documentation, secondary
+  benchmarks, and community failure reports only.
+- "Free" provider tiers, trials, and zero-dollar quotas remain provider quota consumption and are
+  still blocked by the no-quota freeze. Local/open-source execution is the only no-provider path.
+- Current priced or pricing-visible waiting lanes include external search/index providers, Reader
+  or fetch agents, LLM-context providers, OCR/VLM document processing, embeddings, rerankers,
+  classifiers, answer engines, and relation judges. Existing estimates already expose wired
+  `serper_external_search` and `brave_llm_context` rows plus reference-only OpenAI Web/File Search
+  and Gemini Grounding/File Search rows; model-dependent judge/answer/classifier rows still need an
+  explicit provider/model price row before real execution.
+- Free or local substitutes are viable for bounded work: local X DB search, SQLite FTS, manual URL
+  intake, fake/local research intake, RSS/sitemaps/Common Crawl/Wayback/SearXNG for discovery,
+  local extractors such as readability/trafilatura/Crawl4AI/Playwright/Scrapy for accessible pages,
+  BGE-M3/Qwen3/SentenceTransformers for embedding or rerank baselines, PaddleOCR/PaddleOCR-VL or
+  Tesseract for OCR, local Whisper for audio, and local LLMs for cheap pre-label or pre-judge
+  passes.
+- The realistic paid/free quality gap is largest for broad and fresh Web discovery, ranking,
+  anti-bot stability, dynamic or complex page extraction, complex OCR/VLM over tables/forms/charts
+  and low-quality scans, and hard semantic judge or answer tasks. Free/local lanes can still be
+  competitive for local corpus retrieval, known-URL extraction, many embedding/rerank workloads, and
+  simple OCR when they are evaluated on the real corpus.
+- Do not promote a paid lane because a provider benchmark looks strong. Use route-level evals over
+  the real DB: recall after source-bundle restoration, citation-ready context chunk yield, Japanese
+  and mixed-language recovery, exact URL/entity behavior, rerank lift, latency, cost, and failure
+  handling.
+- Community reports are useful for failure modes such as stale citations, SearXNG upstream blocking,
+  Qwen deployment variance, and OCR edge cases, but they are not promotion evidence by themselves.
+
+Reference set retained for later provider review:
+
+- Primary sources: [Brave Search API](https://brave.com/search/api/),
+  [Brave LLM Context](https://api-dashboard.search.brave.com/documentation/services/llm-context),
+  [OpenAI Web Search](https://developers.openai.com/api/docs/guides/tools-web-search),
+  [Gemini Grounding](https://ai.google.dev/gemini-api/docs/google-search),
+  [Voyage embeddings](https://docs.voyageai.com/docs/embeddings),
+  [Qwen3 Embedding/Reranker](https://qwenlm.github.io/blog/qwen3-embedding/),
+  Cohere Embed/Rerank, Jina Embeddings/Reader, [Mistral OCR](https://mistral.ai/news/mistral-ocr/),
+  Tavily, Exa, Firecrawl, Diffbot, [SearXNG](https://docs.searxng.org/dev/search_api.html),
+  [Common Crawl CDXJ](https://commoncrawl.org/cdxj-index),
+  [sitemaps](https://www.sitemaps.org/protocol.html), [RSS](https://www.rssboard.org/rss-draft-1),
+  and [Wayback CDX](https://archive.org/help/wayback_api.php).
+- Secondary sources: Search Arena, MTEB/MMTEB, MIRACL,
+  [OmniDocBench](https://github.com/opendatalab/OmniDocBench), OCRBench/OCRBench v2,
+  [Vectara Hallucination Leaderboard](https://github.com/vectara/hallucination-leaderboard),
+  [Artificial Analysis](https://artificialanalysis.ai/),
+  [Aider Leaderboard](https://aider.chat/docs/leaderboards/),
+  [Berkeley Function Calling Leaderboard](https://gorilla.cs.berkeley.edu/leaderboard.html), and
+  benchmark-reliability critiques such as the
+  [Leaderboard Illusion paper](https://arxiv.org/html/2504.20879v1).
+- Community sources: OpenAI and Google developer forum citation/grounding issues, Reddit RAG/search
+  API comparisons, SearXNG/search-provider and anti-bot reports, Qwen3 embedding/rerank deployment
+  reports, and local OCR/Japanese-layout reports. Use these only as failure-mode signals.
+
+Residual decision before API go-sign:
+
+1. Re-run offline `api-budget status` and `api-lane-estimate` after choosing candidate lanes.
+2. Establish or refresh the no-provider baseline for the same route cases: local FTS/relation,
+   local extract, local embedding/rerank where installed, and local OCR where installed.
+3. Estimate the smallest useful paid canary per lane, including per-call/page/token unit, projected
+   run/day/month cost, storage-rights notes, and rollback/kill-switch behavior.
+4. Lift the no-quota freeze only after the user reviews the cost estimate and selected scoped run.
+5. Promote a provider only if route-level evals show enough improvement after source restoration and
+   citation checks to justify cost, privacy, quota, and operational drift.
+
 ## Corpus2Skill Position
 
 Corpus2Skill is useful as a stable navigation layer.
