@@ -4,12 +4,15 @@ This is a shared quality contract for `research_x` implementation phases, goal r
 verifier sidecars, and scoped repository changes.
 
 It is not a search, provider, evidence, or governance contract. Its job is to keep execution scoped,
-verifiable, resumable, and respectful of the shared worktree.
+verifiable, resumable, human-on-the-loop, and respectful of the shared worktree.
 
 ## Minimum Contract
 
-1. Confirm scope and gates.
-   - Name the target state, current phase, owned files, expected behavior change, and human gates.
+1. Confirm scope and oversight gates.
+   - Name the target state, current phase, owned files, expected behavior change, and oversight
+     gates.
+   - After the user launches the task, proceed through local safe implementation and verification
+     without asking for step-by-step approval.
    - Stop before API keys, billing, external-service contracts, irreversible deletion, secrets,
      legal/ToS-sensitive choices, explicit user pause/stop, or unresolved high-impact design
      choices.
@@ -22,6 +25,8 @@ verifiable, resumable, and respectful of the shared worktree.
 3. Keep progress visible.
    - Track phase status, worker/verifier ownership, failed checks, skipped checks, and next action.
    - Do not let sub-agents own the final decision; parent agent integrates and verifies.
+   - Treat failed checks, boundary denials, dependency conflicts, and review findings as adaptation
+     signals for repair unless they hit an oversight gate.
 
 4. Verify with project commands.
    - Use only project-approved `uv` command forms for Python tooling.
@@ -36,8 +41,8 @@ verifiable, resumable, and respectful of the shared worktree.
 
 ## Skill-Specific Ownership
 
-- `research-x-goal-runner`: owns phase execution, verification, commit/push, and true
-  human-intervention gates.
+- `research-x-goal-runner`: owns phase execution, verification, commit/push, and true oversight
+  gates.
 - `research-x-parallel-review`: owns bounded worker/verifier sidecars and parent-agent integration.
 - `research-x-doc-governance`, `research-x-skillization-intake`, and
   `research-x-memory-workflow` own domain-specific source-of-truth or architecture gates before
@@ -49,6 +54,8 @@ verifiable, resumable, and respectful of the shared worktree.
 - Do not stage `.secrets/` or `runs/`.
 - Do not substitute a proposal for implementation when the user requested execution and the gate is
   open.
+- Do not turn ordinary local failures into user questions before attempting diagnosis, repair, and
+  re-verification.
 - Do not stop with live helper sessions still running.
 - Do not commit unrelated changes into the scoped phase.
 

@@ -53,6 +53,9 @@ uv run ruff check src\research_x tests
 - No real provider API calls while the no-quota freeze is active. This includes free-tier,
   trial-credit, and zero-dollar quota.
 - Fake/local providers, static inspection, offline estimates, and monkeypatched tests are allowed.
+- Default to human-on-the-loop execution: once the user launches a task or goal, continue through
+  local planning, implementation, review, repair, verification, and scoped commit/push without
+  step-by-step approval unless an oversight gate is hit.
 - Run completion notification at the end:
 
 ```powershell
@@ -177,7 +180,7 @@ Repo Skills live under `.agents/skills/` and use Codex native implicit invocatio
 - `research-x-skillization-intake`: recurring Codex behavior and instruction-surface placement.
 - `research-x-decision-loop`: research/review/audit loops and stop-condition checks.
 - `research-x-doc-governance`: Markdown placement, archival, and drift checks.
-- `research-x-goal-runner`: long goal phase continuation.
+- `research-x-goal-runner`: long goal phase continuation until completion or an oversight gate.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: app/CLI/workflow trace visibility.
 - `research-x-parallel-review`: sub-agent role design when permitted or required for exploration.

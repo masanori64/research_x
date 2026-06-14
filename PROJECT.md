@@ -33,7 +33,7 @@ Current repo skills:
   surface.
 - `research-x-decision-loop`: detailed research, review, audit, and loop-stop mechanics.
 - `research-x-doc-governance`: Markdown placement, archival, and drift checks.
-- `research-x-goal-runner`: long goal phase loop and human-intervention gates.
+- `research-x-goal-runner`: long goal phase loop and oversight gates.
 - `research-x-memory-workflow`: memory-search architecture and implementation invariants.
 - `research-x-observability-review`: app/CLI/workflow state visibility review.
 - `research-x-parallel-review`: sub-agent role design and integration when permitted or required
@@ -191,7 +191,8 @@ separate gated steps.
 
 Completed no-spend closure state:
 
-- strategy catalog statuses are classified as implemented/candidate, human gate, or reference-only;
+- strategy catalog statuses are classified as implemented/candidate, oversight gate, or
+  reference-only;
 - strict audit exposes hidden no-spend gaps if new `needs_*` statuses are introduced;
 - exact-anchor, relation, and retrieval-text arms are visible in portfolio/eval;
 - lexical_exploration is visible as a direct-corpus portfolio arm, with denoising metrics for

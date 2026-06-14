@@ -84,6 +84,23 @@ If provider/API/quota, network, browser, GitHub write, MCP, connector, or instal
 needed, stop before executing them and ask for explicit approval. Otherwise proceed through the
 local, project-approved path.
 
+## Human-On-The-Loop Execution
+
+This repository defaults to human-on-the-loop execution. After the user launches a task, goal, or
+phase, continue through local planning, implementation, review, repair, verification, and scoped
+commit/push without asking for step-by-step approval when the path is project-approved and locally
+safe.
+
+Human input is an oversight gate, not the normal loop body. Stop or ask only for provider/quota use,
+network or browser actions not already approved in the current task, GitHub write actions when
+publish intent is unclear, installs, connector/MCP/plugin or hook configuration changes, secrets,
+irreversible/destructive actions, legal/ToS-sensitive choices, explicit user pause/stop, or unresolved
+high-impact design ambiguity after the decision loop.
+
+Treat test, lint, type, boundary, dependency, source-drift, context-budget, and review failures as
+signals for `/analyze`-style diagnosis and plan adaptation. Repair and verify again unless the
+signal hits an oversight gate.
+
 Always-on triggers:
 
 - no-quota provider freeze: active unless the current conversation explicitly lifts it;
@@ -120,7 +137,7 @@ Prompt-dependent triggers:
   `.agents/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
   normal explicit image-generation gate and are never evidence;
 - `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
-  target or a real human-intervention gate is reached, using
+  target or a real oversight gate is reached, using
   `.agents/skills/research-x-goal-runner/SKILL.md` for the detailed loop;
 - sub-agent policy prompt: when the user permits, bans, pauses, mentions, or asks to follow/check
   agent, sub-agent, エージェント, parallel, or 並列-agent behavior, update the current sub-agent
@@ -195,7 +212,7 @@ changes unless the worktree contains unrelated edits that need separation.
 
 When a user-provided `/goal` or goal-like context defines a target state, use
 `.agents/skills/research-x-goal-runner/SKILL.md`. Continue autonomously until the goal is complete
-or a real human-intervention gate is reached.
+or a real oversight gate is reached.
 
 ## Completion Notification
 
