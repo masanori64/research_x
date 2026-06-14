@@ -141,6 +141,11 @@ Updated on 2026-06-12. No real provider API calls were made.
   built-in cases with `--answer-provider none`.
 - `memory portfolio-eval` now has `--case-limit` and `--fast` for bounded offline preflight before
   configuring provider candidate arms.
+- Provider-cost preflight now includes wired external-search/LLM-context unit costs
+  (`serper_external_search`, `brave_llm_context`) plus reference rows for OpenAI Web/File Search and
+  Gemini Google Search/File Search so those waiting lanes are visible before any API quota is
+  enabled. Model-dependent answer/classifier/relation-judge costs still require an explicit
+  provider/model price row before real execution.
 
 Next API-facing step remains gated: run offline estimate/status first, then review the projected
 cost and smallest useful scoped provider run before lifting the no-quota freeze.

@@ -1087,6 +1087,7 @@ def _price_unit_keys() -> dict[str, str]:
         "document": "documents",
         "page": "pages",
         "call": "calls",
+        "gb_day": "gb_day",
     }
 
 
@@ -1099,6 +1100,7 @@ def _canonical_price_unit(value: str) -> str:
         "documents": "document",
         "pages": "page",
         "calls": "call",
+        "gb_days": "gb_day",
     }
     return aliases.get(unit, unit)
 

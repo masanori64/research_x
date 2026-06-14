@@ -23,7 +23,12 @@ from research_x.memory.media_embeddings import (
 from research_x.memory.schema import ensure_memory_schema
 
 SOURCE_GEMINI_PRICING = "https://ai.google.dev/gemini-api/docs/pricing"
+SOURCE_GEMINI_AGENT_PRICING = (
+    "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing"
+)
+SOURCE_GEMINI_FILE_SEARCH = "https://ai.google.dev/gemini-api/docs/file-search"
 SOURCE_OPENAI_PRICING = "https://platform.openai.com/pricing"
+SOURCE_OPENAI_DEVELOPER_PRICING = "https://developers.openai.com/api/docs/pricing"
 SOURCE_VOYAGE_MODELS = "https://www.mongodb.com/docs/voyageai/models/"
 SOURCE_JINA_MODELS = "https://api.jina.ai/docs"
 SOURCE_JINA_OMNI = "https://jina.ai/models/jina-embeddings-v5-omni-small/"
@@ -36,6 +41,16 @@ SOURCE_LITELLM_PRICES = (
 SOURCE_MISTRAL_PRICING = "https://mistral.ai/pricing/"
 SOURCE_MISTRAL_CODESTRAL = "https://docs.mistral.ai/models/model-cards/codestral-embed-25-05"
 SOURCE_MISTRAL_OCR = "https://docs.mistral.ai/studio-api/document-processing/basic_ocr"
+SOURCE_SERPER_PRICING = "https://serper.dev/"
+SOURCE_BRAVE_SEARCH_PRICING = "https://api-dashboard.search.brave.com/documentation/pricing"
+
+PRICE_SERPER_SEARCH_CALL = 1.00 / 1_000
+PRICE_BRAVE_LLM_CONTEXT_CALL = 5.00 / 1_000
+PRICE_OPENAI_WEB_SEARCH_CALL = 10.00 / 1_000
+PRICE_OPENAI_FILE_SEARCH_CALL = 2.50 / 1_000
+PRICE_OPENAI_FILE_SEARCH_GB_DAY = 0.10
+PRICE_GEMINI_GROUNDING_SEARCH_CALL = 14.00 / 1_000
+PRICE_MISTRAL_OCR_PAGE = 2.00 / 1_000
 
 _URL_RE = re.compile(r"https?://[^\s<>'\"()]+", re.IGNORECASE)
 _X_HOSTS = {"x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"}
@@ -325,18 +340,78 @@ DEFAULT_PRICE_CATALOG_ROWS: tuple[PriceCatalogRow, ...] = (
         "mistral-ocr-2512",
         "ocr",
         "page",
-        3.0 / 1_000,
+        PRICE_MISTRAL_OCR_PAGE,
         SOURCE_MISTRAL_PRICING,
-        "Mistral Libraries/Document AI OCR price per 1K pages; fixed OCR 2512 evaluation row.",
+        "Mistral OCR 3 public price per 1K pages; fixed OCR 2512 evaluation row.",
     ),
     PriceCatalogRow(
         "mistral",
         "mistral-ocr-latest",
         "ocr",
         "page",
-        3.0 / 1_000,
+        PRICE_MISTRAL_OCR_PAGE,
         SOURCE_MISTRAL_PRICING,
         "Mistral latest OCR alias; use only when intentional latest tracking is desired.",
+    ),
+    PriceCatalogRow(
+        "serper",
+        "serper-search",
+        "external_search",
+        "call",
+        PRICE_SERPER_SEARCH_CALL,
+        SOURCE_SERPER_PRICING,
+        (
+            "Serper Starter top-up price. Higher-volume plans lower the marginal cost; "
+            "successful queries deduct credits."
+        ),
+    ),
+    PriceCatalogRow(
+        "brave",
+        "llm-context",
+        "llm_context",
+        "call",
+        PRICE_BRAVE_LLM_CONTEXT_CALL,
+        SOURCE_BRAVE_SEARCH_PRICING,
+        "Brave Search API Search plan price; LLM Context is included in the Search plan.",
+    ),
+    PriceCatalogRow(
+        "openai",
+        "web_search",
+        "web_search",
+        "call",
+        PRICE_OPENAI_WEB_SEARCH_CALL,
+        SOURCE_OPENAI_DEVELOPER_PRICING,
+        "OpenAI built-in Web search tool call price; search content tokens may add model cost.",
+    ),
+    PriceCatalogRow(
+        "openai",
+        "file_search",
+        "file_search_tool_call",
+        "call",
+        PRICE_OPENAI_FILE_SEARCH_CALL,
+        SOURCE_OPENAI_DEVELOPER_PRICING,
+        "OpenAI File Search tool call price; storage is a separate GB-day line.",
+    ),
+    PriceCatalogRow(
+        "openai",
+        "file_search",
+        "file_search_storage",
+        "gb_day",
+        PRICE_OPENAI_FILE_SEARCH_GB_DAY,
+        SOURCE_OPENAI_DEVELOPER_PRICING,
+        "OpenAI File Search vector-store storage marginal price after the free 1 GB allowance.",
+    ),
+    PriceCatalogRow(
+        "gemini",
+        "google-search-grounding",
+        "grounding_search",
+        "call",
+        PRICE_GEMINI_GROUNDING_SEARCH_CALL,
+        SOURCE_GEMINI_AGENT_PRICING,
+        (
+            "Gemini Grounding with Google Web/Image Search price after included monthly "
+            "allowance; each prompt can produce multiple billable search queries."
+        ),
     ),
 )
 
@@ -369,6 +444,9 @@ def build_api_lane_estimate_report(
     rerank_query_count: int = 5,
     rerank_candidate_limit: int = 20,
     rerank_avg_candidate_tokens: int = 250,
+    external_search_query_count: int = 1,
+    external_search_result_limit: int = 10,
+    llm_context_query_count: int = 1,
     max_file_bytes: int = 20 * 1024 * 1024,
 ) -> ApiLaneEstimateReport:
     rows: list[ApiLaneEstimateRow] = []
@@ -394,6 +472,13 @@ def build_api_lane_estimate_report(
             db_path,
             reader_url_limit=reader_url_limit,
             reader_max_chars=reader_max_chars,
+        )
+    )
+    rows.extend(
+        _external_grounding_rows(
+            external_search_query_count=external_search_query_count,
+            external_search_result_limit=external_search_result_limit,
+            llm_context_query_count=llm_context_query_count,
         )
     )
     rows.extend(
@@ -442,6 +527,10 @@ def build_api_lane_estimate_report(
             (
                 "Jina Reader and OCR estimates are upper/lower bounds because URL output "
                 "size and PDF pages vary."
+            ),
+            (
+                "External search and LLM-context rows estimate per-query guard cost only; "
+                "retrieved snippets still require Reader/context/citation promotion."
             ),
             (
                 "OCR defaults to stratified calibration; full OCR over all media requires "
@@ -991,6 +1080,108 @@ def _reader_rows(
     )
 
 
+def _external_grounding_rows(
+    *,
+    external_search_query_count: int,
+    external_search_result_limit: int,
+    llm_context_query_count: int,
+) -> tuple[ApiLaneEstimateRow, ...]:
+    serper_queries = max(0, external_search_query_count)
+    result_limit = max(1, external_search_result_limit)
+    brave_queries = max(0, llm_context_query_count)
+    return (
+        ApiLaneEstimateRow(
+            lane="external_grounding",
+            name="serper_external_search",
+            provider="serper",
+            model="serper-search",
+            operation="external_search",
+            status="wired_provider_gated",
+            selected_units=serper_queries,
+            unit="call",
+            estimated_cost_usd=serper_queries * PRICE_SERPER_SEARCH_CALL,
+            cost_basis=(
+                f"{serper_queries} successful external-search queries; "
+                f"result_limit={result_limit} affects documents returned, not Serper call count"
+            ),
+            source_url=SOURCE_SERPER_PRICING,
+            notes=(
+                "URL discovery is not evidence. Successful provider responses deduct credits and "
+                "must be followed by Reader/context promotion before citation use."
+            ),
+            extra={
+                "query_count": serper_queries,
+                "result_limit": result_limit,
+                "unit_price_usd": PRICE_SERPER_SEARCH_CALL,
+                "larger_plan_lower_bound_usd": 0.30 / 1_000,
+            },
+        ),
+        ApiLaneEstimateRow(
+            lane="external_grounding",
+            name="brave_llm_context",
+            provider="brave",
+            model="llm-context",
+            operation="llm_context",
+            status="wired_provider_gated",
+            selected_units=brave_queries,
+            unit="call",
+            estimated_cost_usd=brave_queries * PRICE_BRAVE_LLM_CONTEXT_CALL,
+            cost_basis=f"{brave_queries} Brave LLM Context requests",
+            source_url=SOURCE_BRAVE_SEARCH_PRICING,
+            notes=(
+                "LLM Context can return grounding-ready chunks, but the workflow must still "
+                "store context chunks and citation annotations explicitly."
+            ),
+            extra={
+                "query_count": brave_queries,
+                "unit_price_usd": PRICE_BRAVE_LLM_CONTEXT_CALL,
+            },
+        ),
+        ApiLaneEstimateRow(
+            lane="external_grounding_reference",
+            name="openai_web_search_tool",
+            provider="openai",
+            model="web_search",
+            operation="web_search",
+            status="reference_only_not_wired",
+            selected_units=1,
+            unit="call_reference",
+            estimated_cost_usd=None,
+            cost_basis=(
+                f"reference unit price ${PRICE_OPENAI_WEB_SEARCH_CALL:.6f}/call; "
+                "search content tokens may add model-rate input cost"
+            ),
+            source_url=SOURCE_OPENAI_DEVELOPER_PRICING,
+            notes=(
+                "Not a current memory external-search provider. Kept visible so a future "
+                "OpenAI web-search lane is not mistaken for free."
+            ),
+            extra={"unit_price_usd": PRICE_OPENAI_WEB_SEARCH_CALL},
+        ),
+        ApiLaneEstimateRow(
+            lane="external_grounding_reference",
+            name="gemini_google_search_grounding",
+            provider="gemini",
+            model="google-search-grounding",
+            operation="grounding_search",
+            status="reference_only_not_wired",
+            selected_units=1,
+            unit="search_query_reference",
+            estimated_cost_usd=None,
+            cost_basis=(
+                f"reference unit price ${PRICE_GEMINI_GROUNDING_SEARCH_CALL:.6f}/search query "
+                "after included allowance; a prompt can generate more than one query"
+            ),
+            source_url=SOURCE_GEMINI_AGENT_PRICING,
+            notes=(
+                "Not a current memory external-search provider. Keep separate from local saved "
+                "evidence and from Brave/Serper lanes."
+            ),
+            extra={"unit_price_usd": PRICE_GEMINI_GROUNDING_SEARCH_CALL},
+        ),
+    )
+
+
 def _ocr_rows(
     *,
     scope: str,
@@ -1029,7 +1220,7 @@ def _ocr_rows(
             status=f"{status}:{status_suffix}",
             selected_units=page_lower_bound,
             unit="page_lower_bound",
-            estimated_cost_usd=page_lower_bound * (3.0 / 1_000),
+            estimated_cost_usd=page_lower_bound * PRICE_MISTRAL_OCR_PAGE,
             cost_basis=(
                 "OCR selected media counted as at least one OCR page each; "
                 f"scope={normalized_scope}"
@@ -1047,7 +1238,7 @@ def _ocr_rows(
                 "sample_policy": "stratified_calibration",
                 "media_selected": estimate.selected,
                 "full_page_lower_bound": full_page_lower_bound,
-                "full_cost_lower_bound_usd": full_page_lower_bound * (3.0 / 1_000),
+                "full_cost_lower_bound_usd": full_page_lower_bound * PRICE_MISTRAL_OCR_PAGE,
                 "by_mime_type": estimate.by_mime_type,
                 "fixed_model": model == "mistral-ocr-2512",
             },
@@ -1063,27 +1254,67 @@ def _managed_rag_rows(
 ) -> tuple[ApiLaneEstimateRow, ...]:
     docs = _memory_document_count(db_path)
     status = "reference_only_not_costed"
-    cost: float | None = None
+    openai_storage_cost: float | None = None
+    openai_tool_call_cost: float | None = None
+    openai_selected_storage = 0
+    openai_selected_calls = 0
     if include_reference_managed_rag:
         status = "reference_enabled_still_not_auto_ingested"
+        openai_selected_storage = 1
+        openai_selected_calls = 1
+        openai_storage_cost = PRICE_OPENAI_FILE_SEARCH_GB_DAY
+        openai_tool_call_cost = PRICE_OPENAI_FILE_SEARCH_CALL
     return (
         ApiLaneEstimateRow(
             lane="managed_rag_reference",
             name="openai_file_search_vector_stores",
             provider="openai",
             model="file_search",
-            operation="managed_rag_reference",
+            operation="file_search_storage",
             status=status,
-            selected_units=docs,
-            unit="document",
-            estimated_cost_usd=cost,
-            cost_basis="not costed because managed RAG does not replace the local X DB by default",
-            source_url="https://platform.openai.com/docs/guides/tools-file-search/",
+            selected_units=openai_selected_storage,
+            unit="gb_day",
+            estimated_cost_usd=openai_storage_cost,
+            cost_basis=(
+                "OpenAI File Search vector-store storage marginal 1 GB-day assumption; "
+                "not costed unless reference managed RAG is explicitly included"
+            ),
+            source_url=SOURCE_OPENAI_DEVELOPER_PRICING,
             notes=(
                 "Use only as an eval reference for UX/citation behavior, not as canonical "
-                "storage."
+                "storage. OpenAI currently lists a free first GB and paid storage beyond it."
             ),
-            extra={"documents": docs},
+            extra={
+                "documents": docs,
+                "storage_gb_day_assumption": openai_selected_storage,
+                "unit_price_usd": PRICE_OPENAI_FILE_SEARCH_GB_DAY,
+                "first_gb_free": True,
+            },
+        ),
+        ApiLaneEstimateRow(
+            lane="managed_rag_reference",
+            name="openai_file_search_tool_call",
+            provider="openai",
+            model="file_search",
+            operation="file_search_tool_call",
+            status=status,
+            selected_units=openai_selected_calls,
+            unit="call",
+            estimated_cost_usd=openai_tool_call_cost,
+            cost_basis=(
+                "one OpenAI File Search tool-call assumption when reference managed RAG is "
+                "explicitly included"
+            ),
+            source_url=SOURCE_OPENAI_DEVELOPER_PRICING,
+            notes=(
+                "Tool-call cost is separate from storage and model tokens. This reference lane "
+                "does not replace local evidence restoration."
+            ),
+            extra={
+                "documents": docs,
+                "query_call_assumption": openai_selected_calls,
+                "unit_price_usd": PRICE_OPENAI_FILE_SEARCH_CALL,
+            },
         ),
         ApiLaneEstimateRow(
             lane="managed_rag_reference",
@@ -1094,12 +1325,13 @@ def _managed_rag_rows(
             status=status,
             selected_units=docs,
             unit="document",
-            estimated_cost_usd=cost,
+            estimated_cost_usd=None,
             cost_basis="not costed because managed RAG does not replace the local X DB by default",
-            source_url="https://ai.google.dev/gemini-api/docs/file-search",
+            source_url=SOURCE_GEMINI_FILE_SEARCH,
             notes=(
-                "Gemini File Search can use gemini-embedding-2 but remains a managed "
-                "reference lane."
+                "Gemini File Search can use gemini-embedding-2 and remains a managed "
+                "reference lane. Google documents free storage/query-time embeddings, with "
+                "indexing charged by normal embedding pricing and retrieved tokens as context."
             ),
             extra={"documents": docs},
         ),
@@ -1303,6 +1535,20 @@ def _recommended_plans(rows: list[ApiLaneEstimateRow]) -> list[dict[str, Any]]:
                 "gemini_embedding_2_native_media",
                 "mistral_ocr_2512",
             ),
+        ),
+        _plan_from_names(
+            "current_external_grounding_route",
+            "explicit_current_web_route",
+            (
+                "Use only when local saved evidence is stale, ambiguous, or the question asks for "
+                "current external grounding."
+            ),
+            (
+                "Serper discovers URLs and Brave LLM Context can return model-ready external "
+                "context. Neither should replace local source-bundle evidence."
+            ),
+            row_by_name,
+            ("serper_external_search", "brave_llm_context"),
         ),
     ]
     ocr = row_by_name.get("mistral_ocr_2512")

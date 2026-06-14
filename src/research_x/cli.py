@@ -537,6 +537,24 @@ def main(argv: list[str] | None = None) -> int:
         default=250,
     )
     memory_api_lane_estimate_parser.add_argument(
+        "--external-search-query-count",
+        type=int,
+        default=1,
+        help="successful Serper external-search calls to estimate; set 0 to skip",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--external-search-result-limit",
+        type=int,
+        default=10,
+        help="results requested per Serper call; affects returned documents, not call pricing",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--llm-context-query-count",
+        type=int,
+        default=1,
+        help="Brave LLM Context calls to estimate; set 0 to skip",
+    )
+    memory_api_lane_estimate_parser.add_argument(
         "--max-file-bytes",
         type=int,
         default=20 * 1024 * 1024,
@@ -2935,6 +2953,9 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             rerank_query_count=args.rerank_query_count,
             rerank_candidate_limit=args.rerank_candidate_limit,
             rerank_avg_candidate_tokens=args.rerank_avg_candidate_tokens,
+            external_search_query_count=args.external_search_query_count,
+            external_search_result_limit=args.external_search_result_limit,
+            llm_context_query_count=args.llm_context_query_count,
             max_file_bytes=args.max_file_bytes,
         )
         print(api_lane_estimate_json(report) if args.json else format_api_lane_estimate(report))

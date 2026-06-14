@@ -865,6 +865,9 @@ operational monitor.
 Pricing confidence:
 
 - primary-priced rows use explicit provider pricing pages or model documents;
+- wired external-search and LLM-context rows are per-call guard estimates; reference-only OpenAI
+  Web/File Search and Gemini Grounding/File Search rows are shown so future provider lanes are not
+  mistaken for free, but they do not authorize provider calls;
 - secondary-priced rows, currently Cohere `embed-v4.0` and Rerank v4 search units, are included in
   estimates only because Cohere primary docs confirm the billing basis while LiteLLM/price-index
   sources provide matching unit prices;

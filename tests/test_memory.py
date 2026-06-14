@@ -2348,8 +2348,14 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
     assert rows["cohere_rerank_v4_0_pro"].estimated_cost_usd == 0.005
     assert rows["jina_reader_extract"].extra["discovered_external_urls"] == 2
     assert rows["jina_reader_extract"].estimated_cost_usd is not None
+    assert rows["serper_external_search"].estimated_cost_usd == 0.001
+    assert rows["brave_llm_context"].estimated_cost_usd == 0.005
+    assert rows["openai_web_search_tool"].status == "reference_only_not_wired"
+    assert rows["openai_web_search_tool"].estimated_cost_usd is None
+    assert rows["gemini_google_search_grounding"].extra["unit_price_usd"] == 0.014
     assert rows["mistral_ocr_2512"].lane == "media_to_text_ocr"
     assert rows["mistral_ocr_2512"].selected_units == 1
+    assert rows["mistral_ocr_2512"].estimated_cost_usd == 0.002
     assert rows["voyage_context_4_learning"].status == "contract_required_lower_bound"
     assert rows["voyage_context_4_learning"].lane == "embedding_contextual_learning"
     assert "voyage_context_3_learning" not in rows
@@ -2367,6 +2373,8 @@ def test_memory_api_lane_estimate_covers_planned_lanes_and_url_dependency(
     assert "jina_v5_text_learning" in plans["learning_long_route"]["row_names"]
     assert "mistral_text_code_docs" in plans["code_technical_route"]["row_names"]
     assert "gemini_embedding_2_native_media" in plans["media_grounded_route"]["row_names"]
+    assert "serper_external_search" in plans["current_external_grounding_route"]["row_names"]
+    assert "brave_llm_context" in plans["current_external_grounding_route"]["row_names"]
     assert plans["full_ocr_lower_bound"]["status"] == "expensive_explicit_only"
     assert runnable_strategy_names <= estimate_row_names
 
@@ -2391,6 +2399,10 @@ def test_memory_api_lane_estimate_cli_and_price_seed(
                 "5",
                 "--rerank-query-count",
                 "1",
+                "--external-search-query-count",
+                "2",
+                "--llm-context-query-count",
+                "2",
             ]
         )
         == 0
@@ -2399,6 +2411,8 @@ def test_memory_api_lane_estimate_cli_and_price_seed(
     output = capsys.readouterr().out
     assert "seeded default API prices" in output
     assert "cohere_v4_media_text" in output
+    assert "external_grounding/serper_external_search" in output
+    assert "external_grounding/brave_llm_context" in output
     assert "objective_fit_router_baseline" in output
     assert "managed_rag_reference/openai_file_search_vector_stores" in output
     with sqlite3.connect(db_path) as conn:
@@ -2412,6 +2426,22 @@ def test_memory_api_lane_estimate_cli_and_price_seed(
         ).fetchall()
     assert ("cohere", "embed-v4.0", "embedding", "input_token", 0.00000012) in rows
     assert ("cohere", "rerank-v4.0-pro", "rerank", "call", 0.0025) in rows
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT provider, model, operation, unit, usd_per_unit
+            FROM memory_api_price_catalog
+            WHERE provider IN ('serper', 'brave', 'openai', 'gemini', 'mistral')
+            ORDER BY provider, model, operation, unit
+            """
+        ).fetchall()
+    assert ("serper", "serper-search", "external_search", "call", 0.001) in rows
+    assert ("brave", "llm-context", "llm_context", "call", 0.005) in rows
+    assert ("openai", "file_search", "file_search_tool_call", "call", 0.0025) in rows
+    assert ("openai", "file_search", "file_search_storage", "gb_day", 0.1) in rows
+    assert ("openai", "web_search", "web_search", "call", 0.01) in rows
+    assert ("gemini", "google-search-grounding", "grounding_search", "call", 0.014) in rows
+    assert ("mistral", "mistral-ocr-latest", "ocr", "page", 0.002) in rows
 
 
 def test_memory_api_lane_estimate_ocr_requires_explicit_full_scope(tmp_path: Path) -> None:
@@ -2425,13 +2455,20 @@ def test_memory_api_lane_estimate_ocr_requires_explicit_full_scope(tmp_path: Pat
         ocr_scope="all",
         include_latest_ocr=True,
     )
+    managed_report = build_api_lane_estimate_report(
+        db_path,
+        include_reference_managed_rag=True,
+    )
     default_rows = {row.name: row for row in default_report.rows}
     all_rows = {row.name: row for row in all_report.rows}
+    managed_rows = {row.name: row for row in managed_report.rows}
 
     assert default_rows["mistral_ocr_2512"].selected_units == 0
     assert "mistral_ocr_latest" not in default_rows
     assert all_rows["mistral_ocr_2512"].selected_units >= 0
     assert "mistral_ocr_latest" in all_rows
+    assert managed_rows["openai_file_search_vector_stores"].estimated_cost_usd == 0.1
+    assert managed_rows["openai_file_search_tool_call"].estimated_cost_usd == 0.0025
 
 
 def test_memory_api_lane_estimate_zero_reader_limit_skips_url_discovery(
