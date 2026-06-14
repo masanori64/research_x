@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ BASELINE_ARM_NAMES = {
     "fts_only",
     "exact_anchor",
     "retrieval_text",
+    "lexical_exploration",
     "local_hybrid",
     "lexical",
     "relation_expansion",
@@ -45,6 +47,7 @@ DEFAULT_BASELINE_ARMS = (
     "exact_anchor",
     "retrieval_text",
     "relation_expansion",
+    "lexical_exploration",
     "corpus2skill_navigation",
     "source_bundle_context",
     "workflow_route",
@@ -133,6 +136,23 @@ class PortfolioPromotionVerdict:
 
 
 @dataclass(frozen=True)
+class PortfolioDenoisingSummary:
+    candidate_count: int
+    unique_candidate_count: int
+    fused_count: int
+    filtered_candidate_count: int
+    source_restorable_count: int
+    citation_ready_count: int
+    unsupported_context_count: int
+    single_arm_only_count: int
+    multi_arm_agreement_count: int
+    baseline_backed_count: int
+    deferred_single_arm_count: int
+    noisy_survivor_count: int
+    drop_reasons: dict[str, int]
+
+
+@dataclass(frozen=True)
 class PortfolioHit:
     rank: int
     bundle_key: str
@@ -161,6 +181,7 @@ class PortfolioCaseResult:
     required_terms_found: bool
     preferred_doc_type_found: bool
     required_feature_found: bool
+    denoising: PortfolioDenoisingSummary
 
 
 @dataclass(frozen=True)
@@ -169,6 +190,7 @@ class PortfolioEvalReport:
     arm_summaries: tuple[PortfolioArmSummary, ...]
     verdict: PortfolioPromotionVerdict
     parameters: dict[str, Any]
+    denoising_summary: PortfolioDenoisingSummary
 
 
 def parse_portfolio_semantic_spec(value: str) -> PortfolioSemanticSpec:
@@ -328,6 +350,9 @@ def run_portfolio_eval(
         arm_summaries=arm_summaries,
         verdict=_promotion_verdict(results, arm_summaries, semantic_specs, reranker_specs),
         parameters=parameters,
+        denoising_summary=_combine_denoising_summaries(
+            tuple(result.denoising for result in results)
+        ),
     )
 
 
@@ -358,6 +383,20 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
                 f"ok={summary.ok} review={summary.needs_review} "
                 f"fail={summary.fail} error={summary.error}"
             )
+    denoise = report.denoising_summary
+    lines.append(
+        "denoising: "
+        f"candidates={denoise.candidate_count} "
+        f"unique={denoise.unique_candidate_count} "
+        f"fused={denoise.fused_count} "
+        f"filtered={denoise.filtered_candidate_count} "
+        f"restorable={denoise.source_restorable_count} "
+        f"citation_ready={denoise.citation_ready_count} "
+        f"unsupported={denoise.unsupported_context_count} "
+        f"single_arm={denoise.single_arm_only_count} "
+        f"multi_arm={denoise.multi_arm_agreement_count} "
+        f"deferred={denoise.deferred_single_arm_count}"
+    )
     for case in report.cases:
         top = case.fused_hits[0].doc_id if case.fused_hits else "-"
         arm_statuses = ",".join(
@@ -375,6 +414,12 @@ def format_portfolio_eval(report: PortfolioEvalReport) -> str:
                     f"type={case.question_type}",
                     f"top={top}",
                     f"arms={len(case.arms)}",
+                    (
+                        "denoise="
+                        f"{case.denoising.filtered_candidate_count}/"
+                        f"{case.denoising.unique_candidate_count} "
+                        f"citation_ready={case.denoising.citation_ready_count}"
+                    ),
                     f"arm_status={arm_statuses}",
                     f"query={case.query}{comparison}",
                 ]
@@ -434,6 +479,8 @@ def _run_case(
         arm_payloads.append(_run_retrieval_text_arm(db_path, case.query, limit=arm_limit))
     if "relation_expansion" in enabled_baseline_arms:
         arm_payloads.append(_run_relation_expansion_arm(db_path, case.query, limit=arm_limit))
+    if "lexical_exploration" in enabled_baseline_arms:
+        arm_payloads.append(_run_lexical_exploration_arm(db_path, case.query, limit=arm_limit))
     if "corpus2skill_navigation" in enabled_baseline_arms:
         arm_payloads.append(
             _run_corpus2skill_navigation_arm(db_path, case.query, limit=arm_limit)
@@ -483,6 +530,7 @@ def _run_case(
     )
     notes = _case_notes(case, fused_hits)
     status = _case_status(case, notes, fused_hits)
+    denoising = _denoising_summary(arm_payloads, fused_hits)
     best_arm = _best_case_arm(tuple(arm for arm, _hits in arm_payloads))
     best_arm_status = best_arm.case_status if best_arm else None
     fusion_improved = _status_strength(status) > _status_strength(best_arm_status)
@@ -501,6 +549,7 @@ def _run_case(
         required_terms_found=_required_terms_found(case, fused_hits),
         preferred_doc_type_found=_preferred_doc_type_found(case, fused_hits),
         required_feature_found=_feature_found(case.required_feature, fused_hits),
+        denoising=denoising,
     )
 
 
@@ -806,6 +855,49 @@ def _run_relation_expansion_arm(
         )
 
 
+def _run_lexical_exploration_arm(
+    db_path: str | Path,
+    query: str,
+    *,
+    limit: int,
+) -> tuple[PortfolioArmResult, list[dict[str, Any]]]:
+    try:
+        bundle = build_evidence_bundle(db_path, query, limit=max(limit * 2, 20))
+        hits = []
+        for hit in bundle["hits"]:
+            engines = _hit_engine_names(hit)
+            has_relation = bool((hit.get("evidence") or {}).get("relations"))
+            if engines.intersection(
+                {"fts", "like", "metadata", "retrieval_text", "relation_expansion"}
+            ) or has_relation:
+                hits.append(hit)
+        hits = _annotate_hits(
+            _dedupe_raw_hits(hits)[:limit],
+            {
+                "portfolio_non_vector_arm": "lexical_exploration",
+                "route_pattern": "direct_corpus_interaction",
+                "citation_policy": "candidate_until_source_bundle_context",
+                "lexical_exploration_engines": _lexical_engine_counts(hits),
+            },
+        )
+        return (
+            _arm_from_hits(
+                "lexical_exploration",
+                hits,
+                mode="lexical_exploration",
+                weight=1.08,
+            ),
+            hits,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return _errored_nonsemantic_arm(
+            "lexical_exploration",
+            mode="lexical_exploration",
+            error=str(exc),
+            weight=1.08,
+        )
+
+
 def _run_corpus2skill_navigation_arm(
     db_path: str | Path,
     query: str,
@@ -1003,6 +1095,15 @@ def _annotate_hits(
         item["metadata"] = item_metadata
         annotated.append(item)
     return annotated
+
+
+def _lexical_engine_counts(hits: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for hit in hits:
+        for engine in sorted(_hit_engine_names(hit)):
+            if engine in {"fts", "like", "metadata", "retrieval_text", "relation_expansion"}:
+                counts[engine] = counts.get(engine, 0) + 1
+    return counts
 
 
 def _run_semantic_only_arm(
@@ -1344,6 +1445,158 @@ def _baseline_contribution_rank(bucket: dict[str, Any]) -> int | None:
         if isinstance(contribution, dict) and contribution.get("arm") in BASELINE_ARM_NAMES
     ]
     return min(ranks) if ranks else None
+
+
+def _denoising_summary(
+    arm_payloads: list[tuple[PortfolioArmResult, list[dict[str, Any]]]],
+    fused_hits: list[PortfolioHit],
+) -> PortfolioDenoisingSummary:
+    candidate_hits_by_key: dict[str, dict[str, Any]] = {}
+    arm_names_by_key: dict[str, set[str]] = {}
+    raw_candidate_count = 0
+    for arm, hits in arm_payloads:
+        if arm.status != "ok":
+            continue
+        for hit in hits:
+            raw_candidate_count += 1
+            key = _bundle_key(hit)
+            candidate_hits_by_key.setdefault(key, hit)
+            arm_names_by_key.setdefault(key, set()).add(arm.name)
+
+    fused_keys = {hit.bundle_key for hit in fused_hits}
+    drop_reasons: Counter[str] = Counter()
+    for key, hit in candidate_hits_by_key.items():
+        if key in fused_keys:
+            continue
+        arm_names = arm_names_by_key.get(key, set())
+        if not _raw_hit_is_source_restorable(hit):
+            drop_reasons["source_not_restorable"] += 1
+        elif len(arm_names) <= 1:
+            drop_reasons["single_arm_only"] += 1
+        elif not _raw_hit_is_citation_ready(hit, arm_names):
+            drop_reasons["not_citation_ready"] += 1
+        else:
+            drop_reasons["outside_fused_limit"] += 1
+
+    return PortfolioDenoisingSummary(
+        candidate_count=raw_candidate_count,
+        unique_candidate_count=len(candidate_hits_by_key),
+        fused_count=len(fused_hits),
+        filtered_candidate_count=max(0, len(candidate_hits_by_key) - len(fused_hits)),
+        source_restorable_count=sum(
+            1 for hit in candidate_hits_by_key.values() if _raw_hit_is_source_restorable(hit)
+        ),
+        citation_ready_count=sum(1 for hit in fused_hits if _portfolio_hit_is_citation_ready(hit)),
+        unsupported_context_count=sum(
+            1 for hit in fused_hits if not _portfolio_hit_is_citation_ready(hit)
+        ),
+        single_arm_only_count=sum(
+            1 for arm_names in arm_names_by_key.values() if len(arm_names) <= 1
+        ),
+        multi_arm_agreement_count=sum(
+            1 for arm_names in arm_names_by_key.values() if len(arm_names) >= 2
+        ),
+        baseline_backed_count=sum(
+            1 for hit in fused_hits if _portfolio_hit_is_baseline_backed(hit)
+        ),
+        deferred_single_arm_count=sum(
+            1
+            for key, arm_names in arm_names_by_key.items()
+            if key not in fused_keys and len(arm_names) <= 1
+        ),
+        noisy_survivor_count=sum(
+            1
+            for hit in fused_hits
+            if not _portfolio_hit_is_citation_ready(hit)
+            and len(_portfolio_hit_arm_names(hit)) <= 1
+        ),
+        drop_reasons=dict(sorted(drop_reasons.items())),
+    )
+
+
+def _combine_denoising_summaries(
+    summaries: tuple[PortfolioDenoisingSummary, ...],
+) -> PortfolioDenoisingSummary:
+    if not summaries:
+        return _empty_denoising_summary()
+    drop_reasons: Counter[str] = Counter()
+    for summary in summaries:
+        drop_reasons.update(summary.drop_reasons)
+    return PortfolioDenoisingSummary(
+        candidate_count=sum(summary.candidate_count for summary in summaries),
+        unique_candidate_count=sum(summary.unique_candidate_count for summary in summaries),
+        fused_count=sum(summary.fused_count for summary in summaries),
+        filtered_candidate_count=sum(summary.filtered_candidate_count for summary in summaries),
+        source_restorable_count=sum(summary.source_restorable_count for summary in summaries),
+        citation_ready_count=sum(summary.citation_ready_count for summary in summaries),
+        unsupported_context_count=sum(summary.unsupported_context_count for summary in summaries),
+        single_arm_only_count=sum(summary.single_arm_only_count for summary in summaries),
+        multi_arm_agreement_count=sum(summary.multi_arm_agreement_count for summary in summaries),
+        baseline_backed_count=sum(summary.baseline_backed_count for summary in summaries),
+        deferred_single_arm_count=sum(summary.deferred_single_arm_count for summary in summaries),
+        noisy_survivor_count=sum(summary.noisy_survivor_count for summary in summaries),
+        drop_reasons=dict(sorted(drop_reasons.items())),
+    )
+
+
+def _empty_denoising_summary() -> PortfolioDenoisingSummary:
+    return PortfolioDenoisingSummary(
+        candidate_count=0,
+        unique_candidate_count=0,
+        fused_count=0,
+        filtered_candidate_count=0,
+        source_restorable_count=0,
+        citation_ready_count=0,
+        unsupported_context_count=0,
+        single_arm_only_count=0,
+        multi_arm_agreement_count=0,
+        baseline_backed_count=0,
+        deferred_single_arm_count=0,
+        noisy_survivor_count=0,
+        drop_reasons={},
+    )
+
+
+def _raw_hit_is_source_restorable(hit: dict[str, Any]) -> bool:
+    if not hit.get("doc_id"):
+        return False
+    metadata = hit.get("metadata") or {}
+    return not (isinstance(metadata, dict) and metadata.get("source_bundle_error"))
+
+
+def _raw_hit_is_citation_ready(hit: dict[str, Any], arm_names: set[str]) -> bool:
+    metadata = hit.get("metadata") or {}
+    if arm_names.intersection({"source_bundle_context", "workflow_route"}):
+        return True
+    if isinstance(metadata, dict):
+        with_count = int(metadata.get("citation_count") or 0) > 0
+        with_context = int(metadata.get("context_chunk_count") or 0) > 0
+        return with_count or with_context
+    return False
+
+
+def _portfolio_hit_is_citation_ready(hit: PortfolioHit) -> bool:
+    if _portfolio_hit_arm_names(hit).intersection({"source_bundle_context", "workflow_route"}):
+        return True
+    return _raw_hit_is_citation_ready(
+        {
+            "doc_id": hit.doc_id,
+            "metadata": hit.metadata,
+        },
+        set(),
+    )
+
+
+def _portfolio_hit_is_baseline_backed(hit: PortfolioHit) -> bool:
+    return bool(_portfolio_hit_arm_names(hit).intersection(BASELINE_ARM_NAMES))
+
+
+def _portfolio_hit_arm_names(hit: PortfolioHit) -> set[str]:
+    return {
+        str(contribution.get("arm") or "")
+        for contribution in hit.contributions
+        if isinstance(contribution, dict)
+    }
 
 
 def _resolve_fusion_mode(value: str) -> str:

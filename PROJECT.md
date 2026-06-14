@@ -194,6 +194,8 @@ Completed no-spend closure state:
 - strategy catalog statuses are classified as implemented/candidate, human gate, or reference-only;
 - strict audit exposes hidden no-spend gaps if new `needs_*` statuses are introduced;
 - exact-anchor, relation, and retrieval-text arms are visible in portfolio/eval;
+- lexical_exploration is visible as a direct-corpus portfolio arm, with denoising metrics for
+  candidate count, filtered count, citation-ready yield, and unsupported context;
 - deterministic claim/citation and freshness/projection lineage checks are part of audit.
 - dry-run research intake is implemented for manual URL, local note, and fake search sources.
 - ContextBudgetPolicy/offload pointers are implemented for context/workflow/answer JSON outputs

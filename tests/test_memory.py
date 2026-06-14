@@ -1192,9 +1192,16 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
         for hit in result.fused_hits
         for contribution in hit.contributions
     }
-    assert {"local_hybrid", "source_bundle_context", "hash64", "hash32"}.issubset(
-        contribution_arms
-    )
+    assert {
+        "lexical_exploration",
+        "local_hybrid",
+        "source_bundle_context",
+        "hash64",
+        "hash32",
+    }.issubset(contribution_arms)
+    assert result.denoising.candidate_count >= result.denoising.unique_candidate_count
+    assert result.denoising.unique_candidate_count >= result.denoising.fused_count
+    assert report.denoising_summary.candidate_count >= result.denoising.candidate_count
 
 
 def test_memory_portfolio_eval_case_limit_limits_default_cases(tmp_path: Path) -> None:
@@ -1214,6 +1221,36 @@ def test_memory_portfolio_eval_case_limit_limits_default_cases(tmp_path: Path) -
         "retrieval_text",
         "local_hybrid",
     ]
+
+
+def test_memory_portfolio_eval_tracks_lexical_exploration_denoising(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    report = run_portfolio_eval(
+        db_path,
+        cases=(DEFAULT_EVAL_CASES[0],),
+        limit=2,
+        arm_limit=4,
+    )
+    result = report.cases[0]
+    arm_by_name = {arm.name: arm for arm in result.arms}
+    payload = json.loads(memory_portfolio.portfolio_eval_json(report))
+    plain = memory_portfolio.format_portfolio_eval(report)
+
+    assert arm_by_name["lexical_exploration"].mode == "lexical_exploration"
+    assert arm_by_name["lexical_exploration"].status == "ok"
+    assert result.denoising.candidate_count >= result.denoising.unique_candidate_count
+    assert result.denoising.unique_candidate_count >= result.denoising.fused_count
+    assert result.denoising.source_restorable_count >= result.denoising.citation_ready_count
+    assert report.denoising_summary.candidate_count == result.denoising.candidate_count
+    assert payload["denoising_summary"]["candidate_count"] == result.denoising.candidate_count
+    assert "denoising:" in plain
+    assert "denoise=" in plain
 
 
 def test_memory_portfolio_semantic_spec_rejects_unknown_fields() -> None:
@@ -1258,6 +1295,7 @@ def test_memory_retrieval_strategies_auto_keeps_semantic_challengers_explicit() 
     portfolio_specs = semantic_spec_strings_for_strategies(("api_embedding_portfolio",))
 
     assert "baseline_hybrid_foundation" in ids
+    assert "lexical_exploration" in ids
     assert "general_memory" not in ids
     assert "corpus2skill_navigation" in ids
     assert "bounded_workflow_orchestration" in ids
@@ -1267,6 +1305,12 @@ def test_memory_retrieval_strategies_auto_keeps_semantic_challengers_explicit() 
     assert "media_text_bridge" not in ids
     assert "contextual_bm25" in ids
     assert "relation_engine" in baseline_candidates
+    lexical = next(
+        strategy for strategy in strategies if strategy["strategy_id"] == "lexical_exploration"
+    )
+    lexical_candidates = {candidate["name"]: candidate for candidate in lexical["candidates"]}
+    assert lexical["adoption"] == "always_on_baseline"
+    assert lexical_candidates["lexical_exploration"]["route_role"] == "candidate_exploration"
     assert any("model=voyage-4" in spec for spec in specs)
     assert any("profile=jp_multilingual" in spec for spec in specs)
     assert any("profile=learning_long" in spec for spec in specs)
@@ -1481,10 +1525,20 @@ def test_memory_objective_execute_records_no_spend_media_trace(tmp_path: Path) -
     assert execution.arm_results[0].provider_quota_skipped is False
     assert execution.arm_results[0].output["ocr_estimate"]["sample_policy"] == "candidate_set"
     assert execution.metadata["provider_quota_frozen"] is True
-    assert execution.metadata["result_coverage_map"]["evidence_total"] >= 1
+    coverage = execution.metadata["result_coverage_map"]
+    assert coverage["candidate_total"] >= 1
+    assert coverage["evidence_total"] >= 1
+    assert "citation_ready_yield" in coverage
+    assert "unsupported_context_total" in coverage
+    assert coverage["route_rows"][0]["candidate_count"] >= 1
+    assert "citation_ready_yield" in coverage["route_rows"][0]
     assert execution.metadata["claim_support_check"]["deterministic_checks"][
         "snippet_or_rank_used_as_evidence"
     ] is False
+    assert "unsupported_context_absent" in execution.metadata["claim_support_check"][
+        "deterministic_checks"
+    ]
+    assert execution.metadata["research_brief"]["candidate_total"] >= 1
     assert execution.metadata["search_episode_trace"]["contract"] == (
         "episode_trace_explains_execution_but_is_not_source_evidence"
     )

@@ -336,6 +336,67 @@ DEFAULT_RETRIEVAL_STRATEGIES: tuple[RetrievalStrategy, ...] = (
         ),
     ),
     RetrievalStrategy(
+        strategy_id="lexical_exploration",
+        label="direct corpus lexical exploration",
+        stage="local direct corpus interaction",
+        adoption="always_on_baseline",
+        purpose=(
+            "Expose exact anchors, FTS, metadata, retrieval-text projections, and relations "
+            "as a controllable grep-like exploration route. This route expands and audits "
+            "local candidates, but promotion is based on denoising, source-bundle "
+            "restoration, and citation-ready yield rather than raw reachability."
+        ),
+        question_types=(
+            "single_fact_conditioned",
+            "set_recall",
+            "multi_hop_evidence",
+            "exploratory_map",
+            "citation_required",
+            "false_premise_abstention",
+        ),
+        intents=("food", "finance", "technology", "science", "author", "event", "media"),
+        routes=("local_memory_search", "learning_map", "author_stance", "place_recall"),
+        doc_types=(
+            "tweet_doc",
+            "bookmark_doc",
+            "quote_tree_doc",
+            "media_doc",
+            "topic_thread",
+            "author_profile",
+            "place_card",
+        ),
+        candidates=(
+            PortfolioCandidate(
+                name="lexical_exploration",
+                candidate_kind="retrieval_engine",
+                status="implemented_eval_arm",
+                route_role="candidate_exploration",
+                purpose=(
+                    "Route-scoped direct corpus interaction across exact, FTS, metadata, "
+                    "retrieval-text, and relation signals before source-bundle context."
+                ),
+                source_refs=("GrepSeek", "SQLite FTS5"),
+            ),
+        ),
+        promotion_gate=(
+            "Candidate expansion must improve citation-ready evidence yield or abstention "
+            "behavior over exact/FTS/local_hybrid alone.",
+            "Hits remain candidates until restored to source bundles and cited context chunks.",
+        ),
+        rejection_gate=(
+            "Reject route changes that only increase reachable candidates while raising "
+            "unsupported-context count.",
+        ),
+        notes=(
+            "This is not a replacement for vector search; vector arms remain optional recall "
+            "tools that must beat the denoising-first local route baseline.",
+        ),
+        source_refs=(
+            "GrepSeek: Training Search Agents for Direct Corpus Interaction",
+            "LLM-Oriented Information Retrieval: A Denoising-First Perspective",
+        ),
+    ),
+    RetrievalStrategy(
         strategy_id="contextual_bm25",
         label="generated retrieval-only context for lexical recall",
         stage="high-value non-embedding challenger",
@@ -1290,6 +1351,7 @@ def select_retrieval_strategies(
         return tuple(by_id[strategy_id] for strategy_id in strategy_ids)
     selected: list[RetrievalStrategy] = [
         _strategy_by_id("baseline_hybrid_foundation"),
+        _strategy_by_id("lexical_exploration"),
         _strategy_by_id("exact_metadata_first"),
         _strategy_by_id("corpus2skill_navigation"),
         _strategy_by_id("bounded_workflow_orchestration"),

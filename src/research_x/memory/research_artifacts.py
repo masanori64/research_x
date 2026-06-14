@@ -280,8 +280,10 @@ def _result_coverage_map(
     doc_type_counts: Counter[str] = Counter()
     provider_skipped = []
     route_rows = []
+    candidate_total = 0
     evidence_total = 0
     citation_total = 0
+    unsupported_context_total = 0
     restoration_failures = 0
     for result in results:
         route = str(getattr(result, "route_arm", "unknown"))
@@ -290,8 +292,14 @@ def _result_coverage_map(
         status_counts[status] += 1
         evidence_count = int(getattr(result, "evidence_count", 0) or 0)
         citation_count = int(getattr(result, "citation_count", 0) or 0)
+        candidate_count = _candidate_count(output, fallback=evidence_count)
+        unsupported_context_count = max(0, evidence_count - citation_count)
+        if evidence_count <= 0 and candidate_count > 0 and citation_count <= 0:
+            unsupported_context_count = candidate_count
+        candidate_total += candidate_count
         evidence_total += evidence_count
         citation_total += citation_count
+        unsupported_context_total += unsupported_context_count
         if bool(getattr(result, "provider_quota_skipped", False)):
             provider_skipped.append(route)
         for doc_type, count in _dict(output.get("doc_types")).items():
@@ -305,8 +313,11 @@ def _result_coverage_map(
             {
                 "route_arm": route,
                 "status": status,
+                "candidate_count": candidate_count,
                 "evidence_count": evidence_count,
                 "citation_count": citation_count,
+                "citation_ready_yield": _ratio(citation_count, candidate_count),
+                "unsupported_context_count": unsupported_context_count,
                 "provider_quota_skipped": bool(getattr(result, "provider_quota_skipped", False)),
                 "stop_condition": getattr(result, "stop_condition", None),
                 "escalation_trigger": getattr(result, "escalation_trigger", None),
@@ -319,12 +330,36 @@ def _result_coverage_map(
         "executed_routes": [row["route_arm"] for row in route_rows],
         "status_counts": dict(sorted(status_counts.items())),
         "doc_type_counts": dict(sorted(doc_type_counts.items())),
+        "candidate_total": candidate_total,
         "evidence_total": evidence_total,
         "citation_total": citation_total,
+        "citation_ready_yield": _ratio(citation_total, candidate_total),
+        "unsupported_context_total": unsupported_context_total,
         "provider_quota_skipped_routes": provider_skipped,
         "source_bundle_restoration_failures": restoration_failures,
+        "source_bundle_restoration_rate": _ratio(
+            max(0, candidate_total - restoration_failures),
+            candidate_total,
+        ),
         "route_rows": route_rows,
     }
+
+
+def _candidate_count(output: dict[str, Any], *, fallback: int) -> int:
+    for key in ("candidate_count", "hits", "source_urls"):
+        value = output.get(key)
+        if isinstance(value, list):
+            return len(value)
+        with suppress(TypeError, ValueError):
+            if value is not None:
+                return int(value)
+    return fallback
+
+
+def _ratio(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return round(float(numerator) / float(denominator), 4)
 
 
 def _evidence_gap(
@@ -343,6 +378,16 @@ def _evidence_gap(
             _gap(
                 "no_citation_ready_context",
                 "No citation-ready context chunks were found.",
+            )
+        )
+    unsupported_context_total = int(coverage.get("unsupported_context_total") or 0)
+    if unsupported_context_total:
+        gaps.append(
+            _gap(
+                "unsupported_context_candidates",
+                "Some candidates did not become citation-ready context.",
+                count=unsupported_context_total,
+                citation_ready_yield=coverage.get("citation_ready_yield", 0.0),
             )
         )
     if coverage.get("provider_quota_skipped_routes"):
@@ -588,18 +633,24 @@ def _claim_support_check(
 ) -> dict[str, Any]:
     citation_total = int(coverage.get("citation_total") or 0)
     evidence_total = int(coverage.get("evidence_total") or 0)
+    candidate_total = int(coverage.get("candidate_total") or 0)
+    unsupported_context_total = int(coverage.get("unsupported_context_total") or 0)
     return {
         "version": RESEARCH_CONTROL_VERSION,
         "status": "ready" if citation_total > 0 and gaps.get("status") == "ok" else "needs_review",
         "deterministic_checks": {
             "citation_ready_context_present": citation_total > 0,
             "candidate_evidence_present": evidence_total > 0,
+            "unsupported_context_absent": unsupported_context_total <= 0,
             "snippet_or_rank_used_as_evidence": False,
             "generated_artifacts_citation_excluded": True,
             "semantic_claim_judge_required_for_promotion": True,
         },
+        "candidate_count": candidate_total,
         "citation_count": citation_total,
         "evidence_count": evidence_total,
+        "citation_ready_yield": coverage.get("citation_ready_yield", 0.0),
+        "unsupported_context_count": unsupported_context_total,
         "limitations": (
             "This deterministic check verifies artifact boundaries only.",
             "Semantic claim support still requires provider or human review.",
@@ -623,8 +674,11 @@ def _research_brief(
         "stop_reason": stop_reason,
         "primary_route": str(getattr(plan, "primary_route", "")),
         "selected_routes": coverage.get("executed_routes", []),
+        "candidate_total": coverage.get("candidate_total", 0),
         "evidence_total": coverage.get("evidence_total", 0),
         "citation_total": coverage.get("citation_total", 0),
+        "citation_ready_yield": coverage.get("citation_ready_yield", 0.0),
+        "unsupported_context_total": coverage.get("unsupported_context_total", 0),
         "gap_count": gaps.get("gap_count", 0),
         "claim_support_status": claim_support.get("status"),
         "next_actions": _next_actions(gaps, coverage),

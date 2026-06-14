@@ -266,8 +266,10 @@ def format_objective_route_execution(execution: ObjectiveRouteExecution) -> str:
     if isinstance(brief, dict) and brief:
         lines.append(
             "research_brief: "
+            f"candidates={brief.get('candidate_total', 0)} "
             f"evidence={brief.get('evidence_total', 0)} "
             f"citations={brief.get('citation_total', 0)} "
+            f"yield={brief.get('citation_ready_yield', 0.0)} "
             f"gaps={brief.get('gap_count', 0)} "
             f"claim_support={brief.get('claim_support_status', '-')}"
         )
@@ -285,8 +287,11 @@ def format_objective_route_execution(execution: ObjectiveRouteExecution) -> str:
         lines.append(
             "result_coverage: "
             f"executed={executed_routes or '-'} "
+            f"candidates={coverage.get('candidate_total', 0)} "
             f"evidence={coverage.get('evidence_total', 0)} "
             f"citations={coverage.get('citation_total', 0)} "
+            f"yield={coverage.get('citation_ready_yield', 0.0)} "
+            f"unsupported={coverage.get('unsupported_context_total', 0)} "
             f"provider_skipped={provider_skipped or '-'}"
         )
     episode = execution.metadata.get("search_episode_trace") or {}
@@ -336,8 +341,10 @@ def format_objective_route_execution(execution: ObjectiveRouteExecution) -> str:
         lines.append(
             "claim_support: "
             f"status={claim.get('status', '-')} "
+            f"candidates={claim.get('candidate_count', 0)} "
             f"citations={claim.get('citation_count', 0)} "
-            f"evidence={claim.get('evidence_count', 0)}"
+            f"evidence={claim.get('evidence_count', 0)} "
+            f"yield={claim.get('citation_ready_yield', 0.0)}"
         )
     return "\n".join(lines)
 

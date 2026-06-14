@@ -196,6 +196,16 @@ Current active decisions:
 - QueryTransform, HyDE, subqueries, contextual retrieval text, SPLADE/doc expansion text, and
   RetrievalTextProfile rows are search artifacts. They must be traceable and auditable, but are not
   source evidence.
+- Denoising-first retrieval is the finished-product evaluation center. Search quality is measured by
+  citation-ready evidence yield, noise filtered before context, source-bundle restoration, and
+  answer support behavior, not only by whether an arm can reach a plausible hit.
+- Direct corpus interaction is adopted as a first-class local route pattern through exact anchors,
+  FTS, metadata, retrieval-text projections, and relation expansion. It is a controllable
+  grep-like exploration surface over the local corpus; its hits remain candidates until restored to
+  source bundles and citations.
+- Vector and semantic indexes remain optional recall arms. They must not outrank the local evidence
+  contract: every vector hit must restore to source bundles, pass denoising/citation checks, and
+  beat lexical/exact/relation baselines in route-level eval before promotion.
 - User models, personal preference signals, implicit feedback, and active-learning labels are
   route-aware ranking policies or review signals. They must not become answer citations.
 - Rebuildable indexes are projections. Track source hashes, projection generations, index
@@ -453,6 +463,8 @@ Required local engines:
 
 - exact lookup: tweet IDs, URLs, author handles, dates, labels;
 - FTS5 lexical search;
+- lexical exploration: route-scoped direct corpus interaction over exact anchors, FTS, metadata,
+  retrieval-text projections, and relation expansion;
 - metadata filters: account, bookmark/tweet kind, date range, author, doc type;
 - real API semantic recall arms: OpenAI/Gemini/Voyage/Cohere/Mistral/Jina/OpenAI-compatible
   providers when enabled by a workflow route or explicit eval;
@@ -1015,6 +1027,9 @@ Each eval should record:
 
 - route chosen;
 - retrieval engines used;
+- candidate count, filtered count, drop reasons, and engine agreement;
+- source-bundle restoration rate and unsupported context count;
+- citation-ready evidence yield and answer-support status;
 - whether local evidence was enough;
 - whether external context was used;
 - top evidence ids;
