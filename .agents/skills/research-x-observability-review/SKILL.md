@@ -6,9 +6,9 @@ description: Use when the user says app, CLI, job, workflow, route, evidence, ga
 # research-x Observability Review
 
 Use this skill when hidden workflow state prevents the user or Codex from knowing what happened.
-For search, research, evidence, or provider outputs, use
-`../../skill-references/search-quality-contract.md` as the baseline for what must be visible before
-the result is treated as reviewed.
+For evidence, route, citation, workflow, budget, OCR/media, or provider-skip visibility, use
+`../../skill-references/evidence-workflow-quality-contract.md` as the baseline for what must be
+visible before the result is treated as reviewed.
 
 ## Workflow
 

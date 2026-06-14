@@ -10,6 +10,8 @@ repository. Its job is to keep `AGENTS.md` small and route new behavior to the n
 surface.
 Global Skill Hygiene decides whether a Skill is worth adding at all; this skill decides the
 narrowest project-local `research_x` surface for behavior that belongs in this repository.
+Also apply `../../skill-references/governance-quality-contract.md` for instruction-surface,
+Skill-reference, manifest, and docs placement decisions.
 
 ## Workflow
 
@@ -57,8 +59,15 @@ narrowest project-local `research_x` surface for behavior that belongs in this r
 - `research-x-publishing-illustration`: output-layer visual briefs, shot lists, and storyboards that
   do not replace evidence.
 - `.agents/skill-references/search-quality-contract.md`: shared baseline for search/research/source
-  review/provider/local-memory output quality. Update this shared reference before duplicating
-  quality rules across individual Skills.
+  discovery output quality.
+- `.agents/skill-references/provider-quality-contract.md`: shared baseline for provider, quota,
+  pricing, and API lane quality.
+- `.agents/skill-references/evidence-workflow-quality-contract.md`: shared baseline for evidence,
+  citation, context, trace, observability, and factual output quality.
+- `.agents/skill-references/governance-quality-contract.md`: shared baseline for docs, Skills,
+  prompts, source locks, manifests, and instruction-surface quality.
+- `.agents/skill-references/execution-quality-contract.md`: shared baseline for implementation
+  phase, worker/verifier, verification, commit/push, and resumability quality.
 
 Prefer updating one of these before creating another adjacent skill.
 

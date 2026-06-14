@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import shutil
 from pathlib import Path
 
@@ -112,3 +113,15 @@ def test_repo_skill_path_and_frontmatter_are_checked(tmp_path: Path) -> None:
     )
 
     assert any("repo skill path missing" in error for error in errors)
+
+
+def test_repo_skill_reference_links_exist() -> None:
+    reference_re = re.compile(r"`(\.\./\.\./skill-references/[^`]+\.md)`")
+    skill_paths = sorted((REPO_ROOT / ".agents" / "skills").glob("research-x-*/SKILL.md"))
+
+    assert skill_paths
+    for skill_path in skill_paths:
+        text = skill_path.read_text(encoding="utf-8")
+        for match in reference_re.finditer(text):
+            target = (skill_path.parent / match.group(1)).resolve()
+            assert target.exists(), f"{skill_path} references missing file {match.group(1)}"

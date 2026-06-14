@@ -8,6 +8,8 @@ description: Use when creating, changing, or reviewing research_x prompts, MNP-l
 Use this skill when prompts or agent instructions need to become testable artifacts rather than
 informal prose. It applies the useful parts of prompt-as-server and MNP patterns while keeping
 auth, DB writes, provider budget, and security policy in code and repository gates.
+Also apply `../../skill-references/governance-quality-contract.md` when prompt or instruction
+changes affect durable repository behavior.
 
 ## Purpose
 

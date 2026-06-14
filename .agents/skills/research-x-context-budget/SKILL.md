@@ -7,6 +7,8 @@ description: Use when managing research_x context packs, compression, offload, s
 
 Use this skill when long `research_x` work needs a context pack, offload plan, compression decision,
 or handoff capsule without weakening evidence boundaries.
+Also apply `../../skill-references/evidence-workflow-quality-contract.md` for source-sensitive
+context, citation, trace, or offload outputs.
 
 This skill is about preserving commitments under a budget. It is not a license to summarize away
 sources, cite compressed text, or install context-compression tools.

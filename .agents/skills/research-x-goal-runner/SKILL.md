@@ -8,6 +8,8 @@ description: Use when the user defines or resumes a /goal, goal-like target, or 
 Use this skill for long-running implementation goals.
 Global handoff and session-hygiene skills handle context export and session upkeep; this skill
 governs `research_x` phase execution toward a target state.
+Also apply `../../skill-references/execution-quality-contract.md` for scoped implementation,
+verification, commit/push, and resumability rules.
 
 ## Workflow
 

@@ -161,6 +161,10 @@ Addendum policy surfaces:
 .agents/skills/research-x-context-budget/SKILL.md
 .agents/skills/research-x-publishing-illustration/SKILL.md
 .agents/skill-references/search-quality-contract.md
+.agents/skill-references/provider-quality-contract.md
+.agents/skill-references/evidence-workflow-quality-contract.md
+.agents/skill-references/governance-quality-contract.md
+.agents/skill-references/execution-quality-contract.md
 .codex/research_intake/
 prompt_contracts/research_x_*.yaml
 ```

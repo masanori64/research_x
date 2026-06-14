@@ -7,6 +7,8 @@ description: Use when reviewing third-party or internal Skill/source/adoption ca
 
 Use this skill before enabling, adapting, importing, or trusting a third-party Skill, repository,
 tool, connector, catalog, prompt package, or source-derived workflow in `research_x`.
+Also apply `../../skill-references/governance-quality-contract.md` for manifest, source-lock,
+trigger-overlap, and enablement decisions.
 
 This skill decides whether a source can be trusted, pinned, enabled, rejected, gated, or used only
 as reference. It does not create or install Skills.

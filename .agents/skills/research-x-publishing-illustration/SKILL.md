@@ -7,6 +7,8 @@ description: Use when converting research_x articles, knowledge notes, briefs, o
 
 Use this skill for output-layer visual planning: turning an article, knowledge note, technical
 brief, or research synthesis into a visual brief, shot list, storyboard, or image prompt pack.
+Also apply `../../skill-references/evidence-workflow-quality-contract.md` when factual claims,
+source references, or citation boundaries appear in the visual plan.
 
 This skill is not the image-generation owner. It does not create citation evidence, and it does not
 replace source bundles.

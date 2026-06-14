@@ -8,6 +8,8 @@ description: Use when updating or reorganizing research_x Markdown such as AGENT
 Use this skill before editing repository Markdown.
 Global handoff and session-hygiene skills handle context packaging and session upkeep; this skill
 governs `research_x` repository Markdown placement and source-of-truth ownership.
+Also apply `../../skill-references/governance-quality-contract.md` when changing docs, Skills,
+prompt contracts, source locks, or instruction surfaces.
 
 ## File Roles
 

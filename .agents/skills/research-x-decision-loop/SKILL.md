@@ -11,6 +11,8 @@ Global retrospective and sleep-cycle skills optimize Codex behavior over time; t
 current `research_x` architecture, review, audit, and design decisions.
 For search or research outputs, also apply
 `../../skill-references/search-quality-contract.md` before final judgment.
+For provider-facing decisions, also apply
+`../../skill-references/provider-quality-contract.md`.
 
 ## Workflow
 

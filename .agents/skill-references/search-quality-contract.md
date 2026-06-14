@@ -1,18 +1,21 @@
 # Search Quality Contract
 
-This is a shared quality contract for `research_x` search, research, source review, local memory
-search, provider comparison, and sub-agent exploration. It is not a new entry-point Skill. Task
-Skills keep their own routing and specialization, but they must preserve this baseline when their
-output could influence a user decision, architecture decision, source intake, provider choice, or
-evidence workflow.
+This is a shared quality contract for `research_x` search, research, source discovery, external
+fact checks, benchmark/community scans, and read-only exploration. It is not a new entry-point
+Skill. Task Skills keep their own routing and specialization, but they must preserve this baseline
+when their output could influence a user decision, architecture decision, source intake, or research
+direction.
+
+Use the other domain contracts instead of widening this file when the main risk is provider quota,
+local evidence/citation promotion, repository governance, or implementation execution.
 
 ## Minimum Contract
 
 1. State the task frame.
    - Identify the question, scope, freshness need, target corpus, and whether the work is local,
-     public Web, provider-facing, or source-intake.
+     public Web, source-intake, or read-only repo exploration.
    - Name blocked actions such as provider quota, network fetch, connector use, install, browser
-     automation, or DB writes when they matter.
+     automation, or DB writes when they matter, then hand off to the owning domain contract.
 
 2. Separate source classes.
    - Keep primary, official, secondary, benchmark, paper, community, local DB, generated summary,
@@ -26,15 +29,15 @@ evidence workflow.
 
 4. Classify evidence level.
    - Mark each important item as evidence, candidate, hint, inference, blocked, or not evidence.
-   - For `research_x` memory answers, a result is not citation-ready until it can be restored to
-     source bundles, context chunks, and citation annotations.
+   - Search hits, snippets, provider summaries, benchmark headlines, and sub-agent notes are
+     candidates or hints until the owning evidence workflow promotes them.
 
 5. Apply gates before promotion.
-   - Provider or quota-sensitive work must pass `research-x-provider-gate`.
+   - Provider or quota-sensitive work uses `provider-quality-contract.md`.
    - Source candidates must pass `research-x-research-intake` before source-bundle handoff.
-   - Local memory/search answers must pass `research-x-memory-workflow` source restoration.
-   - Hidden route, provider, evidence, citation, or progress state must pass
-     `research-x-observability-review`.
+   - Local evidence/citation promotion uses `evidence-workflow-quality-contract.md`.
+   - Skill, docs, prompt, manifest, or source-adoption decisions use
+     `governance-quality-contract.md`.
 
 6. Name gaps and counterarguments.
    - State missing source classes, stale or uncertain pricing, known benchmark limits, community
@@ -53,24 +56,16 @@ evidence workflow.
   durable design decision is justified.
 - `research-x-research-intake`: owns source candidate classification, provenance, risk flags, and
   source-bundle handoff readiness.
-- `research-x-memory-workflow`: owns local X evidence restoration, context chunks, citations,
-  route/eval behavior, and answer/abstain boundaries.
-- `research-x-provider-gate`: owns quota, pricing, API Budget Guard, provider freeze, and fake/local
-  verification boundaries.
 - `research-x-parallel-review`: owns sub-agent role scoping, read-only/worker separation, result
-  integration, and parent-agent accountability.
-- `research-x-observability-review`: owns making route choice, fallback, provider skip, evidence
-  level, budget, progress, and failure state inspectable.
+  integration, and parent-agent accountability for exploration sidecars.
 
 ## Do Not
 
 - Do not treat a search hit, SERP rank, snippet, benchmark headline, provider claim, community
   comment, or sub-agent summary as citation-ready evidence by itself.
-- Do not hide provider skips, failed searches, source-class gaps, or sub-agent disagreements.
-- Do not call free-tier, trial-credit, or zero-dollar provider quota while the no-quota freeze is
-  active.
-- Do not merge vectors, scores, source classes, or model outputs into one confidence claim unless an
-  explicit route-level eval supports that fusion.
+- Do not hide failed searches, source-class gaps, or sub-agent disagreements.
+- Do not merge source classes, benchmark rankings, community reports, and model outputs into one
+  confidence claim unless a domain-specific eval supports that fusion.
 - Do not add a new Skill just to enforce this contract. Update the narrowest existing Skill or this
   shared reference instead.
 

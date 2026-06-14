@@ -11,6 +11,8 @@ edits. If the active user policy says exploration must use sub-agents, apply thi
 non-trivial exploration or research task even when another Skill is the primary workflow.
 For exploration or research sidecars, also apply
 `../../skill-references/search-quality-contract.md` when integrating their results.
+For worker or verifier sidecars, also apply
+`../../skill-references/execution-quality-contract.md`.
 
 ## Workflow
 
