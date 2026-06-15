@@ -1,0 +1,168 @@
+{
+	"$schema" : "https://aka.ms/winget-packages.schema.2.0.json",
+	"CreationDate" : "2026-06-15T21:31:27.212-00:00",
+	"Sources" : 
+	[
+		{
+			"Packages" : 
+			[
+				{
+					"PackageIdentifier" : "Git.Git",
+					"Version" : "2.53.0.2"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Office",
+					"Version" : "16.0.20026.20168"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.OneDrive",
+					"Version" : "26.095.0519.0003"
+				},
+				{
+					"PackageIdentifier" : "RProject.R",
+					"Version" : "4.5.3"
+				},
+				{
+					"PackageIdentifier" : "OpenJS.NodeJS.LTS",
+					"Version" : "24.14.1"
+				},
+				{
+					"PackageIdentifier" : "BlenderFoundation.Blender",
+					"Version" : "5.1.1"
+				},
+				{
+					"PackageIdentifier" : "Google.Chrome.EXE",
+					"Version" : "149.0.7827.103"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Edge",
+					"Version" : "149.0.4022.69"
+				},
+				{
+					"PackageIdentifier" : "Posit.RStudio",
+					"Version" : "2026.01.2+418"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2015+.x86",
+					"Version" : "14.44.35211.0"
+				},
+				{
+					"PackageIdentifier" : "Google.ChromeRemoteDesktopHost",
+					"Version" : "149.0.7827.18"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCRedist.2015+.x64",
+					"Version" : "14.44.35211.0"
+				},
+				{
+					"PackageIdentifier" : "Cloudflare.cloudflared",
+					"Version" : "2026.5.0"
+				},
+				{
+					"PackageIdentifier" : "Zoom.Zoom.EXE",
+					"Version" : "7.0.2 (34412)"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VisualStudioCode",
+					"Version" : "1.124.2"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Teams",
+					"Version" : "26072.519.4556.7438"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.OpenCLGLVulkanCompatibilityPack",
+					"Version" : "1.2605.1.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.AppInstaller",
+					"Version" : "1.28.240.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.DotNet.Native.Runtime",
+					"Version" : "2.2.28604.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.PowerShell",
+					"Version" : "7.6.2.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.SurfaceApp",
+					"Version" : "76.5120.137.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.UI.Xaml.2.7",
+					"Version" : "7.2409.9001.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.UI.Xaml.2.8",
+					"Version" : "8.2511.26001.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCLibs.Desktop.14",
+					"Version" : "14.0.33728.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.VCLibs.14",
+					"Version" : "14.0.33519.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WindowsAppRuntime.1.1",
+					"Version" : "1.1.5"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WindowsAppRuntime.1.5",
+					"Version" : "> 1.5.8"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WindowsAppRuntime.1.6",
+					"Version" : "1.6.9"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WindowsAppRuntime.1.7",
+					"Version" : "1.7.9"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WindowsAppRuntime.1.8",
+					"Version" : "> 1.8.8"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WindowsTerminal",
+					"Version" : "1.24.11321.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.WSL",
+					"Version" : "2.5.9.0"
+				},
+				{
+					"PackageIdentifier" : "Microsoft.Teams.Free",
+					"Version" : "24215.1105.3082.1600"
+				}
+			],
+			"SourceDetails" : 
+			{
+				"Argument" : "https://cdn.winget.microsoft.com/cache",
+				"Identifier" : "Microsoft.Winget.Source_8wekyb3d8bbwe",
+				"Name" : "winget",
+				"Type" : "Microsoft.PreIndexed.Package"
+			}
+		},
+		{
+			"Packages" : 
+			[
+				{
+					"PackageIdentifier" : "XPDC2RH70K22MN",
+					"Version" : "1.0.9241"
+				}
+			],
+			"SourceDetails" : 
+			{
+				"Argument" : "https://storeedgefd.dsx.mp.microsoft.com/v9.0",
+				"Identifier" : "StoreEdgeFD",
+				"Name" : "msstore",
+				"Type" : "Microsoft.Rest"
+			}
+		}
+	],
+	"WinGetVersion" : "1.28.240"
+}
