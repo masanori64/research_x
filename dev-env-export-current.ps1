@@ -31,7 +31,16 @@ function Robocopy-IfExists {
 
 Write-Host "Exporting package inventory..."
 if (Get-Command winget -ErrorAction SilentlyContinue) {
-    winget export --output (Join-Path $OutputRoot "dev-env-winget-export.json") --include-versions --disable-interactivity
+    $wingetExportPath = Join-Path $OutputRoot "dev-env-winget-export.json"
+    $wingetExportLog = Join-Path $OutputRoot "winget-export.log"
+    Write-Host "Running winget export. Built-in/OEM app warnings are expected and will be saved to winget-export.log."
+    winget export --output $wingetExportPath --include-versions --disable-interactivity *> $wingetExportLog
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Winget export saved: $wingetExportPath"
+    }
+    else {
+        Write-Warning "winget export returned exit code $LASTEXITCODE. Continue using the curated bootstrap script; details are in $wingetExportLog."
+    }
     winget list --disable-interactivity | Out-File (Join-Path $OutputRoot "winget-list.txt") -Encoding utf8
 }
 
