@@ -15,6 +15,8 @@ one-way transfer workflow, not routine sync.
 
 If the user explicitly asks to sync secrets or local private state, do it through this skill after
 the direction and source of truth are clear. "Dangerous" means guarded and one-way, not refused.
+Do not stop at generic recommendations when the source and destination are knowable; prepare and run
+the automated sync script.
 
 ## Hard Rules
 
@@ -31,14 +33,42 @@ the direction and source of truth are clear. "Dangerous" means guarded and one-w
 - Close Codex App, VS Code, terminals, browser automation, and any app using the target DB before
   replacing `.codex`, `.secrets`, or DB files.
 
+## Automation First
+
+For concrete private sync requests, prefer `scripts/private_sync.ps1` instead of hand-written
+`robocopy` sequences. The script copies one way, suppresses file-name listings, rejects hosted/GitHub
+paths, keeps destinations under `USERPROFILE`, and supports a plan pass before the copy pass.
+
+Use `Mode Plan` first unless the user explicitly asks to skip dry-run output. If the plan is clean
+and the user already clearly specified the direction/source of truth and categories, continue to
+`Mode Copy` without turning the script into a manual recipe.
+
+Typical new-PC pull from an old-PC LAN share:
+
+```powershell
+.\scripts\private_sync.ps1 -Mode Plan -SourceHost <old-pc-ip-or-name> -Items Secrets,CodexHome,RunDb -BackupDestination
+.\scripts\private_sync.ps1 -Mode Copy -SourceHost <old-pc-ip-or-name> -Items Secrets,CodexHome,RunDb -BackupDestination
+```
+
+If the source paths are already mounted or on a direct-attached drive:
+
+```powershell
+.\scripts\private_sync.ps1 -Mode Plan -SourceResearchRoot E:\research_x -SourceCodexHome E:\codex-home -Items Secrets,CodexHome,RunDb -BackupDestination
+.\scripts\private_sync.ps1 -Mode Copy -SourceResearchRoot E:\research_x -SourceCodexHome E:\codex-home -Items Secrets,CodexHome,RunDb -BackupDestination
+```
+
+Use `-ReplaceCodexHome` only when the user wants the destination Codex home replaced instead of
+merged. Without it, the script performs merge-style copies and does not delete destination-only
+files.
+
 ## Allowed Private Sync Paths
 
-Use one of these when the user explicitly authorizes private sync:
+Use one of these automated transport paths when the user explicitly authorizes private sync:
 
 - LAN share with `robocopy`, authenticated to a temporary local transfer account.
 - Direct-attached SSD/USB storage, preferably BitLocker-protected or otherwise encrypted.
 - An encrypted archive handed over out of band, with the password/key not committed or printed.
-- Manual copy through a trusted local channel when the user is supervising the transfer.
+- Manual copy through a trusted local channel only when automation cannot see either endpoint.
 
 Do not route private state through GitHub, PR attachments, issue comments, gists, public paste sites,
 or any hosted service that preserves version history unless the user is deliberately creating an
