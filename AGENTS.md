@@ -112,6 +112,11 @@ Prompt-dependent triggers:
 
 - implementation or code-change request: inspect `git status`, preserve unrelated changes, make the
   change, verify it, then commit/push when scoped work is complete;
+- cross-PC/editor sync, latest-before-work, GitHub handoff, VS Code/Codex App synchronization, or
+  uv environment refresh: use `.agents/skills/research-x-safe-sync/SKILL.md`; if the request
+  touches `.secrets`, `.env`, `.codex`, auth, cookies, tokens, DBs, runs, caches, backups, LAN, or
+  SSD migration, use `.agents/skills/research-x-private-sync/SKILL.md` and keep it explicit,
+  one-way, and gated;
 - design, architecture, provider, or memory-search change: update the relevant Markdown source of
   truth before code, then use `.agents/skills/research-x-memory-workflow/SKILL.md` when applicable;
 - research, review, audit, "もう一度", "loop", "徹底", "終わっていない", or similar continuation

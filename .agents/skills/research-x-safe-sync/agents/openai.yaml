@@ -1,0 +1,6 @@
+interface:
+  display_name: "research_x Safe Sync"
+  short_description: "Keep code and uv environment current safely"
+  default_prompt: "Use $research-x-safe-sync to update this workspace before I start working."
+policy:
+  allow_implicit_invocation: true

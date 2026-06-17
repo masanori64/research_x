@@ -182,6 +182,38 @@ negative_trigger_tests = "repo_policy"
 notes = "Repo skill for context packs, offload, compression decisions, and evidence-preserving budget handoff."
 
 [[entries]]
+name = "research-x-safe-sync"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-safe-sync/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for routine GitHub and uv environment sync across VS Code, Codex App, and multiple PCs; excludes private local state."
+
+[[entries]]
+name = "research-x-private-sync"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-private-sync/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "medium"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for gated one-way sync of secrets, Codex home, DBs, and other local/private state; never a routine or bidirectional sync path."
+
+[[entries]]
 name = "research-x-prompt-contract"
 entry_type = "repo_skill"
 source = ".agents/skills/research-x-prompt-contract/SKILL.md"
