@@ -52,7 +52,7 @@ sources, cite compressed text, or install context-compression tools.
 
 - Context pack: must-keep facts, source pointers, active decisions, next action capsule.
 - Git savepoint: annotated tag or one small pointer file with commit id, verification status,
-  ignored/unrelated worktree notes, and source-of-truth pointers only.
+  ignored/unrelated worktree notes, compact pipeline status, and source-of-truth pointers.
 - Offload map: file paths, hashes when useful, and short summaries.
 - Drop list: discarded or deferred items with reasons.
 - Gate list: evidence that cannot be compressed destructively.
@@ -76,9 +76,10 @@ the offloaded text is used as source-sensitive context.
 
 - Prefer an annotated git tag for milestone savepoints. Use a file only when the user explicitly
   wants a workspace-visible pointer.
-- A savepoint is an index, not a duplicate state document. It may name completed and gated areas
-  only as short headings and must point back to `PROJECT.md`, `docs/memory-pipeline-v2.md`,
-  `docs/memory-pipeline-archive.md`, and `docs/pipeline.md` for details.
+- A savepoint is a compact status view, not a duplicate architecture document. It may include short
+  completed/unfinished bullets per pipeline area when the user needs a quick reread, and must point
+  back to `PROJECT.md`, `docs/memory-pipeline-v2.md`, `docs/memory-pipeline-archive.md`, and
+  `docs/pipeline.md` for details.
 - Do not create per-session Markdown files or append running histories for savepoints. Replace one
   pointer file or create a deliberate milestone tag; let Git keep history.
 - Include verification commands and results only for the pinned commit. Do not make the savepoint a

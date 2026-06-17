@@ -26,8 +26,9 @@ prompt contracts, source locks, or instruction surfaces.
 - `.agents/skills`: repeatable Codex workflows that would bloat `AGENTS.md`.
 
 Savepoints are not architecture docs. Prefer annotated git tags for commit-level state checkpoints.
-If a user explicitly wants a file, keep one small pointer outside `docs/` and avoid duplicating the
-completed/unfinished pipeline text owned by `PROJECT.md` and `docs/memory-pipeline-v2.md`.
+If a user explicitly wants a file, keep one small status pointer outside `docs/`. It may summarize
+completed/unfinished pipeline areas for quick reread, but it must avoid rationale history and point
+back to the owning docs.
 
 ## Workflow
 
@@ -41,7 +42,7 @@ completed/unfinished pipeline text owned by `PROJECT.md` and `docs/memory-pipeli
 5. Keep `AGENTS.md` short. If the text is a repeatable procedure rather than always-on policy,
    create or update a repo skill.
 6. For git savepoints, do not add new memory-architecture Markdown. Store only commit, verification,
-   unrelated-worktree notes, and pointers to the owning docs or headings.
+   unrelated-worktree notes, compact pipeline status, and pointers to the owning docs or headings.
 
 ## Verification
 
