@@ -1,6 +1,6 @@
 ---
 name: research-x-doc-governance
-description: Use when updating or reorganizing research_x Markdown such as AGENTS.md, README.md, README.codex.md, PROJECT.md, docs/memory-pipeline-v2.md, docs/memory-pipeline-archive.md, or docs/pipeline.md, especially for Markdown bloat, source-of-truth drift, archive moves, or scope cleanup.
+description: Use when updating or reorganizing research_x Markdown such as AGENTS.md, README.md, README.codex.md, PROJECT.md, docs/memory-pipeline-v2.md, docs/memory-pipeline-archive.md, or docs/pipeline.md, especially for Markdown bloat, source-of-truth drift, archive moves, git savepoint placement, or scope cleanup.
 ---
 
 # research-x Doc Governance
@@ -25,6 +25,10 @@ prompt contracts, source locks, or instruction surfaces.
 - `docs/pipeline.md`: acquisition/auth/provider pipeline details.
 - `.agents/skills`: repeatable Codex workflows that would bloat `AGENTS.md`.
 
+Savepoints are not architecture docs. Prefer annotated git tags for commit-level state checkpoints.
+If a user explicitly wants a file, keep one small pointer outside `docs/` and avoid duplicating the
+completed/unfinished pipeline text owned by `PROJECT.md` and `docs/memory-pipeline-v2.md`.
+
 ## Workflow
 
 1. Identify whether the change is a durable rule, public reference, milestone, active architecture,
@@ -36,6 +40,8 @@ prompt contracts, source locks, or instruction surfaces.
 4. Keep `PROJECT.md` short. It should show current state and gates, not rationale history.
 5. Keep `AGENTS.md` short. If the text is a repeatable procedure rather than always-on policy,
    create or update a repo skill.
+6. For git savepoints, do not add new memory-architecture Markdown. Store only commit, verification,
+   unrelated-worktree notes, and pointers to the owning docs or headings.
 
 ## Verification
 

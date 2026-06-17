@@ -77,6 +77,7 @@ Prefer updating one of these before creating another adjacent skill.
 |---|---|
 | External source intake, source registry, community signal, research candidate | `research-x-research-intake` |
 | Context pack, compression, offload, budget, Headroom candidate | `research-x-context-budget` |
+| Git savepoint, checkpoint, current-state pin, milestone state marker | `research-x-context-budget` plus `research-x-doc-governance` |
 | Prompt schema, MNP-like contract, allowed/forbidden tools, prompt tests | `research-x-prompt-contract` |
 | Third-party Skill/source adoption, import, trust, pin, install decision | `research-x-skill-source-review` |
 | Article visual brief, storyboard, Xiaohei-style explanatory plan | `research-x-publishing-illustration` |

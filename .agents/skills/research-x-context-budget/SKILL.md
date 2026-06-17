@@ -1,12 +1,12 @@
 ---
 name: research-x-context-budget
-description: Use when managing research_x context packs, compression, offload, source pointers, workflow traces, or token/output budget while preserving source-bundle and citation integrity.
+description: Use when managing research_x context packs, git savepoints, compression, offload, source pointers, workflow traces, or token/output budget while preserving source-bundle and citation integrity.
 ---
 
 # research-x Context Budget
 
 Use this skill when long `research_x` work needs a context pack, offload plan, compression decision,
-or handoff capsule without weakening evidence boundaries.
+git savepoint, or handoff capsule without weakening evidence boundaries.
 Also apply `../../skill-references/evidence-workflow-quality-contract.md` for source-sensitive
 context, citation, trace, or offload outputs.
 
@@ -17,6 +17,8 @@ sources, cite compressed text, or install context-compression tools.
 
 - Decide what belongs in the active prompt, what belongs behind a file pointer, and what can be
   safely summarized.
+- Keep git savepoints as short pointers to the current commit, verification state, and source-of-
+  truth headings instead of duplicating architecture or milestone docs.
 - Preserve source-bundle references, citation anchors, hashes, run IDs, and failure states.
 - Keep generated summaries and compressed context as hints rather than evidence.
 - Keep the boundary explicit:
@@ -27,6 +29,8 @@ sources, cite compressed text, or install context-compression tools.
 
 - A task mentions context budget, output budget, context pack, compression, offload, Headroom,
   handoff capsule, large traces, or long source material.
+- A task asks for a checkpoint, savepoint, current-state pin, or quick Codex-readable state marker
+  at a git update or project requirements milestone.
 - A memory workflow, research intake, prompt contract, or goal run risks losing source pointers.
 - The user asks for work to continue from a large `_codex_inbox`, run, trace, or review package.
 
@@ -47,6 +51,8 @@ sources, cite compressed text, or install context-compression tools.
 ## Outputs
 
 - Context pack: must-keep facts, source pointers, active decisions, next action capsule.
+- Git savepoint: annotated tag or one small pointer file with commit id, verification status,
+  ignored/unrelated worktree notes, and source-of-truth pointers only.
 - Offload map: file paths, hashes when useful, and short summaries.
 - Drop list: discarded or deferred items with reasons.
 - Gate list: evidence that cannot be compressed destructively.
@@ -65,6 +71,18 @@ Every offloaded context item must include:
 
 The original text must remain recoverable from the artifact path, and the hash must verify before
 the offloaded text is used as source-sensitive context.
+
+## Git Savepoint Boundaries
+
+- Prefer an annotated git tag for milestone savepoints. Use a file only when the user explicitly
+  wants a workspace-visible pointer.
+- A savepoint is an index, not a duplicate state document. It may name completed and gated areas
+  only as short headings and must point back to `PROJECT.md`, `docs/memory-pipeline-v2.md`,
+  `docs/memory-pipeline-archive.md`, and `docs/pipeline.md` for details.
+- Do not create per-session Markdown files or append running histories for savepoints. Replace one
+  pointer file or create a deliberate milestone tag; let Git keep history.
+- Include verification commands and results only for the pinned commit. Do not make the savepoint a
+  source of truth for future completion status.
 
 ## Steps
 
