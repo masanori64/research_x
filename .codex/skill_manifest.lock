@@ -211,7 +211,7 @@ risk = "medium"
 allowed_scripts = "repo_policy"
 commit = ""
 negative_trigger_tests = "repo_policy"
-notes = "Repo skill for gated one-way sync of secrets, Codex home, DBs, and other local/private state; never a routine or bidirectional sync path."
+notes = "Repo skill for explicit gated one-way sync of secrets, Codex home, DBs, and other local/private state; never routine, bidirectional, or GitHub-staged private sync."
 
 [[entries]]
 name = "research-x-prompt-contract"

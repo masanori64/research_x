@@ -4,8 +4,8 @@ description: >-
   Use only when the user explicitly asks to sync, migrate, copy, replace, back up, or inspect
   private/local research_x state such as .secrets, .env, C:\Users\maasa\.codex, auth.json, cookies,
   tokens, local DB files, runs, caches, large backups, LAN/SSD transfer shares, or one-way PC
-  migration. This is the dangerous sync path: gate direction, source of truth, backups, app
-  shutdown, and dry-run behavior before copying.
+  migration. This is the dangerous sync path, including explicit secret sync when requested: gate
+  direction, source of truth, backups, app shutdown, and dry-run behavior before copying.
 ---
 
 # research_x Private Sync
@@ -13,17 +13,36 @@ description: >-
 Use this skill for private/local state that must not go through GitHub. Treat it as a gated,
 one-way transfer workflow, not routine sync.
 
+If the user explicitly asks to sync secrets or local private state, do it through this skill after
+the direction and source of truth are clear. "Dangerous" means guarded and one-way, not refused.
+
 ## Hard Rules
 
 - Use only after the user explicitly asks for private/local sync, migration, backup, or replacement.
 - Never print secret, cookie, token, auth, or env contents. Use existence, size, timestamps, and
   path checks instead.
+- Never upload private state to GitHub, even temporarily, even to a private repository, and even if
+  the plan is to delete it right after pulling. Git history, object storage, caches, forks, logs,
+  secret scanning, and local clones can retain it.
 - Never do automatic bidirectional sync for `.secrets`, `.codex`, DBs, cookies, tokens, or caches.
 - Pick one source of truth for each run and copy one way only.
 - Do not use `/MIR` unless the user explicitly wants destination-only files deleted.
 - Prefer a dry run (`robocopy /L`) before broad or destructive copies.
 - Close Codex App, VS Code, terminals, browser automation, and any app using the target DB before
   replacing `.codex`, `.secrets`, or DB files.
+
+## Allowed Private Sync Paths
+
+Use one of these when the user explicitly authorizes private sync:
+
+- LAN share with `robocopy`, authenticated to a temporary local transfer account.
+- Direct-attached SSD/USB storage, preferably BitLocker-protected or otherwise encrypted.
+- An encrypted archive handed over out of band, with the password/key not committed or printed.
+- Manual copy through a trusted local channel when the user is supervising the transfer.
+
+Do not route private state through GitHub, PR attachments, issue comments, gists, public paste sites,
+or any hosted service that preserves version history unless the user is deliberately creating an
+encrypted offsite backup and the payload is encrypted before upload.
 
 ## Decide Direction
 
