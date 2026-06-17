@@ -36,6 +36,9 @@ the direction and source of truth are clear. "Dangerous" means guarded and one-w
 Use one of these when the user explicitly authorizes private sync:
 
 - LAN share with `robocopy`, authenticated to a temporary local transfer account.
+- Tailscale + Syncthing for routine PC-to-PC diff sync of non-DB local state; keep SQLite DBs,
+  WAL/SHM files, caches, and active auth/cookie/token files excluded unless the user explicitly
+  chooses a one-way migration for those files.
 - Direct-attached SSD/USB storage, preferably BitLocker-protected or otherwise encrypted.
 - An encrypted archive handed over out of band, with the password/key not committed or printed.
 - Manual copy through a trusted local channel when the user is supervising the transfer.
