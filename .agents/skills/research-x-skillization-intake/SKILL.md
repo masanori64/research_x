@@ -53,8 +53,8 @@ Skill-reference, manifest, and docs placement decisions.
 - `research-x-research-intake`: source candidate classification and source-bundle intake handoff.
 - `research-x-context-budget`: context pack, offload, compression, and evidence-preservation
   budgeting.
-- `research-x-safe-sync`: routine GitHub and uv environment sync across VS Code, Codex App, and
-  multiple PCs.
+- `research-x-safe-sync`: routine GitHub sync across VS Code, Codex App, and multiple PCs, with uv
+  environment refresh only when needed.
 - `research-x-private-sync`: explicit-only one-way sync of secrets, Codex home, DBs, and other
   local/private state.
 - `research-x-prompt-contract`: prompt/schema/status/tool-boundary contracts and prompt tests.

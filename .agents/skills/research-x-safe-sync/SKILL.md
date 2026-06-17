@@ -2,16 +2,16 @@
 name: research-x-safe-sync
 description: >-
   Use for safe routine synchronization of the research_x repository across VS Code, Codex App, and
-  multiple PCs: before-work latest pulls, after-work commit/push handoff, GitHub code sync, uv
-  dependency sync, branch/status checks, and keeping the local Python environment current. Do not
-  use for .secrets, .env, .codex, auth.json, cookies, tokens, DB files, runs, caches, or other
-  private/local data; use research-x-private-sync for those.
+  multiple PCs: before-work latest pulls, after-work commit/push handoff, GitHub code sync, branch
+  and status checks, plus optional uv environment refresh when dependency files or `.venv` state
+  require it. Do not use for .secrets, .env, .codex, auth.json, cookies, tokens, DB files, runs,
+  caches, or other private/local data; use research-x-private-sync for those.
 ---
 
 # research_x Safe Sync
 
 Use this skill for ordinary, repeatable sync that is safe to run often: Git state, tracked source
-files, tracked docs, dependency lock files, and the local uv environment.
+files, tracked docs, and dependency lock files. Refresh the local uv environment only when needed.
 
 ## Boundary
 
@@ -19,7 +19,8 @@ Safe sync includes:
 
 - `git status`, `git fetch`, `git pull --ff-only`, commit, and push when the user asked to sync or
   the repo publish policy applies.
-- `uv sync --python 3.12` and `uv run python --version`.
+- Optional `uv sync --python 3.12` and `uv run python --version` only after dependency-file changes,
+  first setup on a PC, `.venv` rebuilds, or an explicit user request.
 - Verification that does not call external providers, X/Twitter, or secret-bearing workflows.
 
 Safe sync excludes:
@@ -45,12 +46,12 @@ git branch --show-current
 ```powershell
 git fetch origin
 git pull --ff-only
-uv sync --python 3.12
-uv run python --version
 ```
 
-4. Confirm the interpreter is Python 3.12.x. If `.venv` is broken or linked to the wrong Python,
-   remove only `.venv` and rebuild it with `uv sync --python 3.12`.
+4. Run `uv sync --python 3.12` and `uv run python --version` only if `pyproject.toml` or `uv.lock`
+   changed, this is first setup on the PC, `.venv` is broken, the interpreter is not Python 3.12.x,
+   or the user explicitly asked to refresh the environment. If `.venv` is broken or linked to the
+   wrong Python, remove only `.venv` and rebuild it with `uv sync --python 3.12`.
 
 ## After Work
 

@@ -195,7 +195,7 @@ risk = "low"
 allowed_scripts = "repo_policy"
 commit = ""
 negative_trigger_tests = "repo_policy"
-notes = "Repo skill for routine GitHub and uv environment sync across VS Code, Codex App, and multiple PCs; excludes private local state."
+notes = "Repo skill for routine GitHub sync across VS Code, Codex App, and multiple PCs, with uv environment refresh only when needed; excludes private local state."
 
 [[entries]]
 name = "research-x-private-sync"
