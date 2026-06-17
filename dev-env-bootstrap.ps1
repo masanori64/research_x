@@ -25,14 +25,21 @@ function Invoke-Step {
 function Install-WingetPackage {
     param(
         [string]$Id,
+        [string]$Query = "",
         [string]$Source = "",
         [string]$Name = $Id
     )
 
-    $args = @(
-        "install",
-        "--id", $Id,
-        "--exact",
+    $args = @("install")
+
+    if ($Query) {
+        $args += $Query
+    }
+    else {
+        $args += @("--id", $Id, "--exact")
+    }
+
+    $args += @(
         "--accept-package-agreements",
         "--accept-source-agreements",
         "--disable-interactivity"
@@ -44,6 +51,9 @@ function Install-WingetPackage {
 
     Write-Host "winget install $Name ($Id)"
     winget @args
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "winget install failed or was cancelled for $Name ($Id). Exit code: $LASTEXITCODE"
+    }
 }
 
 function Add-UserPathEntry {
@@ -69,8 +79,14 @@ function Add-UserPathEntry {
     }
 }
 
+function Refresh-ProcessPath {
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = (@($machinePath, $userPath) | Where-Object { $_ }) -join ";"
+}
+
 $coreWingetPackages = @(
-    @{ Id = "Codex"; Source = "msstore"; Name = "Codex App" },
+    @{ Id = "Codex"; Query = "Codex"; Source = "msstore"; Name = "Codex App" },
     @{ Id = "Microsoft.PowerShell"; Name = "PowerShell" },
     @{ Id = "Microsoft.WindowsTerminal"; Name = "Windows Terminal" },
     @{ Id = "Git.Git"; Name = "Git" },
@@ -126,6 +142,8 @@ Invoke-Step "Install winget packages" {
     if ($InstallOptionalApps) {
         foreach ($pkg in $optionalWingetPackages) { Install-WingetPackage @pkg }
     }
+
+    Refresh-ProcessPath
 }
 
 Invoke-Step "Prepare user PATH and npm directories" {
@@ -135,14 +153,16 @@ Invoke-Step "Prepare user PATH and npm directories" {
 }
 
 Invoke-Step "Install uv if missing" {
+    Refresh-ProcessPath
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-        try {
-            Install-WingetPackage -Id "astral-sh.uv" -Name "uv"
-        }
-        catch {
+        Install-WingetPackage -Id "astral-sh.uv" -Name "uv"
+        Refresh-ProcessPath
+
+        if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
             Write-Warning "winget uv install failed; using the official uv installer script."
             irm https://astral.sh/uv/install.ps1 | iex
             Add-UserPathEntry (Join-Path $env:USERPROFILE ".local\bin")
+            Refresh-ProcessPath
         }
     }
 
@@ -154,8 +174,18 @@ Invoke-Step "Install uv tools" {
 }
 
 Invoke-Step "Configure Git identity" {
-    git config --global user.name "ozaki masanori"
-    git config --global user.email "23fi025@ms.dendai.ac.jp"
+    Refresh-ProcessPath
+    $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+    $gitPath = if ($gitCommand) { $gitCommand.Source } else { $null }
+    if (-not $gitPath -and (Test-Path "$env:ProgramFiles\Git\cmd\git.exe")) {
+        $gitPath = "$env:ProgramFiles\Git\cmd\git.exe"
+    }
+    if (-not $gitPath) {
+        throw "git is not available yet. Restart PowerShell and rerun this script."
+    }
+
+    & $gitPath config --global user.name "ozaki masanori"
+    & $gitPath config --global user.email "23fi025@ms.dendai.ac.jp"
 }
 
 Invoke-Step "Install VS Code extensions" {
