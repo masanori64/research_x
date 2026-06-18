@@ -2,6 +2,7 @@ param(
     [switch]$InstallTools,
     [switch]$WriteIgnores,
     [switch]$StartSyncthing,
+    [switch]$InstallSyncthingStartup,
     [switch]$AddSyncthingFolders,
     [switch]$Status,
     [switch]$All,
@@ -84,6 +85,11 @@ x_data.sqlite3-*
 *.tmp
 *.temp
 .stfolder
+// Heavy historical run outputs already moved by local/LAN migration.
+_diagnostics/**
+bookmarks_*_full/**
+labels_all_accounts*/**
+corpus2skill_x_memory/**
 '@
 
     $secretsIgnore = @'
@@ -119,6 +125,30 @@ function Start-SyncthingIfNeeded {
     if (-not $running) {
         Start-Process -FilePath $syncthing -ArgumentList @("serve", "--no-browser", "--no-console") -WindowStyle Hidden
         Start-Sleep -Seconds 5
+    }
+}
+
+function Install-SyncthingStartupTask {
+    $syncthing = Find-Exe "syncthing"
+    if (-not $syncthing) {
+        throw "syncthing.exe not found. Run with -InstallTools first or reopen PowerShell."
+    }
+
+    $taskName = "ResearchX Syncthing"
+    $action = New-ScheduledTaskAction -Execute $syncthing -Argument "serve --no-browser --no-console"
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    try {
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force -ErrorAction Stop | Out-Null
+    } catch {
+        $startup = [Environment]::GetFolderPath("Startup")
+        $cmdPath = Join-Path $startup "research-x-syncthing.cmd"
+        $cmd = @(
+            "@echo off",
+            "start """" /min ""$syncthing"" serve --no-browser --no-console"
+        ) -join "`r`n"
+        Set-Content -LiteralPath $cmdPath -Value $cmd -Encoding ascii
+        Write-Host "Scheduled task registration failed; wrote Startup shortcut: $cmdPath"
     }
 }
 
@@ -196,11 +226,12 @@ if ($All) {
     $InstallTools = $true
     $WriteIgnores = $true
     $StartSyncthing = $true
+    $InstallSyncthingStartup = $true
     $AddSyncthingFolders = $true
     $Status = $true
 }
 
-if (-not ($InstallTools -or $WriteIgnores -or $StartSyncthing -or $AddSyncthingFolders -or $Status)) {
+if (-not ($InstallTools -or $WriteIgnores -or $StartSyncthing -or $InstallSyncthingStartup -or $AddSyncthingFolders -or $Status)) {
     $Status = $true
 }
 
@@ -220,6 +251,10 @@ if ($WriteIgnores) {
 
 if ($StartSyncthing) {
     Start-SyncthingIfNeeded
+}
+
+if ($InstallSyncthingStartup) {
+    Install-SyncthingStartupTask
 }
 
 if ($AddSyncthingFolders) {
