@@ -53,10 +53,6 @@ Skill-reference, manifest, and docs placement decisions.
 - `research-x-research-intake`: source candidate classification and source-bundle intake handoff.
 - `research-x-context-budget`: context pack, offload, compression, and evidence-preservation
   budgeting.
-- `research-x-safe-sync`: routine GitHub sync across VS Code, Codex App, and multiple PCs, with uv
-  environment refresh only when needed.
-- `research-x-local-state-guard`: guard secrets, DBs, runs, caches, and large local state from
-  routine reads, edits, sync, staging, or deletion.
 - `research-x-prompt-contract`: prompt/schema/status/tool-boundary contracts and prompt tests.
 - `research-x-skill-source-review`: third-party or internal source/Skill trust, pin, gate, reject,
   or reference-only decisions.
@@ -105,6 +101,8 @@ Prefer updating one of these before creating another adjacent skill.
   source-of-truth map, or sub-agent permission handling out of `AGENTS.md`.
 - Do not create broad "do everything" skills.
 - Do not install third-party skills, hooks, or plugins without review.
+- Do not recreate cross-PC sync or local-state migration Skills while the desktop-as-canonical
+  Remote SSH policy is active.
 - Do not use hooks to silently force long reasoning workflows into context. Hooks are for short,
   deterministic checks or notifications.
 - Keep `SKILL.md` concise. Move large references or examples to a direct `references/` file only

@@ -27,6 +27,9 @@ see what is implemented, what is gated, and what comes next.
 
 Do not add new memory-architecture Markdown files unless the user explicitly asks.
 
+Cross-PC workspace policy: the desktop is the canonical `research_x` machine. Use VS Code Remote
+SSH from other PCs; no repo Skill owns PC-to-PC local-state sync or migration.
+
 Current repo skills:
 
 - `research-x-skillization-intake`: route new recurring Codex behavior to the right instruction
@@ -39,9 +42,6 @@ Current repo skills:
 - `research-x-parallel-review`: sub-agent role design and integration when permitted or required
   for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
-- `research-x-safe-sync`: GitHub-visible source/docs/lockfile sync only.
-- `research-x-local-state-guard`: keep secrets, DBs, runs, caches, and large local state outside
-  routine work.
 
 ## Goal
 
