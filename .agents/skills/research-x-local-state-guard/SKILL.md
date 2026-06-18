@@ -31,8 +31,8 @@ docs, tests, lockfiles, and repo skills.
 - Do not read secret values or print private contents.
 - Do not copy, sync, migrate, mirror, or restore guarded paths.
 - Do not stage or commit guarded paths.
-- Do not install or configure Tailscale, Syncthing, rclone, restic, SOPS, age, hooks, or background
-  sync automation for these paths as part of routine work.
+- Do not install or configure local sync, backup, encryption, hook, or background automation for
+  these paths as part of routine work.
 - Do not delete guarded paths or generated local state unless the user explicitly names the target
   and asks for deletion.
 - If a task can be completed through GitHub-tracked files, stay in `research-x-safe-sync`.
