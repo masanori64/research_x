@@ -1,0 +1,6 @@
+interface:
+  display_name: "research_x Local State Guard"
+  short_description: "Avoid touching secrets, DBs, runs, caches, and large local state"
+  default_prompt: "Use $research-x-local-state-guard to keep private and local generated state out of routine work."
+policy:
+  allow_implicit_invocation: true

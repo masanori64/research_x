@@ -5,7 +5,7 @@ description: >-
   multiple PCs: before-work latest pulls, after-work commit/push handoff, GitHub code sync, branch
   and status checks, plus optional uv environment refresh when dependency files or `.venv` state
   require it. Do not use for .secrets, .env, .codex, auth.json, cookies, tokens, DB files, runs,
-  caches, or other private/local data; use research-x-private-sync for those.
+  caches, or other private/local data; use research-x-local-state-guard for those.
 ---
 
 # research_x Safe Sync
@@ -78,4 +78,4 @@ git push
 - If `git pull --ff-only` fails, stop and inspect the divergence; do not merge or rebase blindly.
 - If dependency sync fails due to Python version or wheels, prefer Python 3.12 and rebuild `.venv`.
 - If the user asks about secrets, Codex home, DB, cookies, auth, or large local state, switch to
-  `research-x-private-sync`.
+  `research-x-local-state-guard` and avoid broad local-state operations unless explicitly scoped.

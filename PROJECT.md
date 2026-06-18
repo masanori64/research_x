@@ -39,6 +39,9 @@ Current repo skills:
 - `research-x-parallel-review`: sub-agent role design and integration when permitted or required
   for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
+- `research-x-safe-sync`: GitHub-visible source/docs/lockfile sync only.
+- `research-x-local-state-guard`: keep secrets, DBs, runs, caches, and large local state outside
+  routine work.
 
 ## Goal
 

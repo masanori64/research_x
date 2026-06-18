@@ -198,9 +198,9 @@ negative_trigger_tests = "repo_policy"
 notes = "Repo skill for routine GitHub sync across VS Code, Codex App, and multiple PCs, with uv environment refresh only when needed; excludes private local state."
 
 [[entries]]
-name = "research-x-private-sync"
+name = "research-x-local-state-guard"
 entry_type = "repo_skill"
-source = ".agents/skills/research-x-private-sync/SKILL.md"
+source = ".agents/skills/research-x-local-state-guard/SKILL.md"
 source_ref = "repo"
 scope = "project_research_x"
 decision = "enabled_repo_local"

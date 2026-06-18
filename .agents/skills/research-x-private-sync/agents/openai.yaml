@@ -1,6 +1,0 @@
-interface:
-  display_name: "research_x Private Sync"
-  short_description: "Gate one-way sync of secrets and local data"
-  default_prompt: "Use $research-x-private-sync to safely plan a one-way private sync."
-policy:
-  allow_implicit_invocation: true

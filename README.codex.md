@@ -187,6 +187,8 @@ Repo Skills live under `.agents/skills/` and use Codex native implicit invocatio
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
 - `research-x-research-intake`: source candidate classification and source-bundle handoff.
 - `research-x-context-budget`: context pack, compression, offload, and evidence-preserving budget.
+- `research-x-safe-sync`: GitHub-visible sync across PCs/editors; no private/local state.
+- `research-x-local-state-guard`: avoid touching secrets, DBs, runs, caches, and large local state.
 - `research-x-prompt-contract`: prompt schema/status/tool-boundary contracts and prompt tests.
 - `research-x-skill-source-review`: third-party source/Skill trust, pin, gate, reject, or reference
   decisions.

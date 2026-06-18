@@ -55,8 +55,8 @@ Skill-reference, manifest, and docs placement decisions.
   budgeting.
 - `research-x-safe-sync`: routine GitHub sync across VS Code, Codex App, and multiple PCs, with uv
   environment refresh only when needed.
-- `research-x-private-sync`: explicit-only one-way sync of secrets, Codex home, DBs, and other
-  local/private state.
+- `research-x-local-state-guard`: guard secrets, DBs, runs, caches, and large local state from
+  routine reads, edits, sync, staging, or deletion.
 - `research-x-prompt-contract`: prompt/schema/status/tool-boundary contracts and prompt tests.
 - `research-x-skill-source-review`: third-party or internal source/Skill trust, pin, gate, reject,
   or reference-only decisions.
