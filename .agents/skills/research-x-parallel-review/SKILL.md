@@ -31,8 +31,11 @@ For worker or verifier sidecars, also apply
    - expected output;
    - whether it may edit files.
 6. Integrate results yourself. Do not let sub-agents own the final decision.
-7. Close completed sub-agents unless an immediate follow-up needs retained context.
-8. If a result is shallow, send a targeted follow-up naming the missing axis or counterargument.
+7. Treat sub-agents as a lifecycle: spawn, optionally wait or send one targeted follow-up,
+   integrate the result, then close the completed agent.
+8. Keep a completed sub-agent open only when an immediate follow-up needs its retained context, and
+   state that reason before continuing.
+9. If a result is shallow, send a targeted follow-up naming the missing axis or counterargument.
 
 ## Trigger Examples
 

@@ -236,6 +236,9 @@ When sub-agent use is explicitly permitted and a task can be split into independ
 `.agents/skills/research-x-parallel-review/SKILL.md` for role design and integration. The parent
 agent remains responsible for checking outputs, integrating changes, verification, notification, and
 publish steps.
+Treat each sub-agent as a bounded lifecycle: spawn, optionally wait or send a targeted follow-up,
+integrate the result, then close the completed agent. Keep a completed agent open only when an
+immediate follow-up needs its retained context, and state that reason.
 
 If the active user policy says exploration must use sub-agents, treat that as a standing
 exploration-sidecar requirement until the user revokes it. Spawn bounded read-only research or
