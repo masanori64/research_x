@@ -130,6 +130,9 @@ Prompt-dependent triggers:
 - source candidate intake, research-source expansion, source registry, community signal, paper,
   repo, article, export, or discovery-to-source-bundle handoff: use
   `.agents/skills/research-x-research-intake/SKILL.md`;
+- implementation-priority flow, project-use flow, candidate-to-plan conversion, broad GPT/X/source
+  review to execution order, or transparent handling of deferred/non-promoted candidates: use
+  `.agents/skills/research-x-implementation-plan-flow/SKILL.md`;
 - context pack, context budget, compression, offload, Headroom candidate, large trace, or
   handoff-capsule work: use `.agents/skills/research-x-context-budget/SKILL.md`;
 - prompt schema, MNP-like contract, allowed/forbidden tools, prompt regression, or prompt-injection

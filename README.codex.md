@@ -194,6 +194,8 @@ other PCs; repo Skills do not manage PC-to-PC local state sync or migration.
 - `research-x-skill-source-review`: third-party source/Skill trust, pin, gate, reject, or reference
   decisions.
 - `research-x-publishing-illustration`: visual briefs, shot lists, and storyboards outside evidence.
+- `research-x-implementation-plan-flow`: converts GPT/X/source-candidate reviews into gated,
+  local-first implementation priority flows.
 
 ## Verification
 

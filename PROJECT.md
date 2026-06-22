@@ -42,6 +42,8 @@ Current repo skills:
 - `research-x-parallel-review`: sub-agent role design and integration when permitted or required
   for exploration.
 - `research-x-provider-gate`: no-quota and provider-facing lane checks.
+- `research-x-implementation-plan-flow`: converts broad GPT/X/source-candidate reviews into gated,
+  local-first implementation priority flows.
 
 ## Goal
 

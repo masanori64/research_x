@@ -58,6 +58,8 @@ Skill-reference, manifest, and docs placement decisions.
   or reference-only decisions.
 - `research-x-publishing-illustration`: output-layer visual briefs, shot lists, and storyboards that
   do not replace evidence.
+- `research-x-implementation-plan-flow`: GPT/X/source-candidate review to gated local-first
+  implementation priority flow.
 - `.agents/skill-references/search-quality-contract.md`: shared baseline for search/research/source
   discovery output quality.
 - `.agents/skill-references/provider-quality-contract.md`: shared baseline for provider, quota,
@@ -81,6 +83,7 @@ Prefer updating one of these before creating another adjacent skill.
 | Prompt schema, MNP-like contract, allowed/forbidden tools, prompt tests | `research-x-prompt-contract` |
 | Third-party Skill/source adoption, import, trust, pin, install decision | `research-x-skill-source-review` |
 | Article visual brief, storyboard, Xiaohei-style explanatory plan | `research-x-publishing-illustration` |
+| GPT/X/source-candidate review to implementation-priority flow | `research-x-implementation-plan-flow` |
 | Memory/source-bundle invariant, retrieval route, citation, evidence workflow | `research-x-memory-workflow` |
 | Provider/API/network permission, quota, budget, external search | `research-x-provider-gate` |
 | Markdown source-of-truth placement or archive drift | `research-x-doc-governance` |
