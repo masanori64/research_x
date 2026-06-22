@@ -180,6 +180,10 @@ Repo Skills live under `.agents/skills/` and use Codex native implicit invocatio
 Workspace policy: the desktop is the canonical `research_x` machine. Use VS Code Remote SSH from
 other PCs; repo Skills do not manage PC-to-PC local state sync or migration.
 
+Routing expectation: before choosing a repo Skill, compare the newest request and recent context
+against nearby Skills in both directions. Pick a primary Skill, add secondary gate Skills when
+needed, and mention close-but-not-selected Skills only when ambiguity matters.
+
 - `research-x-skillization-intake`: recurring Codex behavior and instruction-surface placement.
 - `research-x-decision-loop`: research/review/audit loops and stop-condition checks.
 - `research-x-doc-governance`: Markdown placement, archival, and drift checks.

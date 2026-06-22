@@ -1,6 +1,6 @@
 ---
 name: research-x-skillization-intake
-description: Use when adding recurring Codex behavior, improving native Skill invocation, reducing AGENTS.md bloat, creating or updating repo skills, or deciding whether an instruction belongs in prompt context, AGENTS.md, README.md, PROJECT.md, docs, a repo Skill, hook, plugin, MCP, automation, or no durable surface.
+description: Use when adding recurring Codex behavior, improving native Skill invocation or Skill Router Preflight, reducing AGENTS.md bloat, creating or updating repo skills, or deciding whether an instruction belongs in prompt context, AGENTS.md, README.md, PROJECT.md, docs, a repo Skill, hook, plugin, MCP, automation, or no durable surface.
 ---
 
 # research-x Skillization Intake
@@ -39,6 +39,51 @@ Skill-reference, manifest, and docs placement decisions.
    - positive and negative trigger examples when the boundary is risky.
 6. Before creating or enabling a Skill from third-party material, route through
    `research-x-skill-source-review` and require a manifest/source-lock decision.
+
+## Skill Router Preflight
+
+Use this procedure when route selection itself is unclear, when a short continuation prompt needs
+prior context, or when a Skill failed to invoke automatically.
+
+1. Collect the route inputs:
+   - newest user request;
+   - recent thread context and previous route line;
+   - active plan/review Markdown or implementation-priority artifact;
+   - current git/worktree state and unrelated-change notes;
+   - `README.codex.md`, `PROJECT.md`, and active repository gates when relevant.
+2. Generate candidate Skills from the request text and from context. Short prompts such as "next",
+   "continue", "次", or "続き" inherit the active task only when the current context still supports
+   that route.
+3. Reverse-check each nearby Skill against the task:
+   - does the task match the Skill's `Use When` or front-matter description?
+   - does it hit the Skill's `Do Not Use`, safety gates, or negative triggers?
+   - is the Skill the owner, or only a secondary gate such as provider, context, or parallel review?
+   - is another Skill narrower for the same request?
+4. Classify selected Skills:
+   - `primary`: owns the main work;
+   - `secondary`: applies as a gate, quality contract, or companion workflow;
+   - `not_selected`: close enough to mention only when omission could be surprising.
+5. Emit the route before work starts:
+
+```text
+route: <selected skill(s)>; external actions: <none / needs approval>
+```
+
+For ambiguous or multi-Skill work, add:
+
+```text
+route detail: primary=<skill>; secondary=<skill(s)>; not selected=<skill: reason>
+```
+
+6. If route selection needs durable improvement, update the narrowest surface:
+   - `AGENTS.md`: only small dispatcher rules needed before any Skill can fire;
+   - `agents/openai.yaml` or `SKILL.md` front matter: concise trigger/description changes;
+   - this Skill: reusable routing audit mechanics;
+   - no durable surface: one-off clarification that should not persist.
+
+Do not solve missed invocation by stuffing every Japanese synonym into `AGENTS.md`. Prefer a small
+dispatcher plus Skill-owned trigger descriptions, and keep close-but-not-selected reasons available
+for ambiguous cases.
 
 ## Existing Repo Skills
 
@@ -87,6 +132,7 @@ Prefer updating one of these before creating another adjacent skill.
 | Memory/source-bundle invariant, retrieval route, citation, evidence workflow | `research-x-memory-workflow` |
 | Provider/API/network permission, quota, budget, external search | `research-x-provider-gate` |
 | Markdown source-of-truth placement or archive drift | `research-x-doc-governance` |
+| Skill routing ambiguity, missed automatic invocation, short prompt route recovery | `research-x-skillization-intake` |
 
 ## Skill Creation Precheck
 
