@@ -1058,6 +1058,9 @@ Current implementation:
 - Relevance, duplicate, conflict, claim-support, and non-support judgment fixtures use a generic
   `local_judge_candidate` slot. Model-specific relevance checkers must beat this local baseline
   before any dependency or provider review.
+- Stop-condition audit records whether local evidence was already sufficient, whether any extra
+  search/context step ran after that point, and a redundant-search count. This is a workflow/eval
+  metric, not an RL policy import.
 
 ## Compatibility With Current Implementation
 

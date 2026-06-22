@@ -627,6 +627,15 @@ def format_workflow(workflow: MemoryWorkflow) -> str:
     for step in workflow.steps:
         suffix = f" error={step.error}" if step.error else ""
         lines.append(f"step {step.step_index}: {step.action} status={step.status}{suffix}")
+    stop_audit = workflow.metadata.get("stop_condition_audit") or {}
+    if isinstance(stop_audit, dict) and stop_audit:
+        lines.append(
+            "stop_audit: "
+            f"local_sufficient={stop_audit.get('local_evidence_sufficient', False)} "
+            f"searched_after_sufficient="
+            f"{stop_audit.get('searched_after_sufficient_evidence', False)} "
+            f"redundant={stop_audit.get('redundant_search_count', 0)}"
+        )
     if workflow.context_bundle is not None:
         lines.append(
             "context: "
@@ -878,6 +887,16 @@ def _finish_workflow(
     store: bool,
 ) -> MemoryWorkflow:
     finished_at = _utc_now()
+    final_metadata = {
+        **metadata,
+        "stop_condition_audit": _stop_condition_audit(
+            metadata=metadata,
+            steps=tuple(steps),
+            context_bundle=context_bundle,
+            answer=answer,
+            stop_reason=stop_reason,
+        ),
+    }
     if store:
         _insert_workflow_run(
             db_path,
@@ -888,7 +907,7 @@ def _finish_workflow(
             stop_reason=stop_reason,
             started_at=started_at,
             finished_at=finished_at,
-            metadata=metadata,
+            metadata=final_metadata,
         )
     return MemoryWorkflow(
         workflow_id=workflow_id,
@@ -898,11 +917,52 @@ def _finish_workflow(
         stop_reason=stop_reason,
         started_at=started_at,
         finished_at=finished_at,
-        metadata=metadata,
+        metadata=final_metadata,
         steps=tuple(steps),
         context_bundle=context_bundle,
         answer=answer,
     )
+
+
+def _stop_condition_audit(
+    *,
+    metadata: dict[str, Any],
+    steps: tuple[WorkflowStep, ...],
+    context_bundle: ContextBundle | None,
+    answer: MemoryAnswer | None,
+    stop_reason: str,
+) -> dict[str, Any]:
+    route_plan = metadata.get("route_plan") if isinstance(metadata, dict) else {}
+    wants_external_context = (
+        bool(route_plan.get("wants_external_context"))
+        if isinstance(route_plan, dict)
+        else False
+    )
+    has_local_context = context_bundle is not None and _has_local_context(context_bundle)
+    local_evidence_sufficient = has_local_context and not wants_external_context
+    llm_context_steps = tuple(
+        step for step in steps if step.action == "llm_context" and step.status != "error"
+    )
+    external_reader_used = bool(
+        context_bundle is not None
+        and context_bundle.parameters.get("external_run_id")
+        and _has_external_context(context_bundle)
+    )
+    redundant_search_count = 0
+    if local_evidence_sufficient:
+        redundant_search_count += len(llm_context_steps)
+        if external_reader_used:
+            redundant_search_count += 1
+    return {
+        "stop_reason": stop_reason,
+        "local_evidence_sufficient": local_evidence_sufficient,
+        "searched_after_sufficient_evidence": redundant_search_count > 0,
+        "redundant_search_count": redundant_search_count,
+        "wants_external_context": wants_external_context,
+        "has_local_context": has_local_context,
+        "has_external_context": _has_external_context(context_bundle),
+        "answer_status": answer.status if answer is not None else None,
+    }
 
 
 def _insert_workflow_run(

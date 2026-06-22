@@ -4138,6 +4138,17 @@ def test_memory_workflow_stores_route_steps_and_stop_reason(tmp_path: Path) -> N
     assert workflow.context_bundle is not None
     assert workflow.context_bundle.context_chunks
     assert workflow.answer is None
+    assert workflow.metadata["stop_condition_audit"] == {
+        "stop_reason": "enough_evidence",
+        "local_evidence_sufficient": True,
+        "searched_after_sufficient_evidence": False,
+        "redundant_search_count": 0,
+        "wants_external_context": False,
+        "has_local_context": True,
+        "has_external_context": False,
+        "answer_status": None,
+    }
+    assert "stop_audit:" in format_workflow(workflow)
 
     with sqlite3.connect(db_path) as conn:
         row = conn.execute(
@@ -4151,6 +4162,31 @@ def test_memory_workflow_stores_route_steps_and_stop_reason(tmp_path: Path) -> N
 
     assert row == ("place_recall", "ok", "enough_evidence")
     assert step_count == 2
+
+
+def test_memory_workflow_flags_redundant_search_after_sufficient_evidence(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=2,
+        llm_context_provider="fake",
+        store=False,
+    )
+    audit = workflow.metadata["stop_condition_audit"]
+
+    assert workflow.stop_reason == "enough_evidence"
+    assert workflow.route != "current_fact_check"
+    assert [step.action for step in workflow.steps] == ["plan", "context", "llm_context"]
+    assert audit["local_evidence_sufficient"] is True
+    assert audit["searched_after_sufficient_evidence"] is True
+    assert audit["redundant_search_count"] == 1
 
 
 def test_memory_workflow_can_attach_generated_answer_to_workflow(tmp_path: Path) -> None:
@@ -4198,6 +4234,8 @@ def test_memory_workflow_can_merge_llm_context_into_route(tmp_path: Path) -> Non
     assert workflow.stop_reason == "enough_evidence"
     assert [step.action for step in workflow.steps] == ["plan", "context", "llm_context"]
     assert workflow.context_bundle is not None
+    assert workflow.metadata["stop_condition_audit"]["wants_external_context"] is True
+    assert workflow.metadata["stop_condition_audit"]["redundant_search_count"] == 0
     assert "local_x_db" in {
         chunk.source_kind for chunk in workflow.context_bundle.context_chunks
     }
@@ -4321,6 +4359,8 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     assert by_route["place_recall"].answer_status == "ok"
     assert by_route["place_recall"].answerability_status == "answerable"
     assert by_route["place_recall"].answer_citations > 0
+    assert by_route["place_recall"].searched_after_sufficient_evidence is False
+    assert by_route["place_recall"].redundant_search_count == 0
     assert by_route["learning_map"].expected_route == "learning_map"
     assert by_route["company_event"].expected_route == "company_event"
     assert by_route["current_fact_check"].stop_reason in {

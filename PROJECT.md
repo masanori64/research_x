@@ -136,6 +136,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
 - [x] Relevance/support fixture lane: deterministic `local_judge_candidate` baseline for
       relevant, irrelevant, duplicate, conflict, supports-claim, and non-support cases without
       model-specific adoption.
+- [x] Stop-condition audit metrics: workflow/eval traces record searched-after-sufficient-evidence
+      and redundant-search counts without importing RL policy machinery.
 
 ## Current Gates
 

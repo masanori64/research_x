@@ -246,6 +246,8 @@ class MemoryEvalResult:
     answer_status: str | None
     answerability_status: str | None
     answer_citations: int
+    searched_after_sufficient_evidence: bool
+    redundant_search_count: int
     notes: tuple[str, ...]
 
     @property
@@ -507,6 +509,7 @@ def format_eval_run(payload: dict[str, Any]) -> str:
             f"#{result['case_index']} {result['status']} route={result['route']} "
             f"type={result.get('question_type') or '-'} "
             f"answerability={result.get('answerability_status') or '-'} "
+            f"redundant_search={result.get('redundant_search_count', 0)} "
             f"stop={result['stop_reason']} best={result['best_score']:.2f} "
             f"first={result.get('first_doc_id') or '-'} notes={notes}"
         )
@@ -525,6 +528,7 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
             f"answer={result.answer_status or '-'} "
             f"answerability={result.answerability_status or '-'} "
             f"citations={result.answer_citations} "
+            f"redundant_search={result.redundant_search_count} "
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
@@ -588,6 +592,12 @@ def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
         "answer_status": row["answer_status"],
         "answerability_status": _loads_json(row["metadata_json"]).get("answerability_status"),
         "answer_citations": int(row["answer_citations"]),
+        "searched_after_sufficient_evidence": bool(
+            _loads_json(row["metadata_json"]).get("searched_after_sufficient_evidence")
+        ),
+        "redundant_search_count": int(
+            _loads_json(row["metadata_json"]).get("redundant_search_count") or 0
+        ),
         "notes": _loads_json_array(row["notes_json"]),
         "metadata": _loads_json(row["metadata_json"]),
         "created_at": row["created_at"],
@@ -682,6 +692,8 @@ def _evaluate_case(
             answer_citations=(
                 len(workflow.answer.citation_annotations) if workflow.answer else 0
             ),
+            searched_after_sufficient_evidence=_searched_after_sufficient_evidence(workflow),
+            redundant_search_count=_redundant_search_count(workflow),
             notes=tuple(notes),
         )
 
@@ -739,6 +751,8 @@ def _evaluate_case(
         answer_status=workflow.answer.status if workflow.answer else None,
         answerability_status=_answerability_status(workflow),
         answer_citations=len(workflow.answer.citation_annotations) if workflow.answer else 0,
+        searched_after_sufficient_evidence=_searched_after_sufficient_evidence(workflow),
+        redundant_search_count=_redundant_search_count(workflow),
         notes=tuple(notes),
     )
 
@@ -751,6 +765,21 @@ def _answerability_status(workflow: MemoryWorkflow) -> str | None:
         return None
     status = answerability.get("status")
     return str(status) if status else None
+
+
+def _searched_after_sufficient_evidence(workflow: MemoryWorkflow) -> bool:
+    audit = _stop_condition_audit(workflow)
+    return bool(audit.get("searched_after_sufficient_evidence"))
+
+
+def _redundant_search_count(workflow: MemoryWorkflow) -> int:
+    audit = _stop_condition_audit(workflow)
+    return int(audit.get("redundant_search_count") or 0)
+
+
+def _stop_condition_audit(workflow: MemoryWorkflow) -> dict[str, Any]:
+    audit = workflow.metadata.get("stop_condition_audit")
+    return audit if isinstance(audit, dict) else {}
 
 
 def _valid_hit(hit: dict) -> bool:
