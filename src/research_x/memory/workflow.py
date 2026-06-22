@@ -503,6 +503,7 @@ def run_memory_workflow(
             {
                 "answer_id": answer.answer_id,
                 "status": answer.status,
+                "answerability_status": _answerability_status(answer),
                 "citation_count": len(answer.citation_annotations),
                 "selected_chunk_count": len(answer.selected_context_chunks),
             },
@@ -637,6 +638,7 @@ def format_workflow(workflow: MemoryWorkflow) -> str:
         lines.append(
             "answer: "
             f"id={workflow.answer.answer_id} status={workflow.answer.status} "
+            f"answerability={_answerability_status(workflow.answer) or '-'} "
             f"citations={len(workflow.answer.citation_annotations)}"
         )
     return "\n".join(lines)
@@ -721,6 +723,14 @@ def _stop_reason(
     if answer is not None and answer.status != "ok":
         return STOP_NEEDS_USER_REVIEW
     return STOP_ENOUGH_EVIDENCE
+
+
+def _answerability_status(answer: MemoryAnswer) -> str | None:
+    answerability = answer.structured.get("answerability")
+    if not isinstance(answerability, dict):
+        return None
+    status = answerability.get("status")
+    return str(status) if status else None
 
 
 def _context_summary(bundle: ContextBundle) -> dict[str, Any]:

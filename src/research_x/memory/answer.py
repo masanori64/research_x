@@ -28,6 +28,9 @@ DEFAULT_PROMPT_VERSION = "memory-answer-v1"
 FAKE_ANSWER_MODEL = "fake-answer-v1"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+ANSWERABILITY_ANSWERABLE = "answerable"
+ANSWERABILITY_UNANSWERABLE = "unanswerable"
+ANSWERABILITY_CONFLICTING = "conflicting"
 
 OPENAI_COMPATIBLE_PRESETS = {
     "openai_chat": {
@@ -49,6 +52,24 @@ class GeneratedAnswer:
     model: str
     structured: dict[str, Any]
     raw_response_hash: str | None = None
+
+
+@dataclass(frozen=True)
+class AnswerabilityAssessment:
+    status: str
+    reason: str
+    answerable_chunk_ids: tuple[str, ...]
+    conflicting_chunk_ids: tuple[str, ...]
+    missing: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "reason": self.reason,
+            "answerable_chunk_ids": list(self.answerable_chunk_ids),
+            "conflicting_chunk_ids": list(self.conflicting_chunk_ids),
+            "missing": list(self.missing),
+        }
 
 
 @dataclass(frozen=True)
@@ -205,6 +226,12 @@ class FakeAnswerProvider:
             excerpt = _best_excerpt(chunk.chunk_text)
             lines.append(f"- {title}: {excerpt} [{index}]")
             used_chunk_ids.append(chunk.chunk_id)
+        conflict_chunk_ids = _conflicting_chunk_ids(chunks=chunks, citations=citations)
+        if conflict_chunk_ids:
+            lines.append(
+                "注意: コンテキスト内に矛盾または反対関係の可能性があります。"
+                "両方の根拠を確認してください。"
+            )
         lines.append("推論: 上記コンテキスト外の補完はしていません。")
         return GeneratedAnswer(
             answer_text="\n".join(lines),
@@ -213,6 +240,7 @@ class FakeAnswerProvider:
                 "mode": "deterministic_fake",
                 "prompt_version": prompt_version,
                 "used_chunk_ids": used_chunk_ids,
+                "conflict_chunk_ids": list(conflict_chunk_ids),
             },
         )
 
@@ -358,6 +386,11 @@ def build_memory_answer(
     )
     chunks = selection.chunks
     citations = _citations_for_chunks(context_bundle.citation_annotations, chunks)
+    answerability = assess_answerability(
+        question=query,
+        chunks=chunks,
+        citations=citations,
+    )
     generated = provider.generate(
         question=query,
         chunks=chunks,
@@ -393,10 +426,11 @@ def build_memory_answer(
         for citation in answer_citations
         if not citation.metadata.get("marker_found")
     ]
-    status = (
-        "ok"
-        if chunks and generated.answer_text.strip() and not missing_markers
-        else "needs_review"
+    status = _answer_status(
+        chunks=chunks,
+        answer_text=generated.answer_text,
+        missing_markers=missing_markers,
+        answerability=answerability,
     )
     structured = {
         **generated.structured,
@@ -406,6 +440,7 @@ def build_memory_answer(
         "selected_chunk_ids": [chunk.chunk_id for chunk in chunks],
         "missing_citation_markers": missing_markers,
         "answer_citation_count": len(answer_citations),
+        "answerability": answerability.as_dict(),
     }
     answer = MemoryAnswer(
         answer_id=answer_id,
@@ -428,6 +463,138 @@ def build_memory_answer(
     if store:
         store_memory_answer(db_path, answer)
     return answer
+
+
+def assess_answerability(
+    *,
+    question: str,
+    chunks: tuple[ContextChunk, ...],
+    citations: tuple[CitationAnnotation, ...],
+) -> AnswerabilityAssessment:
+    if not chunks:
+        return AnswerabilityAssessment(
+            status=ANSWERABILITY_UNANSWERABLE,
+            reason="no_context_chunks",
+            answerable_chunk_ids=(),
+            conflicting_chunk_ids=(),
+            missing=("context_chunks",),
+        )
+    if not citations:
+        return AnswerabilityAssessment(
+            status=ANSWERABILITY_UNANSWERABLE,
+            reason="no_citations_for_selected_context",
+            answerable_chunk_ids=(),
+            conflicting_chunk_ids=(),
+            missing=("citations",),
+        )
+
+    cited_chunk_ids = {citation.chunk_id for citation in citations}
+    uncited_chunk_ids = tuple(
+        chunk.chunk_id for chunk in chunks if chunk.chunk_id not in cited_chunk_ids
+    )
+    if uncited_chunk_ids:
+        return AnswerabilityAssessment(
+            status=ANSWERABILITY_UNANSWERABLE,
+            reason="selected_context_without_citation",
+            answerable_chunk_ids=tuple(
+                chunk.chunk_id for chunk in chunks if chunk.chunk_id in cited_chunk_ids
+            ),
+            conflicting_chunk_ids=(),
+            missing=tuple(f"citation:{chunk_id}" for chunk_id in uncited_chunk_ids),
+        )
+
+    conflicting_chunk_ids = _conflicting_chunk_ids(chunks=chunks, citations=citations)
+    if conflicting_chunk_ids:
+        return AnswerabilityAssessment(
+            status=ANSWERABILITY_CONFLICTING,
+            reason="conflicting_evidence_fixture",
+            answerable_chunk_ids=tuple(chunk.chunk_id for chunk in chunks),
+            conflicting_chunk_ids=conflicting_chunk_ids,
+            missing=(),
+        )
+
+    return AnswerabilityAssessment(
+        status=ANSWERABILITY_ANSWERABLE,
+        reason="citation_ready_context",
+        answerable_chunk_ids=tuple(chunk.chunk_id for chunk in chunks),
+        conflicting_chunk_ids=(),
+        missing=(),
+    )
+
+
+def _answer_status(
+    *,
+    chunks: tuple[ContextChunk, ...],
+    answer_text: str,
+    missing_markers: list[str],
+    answerability: AnswerabilityAssessment,
+) -> str:
+    if (
+        chunks
+        and answer_text.strip()
+        and not missing_markers
+        and answerability.status == ANSWERABILITY_ANSWERABLE
+    ):
+        return "ok"
+    return "needs_review"
+
+
+def _conflicting_chunk_ids(
+    *,
+    chunks: tuple[ContextChunk, ...],
+    citations: tuple[CitationAnnotation, ...],
+) -> tuple[str, ...]:
+    citation_by_chunk_id = {citation.chunk_id: citation for citation in citations}
+    result: list[str] = []
+    for chunk in chunks:
+        citation = citation_by_chunk_id.get(chunk.chunk_id)
+        if _chunk_marks_conflict(chunk) or (
+            citation is not None and _citation_marks_conflict(citation)
+        ):
+            result.append(chunk.chunk_id)
+    return tuple(result)
+
+
+def _chunk_marks_conflict(chunk: ContextChunk) -> bool:
+    metadata = chunk.metadata
+    values = (
+        metadata.get("answerability"),
+        metadata.get("answerability_status"),
+        metadata.get("answerability_fixture"),
+        metadata.get("evidence_relation"),
+        metadata.get("relation"),
+        metadata.get("relation_type"),
+    )
+    return any(_is_conflict_marker(value) for value in values)
+
+
+def _citation_marks_conflict(citation: CitationAnnotation) -> bool:
+    values = (
+        citation.support_type,
+        citation.evidence_status,
+        citation.metadata.get("answerability"),
+        citation.metadata.get("answerability_status"),
+        citation.metadata.get("answerability_fixture"),
+        citation.metadata.get("evidence_relation"),
+        citation.metadata.get("relation"),
+        citation.metadata.get("relation_type"),
+    )
+    return any(_is_conflict_marker(value) for value in values)
+
+
+def _is_conflict_marker(value: Any) -> bool:
+    if value is None:
+        return False
+    normalized = str(value).strip().casefold()
+    return normalized in {
+        "conflict",
+        "conflicting",
+        "conflicting_evidence",
+        "contradict",
+        "contradicts",
+        "contradiction",
+        "opposes",
+    }
 
 
 def answer_json(

@@ -1052,6 +1052,9 @@ Current implementation:
   through context chunks and answer annotations.
 - Route mismatches and missing compact evidence fail; weak or absent evidence remains visible as
   `needs_review` / `fail` instead of being hidden behind a successful command exit.
+- Answerability is recorded separately from retrieval and answer status. Local/fake fixtures cover
+  answerable, unanswerable, and conflicting-evidence cases before any reader model is considered
+  for promotion.
 
 ## Compatibility With Current Implementation
 

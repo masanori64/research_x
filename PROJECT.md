@@ -131,6 +131,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
 - [x] ImprovementSignal pipeline: local-only capture, deterministic triage, proposal-only candidate
       reports, replay/qualifier/human-decision fields, rejected buffer, schema, and validation tests
       without provider calls.
+- [x] Answerability fixture lane: local/fake answerable, unanswerable, and conflicting-evidence
+      checks with separate eval/report status, without model downloads or provider calls.
 
 ## Current Gates
 

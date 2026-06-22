@@ -12,13 +12,19 @@ from research_x.memory import api_lane_estimate as memory_api_lane_estimate
 from research_x.memory import embeddings, media_embeddings
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
-from research_x.memory.answer import answer_json, build_memory_answer
+from research_x.memory.answer import answer_json, assess_answerability, build_memory_answer
 from research_x.memory.api_lane_estimate import (
     build_api_lane_estimate_report,
     discover_external_urls,
 )
 from research_x.memory.audit import audit_memory_db
-from research_x.memory.context import build_context_bundle, context_bundle_json
+from research_x.memory.context import (
+    CitationAnnotation,
+    ContextBundle,
+    ContextChunk,
+    build_context_bundle,
+    context_bundle_json,
+)
 from research_x.memory.context_budget import ContextBudgetPolicy, budget_json_payload
 from research_x.memory.corpus import (
     build_memory_corpus,
@@ -4019,6 +4025,56 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
     assert selected_chunk_rows == 1
 
 
+def test_memory_answer_records_answerability_fixture_outcomes(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    answerable_bundle = _answerability_fixture_bundle("answerable")
+    unanswerable_bundle = _answerability_fixture_bundle("unanswerable")
+    conflicting_bundle = _answerability_fixture_bundle("conflicting")
+
+    assessment = assess_answerability(
+        question="ロボットについて説明して",
+        chunks=answerable_bundle.context_chunks,
+        citations=answerable_bundle.citation_annotations,
+    )
+    answerable = build_memory_answer(
+        db_path,
+        "ロボットについて説明して",
+        context_bundle=answerable_bundle,
+        answer_provider="fake",
+        store=False,
+    )
+    unanswerable = build_memory_answer(
+        db_path,
+        "存在しない保存情報について説明して",
+        context_bundle=unanswerable_bundle,
+        answer_provider="fake",
+        store=False,
+    )
+    conflicting = build_memory_answer(
+        db_path,
+        "同じ話の矛盾を確認して",
+        context_bundle=conflicting_bundle,
+        answer_provider="fake",
+        store=False,
+    )
+
+    assert assessment.status == "answerable"
+    assert answerable.status == "ok"
+    assert answerable.structured["answerability"]["status"] == "answerable"
+    assert answerable.citation_annotations
+
+    assert unanswerable.status == "needs_review"
+    assert unanswerable.structured["answerability"]["status"] == "unanswerable"
+    assert unanswerable.structured["answerability"]["missing"] == ["context_chunks"]
+    assert "根拠になるコンテキストが見つかりませんでした" in unanswerable.answer_text
+
+    assert conflicting.status == "needs_review"
+    assert conflicting.structured["answerability"]["status"] == "conflicting"
+    assert conflicting.structured["answerability"]["conflicting_chunk_ids"]
+    assert "矛盾または反対関係" in conflicting.answer_text
+    assert len(conflicting.citation_annotations) == 2
+
+
 def test_memory_workflow_stores_route_steps_and_stop_reason(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
@@ -4215,6 +4271,7 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     assert by_route["place_recall"].context_chunks > 0
     assert "local_x_db" in by_route["place_recall"].source_kinds
     assert by_route["place_recall"].answer_status == "ok"
+    assert by_route["place_recall"].answerability_status == "answerable"
     assert by_route["place_recall"].answer_citations > 0
     assert by_route["learning_map"].expected_route == "learning_map"
     assert by_route["company_event"].expected_route == "company_event"
@@ -4224,6 +4281,14 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     }
     no_answer_results = run_memory_eval(db_path, limit=1, answer_provider="none")
     assert all(result.answer_status is None for result in no_answer_results)
+    assert all(result.answerability_status is None for result in no_answer_results)
+    false_premise = next(
+        result
+        for result in results
+        if result.question_type == "abstention_false_premise"
+    )
+    assert false_premise.answer_status == "needs_review"
+    assert false_premise.answerability_status == "unanswerable"
     build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
     semantic_results = run_memory_eval(
         db_path,
@@ -5498,6 +5563,94 @@ def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, cap
     captured = capsys.readouterr()
     assert "diagnostic local_hash" in captured.err
     assert "Traceback" not in captured.err
+
+
+def _answerability_fixture_bundle(kind: str) -> ContextBundle:
+    run_id = f"answerability:{kind}"
+    created_at = "2026-06-22T00:00:00+00:00"
+    if kind == "unanswerable":
+        return ContextBundle(
+            run_id=run_id,
+            query="fixture unanswerable",
+            query_plan={"fixture": "answerability"},
+            parameters={"fixture_kind": kind},
+            retrieved_hits=[],
+            context_chunks=(),
+            citation_annotations=(),
+        )
+
+    chunks = [
+        ContextChunk(
+            chunk_id=f"{run_id}:chunk:1",
+            run_id=run_id,
+            source_kind="local_x_db",
+            source_id="tweet:answerable",
+            source_url="https://x.com/a/status/answerable",
+            provider="fixture",
+            provider_role="context_builder",
+            chunk_text="Text: ロボット実験の保存投稿には強化学習のメモが含まれます。",
+            chunk_index=0,
+            token_count=24,
+            relevance_score=1.0,
+            extractor_version="answerability-fixture-v1",
+            created_at=created_at,
+            metadata={"answerability_fixture": "answerable"},
+        )
+    ]
+    if kind == "conflicting":
+        chunks.append(
+            ContextChunk(
+                chunk_id=f"{run_id}:chunk:2",
+                run_id=run_id,
+                source_kind="local_x_db",
+                source_id="tweet:conflicting",
+                source_url="https://x.com/b/status/conflicting",
+                provider="fixture",
+                provider_role="context_builder",
+                chunk_text="Text: 別の保存投稿は同じ結論に反対する注意点を述べています。",
+                chunk_index=1,
+                token_count=25,
+                relevance_score=0.9,
+                extractor_version="answerability-fixture-v1",
+                created_at=created_at,
+                metadata={"answerability_fixture": "conflicting"},
+            )
+        )
+
+    citations = tuple(
+        CitationAnnotation(
+            citation_id=f"{chunk.chunk_id}:citation",
+            answer_id=None,
+            chunk_id=chunk.chunk_id,
+            source_kind=chunk.source_kind,
+            source_id=chunk.source_id,
+            source_url=chunk.source_url,
+            title=chunk.source_id,
+            field_path=f"context_chunks[{index}]",
+            support_type=(
+                "contradicts"
+                if chunk.metadata["answerability_fixture"] == "conflicting"
+                else "background"
+            ),
+            evidence_status="fact",
+            confidence=1.0,
+            created_at=created_at,
+            metadata={"answerability_fixture": chunk.metadata["answerability_fixture"]},
+        )
+        for index, chunk in enumerate(chunks)
+    )
+    return ContextBundle(
+        run_id=run_id,
+        query=f"fixture {kind}",
+        query_plan={"fixture": "answerability"},
+        parameters={"fixture_kind": kind},
+        retrieved_hits=[
+            {"doc_id": chunk.source_id, "compact_text": chunk.chunk_text}
+            for chunk in chunks
+        ],
+        context_chunks=tuple(chunks),
+        citation_annotations=citations,
+    )
 
 
 def _write_cases(tmp_path: Path, cases: list[dict]) -> Path:
