@@ -146,6 +146,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       Benchmark query embeddings are `local_hash`-only while the provider freeze is active.
 - [x] Agentmemory source review lock: recorded as disabled/source-review-required after GPT Pro raw
       and primary-source review; no plugin, MCP, hook, server, or Skill enablement.
+- [x] X/GPT implementation phase gate report: `.codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md`
+      records go/no-go decisions, repair loops, and resume rules for phases 1-8.
 
 ## Current Gates
 
