@@ -138,6 +138,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       model-specific adoption.
 - [x] Stop-condition audit metrics: workflow/eval traces record searched-after-sufficient-evidence
       and redundant-search counts without importing RL policy machinery.
+- [x] Stale-observation context-policy fixture: full-history, summary, offload, and masked variants
+      are compared as route-level eval warnings without enabling global masking.
 
 ## Current Gates
 

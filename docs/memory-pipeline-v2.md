@@ -1061,6 +1061,9 @@ Current implementation:
 - Stop-condition audit records whether local evidence was already sufficient, whether any extra
   search/context step ran after that point, and a redundant-search count. This is a workflow/eval
   metric, not an RL policy import.
+- Stale-observation masking is evaluated only as a route-level context-policy fixture over
+  full-history, summary, offload, and masked variants. A masked variant may become a route-specific
+  candidate, but it is not a global masking policy.
 
 ## Compatibility With Current Implementation
 

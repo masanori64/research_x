@@ -26,6 +26,10 @@ from research_x.memory.context import (
     context_bundle_json,
 )
 from research_x.memory.context_budget import ContextBudgetPolicy, budget_json_payload
+from research_x.memory.context_policy import (
+    context_policy_eval_json,
+    evaluate_route_context_policy,
+)
 from research_x.memory.corpus import (
     build_memory_corpus,
     export_corpus2skill_bundle,
@@ -3927,6 +3931,29 @@ def test_answer_and_workflow_json_accept_context_budget_policy(tmp_path: Path) -
     assert workflow_payload["context_budget"]["payload_kind"] == "memory_workflow"
     assert answer_payload["context_budget"]["offloaded_item_count"] >= 1
     assert workflow_payload["context_budget"]["offloaded_item_count"] >= 1
+
+
+def test_route_context_policy_compares_stale_observation_variants() -> None:
+    report = evaluate_route_context_policy(route="local_memory_search")
+    payload = json.loads(context_policy_eval_json(report))
+    variants = {variant.variant: variant for variant in report.variants}
+
+    assert report.status == "ok"
+    assert report.baseline_variant == "full_history"
+    assert report.recommended_variant == "masked_history"
+    assert report.global_masking_allowed is False
+    assert payload["metadata"]["fixture"] == "stale_observation_context_policy"
+
+    assert variants["full_history"].answer_status == "needs_review"
+    assert variants["full_history"].unsupported_context_count == 1
+    assert variants["summary_history"].stale_observation_count == 2
+    assert variants["offloaded_history"].source_refs_preserved is True
+    assert variants["masked_history"].answer_status == "ok"
+    assert variants["masked_history"].route_specific_masking_candidate is True
+    assert (
+        "masking_is_route_specific_candidate_not_global_policy"
+        in variants["masked_history"].notes
+    )
 
 
 def test_memory_context_can_include_external_run_chunks(tmp_path: Path) -> None:
