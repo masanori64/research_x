@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -46,6 +47,20 @@ def build_parser() -> argparse.ArgumentParser:
     capture.add_argument("--signal-id", default=None)
     capture.add_argument("--created-at", default=None)
     capture.add_argument("--affected-artifact", action="append", default=[])
+    capture.add_argument("--fault-step", default="")
+    capture.add_argument("--responsible-artifact", default="")
+    capture.add_argument("--candidate-diff-ref", default="")
+    capture.add_argument(
+        "--replay-result",
+        default=None,
+        help='Replay result as a JSON object, for example {"status":"passed","ref":"tests"}',
+    )
+    capture.add_argument(
+        "--qualifier-result",
+        default=None,
+        help='Qualifier result as a JSON object, for example {"status":"passed","ref":"manifest"}',
+    )
+    capture.add_argument("--human-decision", default="pending")
     capture.add_argument(
         "--evidence",
         action="append",
@@ -90,6 +105,12 @@ def main(argv: list[str] | None = None) -> int:
             affected_artifacts=tuple(args.affected_artifact),
             evidence=_parse_evidence_args(args.evidence),
             tags=tuple(args.tag),
+            fault_step=args.fault_step,
+            responsible_artifact=args.responsible_artifact,
+            candidate_diff_ref=args.candidate_diff_ref,
+            replay_result=_parse_json_object_arg(args.replay_result, "--replay-result"),
+            qualifier_result=_parse_json_object_arg(args.qualifier_result, "--qualifier-result"),
+            human_decision=args.human_decision,
             signal_id=args.signal_id,
             created_at=args.created_at,
         )
@@ -178,6 +199,18 @@ def _parse_evidence_args(values: list[str]) -> tuple[dict[str, str], ...]:
             item["hash"] = hash_value
         evidence.append(item)
     return tuple(evidence)
+
+
+def _parse_json_object_arg(value: str | None, flag: str) -> dict[str, object] | None:
+    if value is None:
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"{flag} must be a JSON object: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise SystemExit(f"{flag} must be a JSON object")
+    return parsed
 
 
 def _print_errors(errors: list[str]) -> int:

@@ -58,6 +58,8 @@ TRIAGE_CATEGORIES = {
     "no_change",
 }
 DISPOSITIONS = {"candidate_report", "rejected"}
+RESULT_STATUSES = {"not_run", "passed", "failed", "blocked", "not_applicable"}
+HUMAN_DECISIONS = {"pending", "accepted", "rejected", "deferred", "not_required"}
 
 SECURITY_KEYWORDS = {
     "api key",
@@ -112,6 +114,12 @@ class ImprovementSignal:
     privacy_level: str
     status: str = "new"
     tags: tuple[str, ...] = field(default_factory=tuple)
+    fault_step: str = ""
+    responsible_artifact: str = ""
+    candidate_diff_ref: str = ""
+    replay_result: dict[str, Any] = field(default_factory=lambda: {"status": "not_run"})
+    qualifier_result: dict[str, Any] = field(default_factory=lambda: {"status": "not_run"})
+    human_decision: str = "pending"
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -132,6 +140,12 @@ class TriageDecision:
     provider_freeze_touched: bool
     security_review_required: bool
     disposition: str
+    fault_step: str
+    responsible_artifact: str
+    candidate_diff_ref: str
+    replay_result: dict[str, Any]
+    qualifier_result: dict[str, Any]
+    human_decision: str
     rationale: str
     gates: tuple[str, ...]
 
@@ -156,6 +170,12 @@ def capture_signal(
     affected_artifacts: tuple[str, ...] = (),
     evidence: tuple[dict[str, Any], ...] = (),
     tags: tuple[str, ...] = (),
+    fault_step: str = "",
+    responsible_artifact: str = "",
+    candidate_diff_ref: str = "",
+    replay_result: dict[str, Any] | None = None,
+    qualifier_result: dict[str, Any] | None = None,
+    human_decision: str = "pending",
     signal_id: str | None = None,
     created_at: str | None = None,
 ) -> ImprovementSignal:
@@ -181,6 +201,12 @@ def capture_signal(
         privacy_level=privacy_level,
         status=status,
         tags=tuple(tags),
+        fault_step=fault_step,
+        responsible_artifact=responsible_artifact,
+        candidate_diff_ref=candidate_diff_ref,
+        replay_result=_result_or_default(replay_result),
+        qualifier_result=_result_or_default(qualifier_result),
+        human_decision=human_decision,
     )
 
 
@@ -230,6 +256,12 @@ def read_triage_jsonl(path: Path) -> list[TriageDecision]:
             provider_freeze_touched=bool(row["provider_freeze_touched"]),
             security_review_required=bool(row["security_review_required"]),
             disposition=str(row["disposition"]),
+            fault_step=str(row.get("fault_step", "")),
+            responsible_artifact=str(row.get("responsible_artifact", "")),
+            candidate_diff_ref=str(row.get("candidate_diff_ref", "")),
+            replay_result=_result_or_default(row.get("replay_result")),
+            qualifier_result=_result_or_default(row.get("qualifier_result")),
+            human_decision=str(row.get("human_decision", "pending")),
             rationale=str(row["rationale"]),
             gates=tuple(str(item) for item in row["gates"]),
         )
@@ -291,7 +323,39 @@ def validate_signal(signal: dict[str, Any]) -> list[str]:
                 errors.append(f"{prefix}: evidence[{index}] requires kind and ref")
     if "tags" in signal and not isinstance(signal["tags"], list):
         errors.append(f"{prefix}: tags must be a list")
+    for key in ("fault_step", "responsible_artifact", "candidate_diff_ref"):
+        if key in signal and not isinstance(signal[key], str):
+            errors.append(f"{prefix}: {key} must be a string")
+    _validate_result_object(errors, prefix, signal, "replay_result")
+    _validate_result_object(errors, prefix, signal, "qualifier_result")
+    if "human_decision" in signal and signal["human_decision"] not in HUMAN_DECISIONS:
+        errors.append(f"{prefix}: invalid human_decision {signal['human_decision']!r}")
     return errors
+
+
+def _validate_result_object(
+    errors: list[str],
+    prefix: str,
+    record: dict[str, Any],
+    key: str,
+) -> None:
+    if key not in record:
+        return
+    value = record[key]
+    if not isinstance(value, dict):
+        errors.append(f"{prefix}: {key} must be an object")
+        return
+    status = value.get("status")
+    if status not in RESULT_STATUSES:
+        errors.append(f"{prefix}: invalid {key}.status {status!r}")
+    for item_key, item_value in value.items():
+        if not isinstance(item_key, str):
+            errors.append(f"{prefix}: {key} keys must be strings")
+        if item_value is not None and not isinstance(
+            item_value,
+            str | int | float | bool | list | dict,
+        ):
+            errors.append(f"{prefix}: {key}.{item_key} has unsupported value type")
 
 
 def validate_triage_record(record: dict[str, Any]) -> list[str]:
@@ -333,6 +397,13 @@ def validate_triage_record(record: dict[str, Any]) -> list[str]:
     ):
         if not isinstance(record[key], bool):
             errors.append(f"{signal_id}: {key} must be a boolean")
+    for key in ("fault_step", "responsible_artifact", "candidate_diff_ref"):
+        if key in record and not isinstance(record[key], str):
+            errors.append(f"{signal_id}: {key} must be a string")
+    _validate_result_object(errors, signal_id, record, "replay_result")
+    _validate_result_object(errors, signal_id, record, "qualifier_result")
+    if "human_decision" in record and record["human_decision"] not in HUMAN_DECISIONS:
+        errors.append(f"{signal_id}: invalid human_decision {record['human_decision']!r}")
     return errors
 
 
@@ -351,16 +422,17 @@ def format_triage_report(decisions: list[TriageDecision]) -> str:
         "call providers, or enable third-party tools.",
         "",
         "| Signal | Category | Priority | Disposition | Human review | Security | "
-        "Provider freeze |",
-        "|---|---|---|---|---:|---:|---:|",
+        "Provider freeze | Qualifier |",
+        "|---|---|---|---|---:|---:|---:|---|",
     ]
     for decision in decisions:
         human = str(decision.human_review_required).lower()
         security = str(decision.security_review_required).lower()
         provider = str(decision.provider_freeze_touched).lower()
+        qualifier = _result_status(decision.qualifier_result)
         lines.append(
             f"| {decision.signal_id} | {decision.triage_category} | {decision.priority} | "
-            f"{decision.disposition} | {human} | {security} | {provider} |"
+            f"{decision.disposition} | {human} | {security} | {provider} | {qualifier} |"
         )
     lines.extend(["", "## Details", ""])
     for decision in decisions:
@@ -376,6 +448,12 @@ def format_triage_report(decisions: list[TriageDecision]) -> str:
                 f"- Security review required: `{str(decision.security_review_required).lower()}`",
                 f"- Provider freeze touched: `{str(decision.provider_freeze_touched).lower()}`",
                 f"- Recommended artifacts: `{', '.join(decision.recommended_artifacts) or 'none'}`",
+                f"- Fault step: `{decision.fault_step or 'none'}`",
+                f"- Responsible artifact: `{decision.responsible_artifact or 'none'}`",
+                f"- Candidate diff ref: `{decision.candidate_diff_ref or 'none'}`",
+                f"- Replay result: `{_format_result_inline(decision.replay_result)}`",
+                f"- Qualifier result: `{_format_result_inline(decision.qualifier_result)}`",
+                f"- Human decision: `{decision.human_decision}`",
                 f"- Gates: `{', '.join(decision.gates)}`",
                 "",
                 decision.rationale,
@@ -409,6 +487,9 @@ def validate_candidate_dir(path: Path) -> list[str]:
         required_phrases = [
             "Proposal Only",
             "Do not auto-apply",
+            "Fault Localization",
+            "Replay",
+            "Qualifier",
             "Validation Gates",
             "Human Review",
         ]
@@ -441,6 +522,10 @@ def _triage_signal(signal: dict[str, Any]) -> TriageDecision:
     disposition = "rejected" if category == "no_change" else "candidate_report"
     gates = _gates(category, change_type, security_review_required, provider_freeze_touched)
     artifacts = _recommended_artifacts(signal, category, change_type)
+    fault_step = _fault_step(signal, category)
+    responsible_artifact = _responsible_artifact(signal, artifacts)
+    replay_result = _replay_result(signal, category)
+    qualifier_result = _qualifier_result(signal, disposition, gates)
     return TriageDecision(
         signal_id=str(signal["signal_id"]),
         triage_category=category,
@@ -451,6 +536,12 @@ def _triage_signal(signal: dict[str, Any]) -> TriageDecision:
         provider_freeze_touched=provider_freeze_touched,
         security_review_required=security_review_required,
         disposition=disposition,
+        fault_step=fault_step,
+        responsible_artifact=responsible_artifact,
+        candidate_diff_ref=str(signal.get("candidate_diff_ref", "")).strip(),
+        replay_result=replay_result,
+        qualifier_result=qualifier_result,
+        human_decision=_human_decision(signal),
         rationale=_rationale(signal, category),
         gates=gates,
     )
@@ -548,7 +639,117 @@ def _rationale(signal: dict[str, Any], category: str) -> str:
     return reason
 
 
+def _fault_step(signal: dict[str, Any], category: str) -> str:
+    explicit = _optional_text(signal.get("fault_step"))
+    if explicit:
+        return explicit
+    defaults = {
+        "security_budget_blocker": "verify provider/security gate before any external action",
+        "evidence_invariant_violation": "restore source bundle and citation boundary",
+        "doc_governance_issue": "locate the durable source of truth and drift point",
+        "skill_route_issue": "compare request wording with Skill trigger and manifest routing",
+        "evaluation_gap": "reproduce the failing local test or eval case",
+        "workflow_ergonomics": "identify the first local workflow step that failed",
+        "no_change": "no actionable fault step",
+    }
+    return defaults[category]
+
+
+def _responsible_artifact(signal: dict[str, Any], artifacts: tuple[str, ...]) -> str:
+    explicit = _optional_text(signal.get("responsible_artifact"))
+    if explicit:
+        return explicit
+    return artifacts[0] if artifacts else ""
+
+
+def _replay_result(signal: dict[str, Any], category: str) -> dict[str, Any]:
+    explicit = _result_or_default(signal.get("replay_result"))
+    if _result_status(explicit) != "not_run":
+        return explicit
+    if category == "no_change":
+        return {
+            "status": "not_applicable",
+            "reason": "signal was rejected as no_change",
+        }
+    if category == "evaluation_gap":
+        return {
+            "status": "not_run",
+            "reason": "failing case must be reproduced before implementation",
+        }
+    return {
+        "status": "not_run",
+        "reason": "no replay fixture has been run for this candidate yet",
+    }
+
+
+def _qualifier_result(
+    signal: dict[str, Any],
+    disposition: str,
+    gates: tuple[str, ...],
+) -> dict[str, Any]:
+    explicit = _result_or_default(signal.get("qualifier_result"))
+    if _result_status(explicit) != "not_run":
+        return explicit
+    if disposition == "rejected":
+        return {
+            "status": "not_applicable",
+            "reason": "no candidate is promoted from this signal",
+        }
+    return {
+        "status": "not_run",
+        "required_gates": list(gates),
+    }
+
+
+def _result_or_default(value: object | None) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {"status": "not_run"}
+    result = dict(value)
+    if "status" not in result:
+        result["status"] = "not_run"
+    return result
+
+
+def _result_status(value: dict[str, Any]) -> str:
+    return str(value.get("status", "not_run"))
+
+
+def _human_decision(signal: dict[str, Any]) -> str:
+    decision = str(signal.get("human_decision", "pending"))
+    if decision in HUMAN_DECISIONS:
+        return decision
+    return "pending"
+
+
+def _optional_text(value: object) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _format_result_inline(result: dict[str, Any]) -> str:
+    status = _result_status(result)
+    ref = _optional_text(result.get("ref"))
+    if ref:
+        return f"status={status}, ref={ref}"
+    return f"status={status}"
+
+
+def _format_result_block(result: dict[str, Any]) -> str:
+    lines = [f"- Status: `{_result_status(result)}`"]
+    for key in sorted(result):
+        if key == "status":
+            continue
+        value = result[key]
+        if isinstance(value, list | dict):
+            formatted = json.dumps(value, ensure_ascii=False, sort_keys=True)
+        else:
+            formatted = str(value)
+        lines.append(f"- {key.replace('_', ' ').title()}: `{formatted or 'none'}`")
+    return "\n".join(lines)
+
+
 def _candidate_report(decision: TriageDecision) -> str:
+    replay_lines = _format_result_block(decision.replay_result)
+    qualifier_lines = _format_result_block(decision.qualifier_result)
     return (
         f"# Improvement Candidate: {decision.signal_id}\n\n"
         "## Proposal Only\n\n"
@@ -558,8 +759,16 @@ def _candidate_report(decision: TriageDecision) -> str:
         f"- Priority: `{decision.priority}`\n"
         f"- Proposed change type: `{decision.proposed_change_type}`\n"
         f"- Recommended artifacts: `{', '.join(decision.recommended_artifacts) or 'none'}`\n\n"
+        "## Fault Localization\n\n"
+        f"- First actionable fault step: `{decision.fault_step or 'none'}`\n"
+        f"- Responsible artifact: `{decision.responsible_artifact or 'none'}`\n"
+        f"- Candidate diff reference: `{decision.candidate_diff_ref or 'none'}`\n\n"
         "## Rationale\n\n"
         f"{decision.rationale}\n\n"
+        "## Replay\n\n"
+        f"{replay_lines}\n\n"
+        "## Qualifier\n\n"
+        f"{qualifier_lines}\n\n"
         "## Validation Gates\n\n"
         + "\n".join(f"- `{gate}`" for gate in decision.gates)
         + "\n\n"
@@ -567,6 +776,7 @@ def _candidate_report(decision: TriageDecision) -> str:
         f"- Required: `{str(decision.human_review_required).lower()}`\n"
         f"- Security review required: `{str(decision.security_review_required).lower()}`\n"
         f"- Provider freeze touched: `{str(decision.provider_freeze_touched).lower()}`\n"
+        f"- Decision: `{decision.human_decision}`\n"
     )
 
 

@@ -129,7 +129,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       `.codex/vendor_sources.lock.md` record enabled repo-local Skills and disabled third-party
       source candidates, with validation coverage.
 - [x] ImprovementSignal pipeline: local-only capture, deterministic triage, proposal-only candidate
-      reports, rejected buffer, schema, and validation tests without provider calls.
+      reports, replay/qualifier/human-decision fields, rejected buffer, schema, and validation tests
+      without provider calls.
 
 ## Current Gates
 

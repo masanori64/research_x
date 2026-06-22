@@ -11,6 +11,7 @@ from research_x.codex_improvement.pipeline import (
     triage_signals,
     validate_candidate_dir,
     validate_signal,
+    validate_triage_record,
     write_jsonl,
 )
 
@@ -106,7 +107,77 @@ def test_candidate_reports_are_proposal_only(tmp_path) -> None:
     text = paths[0].read_text(encoding="utf-8")
     assert "Proposal Only" in text
     assert "Do not auto-apply" in text
+    assert "Fault Localization" in text
+    assert "Replay" in text
+    assert "Qualifier" in text
     assert validate_candidate_dir(tmp_path / "candidates") == []
+
+
+def test_qualifier_fields_roundtrip_into_triage_and_candidate_report(tmp_path) -> None:
+    signal = capture_signal(
+        signal_id="sig_qualifier",
+        created_at="2026-06-22T00:00:00+00:00",
+        source_type="skill_route_miss",
+        source_ref="transcript:route",
+        severity="high",
+        project_scope="research_x",
+        symptom="Skill route missed a provider-gated embedding request",
+        root_cause_hypothesis="route wording did not match the Skill trigger",
+        affected_artifacts=(".agents/skills/research-x-provider-gate/SKILL.md",),
+        proposed_change_type="skill_update",
+        evidence=({"kind": "transcript", "ref": "turn-4"},),
+        privacy_level="project_private",
+        fault_step="compare the request wording with provider-gate trigger coverage",
+        responsible_artifact=".agents/skills/research-x-provider-gate/SKILL.md",
+        candidate_diff_ref=".codex/improvement/candidates/sig_qualifier.diff",
+        replay_result={"status": "passed", "ref": "tests/test_skill_manifest.py"},
+        qualifier_result={"status": "passed", "ref": "scripts/validate_skill_manifest.py"},
+        human_decision="pending",
+    )
+
+    assert validate_signal(signal.as_dict()) == []
+    decision = triage_signals([signal.as_dict()])[0]
+
+    assert validate_triage_record(decision.as_dict()) == []
+    assert decision.fault_step == "compare the request wording with provider-gate trigger coverage"
+    assert decision.responsible_artifact == ".agents/skills/research-x-provider-gate/SKILL.md"
+    assert decision.candidate_diff_ref == ".codex/improvement/candidates/sig_qualifier.diff"
+    assert decision.replay_result["status"] == "passed"
+    assert decision.qualifier_result["status"] == "passed"
+    assert decision.human_decision == "pending"
+
+    report = format_triage_report([decision])
+    assert "Qualifier |" in report
+    assert "Replay result: `status=passed, ref=tests/test_skill_manifest.py`" in report
+
+    paths = create_candidate_reports([decision], tmp_path / "candidates")
+    text = paths[0].read_text(encoding="utf-8")
+    assert "Candidate diff reference" in text
+    assert "- Status: `passed`" in text
+    assert "- Ref: `scripts/validate_skill_manifest.py`" in text
+    assert validate_candidate_dir(tmp_path / "candidates") == []
+
+
+def test_invalid_qualifier_fields_are_rejected() -> None:
+    signal = capture_signal(
+        signal_id="sig_bad_qualifier",
+        created_at="2026-06-22T00:00:00+00:00",
+        source_type="manual",
+        source_ref="manual",
+        severity="medium",
+        project_scope="research_x",
+        symptom="Invalid replay status should not be accepted",
+        proposed_change_type="code_change",
+        evidence=({"kind": "note", "ref": "manual"},),
+        privacy_level="project_private",
+        replay_result={"status": "maybe"},
+        human_decision="auto_apply",
+    )
+
+    errors = validate_signal(signal.as_dict())
+
+    assert "sig_bad_qualifier: invalid replay_result.status 'maybe'" in errors
+    assert "sig_bad_qualifier: invalid human_decision 'auto_apply'" in errors
 
 
 def test_triage_report_marks_proposal_only() -> None:
@@ -157,6 +228,16 @@ def test_cli_capture_triage_propose_validate_roundtrip(tmp_path, capsys) -> None
                 "skill_update",
                 "--affected-artifact",
                 ".agents/skills/research-x-provider-gate/SKILL.md",
+                "--fault-step",
+                "compare provider request with skill trigger",
+                "--responsible-artifact",
+                ".agents/skills/research-x-provider-gate/SKILL.md",
+                "--candidate-diff-ref",
+                ".codex/improvement/candidates/sig_cli.diff",
+                "--replay-result",
+                '{"status":"passed","ref":"tests/test_skill_manifest.py"}',
+                "--qualifier-result",
+                '{"status":"passed","ref":"scripts/validate_skill_manifest.py"}',
                 "--evidence",
                 "transcript=turn-1",
             ]
@@ -205,3 +286,5 @@ def test_cli_capture_triage_propose_validate_roundtrip(tmp_path, capsys) -> None
 
     rows = [json.loads(line) for line in triage_jsonl.read_text(encoding="utf-8").splitlines()]
     assert rows[0]["human_review_required"] is True
+    assert rows[0]["replay_result"]["status"] == "passed"
+    assert rows[0]["qualifier_result"]["status"] == "passed"
