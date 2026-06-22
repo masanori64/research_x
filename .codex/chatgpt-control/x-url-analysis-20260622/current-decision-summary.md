@@ -14,6 +14,8 @@ plugin/MCP enablement, or architecture change.
 Use the X/GPT Markdown files in this order:
 
 1. `current-decision-summary.md`: current 35-item judgment and post Phase 1-8 residual decision.
+   The second-wave implementation plan for items 11 and 35 is now recorded in
+   `implementation-plan-11-35.md` and supersedes the older residual handling for those two items.
 2. `phase-gate-report.md`: execution record for Phase 1-8, including GO/NO-GO decisions and
    verification.
 3. `implementation-priority-flow.md`: original gate-first implementation plan; it is not the active
@@ -63,7 +65,7 @@ policy, or a concrete project gap.
 | 8 | Stale observation masking | Hiding older observations from an agent context. | First-wave local gate implemented as a route-level context-policy eval warning. Do not apply universally; compare by route/model/retriever. |
 | 9 | Ontology mention | Thin ontology-related signal. | Not actionable. Original context is too sparse. |
 | 10 | Archify | Workflow/architecture diagram or report aid. | Reference only. Generated diagrams are review aids, not evidence; install would need source review. |
-| 11 | WBS Viewer | Work breakdown/progress visualization. | Implementation deferred. Add only if a concrete observability gap appears. |
+| 11 | WBS Viewer | Work breakdown/progress visualization. | Second-wave implementation-plan candidate. The observability gap appeared in this 35-item flow, so evaluate a pinned WBS Viewer adoption canary; see `implementation-plan-11-35.md`. |
 | 12 | Agentmemory | Persistent coding-agent memory with hooks/MCP/search/inject style behavior. | Disabled source-lock decision completed. No install, plugin, MCP, hook, server, or Skill enablement; retention, redaction, overlap, and lifecycle risks remain. |
 | 13 | Adaptive Auto-Harness | Research on adaptive harness routing/steering. | Codex foundation candidate. Use as design input only, not runtime adoption. |
 | 14 | SkillAdaptor | Failure-trajectory-based local Skill revision with qualifier checks. | First-wave local pattern implemented in ImprovementSignal fields and validation. No external runtime, automatic Skill edit, or self-improving loop. |
@@ -87,7 +89,7 @@ policy, or a concrete project gap.
 | 32 | LLM-Oriented IR | LLM-facing retrieval/denoising design. | Use now. Apply as a retrieval review checklist for denoising and citation-ready yield. |
 | 33 | Ponytail plugin | Over-implementation prevention plugin/hook. | Source-review required, no install now. Trigger overlap, hook behavior, and source risk need review. |
 | 34 | pdgkit article | DSL -> validate -> render article/pattern. | Reference only. Good artifact pattern, but no current patent/diagram requirement. |
-| 35 | pdgkit OSS | Deterministic diagram/document renderer with CLI/MCP shape. | Reference only. Node/MCP dependency and narrow output fit make it a future requirement-specific candidate. |
+| 35 | pdgkit OSS | Deterministic diagram/document renderer with CLI/MCP shape. | Second-wave standalone evaluation candidate. Assess `.pdg -> validate -> render` as a spec/diagram lane, with dependency and MCP gates; see `implementation-plan-11-35.md`. |
 
 ## First-Wave Priority Order
 
@@ -128,7 +130,8 @@ Consider these only as a new scoped task, not as continuation of Phase 1-8:
 |---:|---|---|
 | 5 | YAML-to-HTML / structure-view split | Local artifact-pattern candidate. Reconsider when report, eval, or phase-gate artifacts become hard to inspect. Start with a project-owned schema and deterministic renderer, not a plugin. |
 | 10 | Archify | Conditional workflow/architecture review aid. Generated diagrams are review artifacts, not evidence. Any install or external source use still needs source review. |
-| 11 | WBS Viewer | Conditional progress/phase visualization. Start only if existing `phase-gate-report`, workflow traces, or run views become insufficient. |
+| 11 | WBS Viewer | Promoted to concrete second-wave canary. Start with source review, pinned upstream copy, and a `research_x` WBS JSON export for this 35-item flow. |
+| 35 | pdgkit OSS | Promoted to standalone second-wave evaluation. Start with source/dependency review and `.pdg` canaries; do not enable MCP or install dependencies without a later gate. |
 | 24 | MUSE-Autoskill | Codex foundation design input for Skill lifecycle, tests, examples, failure cases, and revision logs. No automatic Skill growth. |
 | 33 | Ponytail plugin | Source-review-only candidate for over-implementation checks. Use the idea as a review lens before considering hooks or plugin install. |
 
@@ -157,8 +160,6 @@ Keep these dormant until the named condition appears:
 - 29 Visual Skills: only for UI/browser/media work where spatial evidence is central, with
   screenshot provenance, privacy, region storage, and verification contracts first.
 - 34 pdgkit article: only if a deterministic diagram/document renderer requirement appears.
-- 35 pdgkit OSS: only if a concrete renderer/diagram/patent-output requirement justifies Node,
-  CLI, or MCP dependency review.
 
 ### Provider-Gated Closed
 
@@ -198,7 +199,7 @@ These are no longer residual candidates for this flow:
   later dependency/model gate.
 
 Net decision: the only non-processed items worth active second-wave consideration are 5, 10, 11,
-24, and 33. Everything else is either absorbed, condition-triggered, provider-gated, or closed.
+24, 33, and 35. Everything else is either absorbed, condition-triggered, provider-gated, or closed.
 
 ## Do Not Promote Now
 
