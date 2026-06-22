@@ -1,0 +1,1 @@
+派生先はVS Code公式、Google Research、arXiv/Hugging Face、Zenn/Qiita/SpeakerDeckまで広がっています。X断片と一次情報を分離し、信頼度を付けて扱います。

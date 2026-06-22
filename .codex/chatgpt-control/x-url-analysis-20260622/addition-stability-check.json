@@ -1,0 +1,18 @@
+[
+  {
+    "assistantCount": 5,
+    "hasStop": false,
+    "observedAt": "2026-06-22T09:35:25.639Z",
+    "stopLike": [],
+    "textLen": 6886,
+    "totalTextLen": 26036
+  },
+  {
+    "assistantCount": 5,
+    "hasStop": false,
+    "observedAt": "2026-06-22T09:35:55.710Z",
+    "stopLike": [],
+    "textLen": 6886,
+    "totalTextLen": 26036
+  }
+]

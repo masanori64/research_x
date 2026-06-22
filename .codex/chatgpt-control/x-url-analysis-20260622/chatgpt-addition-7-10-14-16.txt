@@ -1,0 +1,146 @@
+追加調査結果：7 / 10 / 14 / 16 差し替え
+
+前回「確認不能」とした4件は、提示スクショと追加URLにより、以下に更新できます。X本体のリプライ・引用・スレッド全体は引き続き未確認ですが、投稿本文相当とリンク先一次情報はかなり補完できました。
+
+元番号	特定できた主題	主リンク先	確認度
+7	OCC-RAG：小型SLMをRAGの忠実QAコアとして訓練	arXiv / GitHub / HF	高
+10	Archify：自然言語から技術・アーキテクチャ図を生成するAgent Skill	GitHub	高
+14	SkillAdaptor：失敗軌跡からAgent Skillを局所修正する手法	arXiv / GitHub	高
+16	Alibaba Zvec：アプリ内組み込み型ベクトルDB	GitHub / Docs	高
+7. OCC-RAG: Optimal Cognitive Core for Faithful Question Answering
+
+X投稿で確認できたこと
+提示スクショ上では、Itaru Tomita氏が「OCC-RAGが公開された」と投稿し、0.6Bモデルが忠実度ベンチマークでQwen3-32Bを超えたこと、RAGでは文書よりモデルの記憶を優先してしまう問題に対して「自分の記憶を使わない訓練」が効く、という趣旨で紹介している。画像には Query and Context → Query Analysis → Source Analysis → Reasoning → Status and Answer の構造図が含まれている。
+
+リンク先で直接確認できたこと
+arXiv論文は、OCC-RAGを「与えられた文脈に忠実なQA」に特化したSLM群として定義し、OCC-RAG-0.6B / 1.7Bを公開している。学習はQwen3-0.6B-Base / Qwen3-1.7B-Baseからのmid-trainingで、300万件超の合成QAコーパスを使い、multi-hop reasoning、context faithfulness、calibrated abstentionを狙う設計。重要なのは、名前にRAGとあるが、論文上は明示的なretrieverを内蔵するモデルではなく、RAGパイプライン内のcontext-grounded QA reader/coreとしての位置づけである点。
+arXiv
++1
+
+手法の中身
+データ生成では、Wikipedia由来のsingle-hop QA、KG条件付きmulti-hop QA、distractor、unanswerableケースを合成し、出力には Query Analysis / Source Analysis / Reasoning / Status / Answer の明示的な推論トレースを与える。Statusで ANSWERABLE / UNANSWERABLE を明示させることで、棄権判断を単なる文体ではなく教師ありターゲットにしている。
+arXiv
++2
+arXiv
++2
+
+性能面で確認できたこと
+GitHub READMEの表では、ConFiQAでOCC-RAG-0.6BがIn-Acc 79.9 / memorization ratio 5.2、OCC-RAG-1.7BがIn-Acc 81.4 / MR 5.0を示し、Qwen3-32B thinkingのConFiQA In-Acc 75.8 / MR 8.5を上回っている。MuSiQue-UnではOCC-RAG-1.7Bが87.2で、Qwen3-8Bの90.7には届かないが小型モデルとして高い。
+GitHub
+
+確認できなかったこと
+Xの引用・リプライ・スレッド全体、実利用者による独立ベンチ、長期運用時のfaithfulness劣化、retriever込みのE2E RAG性能は未確認。論文・READMEの性能値は基本的に著者側報告。
+
+示唆
+Codex/AIエージェント基盤では、OCC-RAGは「検索器」ではなく、検索後の読解・根拠照合・棄権判定を担う小型reader/validator候補として見るべき。巨大モデルに全部読ませるより、文書忠実性・引用・回答可能性判定を小型専用モデルに委譲する構成は実装価値がある。ただし、採用するなら自社ドキュメントで answerable / unanswerable / conflicting evidence の評価セットを作る必要がある。
+
+10. Archify
+
+X投稿で確認できたこと
+提示スクショ上では、也无风雨也雾晴氏が「この図は複雑すぎて、十分に明晰・見やすくない。これを見て」という趣旨の中国語投稿をしており、ArchifyのGitHubカードを添付している。返信先として @QingQ77 が見えるが、元投稿の内容はスクショ外で確認不能。
+
+リンク先で直接確認できたこと
+Archifyは tt-a1i/archify のOSSで、自然言語のシステム説明から、アーキテクチャ図、ワークフロー図、シーケンス図、データフロー図、ライフサイクル図を生成するAgent Skill。Claude、Codex CLI、opencode向けにSkillとして使えると説明されている。出力は自己完結HTMLで、dark/light切替、PNG/JPEG/WebP/SVGエクスポート、Copy PNG、チャットによる反復修正に対応する。
+GitHub
++1
+
+実装・運用面で確認できたこと
+Codex CLIの場合は archify.zip を ~/.agents/skills/ またはプロジェクトローカルの .agents/skills/ に展開する形。typed rendererのschema validationには ajv が必要で、npm install なしでもlayout checkは走るがschema validationはスキップされる。
+GitHub
++1
+
+確認できなかったこと
+任意の実プロダクト構成に対する正確性、複雑なクラウド構成の自動抽出精度、セキュリティレビュー、CIでの壊れにくさ、生成図が設計レビューでどの程度使えるかは未確認。GitHub上では約1.2k stars / 84 forksが見えるが、これは品質保証ではない。
+GitHub
+
+示唆
+Archifyは「AIに図を描かせる」よりも、自然言語→構造化された図テンプレート→自己完結HTML/SVG出力のワークフローとして有用。Codex運用では、README、設計レビュー、PR説明、障害フロー、agent-run lifecycleの可視化に使える。一方で、設計事実の正しさは別問題なので、コードベース解析・人間レビュー・schema validationを通さずに「きれいな図」を設計真実として扱うのは危険。
+
+14. SkillAdaptor
+
+X投稿で確認できたこと
+提示スクショ上では、Itaru Tomita氏が「LLMエージェントが失敗した箇所だけを精密に自己修正する手法」としてSkillAdaptorを紹介している。投稿内では、Localizer、Linker、Qualifierの3段階、WebShop / PinchBench / Claw-Evalでの改善、Qualifier gateの重要性が説明されている。
+
+リンク先で直接確認できたこと
+arXiv論文は、SkillAdaptorを「失敗軌跡から外部skillをstep-levelに修正するtraining-free framework」として提案している。既存手法はtrajectory全体やsession-level feedbackを単位にskillを更新するため、失敗原因の帰属が粗く、無関係な手順まで広く修正してしまう問題がある、という立て付け。
+arXiv
+
+手法の中身
+SkillAdaptorは、まず失敗軌跡から最初のactionable fault stepをLocalizerで特定し、Linkerがそのステップに責任を持つ既存skillを重み付きで推定する。原因が既存skillならReviserで修正し、未カバー能力ならGeneratorで新skillを作る。最後にQualifierが再実行比較し、改善した候補だけを採用する。
+arXiv
+
+性能面で確認できたこと
+WebShopでは、Kimi-K2.5でBaseのSucc 24.6%に対しSkillAdaptorは33.0%、GLM-5で25.3%→33.3%、GPT-5.2で25.0%→34.3%。PinchBench / Claw-EvalでもSkillAdaptorがBaseおよびOpenSpaceを上回る。AblationではQualifier gateなしでWebShop成功率が26.3%まで落ち、初期skillだけではほぼ効かないことが示されている。
+arXiv
++1
+
+コード公開状況
+GitHub zjunlp/SkillAdaptor は公開済みで、Python CLI + workspace pluginとして、OpenClawやClaude Codeに接続し、SKILL.md を失敗軌跡から進化させる設計になっている。現時点でstarsは少なく、no releases publishedなので、研究実装・初期実装として見るのが妥当。
+GitHub
+
+確認できなかったこと
+実プロジェクトでの長期安定性、失敗ログが不完全な場合の精度、セキュリティ系タスクでの誤修正リスク、Claude Code/Codexでそのまま同等性能が出るかは未確認。論文自身も、失敗が観測可能な中間信号として出る場合に効きやすく、外部状態・永続記憶・疎な遅延フィードバックでは弱くなると述べている。
+arXiv
+
+示唆
+Codex/AIエージェント基盤では、Skill更新を「成功例を貯める」方式に寄せるのは弱い。根本設計としては、trajectory log → fault localization → skill責任帰属 → 最小修正案 → replay validation → accept/reject のゲートを入れるべき。特にQualifierは必須で、検証なしの自己改善はskill汚染になる。
+
+16. Alibaba Zvec
+
+X投稿で確認できたこと
+提示スクショ上では、AI駆動塾氏が「AlibabaのZvecが注目」「RAGやサーバー契約が安く作れるのでは」と紹介し、in-process vector database、サーバー不要、設定不要、Linux/macOS/Windows/iOSでも動く、OSSという点を強調している。
+
+リンク先で直接確認できたこと
+ZvecはAlibabaのOSS in-process vector databaseで、アプリケーションに直接組み込む設計。READMEでは、サーバー不要・設定不要・dense/sparse vector・multi-vector query・FTS・hybrid search・WAL・同一collectionの複数process read・単一process writeなどを掲げている。v0.5.0ではFTS、Hybrid Retrieval、DiskANN、Go/Rust SDK、Zvec Studio、RISC-V supportが追加されている。
+GitHub
++1
+
+SDK / プラットフォーム
+READMEではPython、Node.js、Go、Rust、Dart/Flutter SDKが示され、Linux x86_64/ARM64、macOS ARM64、Windows x86_64をsupported platformsとしている。iOSについては現在READMEのsupported platforms欄には出ていないが、v0.4.0リリース情報ではDart/Flutter SDKがAndroid arm64-v8aとiOS arm64をサポートすると説明されている。
+GitHub
++1
+
+性能・ベンチマーク
+Zvec公式ベンチはVectorDBBenchを使い、Cohere 1M / 10M、768次元ベクトルでQPS、Recall、Index Build Timeを測る構成。再現手順も公開されているが、グラフ内の数値はWeb抽出上は画像扱いで、こちらでは表として完全には確認できなかった。
+Zvec
+
+コミュニティ文脈
+Hacker Newsでは、226 points / 45 commentsのスレッドが確認できる。主な論点は、自己申告ベンチは独立検証が必要、Pineconeのような水平スケール型とin-process DBの比較は単純ではない、ローカルディスク・page cache・mmapの影響が大きい、というもの。あるユーザーは小規模比較でZvecの低遅延を報告しつつ、リモート/object storageでは100ms超になったと述べ、作者はmmapとwarm cache前提、cold read対策としてbuffer pool/I/O modeを開発中と回答している。
+Hacker News
+
+確認できなかったこと
+大規模multi-tenant SaaSでの安定運用、クラスタリング/レプリケーション/高可用性、権限分離、バックアップ/リストア、監査ログ、クラウドmanaged DBとのTCO比較は未確認。Zvecは「Pinecone等を常に置き換えるもの」ではなく、ローカル/エッジ/組み込み/小〜中規模RAG 向きと見るべき。
+
+示唆
+Codex/AIエージェント基盤では、Zvecはローカルメモリ、プロジェクト単位RAG、CLIエージェントのworkspace index、モバイル/デスクトップ内検索に向く。外部ベクトルDB契約を避ける選択肢として有望。ただし、本番採用前には、自分の文書サイズ・embedding次元・更新頻度・cold start・ディスク性能・recall要件で必ず再ベンチすべき。
+
+横断更新
+
+4件はすべて、前回の大テーマである 「AIエージェントを長時間・低コスト・検証可能に運用する基盤設計」 に接続する。
+
+テーマ	該当	実装上の意味
+忠実なRAG読解	OCC-RAG	検索後の回答生成を小型専用readerに任せ、根拠・棄権を明示する
+可視化Skill	Archify	agentの設計・データフロー・run lifecycleを人間がレビューしやすくする
+Skill自己改善	SkillAdaptor	skill更新は失敗箇所の局所化とreplay validationを必須にする
+ローカル検索基盤	Zvec	外部managed vector DBなしでworkspace/project memoryを持たせる
+採用優先度
+
+高: SkillAdaptorの設計原理。実装そのものより、Localizer → Linker → Reviser/Generator → Qualifier の運用パターンが重要。これはCodex Skill改善にそのまま応用できる。
+
+高: OCC-RAGの Status=ANSWERABLE/UNANSWERABLE。RAGの根本問題は「答える能力」ではなく「答えない能力」なので、回答可能性ゲートは採用価値が高い。
+
+中〜高: Zvec。ローカルRAG/agent memoryには有望。ただし、クラウドRAGの全面置換として扱うのは早い。
+
+中: Archify。設計レビュー補助として有用だが、見た目がよい図は誤認を生む。図生成後に、コード・IaC・ログとの整合チェックを入れるべき。
+
+逆に採用しない方がよい解釈
+
+OCC-RAGを「retriever込みのRAG完成品」と見ること。
+
+Archifyの図を、レビューなしで設計事実として扱うこと。
+
+SkillAdaptorからQualifier gateを外して、skillを自動更新し続けること。
+
+Zvecを、Pinecone/Qdrant/Weaviate等のmanaged/clustered DBの無条件代替と見ること。
+
+この4件を足すと、実装案としては Zvecでローカル検索、OCC-RAG型readerで忠実回答、Archifyで運用可視化、SkillAdaptor型ループでskill改善 という構成が一番筋がよいです。

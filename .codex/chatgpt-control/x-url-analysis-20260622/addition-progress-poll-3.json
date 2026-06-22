@@ -1,0 +1,78 @@
+[
+  {
+    "assistantCount": 4,
+    "copyButtonCount": 6,
+    "hasStop": true,
+    "latestAssistantHead": "前提・限界\n\nX/Twitterの各URLは直接開いたものの、多くは本文・画像・動画・引用・リプライ・スレッド構造を取得できず、空HTMLまたはログイン導線のみでした。したがって、以下では 「X直読で確認」ではなく、検索結果スニペット・リンク先記事・論文・GitHub等で確認できた派生情報 を明確に分けます。直接見えない画像、動画、引用、リプライ、正確な反応数は原則「確認不能」です。\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\n\n確認度の目安は、高＝投稿内容と一次情報/リンク先が確認できた、 中＝Xスニペットと関連一次情報が確認できた、低＝Xスニペット断片のみ、確認不能＝有効な本文断片なし です。\n\nURL別分析\n1. bryanonchain / Firecrawl Keyless — 確認度: 高\n\n直接確認できたこと: X直読では本文・画像・リプライ等は確認不能。検索経由で「FirecrawlがAPIキーなしで無料利用可能になった」「Search & scrape web page",
+    "latestAssistantLen": 15219,
+    "latestAssistantTail": "安全性、データ破壊防止、アクセシビリティは削減対象外にする。\n\n採用しない方がよいもの\n\n単一巨大ハーネス\n短期的には速いが、密結合・検証困難・修正不能になりやすい。\n\nAIだけにDesign/Architecture判断を丸投げ\nFormat/Lint/Styleは任せやすいが、Architectureやドメイン判断は人間の責任境界を残すべき。\nZenn\n\n検索結果を無制限に積むRAG\nノイズが増え、ハルシネーションや推論失敗を招く。denoisingとworking memoryが必要。\n\n「観察マスキング」を一律適用\nモデル/検索器/タスクの組み合わせで逆効果になり得る。評価なし採用は危険。\nHugging Face\n\n「無限メモリ」という売り文句の鵜呑み\n実態は検索可能な外部記憶。古い記憶、誤記憶、不要記憶、権限付き情報の管理が必要。\n\nAIに図や資料を直接描かせる運用\n再現性が低い。DSL/validate/renderの流れに寄せる方が安定する。\n\n今後追うべきソース\n\nVS Code / GitHub Copilotのtoken efficiency公式ブログ。\nVisual Studio Code\n\nGoogle Research / Gemini Enterprise Agentic RAG。\nGoogle Research\n\nAmazon ScienceのState-Aware RAG。\nAmazon Science\n\nAdaptive Auto-Harness、MUSE-Autoskill、JAMEL、SAAS、LLM-Oriented IRのarXiv/Hugging Face/GitHub。\narXiv\n+4\narXiv\n+4\narXiv\n+4\n\n/grill-me、Ponytail、Agentmemory、pdgkitの実装/コミュニティ反応。\nnote（ノート）\n+3\nAzukiazusa Tech Blog\n+3\nGitHub\n+3\n\n総合すると、このURL群は「AIエージェントを賢くする」話ではなく、より正確には AIエージェントを長時間・低コスト・低ノイズ・検証可能に運用するための基盤設計論 に収束しています。最大の実務価値は、モデル選定ではなく、ハーネス、メモリ、RAG状態管理、スキル、レビュー境界、構造化出力の設計にあります。",
+    "latestUserLen": 153,
+    "latestUserTail": "7,10,14,16について追加調査です。\nhttps://arxiv.org/abs/2606.00683\nhttps://github.com/tt-a1i/archify\nhttps://arxiv.org/abs/2606.01311\nhttps://github.com/alibaba/zvec",
+    "messageCount": 6,
+    "observedAt": "2026-06-22T09:28:10.590Z",
+    "stopLike": [
+      "回答を停止"
+    ],
+    "title": "URL分析依頼",
+    "totalTextLen": 19121,
+    "url": "https://chatgpt.com/c/6a38f872-8fac-83ee-bb73-6e498f9f1862",
+    "userCount": 2
+  },
+  {
+    "assistantCount": 4,
+    "copyButtonCount": 6,
+    "hasStop": true,
+    "latestAssistantHead": "前提・限界\n\nX/Twitterの各URLは直接開いたものの、多くは本文・画像・動画・引用・リプライ・スレッド構造を取得できず、空HTMLまたはログイン導線のみでした。したがって、以下では 「X直読で確認」ではなく、検索結果スニペット・リンク先記事・論文・GitHub等で確認できた派生情報 を明確に分けます。直接見えない画像、動画、引用、リプライ、正確な反応数は原則「確認不能」です。\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\n\n確認度の目安は、高＝投稿内容と一次情報/リンク先が確認できた、 中＝Xスニペットと関連一次情報が確認できた、低＝Xスニペット断片のみ、確認不能＝有効な本文断片なし です。\n\nURL別分析\n1. bryanonchain / Firecrawl Keyless — 確認度: 高\n\n直接確認できたこと: X直読では本文・画像・リプライ等は確認不能。検索経由で「FirecrawlがAPIキーなしで無料利用可能になった」「Search & scrape web page",
+    "latestAssistantLen": 15219,
+    "latestAssistantTail": "安全性、データ破壊防止、アクセシビリティは削減対象外にする。\n\n採用しない方がよいもの\n\n単一巨大ハーネス\n短期的には速いが、密結合・検証困難・修正不能になりやすい。\n\nAIだけにDesign/Architecture判断を丸投げ\nFormat/Lint/Styleは任せやすいが、Architectureやドメイン判断は人間の責任境界を残すべき。\nZenn\n\n検索結果を無制限に積むRAG\nノイズが増え、ハルシネーションや推論失敗を招く。denoisingとworking memoryが必要。\n\n「観察マスキング」を一律適用\nモデル/検索器/タスクの組み合わせで逆効果になり得る。評価なし採用は危険。\nHugging Face\n\n「無限メモリ」という売り文句の鵜呑み\n実態は検索可能な外部記憶。古い記憶、誤記憶、不要記憶、権限付き情報の管理が必要。\n\nAIに図や資料を直接描かせる運用\n再現性が低い。DSL/validate/renderの流れに寄せる方が安定する。\n\n今後追うべきソース\n\nVS Code / GitHub Copilotのtoken efficiency公式ブログ。\nVisual Studio Code\n\nGoogle Research / Gemini Enterprise Agentic RAG。\nGoogle Research\n\nAmazon ScienceのState-Aware RAG。\nAmazon Science\n\nAdaptive Auto-Harness、MUSE-Autoskill、JAMEL、SAAS、LLM-Oriented IRのarXiv/Hugging Face/GitHub。\narXiv\n+4\narXiv\n+4\narXiv\n+4\n\n/grill-me、Ponytail、Agentmemory、pdgkitの実装/コミュニティ反応。\nnote（ノート）\n+3\nAzukiazusa Tech Blog\n+3\nGitHub\n+3\n\n総合すると、このURL群は「AIエージェントを賢くする」話ではなく、より正確には AIエージェントを長時間・低コスト・低ノイズ・検証可能に運用するための基盤設計論 に収束しています。最大の実務価値は、モデル選定ではなく、ハーネス、メモリ、RAG状態管理、スキル、レビュー境界、構造化出力の設計にあります。",
+    "latestUserLen": 153,
+    "latestUserTail": "7,10,14,16について追加調査です。\nhttps://arxiv.org/abs/2606.00683\nhttps://github.com/tt-a1i/archify\nhttps://arxiv.org/abs/2606.01311\nhttps://github.com/alibaba/zvec",
+    "messageCount": 6,
+    "observedAt": "2026-06-22T09:28:40.678Z",
+    "stopLike": [
+      "回答を停止"
+    ],
+    "title": "URL分析依頼",
+    "totalTextLen": 19121,
+    "url": "https://chatgpt.com/c/6a38f872-8fac-83ee-bb73-6e498f9f1862",
+    "userCount": 2
+  },
+  {
+    "assistantCount": 4,
+    "copyButtonCount": 6,
+    "hasStop": true,
+    "latestAssistantHead": "前提・限界\n\nX/Twitterの各URLは直接開いたものの、多くは本文・画像・動画・引用・リプライ・スレッド構造を取得できず、空HTMLまたはログイン導線のみでした。したがって、以下では 「X直読で確認」ではなく、検索結果スニペット・リンク先記事・論文・GitHub等で確認できた派生情報 を明確に分けます。直接見えない画像、動画、引用、リプライ、正確な反応数は原則「確認不能」です。\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\n\n確認度の目安は、高＝投稿内容と一次情報/リンク先が確認できた、 中＝Xスニペットと関連一次情報が確認できた、低＝Xスニペット断片のみ、確認不能＝有効な本文断片なし です。\n\nURL別分析\n1. bryanonchain / Firecrawl Keyless — 確認度: 高\n\n直接確認できたこと: X直読では本文・画像・リプライ等は確認不能。検索経由で「FirecrawlがAPIキーなしで無料利用可能になった」「Search & scrape web page",
+    "latestAssistantLen": 15219,
+    "latestAssistantTail": "安全性、データ破壊防止、アクセシビリティは削減対象外にする。\n\n採用しない方がよいもの\n\n単一巨大ハーネス\n短期的には速いが、密結合・検証困難・修正不能になりやすい。\n\nAIだけにDesign/Architecture判断を丸投げ\nFormat/Lint/Styleは任せやすいが、Architectureやドメイン判断は人間の責任境界を残すべき。\nZenn\n\n検索結果を無制限に積むRAG\nノイズが増え、ハルシネーションや推論失敗を招く。denoisingとworking memoryが必要。\n\n「観察マスキング」を一律適用\nモデル/検索器/タスクの組み合わせで逆効果になり得る。評価なし採用は危険。\nHugging Face\n\n「無限メモリ」という売り文句の鵜呑み\n実態は検索可能な外部記憶。古い記憶、誤記憶、不要記憶、権限付き情報の管理が必要。\n\nAIに図や資料を直接描かせる運用\n再現性が低い。DSL/validate/renderの流れに寄せる方が安定する。\n\n今後追うべきソース\n\nVS Code / GitHub Copilotのtoken efficiency公式ブログ。\nVisual Studio Code\n\nGoogle Research / Gemini Enterprise Agentic RAG。\nGoogle Research\n\nAmazon ScienceのState-Aware RAG。\nAmazon Science\n\nAdaptive Auto-Harness、MUSE-Autoskill、JAMEL、SAAS、LLM-Oriented IRのarXiv/Hugging Face/GitHub。\narXiv\n+4\narXiv\n+4\narXiv\n+4\n\n/grill-me、Ponytail、Agentmemory、pdgkitの実装/コミュニティ反応。\nnote（ノート）\n+3\nAzukiazusa Tech Blog\n+3\nGitHub\n+3\n\n総合すると、このURL群は「AIエージェントを賢くする」話ではなく、より正確には AIエージェントを長時間・低コスト・低ノイズ・検証可能に運用するための基盤設計論 に収束しています。最大の実務価値は、モデル選定ではなく、ハーネス、メモリ、RAG状態管理、スキル、レビュー境界、構造化出力の設計にあります。",
+    "latestUserLen": 153,
+    "latestUserTail": "7,10,14,16について追加調査です。\nhttps://arxiv.org/abs/2606.00683\nhttps://github.com/tt-a1i/archify\nhttps://arxiv.org/abs/2606.01311\nhttps://github.com/alibaba/zvec",
+    "messageCount": 6,
+    "observedAt": "2026-06-22T09:29:10.739Z",
+    "stopLike": [
+      "回答を停止"
+    ],
+    "title": "URL分析依頼",
+    "totalTextLen": 19121,
+    "url": "https://chatgpt.com/c/6a38f872-8fac-83ee-bb73-6e498f9f1862",
+    "userCount": 2
+  },
+  {
+    "assistantCount": 4,
+    "copyButtonCount": 6,
+    "hasStop": true,
+    "latestAssistantHead": "前提・限界\n\nX/Twitterの各URLは直接開いたものの、多くは本文・画像・動画・引用・リプライ・スレッド構造を取得できず、空HTMLまたはログイン導線のみでした。したがって、以下では 「X直読で確認」ではなく、検索結果スニペット・リンク先記事・論文・GitHub等で確認できた派生情報 を明確に分けます。直接見えない画像、動画、引用、リプライ、正確な反応数は原則「確認不能」です。\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\nX (formerly Twitter)\n+3\n\n確認度の目安は、高＝投稿内容と一次情報/リンク先が確認できた、 中＝Xスニペットと関連一次情報が確認できた、低＝Xスニペット断片のみ、確認不能＝有効な本文断片なし です。\n\nURL別分析\n1. bryanonchain / Firecrawl Keyless — 確認度: 高\n\n直接確認できたこと: X直読では本文・画像・リプライ等は確認不能。検索経由で「FirecrawlがAPIキーなしで無料利用可能になった」「Search & scrape web page",
+    "latestAssistantLen": 15219,
+    "latestAssistantTail": "安全性、データ破壊防止、アクセシビリティは削減対象外にする。\n\n採用しない方がよいもの\n\n単一巨大ハーネス\n短期的には速いが、密結合・検証困難・修正不能になりやすい。\n\nAIだけにDesign/Architecture判断を丸投げ\nFormat/Lint/Styleは任せやすいが、Architectureやドメイン判断は人間の責任境界を残すべき。\nZenn\n\n検索結果を無制限に積むRAG\nノイズが増え、ハルシネーションや推論失敗を招く。denoisingとworking memoryが必要。\n\n「観察マスキング」を一律適用\nモデル/検索器/タスクの組み合わせで逆効果になり得る。評価なし採用は危険。\nHugging Face\n\n「無限メモリ」という売り文句の鵜呑み\n実態は検索可能な外部記憶。古い記憶、誤記憶、不要記憶、権限付き情報の管理が必要。\n\nAIに図や資料を直接描かせる運用\n再現性が低い。DSL/validate/renderの流れに寄せる方が安定する。\n\n今後追うべきソース\n\nVS Code / GitHub Copilotのtoken efficiency公式ブログ。\nVisual Studio Code\n\nGoogle Research / Gemini Enterprise Agentic RAG。\nGoogle Research\n\nAmazon ScienceのState-Aware RAG。\nAmazon Science\n\nAdaptive Auto-Harness、MUSE-Autoskill、JAMEL、SAAS、LLM-Oriented IRのarXiv/Hugging Face/GitHub。\narXiv\n+4\narXiv\n+4\narXiv\n+4\n\n/grill-me、Ponytail、Agentmemory、pdgkitの実装/コミュニティ反応。\nnote（ノート）\n+3\nAzukiazusa Tech Blog\n+3\nGitHub\n+3\n\n総合すると、このURL群は「AIエージェントを賢くする」話ではなく、より正確には AIエージェントを長時間・低コスト・低ノイズ・検証可能に運用するための基盤設計論 に収束しています。最大の実務価値は、モデル選定ではなく、ハーネス、メモリ、RAG状態管理、スキル、レビュー境界、構造化出力の設計にあります。",
+    "latestUserLen": 153,
+    "latestUserTail": "7,10,14,16について追加調査です。\nhttps://arxiv.org/abs/2606.00683\nhttps://github.com/tt-a1i/archify\nhttps://arxiv.org/abs/2606.01311\nhttps://github.com/alibaba/zvec",
+    "messageCount": 6,
+    "observedAt": "2026-06-22T09:29:40.802Z",
+    "stopLike": [
+      "回答を停止"
+    ],
+    "title": "URL分析依頼",
+    "totalTextLen": 19121,
+    "url": "https://chatgpt.com/c/6a38f872-8fac-83ee-bb73-6e498f9f1862",
+    "userCount": 2
+  }
+]

@@ -1,0 +1,51 @@
+{
+  "read": {
+    "ok": true,
+    "status": "ok",
+    "data": {
+      "role": "assistant",
+      "text": "派生先はVS Code公式、Google Research、arXiv/Hugging Face、Zenn/Qiita/SpeakerDeckまで広がっています。X断片と一次情報を分離し、信頼度を付けて扱います。",
+      "format": "markdown",
+      "source": "semantic_dom",
+      "fidelity": "semantic_markdown",
+      "warnings": [
+        "Markdown was reconstructed from visible DOM semantics; use response.copy for clipboard Markdown when exact copy fidelity is required."
+      ],
+      "markdown": "派生先はVS Code公式、Google Research、arXiv/Hugging Face、Zenn/Qiita/SpeakerDeckまで広がっています。X断片と一次情報を分離し、信頼度を付けて扱います。"
+    },
+    "warnings": [
+      "Markdown was reconstructed from visible DOM semantics; use response.copy for clipboard Markdown when exact copy fidelity is required."
+    ],
+    "context": {
+      "timestamp": "2026-06-22T09:08:28.427Z",
+      "url": "https://chatgpt.com/c/6a38f872-8fac-83ee-bb73-6e498f9f1862",
+      "title": "URL分析依頼",
+      "turnCount": 4,
+      "assistantTurnCount": 3,
+      "conversationId": "6a38f872-8fac-83ee-bb73-6e498f9f1862"
+    },
+    "output_text": "派生先はVS Code公式、Google Research、arXiv/Hugging Face、Zenn/Qiita/SpeakerDeckまで広がっています。X断片と一次情報を分離し、信頼度を付けて扱います。"
+  },
+  "wait": {
+    "ok": false,
+    "status": "partial",
+    "data": {
+      "complete": false,
+      "responseText": "派生先はVS Code公式、Google Research、arXiv/Hugging Face、Zenn/Qiita/SpeakerDeckまで広がっています。X断片と一次情報を分離し、信頼度を付けて扱います。",
+      "assistantTurnCount": 3,
+      "elapsedMs": 31491
+    },
+    "warnings": [
+      "Timed out after receiving partial assistant text."
+    ],
+    "context": {
+      "timestamp": "2026-06-22T09:09:00.169Z",
+      "url": "https://chatgpt.com/c/6a38f872-8fac-83ee-bb73-6e498f9f1862",
+      "title": "URL分析依頼",
+      "turnCount": 4,
+      "assistantTurnCount": 3,
+      "conversationId": "6a38f872-8fac-83ee-bb73-6e498f9f1862"
+    },
+    "output_text": "派生先はVS Code公式、Google Research、arXiv/Hugging Face、Zenn/Qiita/SpeakerDeckまで広がっています。X断片と一次情報を分離し、信頼度を付けて扱います。"
+  }
+}
