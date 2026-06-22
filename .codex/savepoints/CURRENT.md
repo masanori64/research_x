@@ -6,8 +6,10 @@ from scratch every time.
 
 This is not the source of truth. If this conflicts with the owning docs, use the owning docs.
 
-- Pinned tag: `savepoint/no-spend-v1-20260617-pipeline`
+- Baseline pinned tag: `savepoint/no-spend-v1-20260617-pipeline`
 - Branch: `codex/context-and-design-import-20260609`
+- Current overlay: X/GPT source-candidate Phase 1-8 gates have been executed locally; residual
+  candidate handling is recorded in the X/GPT decision summary.
 - Update trigger: git milestone, project requirements milestone, provider gate decision, local
   dependency adoption, or a clear change to completion/gate status.
 - Maintenance rule: replace this file at a milestone; do not append session history.
@@ -20,15 +22,25 @@ This is not the source of truth. If this conflicts with the owning docs, use the
 - `docs/memory-pipeline-archive.md`: historical decisions and implemented/residual split index.
 - `docs/pipeline.md`: X acquisition, auth, provider, and external intake boundaries.
 - `README.codex.md`: compact Codex orientation and command surface.
+- `.codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md`: local execution record
+  for the first X/GPT source-candidate wave.
+- `.codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md`: current 35-item
+  residual decision and second-wave candidate list.
 
 ## 0. Verification State
 
-Done:
+Baseline done:
 
 - `uv run ruff check src\research_x tests` passed.
 - `uv run pytest` passed with `273 passed`.
 - Skill manifest checks passed.
-- No tracked-file worktree diff at the pinned savepoint.
+- No tracked-file worktree diff at the baseline pinned savepoint.
+
+Later local phase-gate done:
+
+- X/GPT Phase 1-8 code-oriented gates were executed through local/fake-provider verification.
+- First-wave verification reached `uv run pytest` with `284 passed`.
+- Current residual handling is not a request to run provider/API calls or install dependencies.
 
 Not done:
 

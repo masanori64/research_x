@@ -12,6 +12,11 @@ This is an implementation planning artifact, not a durable architecture decision
 copied into `docs/memory-pipeline-v2.md` or `PROJECT.md` until a specific phase is accepted and
 implemented.
 
+Post-execution status is recorded in
+`.codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md`. The current residual
+35-item decision after Phase 1-8 is recorded in
+`.codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md`.
+
 No provider/API calls, installs, plugin enables, MCP configuration changes, or third-party Skill
 adoptions are authorized by this plan. The no-quota freeze remains active.
 

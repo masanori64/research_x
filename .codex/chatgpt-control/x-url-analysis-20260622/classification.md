@@ -13,6 +13,11 @@ ChatGPT itself reported that many X posts were not directly readable and that it
 snippets and derived sources. Any durable project or Codex-wide change needs source restoration from
 the original post, linked primary source, paper, repository, article, or official docs.
 
+Current status note: this file is the initial classification. For the active post Phase 1-8
+judgment, use
+`.codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md`. For executed gate
+outcomes, use `.codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md`.
+
 Update: items 7, 10, 14, and 16 are no longer treated as `confirmation_impossible` in this
 classification. The added ChatGPT turn maps them to OCC-RAG, Archify, SkillAdaptor, and Alibaba
 Zvec respectively. Their X replies/quotes/thread structure remain unverified, but the supplied

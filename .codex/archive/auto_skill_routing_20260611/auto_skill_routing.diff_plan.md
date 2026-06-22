@@ -2,7 +2,11 @@
 
 Date: 2026-06-11
 Repository: `C:\Users\maasa\research_x`
-Status: draft only; production `AGENTS.md` is not edited.
+Status: draft only; production `AGENTS.md` was not edited by this draft.
+
+Current status note: this is historical design provenance. Auto Skill Routing was later adopted in
+production `AGENTS.md` and refined in `research-x-skillization-intake`. Do not use this draft as
+the current routing rule or Skill inventory.
 
 ## Objective
 
@@ -36,9 +40,10 @@ write action is part of this plan.
 
 - Global `.codex` `AGENTS.md` G10/G11 is already reflected in the active global context.
 - `research_x` `AGENTS.md` already has a `Native Skill Invocation` dispatcher.
-- `.codex/global_skill_alignment_review.md` classifies the 8 repo-local Skills as aligned with
-  global context and `agents/openai.yaml` implicit invocation as `KEEP with watch`.
-- `.codex/skill_manifest.lock` records the 8 repo-local Skills as enabled and implicitly invocable.
+- `.codex/global_skill_alignment_review.md` classified the then-reviewed repo-local Skill set as
+  aligned with global context and `agents/openai.yaml` implicit invocation as `KEEP with watch`.
+- `.codex/skill_manifest.lock` recorded the then-reviewed repo-local Skill set as enabled and
+  implicitly invocable.
 - `research-x-skillization-intake` says AGENTS should stay a small dispatcher and should hold rules
   that must be visible before any Skill can fire.
 

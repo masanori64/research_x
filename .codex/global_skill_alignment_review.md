@@ -13,6 +13,11 @@ scripts, source bundles, archives, or `_codex_inbox`. The 2026-06-12 addendum up
 lock/test/review metadata for the installed repo-local Skill set and external source pins; it does
 not authorize changing production repo-local Skill behavior.
 
+Current status note: this file is historical review provenance, not the current Skill inventory.
+It predates later repo-local Skill additions such as `research-x-implementation-plan-flow`. Use
+`README.codex.md`, `PROJECT.md`, `.codex/skill_manifest.lock`, and `.agents/skills/*/SKILL.md` for
+current routing and inventory.
+
 ## Reviewed Inputs
 
 - Global comparison context:
@@ -36,11 +41,11 @@ review. The 2026-06-12 addendum used read-only upstream LICENSE/ref checks for `
 There is no hard conflict between the global Skill context and the `research_x` repo-local Skill
 context.
 
-The current repo-local rules are mostly project-specific and should remain in place. The main
-alignment risk is not contradiction; it is gradual duplication of general Codex-wide policy inside
-`AGENTS.md`, `README.codex.md`, and `research-x-skillization-intake`. Future thinning should remove
-only generic restatements after confirming that the project-specific owner, command form, provider
-freeze, architecture invariant, manifest lock, and validation behavior remain visible.
+The repo-local rules reviewed at the time were mostly project-specific and should remain in place.
+The main alignment risk is not contradiction; it is gradual duplication of general Codex-wide policy
+inside `AGENTS.md`, `README.codex.md`, and `research-x-skillization-intake`. Future thinning should
+remove only generic restatements after confirming that the project-specific owner, command form,
+provider freeze, architecture invariant, manifest lock, and validation behavior remain visible.
 
 The 2026-06-12 post-install audit confirms the production repo-local Skill folders are lean:
 each installed Skill directory contains only `SKILL.md` and `agents/openai.yaml`, and no stale
@@ -54,7 +59,7 @@ candidate, install-pending, or `_foundation_work` wording was detected in `.agen
 | `uv` command policy in `AGENTS.md` / `README.codex.md` | DO_NOT_TOUCH | Project runtime rule; removing it risks global Python/pytest/ruff use. |
 | completion notification rule | DO_NOT_TOUCH | Project workflow rule with exact command. |
 | memory/search architecture invariants | DO_NOT_TOUCH | Core `research_x` project behavior, not global Codex behavior. |
-| Skill dispatcher in `AGENTS.md` | KEEP | Repo-specific trigger routing for 13 local Skills. |
+| Skill dispatcher in `AGENTS.md` | KEEP | Repo-specific trigger routing for the reviewed local Skill set at the time; use current inventory files for current count. |
 | repeated Skill hygiene language | THIN | Global `Codex-Wide Skill Hygiene` now owns general Skill creation/install criteria. |
 | `research-x-skillization-intake` | KEEP / CLARIFY | Repo owner for instruction-surface placement; should explicitly remain project-local. |
 | `research-x-provider-gate` | DO_NOT_TOUCH / CLARIFY | Repo owner for no-quota and provider lane mechanics; global owns general external-action default. |
@@ -408,6 +413,7 @@ alignment edits, the lowest-risk order is:
 
 ## Final Assessment
 
-The 13-Skill repo-local set is aligned with global G10/G11 context. The project Skills should
-remain enabled and implicitly invocable. The main future work is documentation thinning and boundary
+The repo-local Skill set reviewed in this artifact was aligned with global G10/G11 context. The
+project Skills should remain enabled and implicitly invocable unless a later manifest/source review
+changes that decision. The main future work remains documentation thinning and boundary
 clarification, not functional Skill changes.

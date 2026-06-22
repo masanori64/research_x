@@ -251,7 +251,15 @@ The follow-up did not promote any external install, provider call, plugin enable
 configuration, or automatic Skill rewrite. Its output remains consultation material until sources
 are restored and verified through the normal project intake path.
 
-## Recommended Next Actions
+## Original Recommended Next Actions
+
+Post Phase 1-8 update:
+
+- The code-oriented first-wave actions below have been executed or gated through
+  `.codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md`.
+- The current residual 35-item decision is now
+  `.codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md`.
+- Do not treat this older next-action list as the active queue after Phase 1-8.
 
 1. Do not implement or install anything from this list as part of this review.
 2. If the next task is source intake, start with SkillAdaptor, OCC-RAG, Zvec, Hanno-Lab Bosun, and

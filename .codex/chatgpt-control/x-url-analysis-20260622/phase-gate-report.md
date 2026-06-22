@@ -385,6 +385,8 @@ End-of-flow decision:
 
 - GO to stop this implementation flow here.
 - Next work must start from a new concrete gap, provider/dependency gate, or user-requested phase.
+- Residual 35-item handling after this stop decision is recorded in
+  `.codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md`.
 
 ## Latest Verification Snapshot
 

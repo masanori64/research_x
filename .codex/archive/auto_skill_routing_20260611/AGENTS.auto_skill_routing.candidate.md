@@ -1,5 +1,10 @@
 # Agent Working Rules
 
+Status note: historical candidate copy from the Auto Skill Routing draft. Production `AGENTS.md`
+has since changed; do not use this file as current repository policy. Use root `AGENTS.md`,
+`README.codex.md`, and `.agents/skills/research-x-skillization-intake/SKILL.md` for current
+routing behavior.
+
 This repository is a shared workspace. Before editing, check the current diff and do not revert or
 overwrite uncommitted changes made by other workers.
 
