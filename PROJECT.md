@@ -133,6 +133,9 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       without provider calls.
 - [x] Answerability fixture lane: local/fake answerable, unanswerable, and conflicting-evidence
       checks with separate eval/report status, without model downloads or provider calls.
+- [x] Relevance/support fixture lane: deterministic `local_judge_candidate` baseline for
+      relevant, irrelevant, duplicate, conflict, supports-claim, and non-support cases without
+      model-specific adoption.
 
 ## Current Gates
 

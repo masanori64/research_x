@@ -105,6 +105,14 @@ from research_x.memory.reader import (
     extract_url_to_context,
 )
 from research_x.memory.relations import build_memory_relations, relations_for_doc
+from research_x.memory.relevance import (
+    LOCAL_JUDGE_CANDIDATE,
+    RelevanceFixture,
+    default_relevance_fixtures,
+    judge_relevance_fixture,
+    relevance_fixture_report_json,
+    run_relevance_fixture_report,
+)
 from research_x.memory.rerank import rerank_evidence_query, rerank_hits
 from research_x.memory.research_artifacts import build_execution_artifacts
 from research_x.memory.retrieval_strategy import (
@@ -4073,6 +4081,46 @@ def test_memory_answer_records_answerability_fixture_outcomes(tmp_path: Path) ->
     assert conflicting.structured["answerability"]["conflicting_chunk_ids"]
     assert "矛盾または反対関係" in conflicting.answer_text
     assert len(conflicting.citation_annotations) == 2
+
+
+def test_memory_relevance_support_fixture_lane_is_deterministic() -> None:
+    fixtures = default_relevance_fixtures()
+    report = run_relevance_fixture_report(fixtures)
+    payload = json.loads(relevance_fixture_report_json(report))
+
+    assert report.judge_id == LOCAL_JUDGE_CANDIDATE
+    assert report.status == "ok"
+    assert report.status_counts == {"ok": 6}
+    assert set(report.label_counts) == {
+        "relevant",
+        "irrelevant",
+        "duplicate",
+        "conflict",
+        "supports_claim",
+        "does_not_support_claim",
+    }
+    assert payload["metadata"]["future_adapter_slot"] == LOCAL_JUDGE_CANDIDATE
+    assert all(result.status == "ok" for result in report.results)
+    assert all(result.judge_id == LOCAL_JUDGE_CANDIDATE for result in report.results)
+
+    by_fixture = {result.fixture_id: result for result in report.results}
+    assert by_fixture["supports_claim"].label == "supports_claim"
+    assert by_fixture["does_not_support_claim"].label == "does_not_support_claim"
+    assert by_fixture["conflict_claim"].label == "conflict"
+    assert by_fixture["duplicate_same_source"].metadata["fixture_metadata"] == {}
+
+
+def test_memory_relevance_fixture_rejects_unknown_labels() -> None:
+    fixture = RelevanceFixture(
+        fixture_id="bad",
+        query="robot",
+        candidate_id="doc:bad",
+        candidate_text="robot",
+        expected_label="bosun_specific_label",
+    )
+
+    with pytest.raises(ValueError, match="unknown relevance fixture label"):
+        judge_relevance_fixture(fixture)
 
 
 def test_memory_workflow_stores_route_steps_and_stop_reason(tmp_path: Path) -> None:

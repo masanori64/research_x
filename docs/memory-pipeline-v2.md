@@ -1055,6 +1055,9 @@ Current implementation:
 - Answerability is recorded separately from retrieval and answer status. Local/fake fixtures cover
   answerable, unanswerable, and conflicting-evidence cases before any reader model is considered
   for promotion.
+- Relevance, duplicate, conflict, claim-support, and non-support judgment fixtures use a generic
+  `local_judge_candidate` slot. Model-specific relevance checkers must beat this local baseline
+  before any dependency or provider review.
 
 ## Compatibility With Current Implementation
 
