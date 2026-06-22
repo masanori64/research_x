@@ -97,9 +97,9 @@ For ambiguous or multi-Skill work, include compact route detail:
 route detail: primary=<skill>; secondary=<skill(s)>; not selected=<skill: reason>
 ```
 
-If provider/API/quota, network, browser, GitHub write, MCP, connector, or install actions are
-needed, stop before executing them and ask for explicit approval. Otherwise proceed through the
-local, project-approved path.
+If provider/API/quota, network, browser, GitHub write outside the Git Publish Policy, MCP,
+connector, or install actions are needed, stop before executing them and ask for explicit approval.
+Otherwise proceed through the local, project-approved path.
 
 ## Human-On-The-Loop Execution
 
@@ -109,10 +109,10 @@ commit/push without asking for step-by-step approval when the path is project-ap
 safe.
 
 Human input is an oversight gate, not the normal loop body. Stop or ask only for provider/quota use,
-network or browser actions not already approved in the current task, GitHub write actions when
-publish intent is unclear, installs, connector/MCP/plugin or hook configuration changes, secrets,
-irreversible/destructive actions, legal/ToS-sensitive choices, explicit user pause/stop, or unresolved
-high-impact design ambiguity after the decision loop.
+network or browser actions not already approved in the current task, GitHub write actions outside
+the Git Publish Policy when publish intent is unclear, installs, connector/MCP/plugin or hook
+configuration changes, secrets, irreversible/destructive actions, legal/ToS-sensitive choices,
+explicit user pause/stop, or unresolved high-impact design ambiguity after the decision loop.
 
 Treat test, lint, type, boundary, dependency, source-drift, context-budget, and review failures as
 signals for `/analyze`-style diagnosis and plan adaptation. Repair and verify again unless the
@@ -230,7 +230,10 @@ the docs unless it changes a design decision.
 ## Git Publish Policy
 
 When the user asks for implementation work in this repository, commit and push the completed scoped
-changes unless the worktree contains unrelated edits that need separation.
+changes every time when the work is separable. This standing publish instruction means the scoped
+push is approved by default; do not stop merely because push is a GitHub/network write. Still stop
+before PR creation, force-push, branch rewrites, cross-repo writes, or any push that would include
+unrelated work or otherwise has unclear scope.
 
 ## Goal Continuation
 

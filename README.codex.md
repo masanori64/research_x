@@ -56,6 +56,9 @@ uv run ruff check src\research_x tests
 - Default to human-on-the-loop execution: once the user launches a task or goal, continue through
   local planning, implementation, review, repair, verification, and scoped commit/push without
   step-by-step approval unless an oversight gate is hit.
+- For separable implementation work, scoped push is the default after commit. Do not hold the push
+  merely because it is a GitHub/network write; stop only for unclear scope, unrelated changes, PR
+  creation, force-push, branch rewrites, or cross-repo writes.
 - Run completion notification at the end:
 
 ```powershell

@@ -254,4 +254,5 @@ replacement in this repo.
 - Keep `PROJECT.md` as a tracker only; do not add research logs or detailed architecture here.
 - Prefer SQLite tables and explicit contracts before adding frameworks.
 - Never stage `.secrets/` or `runs/`.
-- Commit and push completed scoped implementation work unless blocked by unrelated changes.
+- Commit and push completed scoped implementation work every time unless blocked by unrelated
+  changes, unclear scope, PR creation, force-push, branch rewrites, or cross-repo writes.
