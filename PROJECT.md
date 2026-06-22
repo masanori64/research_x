@@ -144,6 +144,8 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       search, cold-start, recall, disk/memory footprint, and source restoration while Zvec remains a
       dependency-review-only candidate with no import, install, or default backend adoption.
       Benchmark query embeddings are `local_hash`-only while the provider freeze is active.
+- [x] Agentmemory source review lock: recorded as disabled/source-review-required after GPT Pro raw
+      and primary-source review; no plugin, MCP, hook, server, or Skill enablement.
 
 ## Current Gates
 

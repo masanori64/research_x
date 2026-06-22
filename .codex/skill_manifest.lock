@@ -486,6 +486,22 @@ negative_trigger_tests = "required_before_enable"
 notes = "Architecture reference only; no hosted/cross-project memory default."
 
 [[entries]]
+name = "agentmemory"
+entry_type = "third_party_skill_candidate"
+source = "https://github.com/rohitg00/agentmemory"
+source_ref = "S32"
+scope = "codex_memory_optional"
+decision = "disabled_source_review_required"
+enabled = false
+implicit_invocation = false
+review_status = "pinned_license_surface_checked"
+risk = "high"
+allowed_scripts = "disabled"
+commit = "25158519d5d68b9060a97ba5bdcccc3e1aba6d79"
+negative_trigger_tests = "required_before_enable"
+notes = "Apache-2.0 v0.9.27 source checked 2026-06-22. GPT Pro raw/follow-up kept this as source-review priority only. Do not install or enable; hooks/MCP/plugin, auto-capture, retention/deletion/redaction, provider/key, local server, version-drift, and overlap risks must be resolved first."
+
+[[entries]]
 name = "searxng"
 entry_type = "tool_candidate"
 source = "https://docs.searxng.org/"

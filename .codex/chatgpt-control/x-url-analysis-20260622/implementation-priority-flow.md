@@ -229,6 +229,9 @@ Do not:
 
 ### P5-A: Agentmemory Source Review
 
+Status: completed as a disabled source-lock decision. Agentmemory is not installed, enabled, or
+wired into hooks/MCP/plugin config; it remains a source-review-required comparison target.
+
 Reason:
 
 - It is not an implementation priority, but it is worth reviewing after local gates exist.

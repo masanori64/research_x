@@ -46,6 +46,23 @@ def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
     assert "no full source/script/hook audit yet" in vendor_lock
 
 
+def test_agentmemory_is_pinned_but_disabled_until_hook_and_retention_review() -> None:
+    manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
+    entry = next(entry for entry in manifest["entries"] if entry["name"] == "agentmemory")
+    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+
+    assert entry["enabled"] is False
+    assert entry["implicit_invocation"] is False
+    assert entry["review_status"] == "pinned_license_surface_checked"
+    assert entry["risk"] == "high"
+    assert entry["commit"] == "25158519d5d68b9060a97ba5bdcccc3e1aba6d79"
+    assert entry["allowed_scripts"] == "disabled"
+    assert entry["negative_trigger_tests"] == "required_before_enable"
+    assert "source-review-required" in vendor_lock
+    assert "hook/MCP/auto-capture" in vendor_lock
+    assert "no install now" in vendor_lock
+
+
 def test_unpinned_external_entries_are_not_enabled_or_approved() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
     entries = manifest["entries"]
