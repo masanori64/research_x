@@ -9,3 +9,5 @@ runs/
 .tools/
 *.exe
 *.test
+.codex/chatgpt-control/chatgpt-control-*.json
+.codex/chatgpt-control/downloads/
