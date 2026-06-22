@@ -85,6 +85,56 @@ Do not solve missed invocation by stuffing every Japanese synonym into `AGENTS.m
 dispatcher plus Skill-owned trigger descriptions, and keep close-but-not-selected reasons available
 for ambiguous cases.
 
+## Phase-Boundary Skill Check
+
+Run this lightweight check when the work's category changes. It is not a full re-selection after
+every tool call.
+
+Trigger it at these boundaries:
+
+- after context expansion reveals a different task type than the initial route;
+- when moving between planning, implementation, verification, docs update, publish, or review;
+- when a new gate appears: provider/API/quota, external source, third-party tool or Skill, prompt
+  contract, Markdown placement, context budget, image generation, connector/MCP, install, or
+  sub-agent policy;
+- before final response, to ensure the active primary or secondary Skills have no unfinished
+  non-duplicate obligations.
+
+Checkpoint behavior:
+
+1. Keep the current primary Skill unless the owner of the main artifact or code change has changed.
+2. Check only nearby Skills using the Functional Skill Groups; do not reread every Skill by
+   default.
+3. Add new gate or quality Skills as `secondary`.
+4. Change `primary` only when the requested output or phase owner changes.
+5. Emit `route update: ...` only when the selected primary or secondary Skills change; otherwise
+   keep the check internal.
+
+## Functional Skill Groups
+
+Use these groups during Skill Router Preflight when multiple Skills look similar. The groups are
+not replacement Skills. They are shared function tags that make overlap explicit before choosing
+the narrower owner.
+
+| Group | Function | Skills |
+|---|---|---|
+| Router and surface selection | Choose the active workflow or durable instruction surface. | `research-x-skillization-intake`, `research-x-doc-governance`, `research-x-decision-loop`, `research-x-implementation-plan-flow` |
+| Governance and contracts | Keep docs, Skills, prompts, source locks, and instruction boundaries narrow and auditable. | `research-x-skillization-intake`, `research-x-doc-governance`, `research-x-prompt-contract`, `research-x-skill-source-review` |
+| Gates and risk control | Stop or narrow provider, install, connector, sub-agent, image, or external-source actions. | `research-x-provider-gate`, `research-x-skill-source-review`, `research-x-research-intake`, `research-x-parallel-review`, `research-x-publishing-illustration` |
+| Intake and classification | Classify candidate sources, tools, Skills, repositories, or implementation candidates before adoption. | `research-x-research-intake`, `research-x-skill-source-review`, `research-x-implementation-plan-flow`, `research-x-skillization-intake` |
+| Evidence preservation | Preserve source bundles, citations, context chunks, hashes, traces, and offload pointers. | `research-x-memory-workflow`, `research-x-context-budget`, `research-x-research-intake`, `research-x-publishing-illustration` |
+| Decision and review loops | Compare alternatives, counterarguments, stop conditions, and promotion criteria. | `research-x-decision-loop`, `research-x-implementation-plan-flow`, `research-x-skill-source-review`, `research-x-provider-gate` |
+| Execution orchestration | Continue phases, split independent work, verify, and keep the repo resumable. | `research-x-goal-runner`, `research-x-parallel-review`, `research-x-implementation-plan-flow` |
+| Observability and trace visibility | Make progress, route choices, run state, evidence state, and budget state inspectable. | `research-x-observability-review`, `research-x-memory-workflow`, `research-x-context-budget`, `research-x-provider-gate` |
+| Output transformation | Convert inputs into implementation plans, prompt contracts, visual briefs, or context packs. | `research-x-implementation-plan-flow`, `research-x-prompt-contract`, `research-x-publishing-illustration`, `research-x-context-budget` |
+
+When Skills share a group, choose by owner boundary:
+
+- pick the Skill whose output is the user's requested artifact or code change;
+- add gate Skills as secondary instead of making them primary;
+- prefer the narrower Skill when one candidate is a special case of another;
+- mention `not_selected` only when a nearby Skill could reasonably be expected.
+
 ## Existing Repo Skills
 
 - `research-x-decision-loop`: research, review, audit, design loop, and stop-condition mechanics.

@@ -185,7 +185,10 @@ other PCs; repo Skills do not manage PC-to-PC local state sync or migration.
 
 Routing expectation: before choosing a repo Skill, compare the newest request and recent context
 against nearby Skills in both directions. Pick a primary Skill, add secondary gate Skills when
-needed, and mention close-but-not-selected Skills only when ambiguity matters.
+needed, and mention close-but-not-selected Skills only when ambiguity matters. For functional
+overlap or phase-boundary route changes such as router, gate, intake, evidence, execution,
+observability, and transformation groups, use the taxonomy and checkpoint rules in
+`.agents/skills/research-x-skillization-intake/SKILL.md`.
 
 - `research-x-skillization-intake`: recurring Codex behavior and instruction-surface placement.
 - `research-x-decision-loop`: research/review/audit loops and stop-condition checks.

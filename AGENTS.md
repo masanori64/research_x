@@ -81,6 +81,9 @@ Do not ask the user to name a Skill. Run a Skill Router Preflight before choosin
   `Use When`, `Do Not Use`, safety gates, and ownership back to the request/context;
 - carry forward the previous active Skill for short continuation prompts only when the current
   context still matches it;
+- re-check nearby Skills when expanded context reveals a different task type, when work crosses a
+  planning/implementation/verification/docs/publish/review boundary, or when a new provider,
+  source, third-party, prompt, docs, context-budget, or sub-agent gate appears;
 - classify the result as primary Skill, secondary/gate Skills, and close-but-not-selected Skills
   when ambiguity matters.
 
