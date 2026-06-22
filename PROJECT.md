@@ -140,6 +140,10 @@ Use `docs/memory-pipeline-v2.md` for architecture detail and `uv run python -m r
       and redundant-search counts without importing RL policy machinery.
 - [x] Stale-observation context-policy fixture: full-history, summary, offload, and masked variants
       are compared as route-level eval warnings without enabling global masking.
+- [x] Local vector backend benchmark gate: current projection backends can be measured for build,
+      search, cold-start, recall, disk/memory footprint, and source restoration while Zvec remains a
+      dependency-review-only candidate with no import, install, or default backend adoption.
+      Benchmark query embeddings are `local_hash`-only while the provider freeze is active.
 
 ## Current Gates
 
@@ -195,6 +199,8 @@ Before the first provider call after the freeze is lifted:
 
 These are not hidden future work, but they require explicit local dependency/model decisions:
 
+- Zvec or other vector backends after the local benchmark report justifies a source/dependency
+  review;
 - PaddleOCR / PaddleOCR-VL / manga OCR local providers;
 - local or OpenAI-compatible Qwen embedding/rerank endpoints;
 - running the OSS Corpus2Skill compiler over exported bundles.

@@ -137,6 +137,8 @@ from research_x.memory.search import (
 )
 from research_x.memory.source_kinds import classify_external_source_kind
 from research_x.memory.vector_projection import (
+    benchmark_json,
+    benchmark_vector_backends,
     build_vector_projection,
     vector_projection_coverage,
 )
@@ -844,6 +846,99 @@ def test_memory_vector_projection_backend_searches_existing_embeddings(tmp_path:
         for result in results
         for contribution in result.metadata["engine_contributions"]
     )
+
+
+def test_memory_vector_backend_benchmark_gates_candidate_dependency(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    report = benchmark_vector_backends(
+        db_path,
+        provider="local_hash",
+        dimensions=64,
+        backends=("numpy", "zvec"),
+        queries=("robot paper",),
+        limit=3,
+        out_dir=tmp_path / "vector-benchmark",
+    )
+    results = {result.backend: result for result in report.results}
+    payload = json.loads(benchmark_json(report))
+
+    assert report.status == "needs_review"
+    assert results["numpy"].status == "ok"
+    assert results["numpy"].documents == 5
+    assert results["numpy"].recall_at_limit == 1.0
+    assert results["numpy"].source_restoration_ok is True
+    assert results["numpy"].memory_bytes_per_vector == 256
+    assert Path(results["numpy"].index_path or "").exists()
+    assert Path(results["numpy"].mapping_path or "").exists()
+    assert results["zvec"].status == "dependency_review_required"
+    assert results["zvec"].index_path is None
+    assert results["zvec"].notes == ("backend is candidate-only; no import/install attempted",)
+    assert payload["metadata"]["dependency_gate"]
+
+
+def test_memory_vector_backend_benchmark_blocks_non_local_provider(tmp_path: Path) -> None:
+    report = benchmark_vector_backends(
+        tmp_path / "missing.sqlite3",
+        provider="openai",
+        dimensions=1536,
+        backends=("numpy", "zvec"),
+        queries=("robot paper",),
+        out_dir=tmp_path / "should-not-exist",
+    )
+    results = {result.backend: result for result in report.results}
+
+    assert report.status == "needs_review"
+    assert results["numpy"].status == "provider_gated"
+    assert results["numpy"].notes == ("non-local query embeddings require provider gate approval",)
+    assert results["zvec"].status == "provider_gated"
+    assert not (tmp_path / "should-not-exist").exists()
+
+
+def test_memory_vector_backend_benchmark_cli_reports_candidate_gate(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
+
+    assert (
+        main(
+            [
+                "memory",
+                "vector-backend-benchmark",
+                "--db",
+                str(db_path),
+                "--provider",
+                "local_hash",
+                "--dimensions",
+                "64",
+                "--backend",
+                "numpy",
+                "--backend",
+                "zvec",
+                "--query",
+                "robot paper",
+                "--limit",
+                "3",
+                "--out-dir",
+                str(tmp_path / "vector-benchmark-cli"),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    results = {result["backend"]: result for result in payload["results"]}
+
+    assert payload["status"] == "needs_review"
+    assert results["numpy"]["status"] == "ok"
+    assert results["zvec"]["status"] == "dependency_review_required"
 
 
 def test_memory_vector_projection_coverage_detects_stale_source_hash(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -18,12 +19,14 @@ from research_x.memory.embeddings import (
     _embedding_rows,
     _resolve_available_spec,
     _semantic_matrix_from_rows,
+    semantic_search_memory,
 )
 from research_x.memory.schema import ensure_memory_schema
 
 VECTOR_PROJECTION_KIND = "local_vector_projection"
 VECTOR_PROJECTION_BUILDER_VERSION = "local-vector-projection-v1"
 SUPPORTED_VECTOR_BACKENDS = ("numpy", "turbovec")
+BENCHMARK_VECTOR_BACKENDS = ("numpy", "turbovec", "zvec")
 DEFAULT_VECTOR_INDEX_DIR = Path("runs") / "memory_vector_indexes"
 
 
@@ -62,6 +65,66 @@ class VectorProjectionCoverage:
     index_path: str | None
     index_exists: bool
     status: str
+
+
+@dataclass(frozen=True)
+class VectorBackendBenchmarkThresholds:
+    max_build_seconds: float = 5.0
+    max_avg_search_seconds: float = 0.5
+    max_cold_start_seconds: float = 1.0
+    min_recall_at_limit: float = 1.0
+    max_disk_bytes_per_vector: int = 16_384
+    max_memory_bytes_per_vector: int | None = None
+    require_update_delete: bool = False
+    require_source_restoration: bool = True
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class VectorBackendBenchmarkResult:
+    backend: str
+    status: str
+    documents: int
+    query_count: int
+    build_seconds: float | None
+    avg_search_seconds: float | None
+    cold_start_seconds: float | None
+    recall_at_limit: float | None
+    disk_bytes: int | None
+    disk_bytes_per_vector: float | None
+    memory_bytes: int | None
+    memory_bytes_per_vector: float | None
+    update_delete_supported: bool
+    source_restoration_ok: bool
+    index_path: str | None
+    mapping_path: str | None
+    thresholds: dict[str, Any]
+    notes: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class VectorBackendBenchmarkReport:
+    db_path: str
+    status: str
+    provider: str | None
+    model: str | None
+    dimensions: int | None
+    embedding_profile: str | None
+    text_template_version: str | None
+    limit: int
+    queries: tuple[str, ...]
+    results: tuple[VectorBackendBenchmarkResult, ...]
+    metadata: dict[str, Any]
+
+    def as_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["results"] = [result.as_dict() for result in self.results]
+        return data
 
 
 def build_vector_projection(
@@ -314,6 +377,76 @@ def search_vector_projection(
     )
 
 
+def benchmark_vector_backends(
+    db_path: str | Path,
+    *,
+    backends: tuple[str, ...] = ("numpy",),
+    queries: tuple[str, ...] = ("robot paper",),
+    provider: str | None = "local_hash",
+    model: str | None = None,
+    dimensions: int | None = None,
+    embedding_profile: str | None = None,
+    text_template_version: str | None = None,
+    limit: int = 5,
+    out_dir: str | Path | None = None,
+    doc_type: str | None = None,
+    account: str | None = None,
+    thresholds: VectorBackendBenchmarkThresholds | None = None,
+) -> VectorBackendBenchmarkReport:
+    path = Path(db_path)
+    resolved_thresholds = thresholds or VectorBackendBenchmarkThresholds()
+    resolved_backends = tuple(backends) or ("numpy",)
+    resolved_queries = tuple(query for query in queries if query.strip()) or ("robot paper",)
+    if provider != "local_hash":
+        threshold_payload = resolved_thresholds.as_dict()
+        results = tuple(
+            _benchmark_provider_gated_result(
+                backend=backend,
+                query_count=len(resolved_queries),
+                thresholds=threshold_payload,
+            )
+            for backend in resolved_backends
+        )
+    else:
+        results = tuple(
+            _benchmark_backend(
+                path,
+                backend=backend,
+                queries=resolved_queries,
+                provider=provider,
+                model=model,
+                dimensions=dimensions,
+                embedding_profile=embedding_profile,
+                text_template_version=text_template_version,
+                limit=max(1, limit),
+                out_dir=out_dir,
+                doc_type=doc_type,
+                account=account,
+                thresholds=resolved_thresholds,
+            )
+            for backend in resolved_backends
+        )
+    status = "ok" if all(result.status == "ok" for result in results) else "needs_review"
+    return VectorBackendBenchmarkReport(
+        db_path=str(path),
+        status=status,
+        provider=provider,
+        model=model,
+        dimensions=dimensions,
+        embedding_profile=embedding_profile,
+        text_template_version=text_template_version,
+        limit=max(1, limit),
+        queries=resolved_queries,
+        results=results,
+        metadata={
+            "benchmark_version": "vector-backend-benchmark-v1",
+            "candidate_backends": list(BENCHMARK_VECTOR_BACKENDS),
+            "dependency_gate": "zvec and other new backends require source/dependency review",
+            "provider_policy": "local_hash query embeddings only under the no-quota freeze",
+        },
+    )
+
+
 def summary_as_dict(summary: VectorProjectionBuildSummary) -> dict[str, Any]:
     return asdict(summary)
 
@@ -324,6 +457,10 @@ def coverage_json(report: VectorProjectionCoverage) -> str:
 
 def summary_json(summary: VectorProjectionBuildSummary) -> str:
     return json.dumps(asdict(summary), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def benchmark_json(report: VectorBackendBenchmarkReport) -> str:
+    return json.dumps(report.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def format_vector_projection_summary(summary: VectorProjectionBuildSummary) -> str:
@@ -368,11 +505,280 @@ def format_vector_projection_coverage(report: VectorProjectionCoverage) -> str:
     )
 
 
+def format_vector_backend_benchmark(report: VectorBackendBenchmarkReport) -> str:
+    lines = [
+        (
+            "vector-backend-benchmark: "
+            f"status={report.status} backends={len(report.results)} "
+            f"queries={len(report.queries)} limit={report.limit}"
+        )
+    ]
+    for result in report.results:
+        lines.append(
+            "  "
+            f"{result.backend}: status={result.status} docs={result.documents} "
+            f"build={_duration(result.build_seconds)} "
+            f"avg_search={_duration(result.avg_search_seconds)} "
+            f"cold_start={_duration(result.cold_start_seconds)} "
+            f"recall={_metric(result.recall_at_limit)} "
+            f"disk_per_vector={_metric(result.disk_bytes_per_vector)} "
+            f"memory_per_vector={_metric(result.memory_bytes_per_vector)}"
+        )
+        for note in result.notes:
+            lines.append(f"    note: {note}")
+    return "\n".join(lines)
+
+
 def _resolve_backend(backend: str) -> str:
     resolved = backend.strip().lower()
     if resolved not in SUPPORTED_VECTOR_BACKENDS:
         raise ValueError(f"unsupported local vector backend: {backend}")
     return resolved
+
+
+def _resolve_benchmark_backend(backend: str) -> str:
+    resolved = backend.strip().lower()
+    if resolved not in BENCHMARK_VECTOR_BACKENDS:
+        raise ValueError(f"unsupported vector benchmark backend: {backend}")
+    return resolved
+
+
+def _benchmark_backend(
+    db_path: Path,
+    *,
+    backend: str,
+    queries: tuple[str, ...],
+    provider: str | None,
+    model: str | None,
+    dimensions: int | None,
+    embedding_profile: str | None,
+    text_template_version: str | None,
+    limit: int,
+    out_dir: str | Path | None,
+    doc_type: str | None,
+    account: str | None,
+    thresholds: VectorBackendBenchmarkThresholds,
+) -> VectorBackendBenchmarkResult:
+    resolved_backend = _resolve_benchmark_backend(backend)
+    threshold_payload = thresholds.as_dict()
+    if resolved_backend not in SUPPORTED_VECTOR_BACKENDS:
+        return VectorBackendBenchmarkResult(
+            backend=resolved_backend,
+            status="dependency_review_required",
+            documents=0,
+            query_count=len(queries),
+            build_seconds=None,
+            avg_search_seconds=None,
+            cold_start_seconds=None,
+            recall_at_limit=None,
+            disk_bytes=None,
+            disk_bytes_per_vector=None,
+            memory_bytes=None,
+            memory_bytes_per_vector=None,
+            update_delete_supported=False,
+            source_restoration_ok=False,
+            index_path=None,
+            mapping_path=None,
+            thresholds=threshold_payload,
+            notes=("backend is candidate-only; no import/install attempted",),
+        )
+    try:
+        build_started = time.perf_counter()
+        summary = build_vector_projection(
+            db_path,
+            provider=provider,
+            model=model,
+            dimensions=dimensions,
+            embedding_profile=embedding_profile,
+            text_template_version=text_template_version,
+            backend=resolved_backend,
+            out_dir=out_dir,
+            doc_type=doc_type,
+            account=account,
+        )
+        build_seconds = time.perf_counter() - build_started
+        search_durations: list[float] = []
+        recall_scores: list[float] = []
+        for query in queries:
+            baseline = semantic_search_memory(
+                db_path,
+                query,
+                provider=provider,
+                model=model,
+                dimensions=dimensions,
+                embedding_profile=embedding_profile,
+                text_template_version=text_template_version,
+                limit=limit,
+                doc_type=doc_type,
+                account=account,
+            )
+            search_started = time.perf_counter()
+            projected = search_vector_projection(
+                db_path,
+                query,
+                generation_id=summary.generation_id,
+                limit=limit,
+                doc_type=doc_type,
+                account=account,
+            )
+            search_durations.append(time.perf_counter() - search_started)
+            recall_scores.append(_recall_at_limit(baseline, projected))
+        avg_search_seconds = sum(search_durations) / len(search_durations)
+        recall_at_limit = sum(recall_scores) / len(recall_scores)
+        disk_bytes = _projection_disk_bytes(summary)
+        disk_bytes_per_vector = disk_bytes / max(1, summary.documents)
+        memory_bytes = _projection_memory_bytes(summary)
+        memory_bytes_per_vector = memory_bytes / max(1, summary.documents)
+        coverage = vector_projection_coverage(
+            db_path,
+            generation_id=summary.generation_id,
+        )
+        source_restoration_ok = coverage.status == "ok"
+        notes = _benchmark_notes(
+            build_seconds=build_seconds,
+            avg_search_seconds=avg_search_seconds,
+            cold_start_seconds=search_durations[0],
+            recall_at_limit=recall_at_limit,
+            disk_bytes_per_vector=disk_bytes_per_vector,
+            memory_bytes_per_vector=memory_bytes_per_vector,
+            update_delete_supported=False,
+            source_restoration_ok=source_restoration_ok,
+            thresholds=thresholds,
+        )
+        return VectorBackendBenchmarkResult(
+            backend=resolved_backend,
+            status="ok" if not notes else "needs_review",
+            documents=summary.documents,
+            query_count=len(queries),
+            build_seconds=round(build_seconds, 6),
+            avg_search_seconds=round(avg_search_seconds, 6),
+            cold_start_seconds=round(search_durations[0], 6),
+            recall_at_limit=round(recall_at_limit, 4),
+            disk_bytes=disk_bytes,
+            disk_bytes_per_vector=round(disk_bytes_per_vector, 2),
+            memory_bytes=memory_bytes,
+            memory_bytes_per_vector=round(memory_bytes_per_vector, 2),
+            update_delete_supported=False,
+            source_restoration_ok=source_restoration_ok,
+            index_path=summary.index_path,
+            mapping_path=summary.mapping_path,
+            thresholds=threshold_payload,
+            notes=tuple(notes),
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        return VectorBackendBenchmarkResult(
+            backend=resolved_backend,
+            status="error",
+            documents=0,
+            query_count=len(queries),
+            build_seconds=None,
+            avg_search_seconds=None,
+            cold_start_seconds=None,
+            recall_at_limit=None,
+            disk_bytes=None,
+            disk_bytes_per_vector=None,
+            memory_bytes=None,
+            memory_bytes_per_vector=None,
+            update_delete_supported=False,
+            source_restoration_ok=False,
+            index_path=None,
+            mapping_path=None,
+            thresholds=threshold_payload,
+            notes=(str(exc),),
+        )
+
+
+def _benchmark_provider_gated_result(
+    *,
+    backend: str,
+    query_count: int,
+    thresholds: dict[str, Any],
+) -> VectorBackendBenchmarkResult:
+    resolved_backend = _resolve_benchmark_backend(backend)
+    return VectorBackendBenchmarkResult(
+        backend=resolved_backend,
+        status="provider_gated",
+        documents=0,
+        query_count=query_count,
+        build_seconds=None,
+        avg_search_seconds=None,
+        cold_start_seconds=None,
+        recall_at_limit=None,
+        disk_bytes=None,
+        disk_bytes_per_vector=None,
+        memory_bytes=None,
+        memory_bytes_per_vector=None,
+        update_delete_supported=False,
+        source_restoration_ok=False,
+        index_path=None,
+        mapping_path=None,
+        thresholds=thresholds,
+        notes=("non-local query embeddings require provider gate approval",),
+    )
+
+
+def _benchmark_notes(
+    *,
+    build_seconds: float,
+    avg_search_seconds: float,
+    cold_start_seconds: float,
+    recall_at_limit: float,
+    disk_bytes_per_vector: float,
+    memory_bytes_per_vector: float,
+    update_delete_supported: bool,
+    source_restoration_ok: bool,
+    thresholds: VectorBackendBenchmarkThresholds,
+) -> list[str]:
+    notes = []
+    if build_seconds > thresholds.max_build_seconds:
+        notes.append("build_seconds_exceeds_threshold")
+    if avg_search_seconds > thresholds.max_avg_search_seconds:
+        notes.append("avg_search_seconds_exceeds_threshold")
+    if cold_start_seconds > thresholds.max_cold_start_seconds:
+        notes.append("cold_start_seconds_exceeds_threshold")
+    if recall_at_limit < thresholds.min_recall_at_limit:
+        notes.append("recall_below_threshold")
+    if disk_bytes_per_vector > thresholds.max_disk_bytes_per_vector:
+        notes.append("disk_bytes_per_vector_exceeds_threshold")
+    if (
+        thresholds.max_memory_bytes_per_vector is not None
+        and memory_bytes_per_vector > thresholds.max_memory_bytes_per_vector
+    ):
+        notes.append("memory_bytes_per_vector_exceeds_threshold")
+    if thresholds.require_update_delete and not update_delete_supported:
+        notes.append("update_delete_not_supported")
+    if thresholds.require_source_restoration and not source_restoration_ok:
+        notes.append("source_restoration_not_ok")
+    return notes
+
+
+def _recall_at_limit(
+    baseline: tuple[SemanticHit, ...],
+    projected: tuple[SemanticHit, ...],
+) -> float:
+    baseline_ids = {hit.doc_id for hit in baseline}
+    if not baseline_ids:
+        return 1.0
+    projected_ids = {hit.doc_id for hit in projected}
+    return len(baseline_ids & projected_ids) / len(baseline_ids)
+
+
+def _projection_disk_bytes(summary: VectorProjectionBuildSummary) -> int:
+    paths = [Path(summary.index_path), Path(summary.mapping_path)]
+    return sum(path.stat().st_size for path in paths if path.exists())
+
+
+def _projection_memory_bytes(summary: VectorProjectionBuildSummary) -> int:
+    # Lower-bound resident vector footprint; backend runtime overhead is dependency-specific.
+    return summary.documents * summary.dimensions * np.dtype(np.float32).itemsize
+
+
+def _duration(value: float | None) -> str:
+    return "-" if value is None else f"{value:.4f}s"
+
+
+def _metric(value: float | None) -> str:
+    return "-" if value is None else f"{value:.4f}"
 
 
 def _resolve_bit_width(bit_width: int, *, backend: str) -> int | None:

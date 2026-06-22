@@ -97,6 +97,9 @@ memory portfolio-eval
 memory build-embeddings
 memory embedding-estimate
 memory embedding-coverage
+memory build-vector-projection
+memory vector-projection-coverage
+memory vector-backend-benchmark
 memory media-embedding-estimate
 memory build-media-embeddings
 memory media-embedding-coverage

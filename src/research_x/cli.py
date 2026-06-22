@@ -53,6 +53,8 @@ MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES = [
 ]
 MEMORY_SEMANTIC_BACKEND_CHOICES = ["sqlite", "projection"]
 MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES = ["numpy", "turbovec"]
+MEMORY_VECTOR_BENCHMARK_BACKEND_CHOICES = ["numpy", "turbovec", "zvec"]
+MEMORY_VECTOR_BENCHMARK_PROVIDER_CHOICES = ["local_hash"]
 
 
 def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
@@ -758,6 +760,82 @@ def main(argv: list[str] | None = None) -> int:
         choices=MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES,
     )
     memory_vector_projection_coverage_parser.add_argument("--json", action="store_true")
+    memory_vector_backend_benchmark_parser = memory_subparsers.add_parser(
+        "vector-backend-benchmark",
+        help="benchmark local vector projection candidates without installing new backends",
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--provider",
+        required=True,
+        choices=MEMORY_VECTOR_BENCHMARK_PROVIDER_CHOICES,
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--model", default=None)
+    memory_vector_backend_benchmark_parser.add_argument("--dimensions", type=int, default=None)
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--embedding-profile",
+        default="general_memory",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--backend",
+        action="append",
+        default=[],
+        choices=MEMORY_VECTOR_BENCHMARK_BACKEND_CHOICES,
+        help="backend to include; repeat for multiple backends",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--query",
+        action="append",
+        default=[],
+        help="benchmark query; repeat for multiple queries",
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--limit", type=int, default=5)
+    memory_vector_backend_benchmark_parser.add_argument("--out-dir", default=None)
+    memory_vector_backend_benchmark_parser.add_argument("--doc-type", default=None)
+    memory_vector_backend_benchmark_parser.add_argument("--account", default=None)
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-build-seconds",
+        type=float,
+        default=5.0,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-avg-search-seconds",
+        type=float,
+        default=0.5,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-cold-start-seconds",
+        type=float,
+        default=1.0,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--min-recall-at-limit",
+        type=float,
+        default=1.0,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-disk-bytes-per-vector",
+        type=int,
+        default=16_384,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-memory-bytes-per-vector",
+        type=int,
+        default=None,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--require-update-delete",
+        action="store_true",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--no-require-source-restoration",
+        action="store_true",
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--json", action="store_true")
     memory_media_embedding_estimate_parser = memory_subparsers.add_parser(
         "media-embedding-estimate",
         help="estimate saved media files, staleness, skips, and calls for native media embeddings",
@@ -3102,6 +3180,40 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             backend=args.backend,
         )
         print(coverage_json(report) if args.json else format_vector_projection_coverage(report))
+        return 0
+    if args.memory_command == "vector-backend-benchmark":
+        from research_x.memory.vector_projection import (
+            VectorBackendBenchmarkThresholds,
+            benchmark_json,
+            benchmark_vector_backends,
+            format_vector_backend_benchmark,
+        )
+
+        report = benchmark_vector_backends(
+            args.db,
+            backends=tuple(args.backend) or ("numpy",),
+            queries=tuple(args.query) or ("robot paper",),
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            limit=args.limit,
+            out_dir=args.out_dir,
+            doc_type=args.doc_type,
+            account=args.account,
+            thresholds=VectorBackendBenchmarkThresholds(
+                max_build_seconds=args.max_build_seconds,
+                max_avg_search_seconds=args.max_avg_search_seconds,
+                max_cold_start_seconds=args.max_cold_start_seconds,
+                min_recall_at_limit=args.min_recall_at_limit,
+                max_disk_bytes_per_vector=args.max_disk_bytes_per_vector,
+                max_memory_bytes_per_vector=args.max_memory_bytes_per_vector,
+                require_update_delete=args.require_update_delete,
+                require_source_restoration=not args.no_require_source_restoration,
+            ),
+        )
+        print(benchmark_json(report) if args.json else format_vector_backend_benchmark(report))
         return 0
     if args.memory_command == "media-embedding-estimate":
         from research_x.memory.media_embeddings import (

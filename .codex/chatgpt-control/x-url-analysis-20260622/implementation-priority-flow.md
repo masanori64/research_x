@@ -202,6 +202,10 @@ Implementation steps:
 
 ### P4-A: Zvec Benchmark Stub
 
+Status: implemented as a local benchmark gate. Zvec remains dependency-review required and is not
+installed, imported, or promoted as a default backend. Benchmark query embeddings are limited to
+`local_hash` while the provider freeze is active.
+
 Reason:
 
 - Zvec may be useful, but its only acceptable promotion path is benchmark evidence.

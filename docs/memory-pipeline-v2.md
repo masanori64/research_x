@@ -1064,6 +1064,12 @@ Current implementation:
 - Stale-observation masking is evaluated only as a route-level context-policy fixture over
   full-history, summary, offload, and masked variants. A masked variant may become a route-specific
   candidate, but it is not a global masking policy.
+- `memory vector-backend-benchmark` measures existing local projection backends for build time,
+  search time, cold-start time, recall against the baseline semantic search, disk footprint, vector
+  memory lower bound, and source-restoration status. Under the no-quota freeze, benchmark query
+  embeddings are limited to `local_hash`; non-local providers are provider-gated instead of run.
+  Zvec is represented only as a dependency-review-required candidate; the benchmark does not import,
+  install, or promote it.
 
 ## Compatibility With Current Implementation
 
@@ -1076,6 +1082,7 @@ memory_documents        -> Layer 1 searchable documents
 memory_document_fts     -> Layer 2 lexical retrieval
 memory_embeddings       -> Layer 2 semantic retrieval with profile/template/source-hash provenance
 memory vector-projection -> Layer 2 acceleration projection over one current embedding scope
+memory vector-backend-benchmark -> Layer 2 local backend benchmark gate before dependency adoption
 memory_relations        -> Layer 2 relation expansion / future graph base
 memory judge-relations  -> optional support/contradiction relation judge over freshness candidates
 memory_external_runs    -> Layer 3 external provider run metadata
