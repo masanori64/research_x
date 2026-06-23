@@ -110,6 +110,12 @@ Checkpoint behavior:
 5. Emit `route update: ...` only when the selected primary or secondary Skills change; otherwise
    keep the check internal.
 
+When a boundary check updates a checklist, progress UI, WBS, or similar execution artifact, keep
+stable boundary or gate labels as parent anchors and regenerate task-local leaf steps from the
+current context, such as the newest request, active Markdown, diff, tests, and review findings. Do
+not promote example-specific names, item numbers, URLs, products, or candidate labels into durable
+Skill rules; keep them only in the task-local artifact data.
+
 ## Functional Skill Groups
 
 Use these groups during Skill Router Preflight when multiple Skills look similar. The groups are
