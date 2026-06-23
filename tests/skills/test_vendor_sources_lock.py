@@ -63,6 +63,16 @@ def test_agentmemory_is_pinned_but_disabled_until_hook_and_retention_review() ->
     assert "no install now" in vendor_lock
 
 
+def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
+    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+
+    assert "single-file-wbs" in vendor_lock
+    assert "v1.2.0" in vendor_lock
+    assert "322895a23f49028b53ae8c8a1710d6db45cdf726" in vendor_lock
+    assert "Pinned local tool canary" in vendor_lock
+    assert "No plugin, MCP, hook, provider, hosted service, or evidence promotion" in vendor_lock
+
+
 def test_unpinned_external_entries_are_not_enabled_or_approved() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
     entries = manifest["entries"]

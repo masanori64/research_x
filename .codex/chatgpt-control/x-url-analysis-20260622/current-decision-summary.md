@@ -65,7 +65,7 @@ policy, or a concrete project gap.
 | 8 | Stale observation masking | Hiding older observations from an agent context. | First-wave local gate implemented as a route-level context-policy eval warning. Do not apply universally; compare by route/model/retriever. |
 | 9 | Ontology mention | Thin ontology-related signal. | Not actionable. Original context is too sparse. |
 | 10 | Archify | Workflow/architecture diagram or report aid. | Reference only. Generated diagrams are review aids, not evidence; install would need source review. |
-| 11 | WBS Viewer | Work breakdown/progress visualization. | Second-wave implementation-plan candidate. The observability gap appeared in this 35-item flow, so evaluate a pinned WBS Viewer adoption canary; see `implementation-plan-11-35.md`. |
+| 11 | WBS Viewer | Work breakdown/progress visualization. | Canary passed. Pinned `single-file-wbs` v1.2.0 is vendored unchanged under `tools/wbs_viewer/`, and `wbs-35-item-flow.json` renders the full 35-item flow; see `wbs-viewer-canary-report.md`. |
 | 12 | Agentmemory | Persistent coding-agent memory with hooks/MCP/search/inject style behavior. | Disabled source-lock decision completed. No install, plugin, MCP, hook, server, or Skill enablement; retention, redaction, overlap, and lifecycle risks remain. |
 | 13 | Adaptive Auto-Harness | Research on adaptive harness routing/steering. | Codex foundation candidate. Use as design input only, not runtime adoption. |
 | 14 | SkillAdaptor | Failure-trajectory-based local Skill revision with qualifier checks. | First-wave local pattern implemented in ImprovementSignal fields and validation. No external runtime, automatic Skill edit, or self-improving loop. |
@@ -130,7 +130,7 @@ Consider these only as a new scoped task, not as continuation of Phase 1-8:
 |---:|---|---|
 | 5 | YAML-to-HTML / structure-view split | Local artifact-pattern candidate. Reconsider when report, eval, or phase-gate artifacts become hard to inspect. Start with a project-owned schema and deterministic renderer, not a plugin. |
 | 10 | Archify | Conditional workflow/architecture review aid. Generated diagrams are review artifacts, not evidence. Any install or external source use still needs source review. |
-| 11 | WBS Viewer | Promoted to concrete second-wave canary. Start with source review, pinned upstream copy, and a `research_x` WBS JSON export for this 35-item flow. |
+| 11 | WBS Viewer | Completed canary. Keep the vendored upstream viewer for local visual review; no fork/customization needed yet. |
 | 35 | pdgkit OSS | Promoted to standalone second-wave body-adoption canary. Start with source/dependency review, then run a pinned real pdgkit validate/render canary; do not enable MCP without a later gate. |
 | 24 | MUSE-Autoskill | Codex foundation design input for Skill lifecycle, tests, examples, failure cases, and revision logs. No automatic Skill growth. |
 | 33 | Ponytail plugin | Source-review-only candidate for over-implementation checks. Use the idea as a review lens before considering hooks or plugin install. |
@@ -181,10 +181,11 @@ These should not consume more planning work from this URL set:
 - 15 Devin/Manus mention: not actionable without a separate vendor/provider evaluation target.
 - 27 Unknown: not actionable because the classification/source context is missing.
 
-### Already Processed By Phase 1-8
+### Already Processed By Phase 1-8 Or Item 11 Canary
 
 These are no longer residual candidates for this flow:
 
+- 11 WBS Viewer: pinned local tool canary completed; vendored viewer renders the 35-item flow.
 - 7 OCC-RAG: local answerability fixture lane implemented; model adoption remains a separate
   dependency/model gate.
 - 8 stale observation masking: route-level context-policy eval warning implemented; no universal
@@ -198,8 +199,9 @@ These are no longer residual candidates for this flow:
 - 22 Hanno-Lab Bosun: local relevance/support fixture lane implemented; model adoption remains a
   later dependency/model gate.
 
-Net decision: the only non-processed items worth active second-wave consideration are 5, 10, 11,
-24, 33, and 35. Everything else is either absorbed, condition-triggered, provider-gated, or closed.
+Net decision: the only non-processed items worth active second-wave consideration are 5, 10, 24,
+33, and 35. Item 11 is now processed by the WBS Viewer canary. Everything else is either absorbed,
+condition-triggered, provider-gated, or closed.
 
 ## Do Not Promote Now
 

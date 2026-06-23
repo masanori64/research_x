@@ -133,6 +133,16 @@ P1 acceptance criteria:
 - The adoption decision is one of: `keep vendored viewer`, `fork/customize`, `reference only`, or
   `reject`.
 
+P1 execution status:
+
+- Status: `completed`.
+- Decision: `keep vendored viewer`.
+- Source review: `tools/wbs_viewer/UPSTREAM.md`.
+- Vendored copy: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/`.
+- WBS JSON canary: `.codex/chatgpt-control/x-url-analysis-20260622/wbs-35-item-flow.json`.
+- Render check: Playwright loaded the vendored HTML and the 35-item JSON successfully.
+- Canary report: `.codex/chatgpt-control/x-url-analysis-20260622/wbs-viewer-canary-report.md`.
+
 ## P2: Item 35 pdgkit Body-Adoption Canary
 
 Reason for separate body adoption:

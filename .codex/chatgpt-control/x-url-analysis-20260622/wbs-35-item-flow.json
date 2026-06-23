@@ -1,0 +1,867 @@
+{
+  "projects": [
+    {
+      "name": "X/GPT 35-item adoption flow",
+      "milestones": [
+        {
+          "date": "2026-06-22",
+          "label": "Phase 1-8 recorded",
+          "color": "#6b7280"
+        },
+        {
+          "date": "2026-06-23",
+          "label": "Item 11 WBS canary",
+          "color": "#2563eb"
+        },
+        {
+          "date": "2026-06-24",
+          "label": "Item 35 pdgkit canary",
+          "color": "#7c3aed"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "Already processed by Phase 1-8",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "7 OCC-RAG answerability fixture",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: local answerability fixture lane. Model adoption remains separate.",
+              "_research_x": {
+                "item": 7,
+                "source_url": "https://x.com/itarutomy/status/2067376489805263233?s=20",
+                "decision_band": "already_processed",
+                "gate": "local_answerability_fixture",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.2",
+              "name": "8 Stale observation masking route eval",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: route-level eval warning; no universal masking policy.",
+              "_research_x": {
+                "item": 8,
+                "source_url": "https://x.com/itarutomy/status/2067263698134343717?s=20",
+                "decision_band": "already_processed",
+                "gate": "route_context_policy_eval",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.3",
+              "name": "12 Agentmemory disabled source-lock",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: source-lock decision; no plugin, MCP, hook, server, or Skill enablement.",
+              "_research_x": {
+                "item": 12,
+                "source_url": "https://x.com/L_go_mrk/status/2066815545853313441?s=20",
+                "decision_band": "already_processed",
+                "gate": "disabled_source_lock",
+                "artifact": ".codex/vendor_sources.lock.md"
+              }
+            },
+            {
+              "id": "1.4",
+              "name": "14 SkillAdaptor ImprovementSignal pattern",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: local qualifier pattern; no external runtime or automatic Skill edit.",
+              "_research_x": {
+                "item": 14,
+                "source_url": "https://x.com/itarutomy/status/2066909949012119667?s=20",
+                "decision_band": "already_processed",
+                "gate": "improvement_signal_qualifier",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.5",
+              "name": "16 Zvec benchmark gate",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: local benchmark gate; Zvec remains dependency-review-only.",
+              "_research_x": {
+                "item": 16,
+                "source_url": "https://x.com/L_go_mrk/status/2066808500655706328?s=20",
+                "decision_band": "already_processed",
+                "gate": "local_backend_benchmark",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.6",
+              "name": "17 SAAS stop-condition audit",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: stop-condition audit fields; no full RL/search-policy stack.",
+              "_research_x": {
+                "item": 17,
+                "source_url": "https://x.com/itarutomy/status/2066807598909673494?s=20",
+                "decision_band": "already_processed",
+                "gate": "stop_condition_audit",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.7",
+              "name": "22 Hanno-Lab Bosun relevance fixture",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Done: local relevance/support fixture lane; model adoption remains separate.",
+              "_research_x": {
+                "item": 22,
+                "source_url": "https://x.com/Trtd6Trtd/status/2066424586665939066?s=20",
+                "decision_band": "already_processed",
+                "gate": "relevance_support_fixture",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "name": "Second-wave active candidates",
+          "children": [
+            {
+              "id": "2.1",
+              "name": "11 WBS Viewer body adoption",
+              "qty": 1,
+              "hours": 4,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": null
+              },
+              "note": "Active: pinned WBS Viewer copy plus 35-item WBS JSON canary.",
+              "_research_x": {
+                "item": 11,
+                "source_url": "https://x.com/systemotaku45/status/2066921465061265602?s=20",
+                "decision_band": "second_wave_body_adoption",
+                "gate": "source_review_vendor_copy_wbs_json_canary",
+                "artifact": "tools/wbs_viewer/README.md"
+              }
+            },
+            {
+              "id": "2.2",
+              "name": "35 pdgkit body adoption",
+              "qty": 1,
+              "hours": 4,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Next: source/dependency review, then pinned real pdgkit validate/render canary; MCP later gate.",
+              "_research_x": {
+                "item": 35,
+                "source_url": "https://x.com/mottolicht/status/2064182506090627212?s=20",
+                "decision_band": "second_wave_body_adoption",
+                "gate": "source_dependency_review_real_validate_render_canary",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/implementation-plan-11-35.md"
+              }
+            },
+            {
+              "id": "2.3",
+              "name": "5 YAML-to-HTML structure-view split",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Second-wave candidate: local artifact pattern; start with project-owned schema/renderer if needed.",
+              "_research_x": {
+                "item": 5,
+                "source_url": "https://x.com/mhlyc/status/2067317558748094950?s=20",
+                "decision_band": "second_wave_candidate",
+                "gate": "local_artifact_schema_renderer",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "2.4",
+              "name": "10 Archify workflow diagram aid",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Second-wave candidate: review aid only; generated diagrams are not evidence.",
+              "_research_x": {
+                "item": 10,
+                "source_url": "https://x.com/t20000622yy/status/2065272121937576174?s=20",
+                "decision_band": "second_wave_candidate",
+                "gate": "source_review_before_install",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "2.5",
+              "name": "24 MUSE-Autoskill lifecycle input",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-26",
+                "end": "2026-06-26"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Second-wave candidate: Skill lifecycle design input; no automatic Skill growth.",
+              "_research_x": {
+                "item": 24,
+                "source_url": "https://x.com/itarutomy/status/2063223302215152036?s=20",
+                "decision_band": "second_wave_candidate",
+                "gate": "codex_foundation_design_only",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "2.6",
+              "name": "33 Ponytail over-implementation guard",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-26",
+                "end": "2026-06-26"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Second-wave candidate: source-review-only; use idea as review lens before hook/plugin.",
+              "_research_x": {
+                "item": 33,
+                "source_url": "https://x.com/bryanonchain/status/2065722260586103147?s=20",
+                "decision_band": "second_wave_candidate",
+                "gate": "source_review_before_hook_or_plugin",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "name": "Use-now or absorbed; no standalone task",
+          "children": [
+            {
+              "id": "3.1",
+              "name": "2 VS Code/Copilot token efficiency",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Use now as context-budget/tool-deferral practice; no dependency.",
+              "_research_x": {
+                "item": 2,
+                "source_url": "https://x.com/madonomori/status/2067783199317770445?s=20",
+                "decision_band": "use_now_absorbed",
+                "gate": "existing_context_budget_policy",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.2",
+              "name": "3 Harness decomposition",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Absorbed by Skill boundaries and role-scoped workflows.",
+              "_research_x": {
+                "item": 3,
+                "source_url": "https://x.com/syossan27/status/2067460732430762029?s=20",
+                "decision_band": "absorbed",
+                "gate": "existing_skill_boundaries",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.3",
+              "name": "4 Self-improving agents / local optimum",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Absorbed as branching/eval/replay/human-gate lesson.",
+              "_research_x": {
+                "item": 4,
+                "source_url": "https://x.com/fukkyy/status/2067198990295462067?s=20",
+                "decision_band": "codex_foundation_absorbed",
+                "gate": "human_gate_improvement_policy",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.4",
+              "name": "13 Adaptive Auto-Harness",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Absorbed as design input only; no runtime adoption.",
+              "_research_x": {
+                "item": 13,
+                "source_url": "https://x.com/itarutomy/status/2067014978175930500?s=20",
+                "decision_band": "absorbed",
+                "gate": "design_input_only",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.5",
+              "name": "18 Amazon State-Aware RAG",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Reference only; implementation/provider shape is heavy.",
+              "_research_x": {
+                "item": 18,
+                "source_url": "https://x.com/at_sushi_/status/2066693208986521853?s=20",
+                "decision_band": "reference_absorbed",
+                "gate": "existing_workflow_state",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.6",
+              "name": "19 AI code-review responsibility split",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Covered by review stance and human-on-the-loop policy.",
+              "_research_x": {
+                "item": 19,
+                "source_url": "https://x.com/pospome/status/2066010971488002064?s=20",
+                "decision_band": "absorbed",
+                "gate": "existing_review_policy",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.7",
+              "name": "20 /grill-me",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Covered by decision-loop workflow; no new Skill.",
+              "_research_x": {
+                "item": 20,
+                "source_url": "https://x.com/azukiazusa9/status/2066067194207997998?s=20",
+                "decision_band": "absorbed",
+                "gate": "existing_decision_loop",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.8",
+              "name": "21 grill-me plus parallel review",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Covered by decision-loop and parallel-review policy when subagents are allowed.",
+              "_research_x": {
+                "item": 21,
+                "source_url": "https://x.com/ushiro_noko/status/2066402769913983456?s=20",
+                "decision_band": "absorbed",
+                "gate": "existing_decision_parallel_review",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.9",
+              "name": "28 State separated from LLM",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Same direction as existing workflow state and gap tracking.",
+              "_research_x": {
+                "item": 28,
+                "source_url": "https://x.com/itarutomy/status/2066377584280051813?s=20",
+                "decision_band": "absorbed",
+                "gate": "existing_workflow_state",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.10",
+              "name": "30 Decision rules as Markdown",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Existing AGENTS and Skill surfaces own this.",
+              "_research_x": {
+                "item": 30,
+                "source_url": "https://x.com/itarutomy/status/2065708143980495078?s=20",
+                "decision_band": "absorbed",
+                "gate": "existing_agents_skill_surfaces",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.11",
+              "name": "32 LLM-Oriented IR",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Use now as retrieval denoising and citation-ready yield checklist.",
+              "_research_x": {
+                "item": 32,
+                "source_url": "https://x.com/snaga/status/2065992572414341348?s=20",
+                "decision_band": "use_now_absorbed",
+                "gate": "retrieval_review_checklist",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            }
+          ]
+        },
+        {
+          "id": "4",
+          "name": "Condition-triggered only",
+          "children": [
+            {
+              "id": "4.1",
+              "name": "23 JAMEL",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Dormant: only for GUI/browser exploration objective with coverage or novelty metrics.",
+              "_research_x": {
+                "item": 23,
+                "source_url": "https://x.com/itarutomy/status/2066448312035889553?s=20",
+                "decision_band": "condition_triggered",
+                "gate": "gui_exploration_objective_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "4.2",
+              "name": "29 Visual Skills",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Dormant: only when spatial evidence is central; provenance and privacy first.",
+              "_research_x": {
+                "item": 29,
+                "source_url": "https://x.com/itarutomy/status/2066124619577528377?s=20",
+                "decision_band": "condition_triggered",
+                "gate": "visual_provenance_privacy_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "4.3",
+              "name": "34 pdgkit article",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Dormant as article/pattern; item 35 owns actual pdgkit body canary.",
+              "_research_x": {
+                "item": 34,
+                "source_url": "https://x.com/mottolicht/status/2064281743897788764?s=20",
+                "decision_band": "condition_triggered_reference",
+                "gate": "covered_by_item_35_body_canary",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            }
+          ]
+        },
+        {
+          "id": "5",
+          "name": "Provider-gated closed",
+          "children": [
+            {
+              "id": "5.1",
+              "name": "1 Firecrawl Keyless",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Closed for no-quota local flow: hosted service, credits, ToS/storage-rights risk.",
+              "_research_x": {
+                "item": 1,
+                "source_url": "https://x.com/bryanonchain/status/2067623872455680344?s=20",
+                "decision_band": "provider_gated_closed",
+                "gate": "provider_approval_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.2",
+              "name": "25 Slack/RAG loop on Bedrock",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Closed for no-quota local flow: AWS/IAM/billing/provider freeze.",
+              "_research_x": {
+                "item": 25,
+                "source_url": "https://x.com/PKSHA_saiyo/status/2066332310623129884?s=20",
+                "decision_band": "provider_gated_closed",
+                "gate": "aws_provider_approval_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.3",
+              "name": "26 Google Agentic RAG",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Closed for no-quota local flow: Google Cloud/provider integration.",
+              "_research_x": {
+                "item": 26,
+                "source_url": "https://x.com/keigohtr/status/2066294358480228707?s=20",
+                "decision_band": "provider_gated_closed",
+                "gate": "google_provider_approval_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.4",
+              "name": "31 Bedrock AgentCore",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Closed for no-quota local flow: managed runtime, IAM, billing, lock-in.",
+              "_research_x": {
+                "item": 31,
+                "source_url": "https://x.com/kamo__shika/status/2065937238677221529?s=20",
+                "decision_band": "provider_gated_closed",
+                "gate": "aws_provider_approval_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            }
+          ]
+        },
+        {
+          "id": "6",
+          "name": "Closed or not actionable",
+          "children": [
+            {
+              "id": "6.1",
+              "name": "6 RAG Knowledge Hub",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Closed: external dependencies, mirror/extraction concerns, source-restoration risk.",
+              "_research_x": {
+                "item": 6,
+                "source_url": "https://x.com/Trtd6Trtd/status/2067442961005281358?s=20",
+                "decision_band": "closed_reference_only",
+                "gate": "source_rights_and_external_dependency_blockers",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.2",
+              "name": "9 Ontology mention",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Not actionable: original context is too sparse.",
+              "_research_x": {
+                "item": 9,
+                "source_url": "https://x.com/pkm_tk111/status/2066985615850393845?s=20",
+                "decision_band": "not_actionable",
+                "gate": "original_context_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.3",
+              "name": "15 Devin/Manus mention",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Not actionable: no concrete source or design delta; vendor eval would be separate.",
+              "_research_x": {
+                "item": 15,
+                "source_url": "https://x.com/ebiflyyyyyyyy/status/2066815214558105766?s=20",
+                "decision_band": "not_actionable",
+                "gate": "separate_vendor_eval_required",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.4",
+              "name": "27 Unknown",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "Not actionable: classification/source context is missing.",
+              "_research_x": {
+                "item": 27,
+                "source_url": "https://x.com/Trtd6Trtd/status/2066355591887700212?s=20",
+                "decision_band": "not_actionable",
+                "gate": "source_context_missing",
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
