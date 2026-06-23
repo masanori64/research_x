@@ -101,10 +101,6 @@ For execution-ready phases, also apply `../../skill-references/execution-quality
    - Use existing project files and commands when known.
    - Keep architecture-doc promotion out of the plan unless the phase itself has been accepted and
      verified.
-   - When the plan feeds a checklist, progress UI, WBS, or similar execution artifact, keep stable
-     boundary or gate labels as parent anchors and generate task-local leaf steps from the current
-     context. Do not hard-code example-specific names, item numbers, URLs, products, or candidate
-     labels into the reusable workflow rule; those belong only in the task-local artifact data.
 
 6. Keep deferred items alive without smuggling them in.
    - Put real rejects and "not now" items in separate sections.
@@ -218,9 +214,6 @@ Concrete checks for plan quality.
 - Confirm every deferred item has a transparent blocker or promotion condition.
 - Confirm stop gates include provider/API, installs, plugins/MCP/hooks, third-party Skills, and
   automatic Skill edits when relevant.
-- Confirm any checklist, progress UI, WBS, or similar execution artifact separates stable boundary
-  anchors from task-local generated steps, and that reusable instructions do not inherit
-  example-specific names.
 - For Skill/manifest edits related to this workflow, run:
 
 ```powershell
