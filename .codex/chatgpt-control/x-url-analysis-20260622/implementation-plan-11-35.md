@@ -14,7 +14,8 @@ Inputs:
 
 This is a second-wave implementation planning artifact for items 11 and 35. It supersedes the older
 residual judgment that treated item 11 as only conditional and item 35 as dormant for this X/GPT
-flow.
+flow. Both items are now treated as body-adoption canaries: item 11 via a pinned WBS Viewer copy,
+and item 35 via a pinned pdgkit CLI/library canary after source and dependency review.
 
 It is not permission to install npm packages, enable MCP servers, configure hooks, call providers,
 or promote ChatGPT/X-derived material into citation-ready evidence. Source review, pinning, local
@@ -39,7 +40,7 @@ through separate gates because their dependency and maintenance profiles differ.
 | # | Candidate | Revised role | First local outcome |
 |---:|---|---|---|
 | 11 | WBS Viewer / `single-file-wbs` | Adopt as the first visual planning surface candidate. | Vendored, pinned viewer plus `research_x` WBS JSON export canary. |
-| 35 | `pdgkit` | Evaluate as a deterministic diagram/spec renderer. | Source review plus `.pdg -> validate -> SVG` canary; no MCP enablement yet. |
+| 35 | `pdgkit` | Adopt as the second visual-coding body candidate for deterministic diagram/spec rendering. | Pinned pdgkit CLI/library canary using real `.pdg -> validate -> SVG`; MCP enablement remains separate. |
 
 ## P0: Shared Local Artifact Contract
 
@@ -132,12 +133,13 @@ P1 acceptance criteria:
 - The adoption decision is one of: `keep vendored viewer`, `fork/customize`, `reference only`, or
   `reject`.
 
-## P2: Item 35 pdgkit Standalone Evaluation
+## P2: Item 35 pdgkit Body-Adoption Canary
 
-Reason for separate evaluation:
+Reason for separate body adoption:
 
-- pdgkit is not a progress tracker. It is a deterministic `DSL -> validate -> render` pipeline for
-  specification diagrams.
+- pdgkit is not merely a reference pattern. The point of item 35 is to test the actual pdgkit
+  implementation as a deterministic `DSL -> validate -> render` pipeline for specification
+  diagrams.
 - It should be judged against Mermaid and plain Markdown, not against WBS Viewer.
 - Its value is highest when Codex needs repeatable block diagrams, flowcharts, state transitions,
   sequence diagrams, or specification figures that should not be hand-drawn by the model.
@@ -147,28 +149,35 @@ Implementation steps:
 1. Source review and dependency boundary.
    - Review license, font license, npm package name, Node version requirement, CLI behavior, test
      surface, network/privacy claims, and MCP server surface.
-   - Treat npm install, npx, and MCP enablement as explicit gates. Do not run them as part of this
-     plan unless a later task authorizes dependency evaluation.
+   - Treat npm install, npx, and MCP enablement as explicit execution gates. The P2 target is body
+     adoption, but dependency execution must still be reviewed and pinned before it is run.
 
-2. Choose canary diagrams.
+2. Choose the body-introduction path.
+   - Prefer a pinned npm dev-tool dependency or isolated tool invocation over copying generated
+     package contents by hand.
+   - Record the exact package/version or commit used for the canary.
+   - Keep MCP server registration out of the first body-introduction step.
+
+3. Choose canary diagrams.
    - Canary A: convert the item 11/35 decision flow into a `.pdg` flowchart.
    - Canary B: convert one existing memory-workflow route into a `.pdg` block or sequence diagram.
    - Canary C: convert a small state machine such as `draft -> canary -> accepted/rejected ->
      archived`.
 
-3. Evaluate against Mermaid.
+4. Run the actual pdgkit canary after the dependency gate.
+   - Run pdgkit's validation path against each `.pdg` source.
+   - Render at least SVG output.
+   - Save the `.pdg` source and rendered SVG together.
+   - Record whether SVG output is deterministic across repeated runs.
+   - Record whether the generated SVG is reviewable without manual editing.
+
+5. Evaluate against Mermaid.
    - Use Mermaid when the diagram is primarily documentation and the existing Markdown renderer is
      sufficient.
    - Prefer pdgkit only if validation diagnostics, stable SVG output, reference labels, or
      code/CLI integration clearly improves review.
 
-4. Local canary execution, if approved later.
-   - Install or run pdgkit only in an isolated, pinned dependency review step.
-   - Run `validate` before `render`.
-   - Save the `.pdg` source and rendered SVG together.
-   - Record whether SVG output is deterministic across repeated runs.
-
-5. Adoption decision.
+6. Adoption decision.
    - `GO`: add a project-owned `.pdg` artifact lane for selected spec diagrams.
    - `LIMITED`: keep pdgkit for patent-like, block, state, sequence, or flow diagrams only.
    - `REFERENCE`: keep the validate/render pattern but do not add the dependency.
@@ -177,7 +186,7 @@ Implementation steps:
 
 Do not:
 
-- enable `pdgkit-mcp` during the first evaluation;
+- enable `pdgkit-mcp` during the first body-adoption canary;
 - use generated pdgkit output as evidence;
 - replace Mermaid diagrams that are already sufficient;
 - create a general "diagram everything" requirement.
@@ -186,6 +195,8 @@ P2 acceptance criteria:
 
 - Source/dependency review is recorded.
 - At least one `.pdg` canary source is drafted.
+- The real pdgkit CLI/library has been run after the dependency gate, unless the source review
+  rejects it first.
 - Mermaid comparison is explicit.
 - The decision is `GO`, `LIMITED`, `REFERENCE`, or `NO-GO` with a named reason.
 
@@ -223,8 +234,8 @@ Integration rule:
 3. Generate a WBS JSON canary for the 35-item flow.
 4. Review the WBS view and decide vendored-upstream vs fork/customize.
 5. Perform item 35 source/dependency review for pdgkit.
-6. Draft `.pdg` canaries without enabling MCP.
-7. If dependency evaluation is approved, run validate/render locally and compare with Mermaid.
+6. Pin the pdgkit body-introduction path, then draft `.pdg` canaries without enabling MCP.
+7. After the dependency gate, run real pdgkit validate/render locally and compare with Mermaid.
 8. Record final adoption decisions and promote only accepted local artifact behavior.
 
 ## Stop Gates
@@ -243,7 +254,7 @@ Stop before:
 ## Done Criteria For This Planning Phase
 
 - Item 11 is promoted from vague conditional handling to a concrete WBS Viewer adoption canary.
-- Item 35 is separated from WBS and evaluated as its own deterministic diagram renderer candidate.
+- Item 35 is separated from WBS and treated as its own pdgkit body-adoption canary.
 - Both items have source-review, local canary, acceptance, and stop gates.
 - The plan distinguishes vendoring, forking, dependency evaluation, and MCP enablement.
 - The plan can start under the no-quota/provider freeze without external provider use.
