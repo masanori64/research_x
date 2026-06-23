@@ -1,0 +1,12 @@
+{
+  "name": "research-x-pdgkit-canary",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Pinned item 35 pdgkit body-adoption canary for research_x.",
+  "scripts": {
+    "pdgkit": "pdgkit"
+  },
+  "dependencies": {
+    "@shibayama/pdgkit": "0.1.2"
+  }
+}

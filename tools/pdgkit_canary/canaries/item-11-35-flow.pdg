@@ -1,0 +1,30 @@
+#! kind: flow
+S100 = Start item 11 WBS Viewer adoption
+S110 = Source review passed?
+S120 = Vendor pinned WBS Viewer
+S130 = Generate 35 item WBS JSON
+S140 = WBS render check passed?
+S150 = Start item 35 pdgkit adoption
+S160 = Source and dependency review passed?
+S170 = Draft PDG source
+S180 = PDG validate passed?
+S190 = Render SVG
+S200 = Adopt limited PDG lane?
+S210 = Keep vendored WBS and PDG canaries
+S900 = Stop at gate
+S100 -> S110
+S110 -> S120 : Yes
+S110 -> S900 : No
+S120 -> S130
+S130 -> S140
+S140 -> S150 : Yes
+S140 -> S900 : No
+S150 -> S160
+S160 -> S170 : Yes
+S160 -> S900 : No
+S170 -> S180
+S180 -> S190 : Yes
+S180 -> S170 : No
+S190 -> S200
+S200 -> S210 : Yes
+S200 -> S900 : No

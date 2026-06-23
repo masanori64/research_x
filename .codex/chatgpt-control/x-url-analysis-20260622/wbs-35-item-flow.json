@@ -203,9 +203,9 @@
               },
               "actual": {
                 "start": "2026-06-23",
-                "end": null
+                "end": "2026-06-23"
               },
-              "note": "Active: pinned WBS Viewer copy plus 35-item WBS JSON canary.",
+              "note": "Done: pinned WBS Viewer copy plus 35-item WBS JSON canary.",
               "_research_x": {
                 "item": 11,
                 "source_url": "https://x.com/systemotaku45/status/2066921465061265602?s=20",
@@ -225,16 +225,16 @@
                 "end": "2026-06-24"
               },
               "actual": {
-                "start": null,
-                "end": null
+                "start": "2026-06-23",
+                "end": "2026-06-23"
               },
-              "note": "Next: source/dependency review, then pinned real pdgkit validate/render canary; MCP later gate.",
+              "note": "Done: LIMITED pdgkit validate/render SVG canary; MCP remains later gate.",
               "_research_x": {
                 "item": 35,
                 "source_url": "https://x.com/mottolicht/status/2064182506090627212?s=20",
                 "decision_band": "second_wave_body_adoption",
                 "gate": "source_dependency_review_real_validate_render_canary",
-                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/implementation-plan-11-35.md"
+                "artifact": ".codex/chatgpt-control/x-url-analysis-20260622/pdgkit-canary-report.md"
               }
             },
             {

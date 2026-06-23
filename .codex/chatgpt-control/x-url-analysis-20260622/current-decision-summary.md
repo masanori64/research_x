@@ -89,7 +89,7 @@ policy, or a concrete project gap.
 | 32 | LLM-Oriented IR | LLM-facing retrieval/denoising design. | Use now. Apply as a retrieval review checklist for denoising and citation-ready yield. |
 | 33 | Ponytail plugin | Over-implementation prevention plugin/hook. | Source-review required, no install now. Trigger overlap, hook behavior, and source risk need review. |
 | 34 | pdgkit article | DSL -> validate -> render article/pattern. | Reference only. Good artifact pattern, but no current patent/diagram requirement. |
-| 35 | pdgkit OSS | Deterministic diagram/document renderer with CLI/MCP shape. | Second-wave body-adoption canary. Assess the actual pdgkit CLI/library for `.pdg -> validate -> render`, with dependency and MCP gates; see `implementation-plan-11-35.md`. |
+| 35 | pdgkit OSS | Deterministic diagram/document renderer with CLI/MCP shape. | Canary passed with LIMITED adoption. `@shibayama/pdgkit@0.1.2` is isolated under `tools/pdgkit_canary/`; real validate/render produced deterministic SVG. No MCP, provider, root dependency, or evidence promotion; see `pdgkit-canary-report.md`. |
 
 ## First-Wave Priority Order
 
@@ -131,7 +131,7 @@ Consider these only as a new scoped task, not as continuation of Phase 1-8:
 | 5 | YAML-to-HTML / structure-view split | Local artifact-pattern candidate. Reconsider when report, eval, or phase-gate artifacts become hard to inspect. Start with a project-owned schema and deterministic renderer, not a plugin. |
 | 10 | Archify | Conditional workflow/architecture review aid. Generated diagrams are review artifacts, not evidence. Any install or external source use still needs source review. |
 | 11 | WBS Viewer | Completed canary. Keep the vendored upstream viewer for local visual review; no fork/customization needed yet. |
-| 35 | pdgkit OSS | Promoted to standalone second-wave body-adoption canary. Start with source/dependency review, then run a pinned real pdgkit validate/render canary; do not enable MCP without a later gate. |
+| 35 | pdgkit OSS | Completed canary. Keep LIMITED local `.pdg -> validate -> SVG` lane for selected spec diagrams; do not enable MCP without a later gate. |
 | 24 | MUSE-Autoskill | Codex foundation design input for Skill lifecycle, tests, examples, failure cases, and revision logs. No automatic Skill growth. |
 | 33 | Ponytail plugin | Source-review-only candidate for over-implementation checks. Use the idea as a review lens before considering hooks or plugin install. |
 
@@ -186,6 +186,8 @@ These should not consume more planning work from this URL set:
 These are no longer residual candidates for this flow:
 
 - 11 WBS Viewer: pinned local tool canary completed; vendored viewer renders the 35-item flow.
+- 35 pdgkit OSS: pinned body-adoption canary completed; LIMITED local `.pdg -> validate -> SVG`
+  lane only.
 - 7 OCC-RAG: local answerability fixture lane implemented; model adoption remains a separate
   dependency/model gate.
 - 8 stale observation masking: route-level context-policy eval warning implemented; no universal
@@ -200,14 +202,14 @@ These are no longer residual candidates for this flow:
   later dependency/model gate.
 
 Net decision: the only non-processed items worth active second-wave consideration are 5, 10, 24,
-33, and 35. Item 11 is now processed by the WBS Viewer canary. Everything else is either absorbed,
+and 33. Items 11 and 35 are now processed by local canaries. Everything else is either absorbed,
 condition-triggered, provider-gated, or closed.
 
 ## Do Not Promote Now
 
 - No provider/API calls, free-credit usage, hosted search/RAG, or managed-RAG integration.
-- No plugin, MCP, hook, or dependency installation from this URL set, except a later explicit
-  item-35 pdgkit body-adoption canary after source/dependency review and pinning.
+- No plugin, MCP, hook, or dependency installation from this URL set, except the completed isolated
+  item-35 pdgkit body-adoption canary under `tools/pdgkit_canary/`.
 - No automatic Skill rewrite or self-improving loop without replay, qualifier, manifest validation,
   and human accept/reject.
 - No source-bundle promotion from ChatGPT/X-derived summaries without primary source restoration.

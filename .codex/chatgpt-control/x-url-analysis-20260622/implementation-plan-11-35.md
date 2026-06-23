@@ -210,6 +210,19 @@ P2 acceptance criteria:
 - Mermaid comparison is explicit.
 - The decision is `GO`, `LIMITED`, `REFERENCE`, or `NO-GO` with a named reason.
 
+P2 execution status:
+
+- Status: `completed`.
+- Decision: `LIMITED`.
+- Source/dependency review: `tools/pdgkit_canary/UPSTREAM.md`.
+- Package: `@shibayama/pdgkit@0.1.2`.
+- Package lock: `tools/pdgkit_canary/package-lock.json`.
+- Canary source: `tools/pdgkit_canary/canaries/item-11-35-flow.pdg`.
+- Rendered SVG: `tools/pdgkit_canary/out/item-11-35-flow.svg`.
+- SVG SHA-256: `1023BB0031CC07D94150CCCAD13771A440C7F2094A430770E50FA65A4CB8B623`.
+- Canary report: `.codex/chatgpt-control/x-url-analysis-20260622/pdgkit-canary-report.md`.
+- MCP status: not enabled; remains a later explicit gate.
+
 ## P3: Integration Flow If Both Pass
 
 If P1 and P2 both pass, use a two-lane artifact flow:

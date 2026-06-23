@@ -41,10 +41,10 @@ def test_wbs_canary_marks_items_11_and_35_as_body_adoption_candidates() -> None:
 
     assert item_11["_research_x"]["decision_band"] == "second_wave_body_adoption"
     assert item_11["actual"]["start"] == "2026-06-23"
-    assert item_11["actual"]["end"] is None
+    assert item_11["actual"]["end"] == "2026-06-23"
     assert item_35["_research_x"]["decision_band"] == "second_wave_body_adoption"
-    assert item_35["actual"]["start"] is None
-    assert item_35["actual"]["end"] is None
+    assert item_35["actual"]["start"] == "2026-06-23"
+    assert item_35["actual"]["end"] == "2026-06-23"
 
 
 def test_wbs_viewer_vendor_copy_is_pinned_and_local() -> None:
