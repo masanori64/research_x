@@ -24,6 +24,10 @@ verifiable, resumable, human-on-the-loop, and respectful of the shared worktree.
 
 3. Keep progress visible.
    - Track phase status, worker/verifier ownership, failed checks, skipped checks, and next action.
+   - Treat the step list Codex creates at implementation start as task-local execution boundaries.
+     Keep durable gates, status, source-of-truth boundaries, and stop conditions separate from these
+     mutable steps; regenerate, split, merge, or reorder steps from the current request, diff,
+     relevant Markdown/Skills, test failures, and review findings.
    - Do not let sub-agents own the final decision; parent agent integrates and verifies.
    - Treat failed checks, boundary denials, dependency conflicts, and review findings as adaptation
      signals for repair unless they hit an oversight gate.

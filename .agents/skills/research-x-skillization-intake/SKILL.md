@@ -94,6 +94,8 @@ Trigger it at these boundaries:
 
 - after context expansion reveals a different task type than the initial route;
 - when moving between planning, implementation, verification, docs update, publish, or review;
+- when Codex creates, completes, splits, or replaces task-local implementation steps after work
+  starts; these steps are mutable execution boundaries, not durable workflow terminology;
 - when a new gate appears: provider/API/quota, external source, third-party tool or Skill, prompt
   contract, Markdown placement, context budget, image generation, connector/MCP, install, or
   sub-agent policy;
