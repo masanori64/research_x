@@ -1,3 +1,5 @@
+<!-- Historical consultation capture. Active path: README.md, tools/wbs_viewer/projects/research-x-work-state.json, docs/pdg/*.pdg, and .codex/context_offloads/pointer-map.json. Not evidence; do not update as an active tracker. -->
+
 ## 前提
 
 追加調査は、アップロードされた `Project Usability Review` の未解決・保留判定を対象にし、X/ChatGPT要約ではなく、Webで確認できた一次情報・公式情報・論文・GitHub・コミュニティ反応を基準に再判定しました。

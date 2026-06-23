@@ -1,6 +1,8 @@
 # pdgkit Canary
 
-This folder contains the item 35 pdgkit body-adoption canary for `research_x`.
+This folder contains the isolated `@shibayama/pdgkit` dependency used to validate
+and render PDG sources. It is a tool environment, not the owner of project
+architecture.
 
 ## Package
 
@@ -9,27 +11,55 @@ This folder contains the item 35 pdgkit body-adoption canary for `research_x`.
 - command: `pdgkit`
 - MCP command present but not enabled: `pdgkit-mcp`
 
-The package is installed only inside this folder for the canary. `node_modules/` is ignored and is
-not part of the repository state. `package-lock.json` is tracked to keep the canary reproducible.
+The package is installed only inside this folder for canary and render work.
+`node_modules/` is ignored. `package-lock.json` is tracked for reproducibility.
 
-## Canary
+## Canary Fixtures
 
-Source:
+Canary source:
 
-- `canaries/item-11-35-flow.pdg`
+```text
+tools/pdgkit_canary/canaries/item-11-35-flow.pdg
+```
 
-Generated output:
+Canary generated output:
 
-- `out/item-11-35-flow.svg`
+```text
+tools/pdgkit_canary/out/item-11-35-flow.svg
+```
 
-Run locally:
+## Project-Owned PDG Sources
+
+Current structural sources live outside this canary folder:
+
+```text
+docs/pdg/memory-evidence-pipeline.pdg
+docs/pdg/objective-route-policy.pdg
+docs/pdg/source-intake-gate-flow.pdg
+docs/pdg/visual-context-offload-lane.pdg
+```
+
+Generated review SVGs live in:
+
+```text
+docs/pdg/out/*.svg
+```
+
+Validate/render project sources from this folder with `npx --no-install`:
 
 ```powershell
 cd tools\pdgkit_canary
-npm install
-npx pdgkit validate canaries\item-11-35-flow.pdg --lang en
-npx pdgkit render canaries\item-11-35-flow.pdg --lang en -o out\item-11-35-flow.svg
+npx --no-install pdgkit validate ..\..\docs\pdg\memory-evidence-pipeline.pdg --lang en
+npx --no-install pdgkit render ..\..\docs\pdg\memory-evidence-pipeline.pdg --lang en -o ..\..\docs\pdg\out\memory-evidence-pipeline.svg
 ```
 
-Generated SVG is a review artifact, not evidence. MCP registration remains out of scope for this
-canary.
+Repeat for each `docs/pdg/*.pdg`.
+
+## Boundary
+
+Use PDG for structural context: route diagrams, state machines, implementation
+boundary flows, and artifact transitions.
+
+Generated SVGs are review artifacts, not evidence. `pdgkit-mcp`, hooks, browser-edit
+defaults, provider calls, root dependency adoption, and automatic project actions
+remain out of scope unless separately approved.

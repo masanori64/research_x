@@ -1,7 +1,7 @@
 # WBS Viewer Tool
 
-This folder contains the item 11 WBS Viewer body-adoption canary for the X/GPT
-35-item implementation flow.
+This folder vendors the item 11 WBS Viewer canary and provides a local review
+surface for the `research_x` canonical work-state JSON.
 
 ## Upstream Copy
 
@@ -16,16 +16,31 @@ Pinned source:
 - Commit: `322895a23f49028b53ae8c8a1710d6db45cdf726`
 - License: MIT
 
-See `UPSTREAM.md` for the source review and adoption gate.
+See `UPSTREAM.md` for source review and adoption gates.
 
-## Canary Data
+## Canonical Work State
 
-The first `research_x` WBS canary data file is:
+The current project-owned WBS source is:
 
-- `.codex/chatgpt-control/x-url-analysis-20260622/wbs-35-item-flow.json`
+```text
+tools/wbs_viewer/projects/research-x-work-state.json
+```
 
-Open `vendor/single-file-wbs-v1.2.0/wbs_viewer.html` in Chrome or another Chromium browser, then
-load the JSON file through the viewer's file picker.
+Open `vendor/single-file-wbs-v1.2.0/wbs_viewer.html` in Chrome or another Chromium
+browser, then load the JSON file through the viewer's file picker.
 
-Generated visuals are planning/review artifacts only. The Markdown and source files remain the
-decision records.
+Historical or compatibility WBS files may remain in other folders, but they are not
+the update target unless a task explicitly says so.
+
+## Boundary
+
+WBS owns operational state:
+
+- candidate and phase queues;
+- planned/actual dates;
+- gate, decision band, status, next action, and artifact pointers;
+- completed, blocked, closed, archived, or active work.
+
+WBS must not carry long rationale, source review prose, context chunks, citations,
+answer support, or provider execution permission. Codex edits the JSON source;
+browser editing remains optional human review.

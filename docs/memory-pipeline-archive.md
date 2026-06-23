@@ -25,8 +25,33 @@ or old source links. Do not scan the whole archive by default.
 | Retrieval policy detailed notes moved out of active V2 | 2026-06-08: Retrieval Policy Detail Archived From Active V2 |
 | Codex-wide external tools, memory MCP, retrospective/fluent, SkillOpt/Sleep | 2026-06-09: Codex-Wide External Tool Candidates |
 | `_codex_inbox` design package placement, implemented/residual split | 2026-06-10: Codex Inbox Design Package Placement |
+| Active V2 Markdown thinning and WBS/PDG/Pointer split | 2026-06-24: Active V2 Information Architecture Thinning |
 
 ## Decision Notes
+
+### 2026-06-24: Active V2 Information Architecture Thinning
+
+Scope:
+
+- `docs/memory-pipeline-v2.md` had accumulated evidence invariants, route flows, active
+  decision notes, completed state, provider gates, visual context offload details, and
+  post-V1 work boundaries in one active Markdown surface.
+- GPT Pro review on 2026-06-23 recommended splitting the project into Markdown decision
+  boundaries, WBS operational state, PDG structural flows, and Pointer Map restore
+  indexes.
+
+Decision:
+
+- Keep `docs/memory-pipeline-v2.md` as the active evidence contract and boundary
+  constitution.
+- Move operational state, candidate bands, phase progress, dates, and residual work to
+  `tools/wbs_viewer/projects/research-x-work-state.json`.
+- Move route, state-machine, source-intake, and context-offload structure to
+  `docs/pdg/*.pdg`.
+- Move context restoration pointers, hashes, sizes, and restore hints to
+  `.codex/context_offloads/pointer-map.json`.
+- Keep WBS, PDG, SVG, screenshots, pointer maps, and ChatGPT consultation captures out
+  of the evidence/citation/answer-support chain.
 
 ### 2026-06-10: Codex Inbox Design Package Placement
 

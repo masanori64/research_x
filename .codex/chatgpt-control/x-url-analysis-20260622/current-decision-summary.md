@@ -1,3 +1,5 @@
+<!-- Historical consultation capture. Active path: README.md, tools/wbs_viewer/projects/research-x-work-state.json, docs/pdg/*.pdg, and .codex/context_offloads/pointer-map.json. Not evidence; do not update as an active tracker. -->
+
 # X URL Analysis Current Decision Summary
 
 Date: 2026-06-22
@@ -11,25 +13,17 @@ plugin/MCP enablement, or architecture change.
 
 ## Document Roles And Precedence
 
-Use the X/GPT Markdown files in this order:
+This file is now historical. Do not use the long Markdown files in this folder as
+the active read path.
 
-1. `current-decision-summary.md`: current 35-item judgment and post Phase 1-8 residual decision.
-   The second-wave implementation plan for items 11 and 35 is now recorded in
-   `implementation-plan-11-35.md` and supersedes the older residual handling for those two items.
-2. `phase-gate-report.md`: execution record for Phase 1-8, including GO/NO-GO decisions and
-   verification.
-3. `implementation-priority-flow.md`: original gate-first implementation plan; it is not the active
-   queue after Phase 1-8.
-4. `project-usability-review.md`: historical project-use review; its older next actions are
-   superseded by this file and `phase-gate-report.md`.
-5. `classification.md`: initial source-intake classification; useful for provenance, not current
-   execution order.
-6. `chatgpt-opaque-deferred-followup.md`, `chatgpt-visible-output.txt`, and addendum text files:
-   consultation/raw capture material only.
+Current active surfaces:
 
-Durable architecture and project state remain owned by `docs/memory-pipeline-v2.md` and
-`PROJECT.md`. This folder records consultation, planning, gate execution, and residual judgment for
-this X/GPT flow only.
+- 35-item candidate state: `tools/wbs_viewer/projects/research-x-work-state.json`
+- promotion and stop-gate structure: `docs/pdg/source-intake-gate-flow.pdg`
+- context restore index: `.codex/context_offloads/pointer-map.json`
+- active folder index: `.codex/chatgpt-control/x-url-analysis-20260622/README.md`
+
+Read this file only when historical consultation context is explicitly needed.
 
 ## Current Reading
 

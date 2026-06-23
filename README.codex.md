@@ -1,44 +1,48 @@
 # research-x Codex Reference
 
-This is the compact Codex-facing repository reference. Do not read `README.md` for routine Codex
-work; it is the human/GitHub entry point.
+This is the compact Codex-facing repository reference. `README.md` is the
+human/GitHub entry point; do not read it for routine Codex orientation.
 
-## First Files
+## Reduced Read Path
 
 Read in this order:
 
-1. `AGENTS.md`: mandatory rules, no-quota freeze, uv command policy, publish policy, notification,
-   and native repo Skill dispatcher.
-2. `PROJECT.md`: current milestone state and gates.
-3. `docs/memory-pipeline-v2.md`: active memory/search architecture when changing the pipeline.
-4. `docs/pipeline.md`: acquisition/auth/provider details when working on X collection.
-5. `docs/memory-pipeline-archive.md`: only targeted archived sections when prior research matters.
+1. `AGENTS.md`: mandatory rules, no-quota freeze, uv command policy, publish
+   policy, notification, and native repo Skill dispatcher.
+2. `README.codex.md`: this compact orientation.
+3. `.codex/context_offloads/pointer-map.json`: authoritative pointer/hash/restore
+   index for offloaded Codex work context.
+4. `tools/wbs_viewer/projects/research-x-work-state.json`: only when operational
+   state, candidate bands, dates, gates, or remaining work are needed.
+5. `docs/pdg/*.pdg`: only when route, state-machine, implementation boundary, or
+   artifact-transition structure is needed.
+6. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
+   architecture boundary changes.
+7. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
+   historical rationale is needed.
+
+Avoid routine reads of `.codex/chatgpt-control/x-url-analysis-20260622/*.md`; that
+folder is a historical consultation capture, not the active plan or evidence source.
 
 ## Current Mission
 
 Build and operate a local, user-specific X data memory system:
 
 ```text
-X acquisition DB
-  -> normalized / derived documents
-  -> relations / source bundles
-  -> retrieval arms and route policy
-  -> context chunks
-  -> citations
-  -> bounded workflows
-  -> eval / feedback / audit
+X acquisition DB -> searchable documents -> source bundles
+-> context chunks -> citations -> bounded workflows -> eval/audit
 ```
 
 Core invariant:
 
 ```text
-raw source != searchable document != search result != context chunk != citation != answer
+raw source != searchable document != search result != source bundle
+!= context chunk != citation != answer
 ```
 
-No-spend foundation v1 is pinned as complete as of 2026-06-10. Post-v1 work must be classified
-before implementation as future local hardening, provider-gated expansion, local-dependency
-execution, or separate Codex foundation work. Use `PROJECT.md` for the short tracker and
-`docs/memory-pipeline-v2.md` for detailed boundaries.
+WBS, PDG, SVG, screenshots, pointer maps, ChatGPT captures, sub-agent notes, and
+compressed summaries are control or review artifacts. They are not evidence or
+answer support.
 
 ## Mandatory Runtime Rules
 
@@ -47,179 +51,68 @@ execution, or separate Codex foundation work. Use `PROJECT.md` for the short tra
 ```powershell
 uv run python -m research_x ...
 uv run pytest ...
-uv run ruff check src\research_x tests
+uv run ruff check <explicit-targets>
 ```
 
-- No real provider API calls while the no-quota freeze is active. This includes free-tier,
-  trial-credit, and zero-dollar quota.
-- Fake/local providers, static inspection, offline estimates, and monkeypatched tests are allowed.
-- Default to human-on-the-loop execution: once the user launches a task or goal, continue through
-  local planning, implementation, review, repair, verification, and scoped commit/push without
-  step-by-step approval unless an oversight gate is hit.
-- For separable implementation work, scoped push is the default after commit. Do not hold the push
-  merely because it is a GitHub/network write; stop only for unclear scope, unrelated changes, PR
-  creation, force-push, branch rewrites, or cross-repo writes.
-- Run completion notification at the end:
+- No real provider API calls while the no-quota freeze is active, including
+  free-tier, trial-credit, and zero-dollar quota.
+- Fake/local providers, static inspection, offline estimates, and monkeypatched
+  tests are allowed.
+- Continue through local planning, implementation, review, repair, verification,
+  and scoped commit/push unless an oversight gate is hit.
+- Run the completion notification at the end:
 
 ```powershell
 uv run python -m research_x notify --message "作業が終了しました"
 ```
 
-## Main CLI Surfaces
+## Command Discovery
 
-Top-level:
-
-```text
-run, pipeline, bookmarks, tweets, tweet-stages, db-show, label-existing,
-accounts, auth, app, progress, notify, adapters, memory, test-diagnose
-```
-
-Memory-search:
-
-```text
-memory build-corpus
-memory build-derived
-memory search
-memory evidence
-memory context
-memory citations
-memory workflow
-memory objective-routes
-memory objective-execute
-memory final-skeleton-preflight
-memory api-lane-estimate
-memory api-budget
-memory api-usage
-memory api-watch
-memory audit
-memory eval
-memory portfolio-eval
-memory build-embeddings
-memory embedding-estimate
-memory embedding-coverage
-memory build-vector-projection
-memory vector-projection-coverage
-memory vector-backend-benchmark
-memory media-embedding-estimate
-memory build-media-embeddings
-memory media-embedding-coverage
-memory media-search
-memory ocr-estimate
-memory build-ocr-evidence
-memory ocr-coverage
-memory ocr-promote-chunks
-memory ocr-second-pass
-memory ocr-search
-memory media-role-estimate
-memory media-role-build
-memory media-role-coverage
-memory media-observation-add
-memory media-observation-import
-memory media-observation-coverage
-memory external-search
-memory extract-url
-memory llm-context
-memory governance
-memory export-corpus2skill
-```
-
-Context/output budget:
+Do not maintain long command inventories in this file. Use the live CLI help:
 
 ```powershell
-uv run python -m research_x memory context --query "..." --context-budget-max-chars 32000 --context-offload-dir runs\context_offloads
-uv run python -m research_x memory workflow --query "..." --json --context-budget-max-chars 32000
+uv run python -m research_x --help
+uv run python -m research_x memory --help
+uv run python -m research_x test-diagnose --help
 ```
 
-Source-backed memory governance:
+Common local/fake verification families include memory audit/eval/portfolio checks,
+research-intake dry-runs, prompt-contract tests, Skill manifest validation, WBS
+structure checks, PDG validate/render checks, and pointer-map hash checks. Keep
+provider-backed commands gated.
 
-```powershell
-uv run python -m research_x memory governance add --type profile --subject-kind topic --subject-id "..." --statement "..." --source-kind memory_document --source-id "..."
-uv run python -m research_x memory governance tombstone --artifact-kind memory_document --artifact-id "..." --reason "..." --source-kind manual --source-id "..."
-uv run python -m research_x memory governance list --json
-```
+## Work-State And Structure
 
-PromptContract/MNP deterministic checks:
+- Operational state source: `tools/wbs_viewer/projects/research-x-work-state.json`
+- WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html`
+- Project PDG sources: `docs/pdg/*.pdg`
+- Project PDG review SVGs: `docs/pdg/out/*.svg`
+- pdgkit execution environment: `tools/pdgkit_canary/`
 
-```powershell
-uv run pytest tests\test_prompt_contracts.py
-uv run pytest tests\prompt_contracts
-```
-
-Codex improvement pipeline:
-
-```powershell
-uv run python -m research_x.codex_improvement capture ...
-uv run python -m research_x.codex_improvement triage
-uv run python -m research_x.codex_improvement propose
-uv run python -m research_x.codex_improvement validate
-```
-
-Research intake dry-run:
-
-```powershell
-uv run python -m research_x.research_intake validate
-uv run python -m research_x.research_intake discover --out runs\research_intake\discovery_run.json
-uv run python -m research_x.research_intake brief --run runs\research_intake\discovery_run.json --out runs\research_intake\research_brief.md
-uv run pytest tests\research_intake
-```
-
-Addendum policy surfaces:
-
-```text
-.agents/skills/research-x-research-intake/SKILL.md
-.agents/skills/research-x-context-budget/SKILL.md
-.agents/skills/research-x-publishing-illustration/SKILL.md
-.agents/skill-references/search-quality-contract.md
-.agents/skill-references/provider-quality-contract.md
-.agents/skill-references/evidence-workflow-quality-contract.md
-.agents/skill-references/governance-quality-contract.md
-.agents/skill-references/execution-quality-contract.md
-.codex/research_intake/
-prompt_contracts/research_x_*.yaml
-```
+Use WBS for phase/candidate/gate/status data. Use PDG for route, state-machine, and
+boundary flows. Use Pointer Map for path/hash/size/restore hints. Keep Markdown for
+durable reasons, invariants, stop conditions, and pointers.
 
 ## Repo Skills
 
-Repo Skills live under `.agents/skills/` and use Codex native implicit invocation through
-`agents/openai.yaml`.
+Repo Skills live under `.agents/skills/` and are enabled by
+`.codex/skill_manifest.lock`. Let Codex native Skill selection choose the narrowest
+applicable Skill, then read that Skill and its directly referenced contracts before
+acting.
 
-Workspace policy: the desktop is the canonical `research_x` machine. Use VS Code Remote SSH from
-other PCs; repo Skills do not manage PC-to-PC local state sync or migration.
-
-Routing expectation: before choosing a repo Skill, compare the newest request and recent context
-against nearby Skills in both directions. Pick a primary Skill, add secondary gate Skills when
-needed, and mention close-but-not-selected Skills only when ambiguity matters. For functional
-overlap or phase-boundary route changes such as router, gate, intake, evidence, execution,
-observability, and transformation groups, use the taxonomy and checkpoint rules in
-`.agents/skills/research-x-skillization-intake/SKILL.md`.
-
-- `research-x-skillization-intake`: recurring Codex behavior and instruction-surface placement.
-- `research-x-decision-loop`: research/review/audit loops and stop-condition checks.
-- `research-x-doc-governance`: Markdown placement, archival, and drift checks.
-- `research-x-goal-runner`: long goal phase continuation until completion or an oversight gate.
-- `research-x-memory-workflow`: memory-search architecture and implementation invariants.
-- `research-x-observability-review`: app/CLI/workflow trace visibility.
-- `research-x-parallel-review`: sub-agent role design when permitted or required for exploration.
-- `research-x-provider-gate`: no-quota and provider-facing lane checks.
-- `research-x-research-intake`: source candidate classification and source-bundle handoff.
-- `research-x-context-budget`: context pack, compression, offload, and evidence-preserving budget.
-- `research-x-prompt-contract`: prompt schema/status/tool-boundary contracts and prompt tests.
-- `research-x-skill-source-review`: third-party source/Skill trust, pin, gate, reject, or reference
-  decisions.
-- `research-x-publishing-illustration`: visual briefs, shot lists, and storyboards outside evidence.
-- `research-x-implementation-plan-flow`: converts GPT/X/source-candidate reviews into gated,
-  local-first implementation priority flows.
+Do not duplicate the Skill catalog here. Use the manifest and Skill files for the
+current list.
 
 ## Verification
 
-Default checks:
+Default broad checks, when appropriate:
 
 ```powershell
 uv run ruff check src\research_x tests
 uv run pytest
 ```
 
-If full pytest is slow:
+For slow or stuck pytest runs:
 
 ```powershell
 uv run python -m research_x test-diagnose tests\test_memory.py --mode tests --timeout-seconds 60 --stop-on-fail

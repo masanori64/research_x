@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+POINTER_MAP = Path(".codex/context_offloads/pointer-map.json")
+HUMAN_INDEX = Path(".codex/context_offloads/visual-context-offload-map.md")
+
+
+def test_pointer_map_entries_match_current_artifacts() -> None:
+    data = json.loads(POINTER_MAP.read_text(encoding="utf-8"))
+    entries = data["entries"]
+
+    assert data["schema_version"] == 1
+    assert entries
+    assert len({entry["pointer_id"] for entry in entries}) == len(entries)
+
+    for entry in entries:
+        path = Path(entry["artifact_path"])
+        assert path.exists(), entry["pointer_id"]
+        assert entry["not_evidence"] is True
+        assert entry["restore_hint"]
+        assert entry["artifact_kind"]
+        assert entry["owner_plane"]
+        assert entry["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        assert entry["char_count"] == len(path.read_text(encoding="utf-8"))
+        assert entry["byte_count"] == path.stat().st_size
+
+
+def test_pointer_map_covers_canonical_wbs_project_pdg_and_gpt_pro_input() -> None:
+    data = json.loads(POINTER_MAP.read_text(encoding="utf-8"))
+    paths = {entry["artifact_path"] for entry in data["entries"]}
+
+    assert "tools/wbs_viewer/projects/research-x-work-state.json" in paths
+    assert (
+        ".codex/chatgpt-control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md"
+        in paths
+    )
+    for stem in (
+        "memory-evidence-pipeline",
+        "objective-route-policy",
+        "source-intake-gate-flow",
+        "visual-context-offload-lane",
+    ):
+        assert f"docs/pdg/{stem}.pdg" in paths
+        assert f"docs/pdg/out/{stem}.svg" in paths
+
+
+def test_human_pointer_index_is_thin_and_defers_to_json() -> None:
+    text = HUMAN_INDEX.read_text(encoding="utf-8")
+
+    assert "pointer-map.json" in text
+    assert "authoritative pointer map" in text
+    assert "| pointer_id |" not in text
+    assert "not citations or answer support" in text

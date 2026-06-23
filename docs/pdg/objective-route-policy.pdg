@@ -1,0 +1,21 @@
+#! kind: flow
+S100 = Receive objective
+S110 = Classify route need
+S120 = Local evidence route
+S130 = Local relation or exact-anchor route
+S140 = Provider-gated candidate route
+S150 = Restore source bundle
+S160 = Build citation-ready context
+S170 = Answer or abstain
+S900 = Stop: provider quota gate
+S910 = Stop: route gap needs review
+S100 -> S110
+S110 -> S120 : saved-data recall
+S110 -> S130 : relation or exact anchor
+S110 -> S140 : external or model-only lane
+S140 -> S900 : no explicit quota approval
+S120 -> S150
+S130 -> S150
+S150 -> S160 : restored
+S150 -> S910 : not restored
+S160 -> S170

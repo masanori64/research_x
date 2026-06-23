@@ -1,0 +1,35 @@
+#! kind: flow
+S100 = Start Codex planning or review task
+S110 = Is active text context too large?
+S120 = Use normal Markdown pointer
+S130 = Classify context shape
+S140 = Operational state, phase, candidate, or gate?
+S150 = Update canonical WBS JSON
+S160 = Structure, route, state machine, or boundary?
+S170 = Update project PDG source
+S180 = Validate structured sources
+S190 = Update pointer-map JSON
+S200 = Reference pointer from Markdown
+S210 = Load full source only when detail is needed
+S220 = Evidence claim needed?
+S230 = Restore source bundle, context chunks, and citations
+S240 = Keep visual artifact as review only
+S900 = Stop at provider, MCP, hook, or browser-edit gate
+S100 -> S110
+S110 -> S120 : No
+S110 -> S130 : Yes
+S130 -> S140
+S140 -> S150 : Yes
+S140 -> S160 : No
+S160 -> S170 : Yes
+S160 -> S120 : No
+S150 -> S180
+S170 -> S180
+S180 -> S190 : Pass
+S180 -> S900 : Fail
+S190 -> S200
+S200 -> S210
+S210 -> S220
+S220 -> S230 : Yes
+S220 -> S240 : No
+S230 -> S240

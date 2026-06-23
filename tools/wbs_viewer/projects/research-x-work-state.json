@@ -1,0 +1,1969 @@
+{
+  "projects": [
+    {
+      "name": "research_x Canonical Work State",
+      "milestones": [
+        {
+          "date": "2026-06-10",
+          "label": "No-spend foundation pinned",
+          "color": "#2563eb"
+        },
+        {
+          "date": "2026-06-23",
+          "label": "X/GPT 11/35 canaries complete",
+          "color": "#7c3aed"
+        },
+        {
+          "date": "2026-06-24",
+          "label": "WBS/PDG/Pointer IA refresh active",
+          "color": "#16a34a"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "Memory no-spend foundation",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "No-spend foundation V1 pinned",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-10",
+                "end": "2026-06-10"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "no_spend_foundation",
+                "status": "complete",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "1.2",
+              "name": "Evidence objects and source-bundle restoration",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-10",
+                "end": "2026-06-10"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "source_bundle_restoration",
+                "status": "complete",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "1.3",
+              "name": "ObjectiveRoutePolicy and workflow traces",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-10",
+                "end": "2026-06-10"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "route_policy_not_evidence",
+                "status": "complete",
+                "artifact_pointer": "docs/pdg/objective-route-policy.pdg",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "1.4",
+              "name": "ContextBudget offload for runtime outputs",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-10",
+                "end": "2026-06-10"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "compressed_context_not_evidence",
+                "status": "complete",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "name": "Provider-quota gate",
+          "children": [
+            {
+              "id": "2.1",
+              "name": "No-quota provider freeze",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "blocked",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "provider_gated",
+                "gate": "provider_quota_freeze",
+                "status": "blocked",
+                "artifact_pointer": "AGENTS.md",
+                "owner_doc": "AGENTS.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before real provider API calls until explicitly lifted in current conversation."
+              }
+            },
+            {
+              "id": "2.2",
+              "name": "First provider call preflight",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Run offline estimate/status before any approved provider call.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "provider_gated",
+                "gate": "api_budget_guard",
+                "status": "blocked",
+                "artifact_pointer": "PROJECT.md",
+                "owner_doc": "PROJECT.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "name": "Local dependency gate",
+          "children": [
+            {
+              "id": "3.1",
+              "name": "Vector backend dependency review",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "blocked",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "local_dependency_gate",
+                "gate": "local_dependency_review",
+                "status": "blocked",
+                "artifact_pointer": "PROJECT.md",
+                "owner_doc": "PROJECT.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "3.2",
+              "name": "OCR local provider dependency review",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "blocked",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "local_dependency_gate",
+                "gate": "local_dependency_review",
+                "status": "blocked",
+                "artifact_pointer": "PROJECT.md",
+                "owner_doc": "PROJECT.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "3.3",
+              "name": "Corpus2Skill compiler execution review",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "blocked",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "local_dependency_gate",
+                "gate": "local_dependency_review",
+                "status": "blocked",
+                "artifact_pointer": "PROJECT.md",
+                "owner_doc": "PROJECT.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "4",
+          "name": "Codex foundation adjuncts",
+          "children": [
+            {
+              "id": "4.1",
+              "name": "Skill/source manifest lock",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-10",
+                "end": "2026-06-10"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "source_lock",
+                "status": "complete",
+                "artifact_pointer": ".codex/vendor_sources.lock.md",
+                "owner_doc": ".codex/vendor_sources.lock.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "4.2",
+              "name": "ImprovementSignal local pipeline",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "local_only_no_provider",
+                "status": "complete",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "4.3",
+              "name": "PromptContract deterministic checks",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-10",
+                "end": "2026-06-10"
+              },
+              "note": "complete",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "deterministic_no_provider",
+                "status": "complete",
+                "artifact_pointer": "prompt_contracts/",
+                "owner_doc": "README.codex.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "4.4",
+              "name": "Architecture refresh completion gates",
+              "children": [
+                {
+                  "id": "4.4.1",
+                  "name": "Thin PROJECT.md",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": null,
+                    "end": null
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "Reduced to goal, invariant, pointers, gates, and implementation rules.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "operational_state",
+                    "decision_band": "architecture_refresh_required",
+                    "gate": "markdown_thinness_required",
+                    "status": "complete",
+                    "artifact_pointer": "PROJECT.md",
+                    "owner_doc": "PROJECT.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": ""
+                  }
+                },
+                {
+                  "id": "4.4.2",
+                  "name": "Thin README.codex.md first-read path",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": null,
+                    "end": null
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "Reduced to pointer-first read path and live help/manifest references.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "operational_state",
+                    "decision_band": "architecture_refresh_required",
+                    "gate": "markdown_thinness_required",
+                    "status": "complete",
+                    "artifact_pointer": "README.codex.md",
+                    "owner_doc": "README.codex.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": ""
+                  }
+                },
+                {
+                  "id": "4.4.3",
+                  "name": "Move X/GPT folder out of active path",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": null,
+                    "end": null
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "Added thin README and historical notices; state moved to WBS.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "operational_state",
+                    "decision_band": "architecture_refresh_required",
+                    "gate": "active_path_reduction_required",
+                    "status": "complete",
+                    "artifact_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                    "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": ""
+                  }
+                },
+                {
+                  "id": "4.4.4",
+                  "name": "Keep docs/memory-pipeline-v2.md from accumulating WBS/PDG state",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": null,
+                    "end": null
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "Reduced to evidence contract and WBS/PDG/Pointer boundary constitution.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "operational_state",
+                    "decision_band": "architecture_refresh_required",
+                    "gate": "architecture_boundary_required",
+                    "status": "complete",
+                    "artifact_pointer": "docs/memory-pipeline-v2.md",
+                    "owner_doc": "docs/memory-pipeline-v2.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": ""
+                  }
+                },
+                {
+                  "id": "4.4.5",
+                  "name": "Add WBS/PDG/Pointer/Markdown boundary regression tests",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "Covers canonical WBS, project PDG, pointer map, markdown thinness, and visual lane.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "operational_state",
+                    "decision_band": "architecture_refresh_required",
+                    "gate": "boundary_regression_tests_required",
+                    "status": "complete",
+                    "artifact_pointer": "tests/test_markdown_information_architecture.py",
+                    "owner_doc": "README.codex.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": ""
+                  }
+                },
+                {
+                  "id": "4.4.6",
+                  "name": "Validate and render project PDG sources",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "pdgkit validate/render passed for docs/pdg/*.pdg and docs/pdg/out/*.svg.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "operational_state",
+                    "decision_band": "architecture_refresh_required",
+                    "gate": "pdg_validate_render_required",
+                    "status": "complete",
+                    "artifact_pointer": "docs/pdg/out",
+                    "owner_doc": "tools/pdgkit_canary/README.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": ""
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "5",
+          "name": "X/GPT 35-item intake",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "7 OCC-RAG answerability fixture",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "local_answerability_fixture",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 7,
+                "source_candidate_url": "https://x.com/itarutomy/status/2067376489805263233?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.2",
+              "name": "8 Stale observation masking route eval",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "route_context_policy_eval",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 8,
+                "source_candidate_url": "https://x.com/itarutomy/status/2067263698134343717?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.3",
+              "name": "12 Agentmemory disabled source-lock",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "disabled_source_lock",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 12,
+                "source_candidate_url": "https://x.com/L_go_mrk/status/2066815545853313441?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence."
+              }
+            },
+            {
+              "id": "1.4",
+              "name": "14 SkillAdaptor ImprovementSignal pattern",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "improvement_signal_qualifier",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 14,
+                "source_candidate_url": "https://x.com/itarutomy/status/2066909949012119667?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.5",
+              "name": "16 Zvec benchmark gate",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "local_backend_benchmark",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 16,
+                "source_candidate_url": "https://x.com/L_go_mrk/status/2066808500655706328?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.6",
+              "name": "17 SAAS stop-condition audit",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "stop_condition_audit",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 17,
+                "source_candidate_url": "https://x.com/itarutomy/status/2066807598909673494?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "1.7",
+              "name": "22 Hanno-Lab Bosun relevance fixture",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "already_processed",
+                "gate": "relevance_support_fixture",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 22,
+                "source_candidate_url": "https://x.com/Trtd6Trtd/status/2066424586665939066?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+              }
+            },
+            {
+              "id": "2.1",
+              "name": "11 WBS Viewer body adoption",
+              "qty": 1,
+              "hours": 4,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "second_wave_body_adoption",
+                "gate": "source_review_vendor_copy_wbs_json_canary",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 11,
+                "source_candidate_url": "https://x.com/systemotaku45/status/2066921465061265602?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence."
+              }
+            },
+            {
+              "id": "2.2",
+              "name": "35 pdgkit body adoption",
+              "qty": 1,
+              "hours": 4,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "complete: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "second_wave_body_adoption",
+                "gate": "source_dependency_review_real_validate_render_canary",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 35,
+                "source_candidate_url": "https://x.com/mottolicht/status/2064182506090627212?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/pdgkit-canary-report.md"
+              }
+            },
+            {
+              "id": "2.3",
+              "name": "5 YAML-to-HTML structure-view split",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "second_wave_candidate",
+                "gate": "local_artifact_schema_renderer",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 5,
+                "source_candidate_url": "https://x.com/mhlyc/status/2067317558748094950?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "2.4",
+              "name": "10 Archify workflow diagram aid",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "second_wave_candidate",
+                "gate": "source_review_before_install",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 10,
+                "source_candidate_url": "https://x.com/t20000622yy/status/2065272121937576174?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "2.5",
+              "name": "24 MUSE-Autoskill lifecycle input",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-26",
+                "end": "2026-06-26"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "second_wave_candidate",
+                "gate": "codex_foundation_design_only",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 24,
+                "source_candidate_url": "https://x.com/itarutomy/status/2063223302215152036?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "2.6",
+              "name": "33 Ponytail over-implementation guard",
+              "qty": 1,
+              "hours": 2,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-26",
+                "end": "2026-06-26"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "second_wave_candidate",
+                "gate": "source_review_before_hook_or_plugin",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 33,
+                "source_candidate_url": "https://x.com/bryanonchain/status/2065722260586103147?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.1",
+              "name": "2 VS Code/Copilot token efficiency",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "use_now_absorbed",
+                "gate": "existing_context_budget_policy",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 2,
+                "source_candidate_url": "https://x.com/madonomori/status/2067783199317770445?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.2",
+              "name": "3 Harness decomposition",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "existing_skill_boundaries",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 3,
+                "source_candidate_url": "https://x.com/syossan27/status/2067460732430762029?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.3",
+              "name": "4 Self-improving agents / local optimum",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "codex_foundation_absorbed",
+                "gate": "human_gate_improvement_policy",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 4,
+                "source_candidate_url": "https://x.com/fukkyy/status/2067198990295462067?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.4",
+              "name": "13 Adaptive Auto-Harness",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "design_input_only",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 13,
+                "source_candidate_url": "https://x.com/itarutomy/status/2067014978175930500?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.5",
+              "name": "18 Amazon State-Aware RAG",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "reference_absorbed",
+                "gate": "existing_workflow_state",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 18,
+                "source_candidate_url": "https://x.com/at_sushi_/status/2066693208986521853?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.6",
+              "name": "19 AI code-review responsibility split",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "existing_review_policy",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 19,
+                "source_candidate_url": "https://x.com/pospome/status/2066010971488002064?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.7",
+              "name": "20 /grill-me",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "existing_decision_loop",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 20,
+                "source_candidate_url": "https://x.com/azukiazusa9/status/2066067194207997998?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.8",
+              "name": "21 grill-me plus parallel review",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "existing_decision_parallel_review",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 21,
+                "source_candidate_url": "https://x.com/ushiro_noko/status/2066402769913983456?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.9",
+              "name": "28 State separated from LLM",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "existing_workflow_state",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 28,
+                "source_candidate_url": "https://x.com/itarutomy/status/2066377584280051813?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.10",
+              "name": "30 Decision rules as Markdown",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "absorbed",
+                "gate": "existing_agents_skill_surfaces",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 30,
+                "source_candidate_url": "https://x.com/itarutomy/status/2065708143980495078?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "3.11",
+              "name": "32 LLM-Oriented IR",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "use_now_absorbed",
+                "gate": "retrieval_review_checklist",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 32,
+                "source_candidate_url": "https://x.com/snaga/status/2065992572414341348?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "4.1",
+              "name": "23 JAMEL",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "condition_triggered",
+                "gate": "gui_exploration_objective_required",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 23,
+                "source_candidate_url": "https://x.com/itarutomy/status/2066448312035889553?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "4.2",
+              "name": "29 Visual Skills",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "condition_triggered",
+                "gate": "visual_provenance_privacy_required",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 29,
+                "source_candidate_url": "https://x.com/itarutomy/status/2066124619577528377?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "4.3",
+              "name": "34 pdgkit article",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "condition_triggered_reference",
+                "gate": "covered_by_item_35_body_canary",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 34,
+                "source_candidate_url": "https://x.com/mottolicht/status/2064281743897788764?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.1",
+              "name": "1 Firecrawl Keyless",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "blocked: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "provider_gated_closed",
+                "gate": "provider_approval_required",
+                "status": "blocked",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 1,
+                "source_candidate_url": "https://x.com/bryanonchain/status/2067623872455680344?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.2",
+              "name": "25 Slack/RAG loop on Bedrock",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "blocked: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "provider_gated_closed",
+                "gate": "aws_provider_approval_required",
+                "status": "blocked",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 25,
+                "source_candidate_url": "https://x.com/PKSHA_saiyo/status/2066332310623129884?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.3",
+              "name": "26 Google Agentic RAG",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "blocked: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "provider_gated_closed",
+                "gate": "google_provider_approval_required",
+                "status": "blocked",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 26,
+                "source_candidate_url": "https://x.com/keigohtr/status/2066294358480228707?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "5.4",
+              "name": "31 Bedrock AgentCore",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "blocked: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "provider_gated_closed",
+                "gate": "aws_provider_approval_required",
+                "status": "blocked",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 31,
+                "source_candidate_url": "https://x.com/kamo__shika/status/2065937238677221529?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.1",
+              "name": "6 RAG Knowledge Hub",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "closed_reference_only",
+                "gate": "source_rights_and_external_dependency_blockers",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 6,
+                "source_candidate_url": "https://x.com/Trtd6Trtd/status/2067442961005281358?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.2",
+              "name": "9 Ontology mention",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "not_actionable",
+                "gate": "original_context_required",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 9,
+                "source_candidate_url": "https://x.com/pkm_tk111/status/2066985615850393845?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.3",
+              "name": "15 Devin/Manus mention",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "not_actionable",
+                "gate": "separate_vendor_eval_required",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 15,
+                "source_candidate_url": "https://x.com/ebiflyyyyyyyy/status/2066815214558105766?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            },
+            {
+              "id": "6.4",
+              "name": "27 Unknown",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "actual": {
+                "start": "2026-06-22",
+                "end": "2026-06-22"
+              },
+              "note": "closed: see artifact pointer.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "candidate_state",
+                "decision_band": "not_actionable",
+                "gate": "source_context_missing",
+                "status": "closed",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "evidence_status": "source_candidate",
+                "answer_support_allowed": false,
+                "item": 27,
+                "source_candidate_url": "https://x.com/Trtd6Trtd/status/2066355591887700212?s=20",
+                "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
+                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+              }
+            }
+          ]
+        },
+        {
+          "id": "6",
+          "name": "Visual context offload lane",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "Architecture boundary note",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "architecture_boundary",
+                "decision_band": "visual_context_offload",
+                "gate": "not_evidence_not_citation",
+                "status": "complete",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "1.2",
+              "name": "11 WBS operational state lane",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "visual_context_offload",
+                "gate": "codex_edits_json_human_reviews_html",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
+                "owner_doc": "tools/wbs_viewer/README.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "1.3",
+              "name": "35 pdgkit structural flow lane",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "structural_flow",
+                "decision_band": "visual_context_offload",
+                "gate": "validate_before_render_no_mcp",
+                "status": "complete",
+                "artifact_pointer": "docs/pdg/visual-context-offload-lane.pdg",
+                "owner_doc": "tools/pdgkit_canary/README.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "1.4",
+              "name": "Offload pointer map",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "context_pointer",
+                "decision_band": "visual_context_offload",
+                "gate": "hash_before_reuse",
+                "status": "complete",
+                "artifact_pointer": ".codex/context_offloads/pointer-map.json",
+                "owner_doc": ".codex/context_offloads/visual-context-offload-map.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "2.1",
+              "name": "Long candidate or phase plan",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "trigger",
+                "decision_band": "visual_context_offload",
+                "gate": "only_when_text_context_is_too_large",
+                "status": "active",
+                "artifact_pointer": "README.codex.md",
+                "owner_doc": "README.codex.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "2.2",
+              "name": "Route or state-machine explanation",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "trigger",
+                "decision_band": "visual_context_offload",
+                "gate": "pdg_validate_must_pass",
+                "status": "active",
+                "artifact_pointer": "README.codex.md",
+                "owner_doc": "README.codex.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "3.1",
+              "name": "No evidence promotion",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "gate",
+                "decision_band": "visual_context_offload",
+                "gate": "source_bundle_context_citation_required_for_claims",
+                "status": "complete",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "3.2",
+              "name": "No MCP or browser-edit default",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "actual": {
+                "start": "2026-06-23",
+                "end": "2026-06-23"
+              },
+              "note": "state pointer only",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "gate",
+                "decision_band": "visual_context_offload",
+                "gate": "no_mcp_no_hook_no_provider",
+                "status": "complete",
+                "artifact_pointer": ".codex/vendor_sources.lock.md",
+                "owner_doc": ".codex/vendor_sources.lock.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            }
+          ]
+        },
+        {
+          "id": "7",
+          "name": "Future local hardening",
+          "children": [
+            {
+              "id": "7.1",
+              "name": "Additional bulky-output offload coverage",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Add only when a concrete bulky output recurs.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "context_budget_hardening",
+                "status": "active",
+                "artifact_pointer": ".codex/context_offloads/pointer-map.json",
+                "owner_doc": "README.codex.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "7.2",
+              "name": "CLI/app review polish",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Implement only when a concrete visibility gap appears.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "observability_gap_driven",
+                "status": "active",
+                "artifact_pointer": "docs/memory-pipeline-v2.md",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            },
+            {
+              "id": "7.3",
+              "name": "Additional deterministic evals",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Add when they protect a concrete local/fake lane.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operational_state",
+                "decision_band": "project_state",
+                "gate": "regression_driven_eval",
+                "status": "active",
+                "artifact_pointer": "tests/",
+                "owner_doc": "PROJECT.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": ""
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

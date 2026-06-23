@@ -121,6 +121,13 @@ Treat test, lint, type, boundary, dependency, source-drift, context-budget, and 
 signals for `/analyze`-style diagnosis and plan adaptation. Repair and verify again unless the
 signal hits an oversight gate.
 
+When a Codex-run task stalls, times out, or repeats the same failure pattern, do not keep retrying
+the same action without new evidence. If the current task and gates permit network/browser search,
+continue local diagnosis while running a targeted search in parallel for the exact error, tool,
+surface, or community/issue signal. If search is not already permitted, report that it is the next
+useful diagnostic action. The no-quota provider freeze still applies; this rule does not permit
+provider API calls.
+
 Always-on triggers:
 
 - no-quota provider freeze: active unless the current conversation explicitly lifts it;

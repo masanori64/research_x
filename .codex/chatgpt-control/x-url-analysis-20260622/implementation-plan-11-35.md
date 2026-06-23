@@ -1,3 +1,5 @@
+<!-- Historical consultation capture. Active path: README.md, tools/wbs_viewer/projects/research-x-work-state.json, docs/pdg/*.pdg, and .codex/context_offloads/pointer-map.json. Not evidence; do not update as an active tracker. -->
+
 # Implementation Plan For Items 11 And 35
 
 Date: 2026-06-22
