@@ -131,7 +131,10 @@ Always-on triggers:
 Prompt-dependent triggers:
 
 - implementation or code-change request: inspect `git status`, preserve unrelated changes, make the
-  change, verify it, then commit/push when scoped work is complete;
+  change, verify it, then commit/push when scoped work is complete. Treat Codex-created
+  implementation step lists as task-local mutable execution boundaries; when those steps are
+  created, completed, split, or replaced, re-check relevant Markdown, Skills, and gates instead of
+  freezing the step names as durable workflow terminology;
 - remote desktop workspace policy: the desktop is the canonical `research_x` machine. Use VS Code
   Remote SSH from laptops or other PCs into the desktop workspace. Do not create, revive, or use
   PC-to-PC local-state sync, migration, private-state transfer, or editor-handoff Skills/workflows
