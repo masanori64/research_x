@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "2cdd3523bc209769ea8ae619bee90c3c55bd16fbbbae9783b7adcdb3ecaf27aa",
-      "char_count": 88348,
-      "byte_count": 90475,
+      "sha256": "c697bfbaeb5c3e92aecb504a5861b6c81bf9960e2f62ff4a1314acb6b38f81a5",
+      "char_count": 91215,
+      "byte_count": 93327,
       "not_evidence": true
     },
     {
@@ -155,6 +155,17 @@
       "sha256": "f00fa7994416d69d8f126f0e2d88d1aae108a12ca6e92bca1b72150fc5466e49",
       "char_count": 14594,
       "byte_count": 18072,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "presentation_generation_flow_plan_20260624",
+      "artifact_path": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
+      "artifact_kind": "implementation_plan",
+      "owner_plane": "decision_input",
+      "restore_hint": "Read as the visible ChatGPT consultation-derived presentation generation implementation flow; not evidence.",
+      "sha256": "a6ba3f4d120fe83d7db1d607790ffc0d6fa093da68e1472432015053cd970648",
+      "char_count": 16731,
+      "byte_count": 16743,
       "not_evidence": true
     },
     {

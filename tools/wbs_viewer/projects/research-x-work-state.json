@@ -2118,6 +2118,68 @@
                 "answer_support_allowed": false,
                 "stop_condition": ""
               }
+            },
+            {
+              "id": "7.4",
+              "name": "Presentation generation workflow",
+              "children": [
+                {
+                  "id": "7.4.1",
+                  "name": "Stage 1 D2/Marp dependency boundary",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "actual": {
+                    "start": null,
+                    "end": null
+                  },
+                  "note": "Promoted before facts/slides; scope is D2/Marp/root package boundary only.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "presentation_build_boundary",
+                    "decision_band": "local_dependency_candidate",
+                    "gate": "d2_marp_root_package_boundary",
+                    "status": "active",
+                    "artifact_pointer": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
+                    "owner_doc": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": "Stop before providers, plugins, hooks, MCP, or non-D2/Marp dependency adoption."
+                  }
+                },
+                {
+                  "id": "7.4.2",
+                  "name": "Stage 2 Presentation facts and slides flow",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": null,
+                    "end": null
+                  },
+                  "actual": {
+                    "start": null,
+                    "end": null
+                  },
+                  "note": "Previous facts-first plan shifted here after Stage 1 build boundary.",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "presentation_content_workflow",
+                    "decision_band": "local_implementation",
+                    "gate": "facts_first_after_build_boundary",
+                    "status": "active",
+                    "artifact_pointer": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
+                    "owner_doc": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "stop_condition": "Do not generate deck claims before project-facts validation passes."
+                  }
+                }
+              ]
             }
           ]
         }
