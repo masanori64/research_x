@@ -2134,16 +2134,16 @@
                     "end": "2026-06-24"
                   },
                   "actual": {
-                    "start": null,
-                    "end": null
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
                   },
-                  "note": "Promoted before facts/slides; scope is D2/Marp/root package boundary only.",
+                  "note": "Root package, D2/Marp scripts, lockfile, and preflight verified.",
                   "_research_x": {
                     "owner_plane": "wbs",
                     "artifact_layer": "presentation_build_boundary",
                     "decision_band": "local_dependency_candidate",
                     "gate": "d2_marp_root_package_boundary",
-                    "status": "active",
+                    "status": "complete",
                     "artifact_pointer": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
                     "owner_doc": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
                     "evidence_status": "not_evidence",
@@ -2162,16 +2162,16 @@
                     "end": null
                   },
                   "actual": {
-                    "start": null,
-                    "end": null
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
                   },
-                  "note": "Previous facts-first plan shifted here after Stage 1 build boundary.",
+                  "note": "Facts schema/validator, D2 diagrams, slides, and PPTX build verified.",
                   "_research_x": {
                     "owner_plane": "wbs",
                     "artifact_layer": "presentation_content_workflow",
                     "decision_band": "local_implementation",
                     "gate": "facts_first_after_build_boundary",
-                    "status": "active",
+                    "status": "complete",
                     "artifact_pointer": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
                     "owner_doc": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",
                     "evidence_status": "not_evidence",

@@ -387,6 +387,48 @@ def main(argv: list[str] | None = None) -> int:
     )
     test_diagnose_parser.add_argument("--json", action="store_true")
 
+    presentation_parser = subparsers.add_parser(
+        "presentation",
+        help="validate local presentation facts and build inputs",
+    )
+    presentation_subparsers = presentation_parser.add_subparsers(
+        dest="presentation_command",
+        required=True,
+    )
+    presentation_validate_parser = presentation_subparsers.add_parser(
+        "validate-facts",
+        help="validate docs/presentation/project-facts.json",
+    )
+    presentation_validate_parser.add_argument(
+        "--facts",
+        type=Path,
+        default=Path("docs/presentation/project-facts.json"),
+        help="presentation facts JSON path",
+    )
+    presentation_validate_parser.add_argument("--json", action="store_true")
+    presentation_slides_parser = presentation_subparsers.add_parser(
+        "validate-slides",
+        help="validate docs/presentation/slides.md against project facts",
+    )
+    presentation_slides_parser.add_argument(
+        "--facts",
+        type=Path,
+        default=Path("docs/presentation/project-facts.json"),
+        help="presentation facts JSON path",
+    )
+    presentation_slides_parser.add_argument(
+        "--slides",
+        type=Path,
+        default=Path("docs/presentation/slides.md"),
+        help="presentation slides Markdown path",
+    )
+    presentation_slides_parser.add_argument(
+        "--allow-missing-assets",
+        action="store_true",
+        help="allow diagram assets that have not been rendered yet",
+    )
+    presentation_slides_parser.add_argument("--json", action="store_true")
+
     memory_parser = subparsers.add_parser(
         "memory",
         help="build and query the local AI-callable memory search layer",
@@ -2636,6 +2678,38 @@ def main(argv: list[str] | None = None) -> int:
             else format_test_diagnostic_results(results)
         )
         return 0 if all(result.status == "passed" for result in results) else 2
+    if args.command == "presentation":
+        from research_x.presentation import (
+            format_presentation_facts_validation,
+            validate_presentation_facts,
+        )
+
+        if args.presentation_command == "validate-facts":
+            result = validate_presentation_facts(args.facts)
+            print(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_presentation_facts_validation(result)
+            )
+            return 0 if result.ok else 2
+        if args.presentation_command == "validate-slides":
+            from research_x.presentation import (
+                format_presentation_slides_validation,
+                validate_presentation_slides,
+            )
+
+            result = validate_presentation_slides(
+                args.slides,
+                facts_path=args.facts,
+                allow_missing_assets=args.allow_missing_assets,
+            )
+            print(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_presentation_slides_validation(result)
+            )
+            return 0 if result.ok else 2
+        raise AssertionError(f"unhandled presentation command {args.presentation_command}")
     if args.command == "memory":
         try:
             return _handle_memory_command(args)

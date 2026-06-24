@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "research_x",
+    "one_liner": "A local, evidence-first memory and search system for an existing X collection database.",
+    "purpose": "Let an AI agent query local X collection data while preserving provenance, account-specific bookmark ownership, quote and media context, and the user's subjective interests.",
+    "audience": "engineers and project reviewers",
+    "scope": "Local repository facts for the first presentation deck; generated decks, diagrams, WBS, pointer maps, and ChatGPT captures are excluded as evidence.",
+    "evidence": ["PROJECT.md", "README.codex.md", "docs/memory-pipeline-v2.md"]
+  },
+  "runtime_surfaces": {
+    "python": {
+      "requires": ">=3.11",
+      "package_manager": "uv",
+      "evidence": ["pyproject.toml", "README.codex.md"]
+    },
+    "node": {
+      "purpose": "Presentation-only D2 and Marp build boundary.",
+      "package_surface": "package.json",
+      "scripts": [
+        "presentation:preflight",
+        "presentation:render-d2",
+        "presentation:build"
+      ],
+      "dependencies": ["@marp-team/marp-cli", "@terrastruct/d2"],
+      "evidence": [
+        "package.json",
+        "package-lock.json",
+        "scripts/presentation/preflight.mjs",
+        "scripts/presentation/render-d2.mjs",
+        "scripts/presentation/build.mjs",
+        "docs/presentation/presentation.config.yaml"
+      ]
+    }
+  },
+  "tech_stack": [
+    {
+      "name": "Python package",
+      "role": "Primary local application and CLI implementation.",
+      "evidence": ["pyproject.toml", "src/research_x/cli.py"]
+    },
+    {
+      "name": "SQLite",
+      "role": "Local storage for acquisition data, memory documents, workflow traces, evals, and provider budget guard state.",
+      "evidence": ["src/research_x/x_store.py", "src/research_x/memory/schema.py"]
+    },
+    {
+      "name": "D2 and Marp",
+      "role": "Presentation diagram and deck rendering lane only.",
+      "evidence": ["package.json", "docs/presentation/presentation.config.yaml"]
+    }
+  ],
+  "entrypoints": [
+    {
+      "name": "research-x",
+      "command": "uv run python -m research_x",
+      "target": "research_x.cli:main",
+      "evidence": ["pyproject.toml", "src/research_x/__main__.py", "src/research_x/cli.py"]
+    },
+    {
+      "name": "presentation preflight",
+      "command": "npm run presentation:preflight",
+      "target": "scripts/presentation/preflight.mjs",
+      "evidence": ["package.json", "scripts/presentation/preflight.mjs"]
+    },
+    {
+      "name": "presentation build",
+      "command": "npm run presentation:build",
+      "target": "scripts/presentation/build.mjs",
+      "evidence": ["package.json", "scripts/presentation/build.mjs"]
+    }
+  ],
+  "modules": [
+    {
+      "name": "adapters",
+      "purpose": "Acquisition adapter catalog and implementations.",
+      "evidence": ["src/research_x/adapters/catalog.py", "src/research_x/adapters/registry.py"]
+    },
+    {
+      "name": "memory",
+      "purpose": "Searchable document projections, evidence restoration, context bundles, answers, workflows, evals, and audit surfaces.",
+      "evidence": [
+        "src/research_x/memory/schema.py",
+        "src/research_x/memory/evidence.py",
+        "src/research_x/memory/workflow.py"
+      ]
+    },
+    {
+      "name": "presentation",
+      "purpose": "Local validation boundary for facts-first presentation generation.",
+      "evidence": [
+        "src/research_x/presentation/facts.py",
+        "docs/presentation/project-facts.schema.json"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "name": "Evidence invariant",
+      "rule": "Raw sources, searchable documents, search results, source bundles, context chunks, citations, and answers are separate objects.",
+      "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md", "PROJECT.md"]
+    },
+    {
+      "name": "No-quota provider freeze",
+      "rule": "Real provider calls remain blocked unless explicitly lifted in the current conversation and budget preflight passes.",
+      "evidence": ["AGENTS.md", "PROJECT.md", "README.codex.md"]
+    },
+    {
+      "name": "Presentation facts boundary",
+      "rule": "Slide-worthy claims must come from repository-file evidence and must not use generated or control artifacts as evidence.",
+      "evidence": [
+        "docs/presentation/project-facts.schema.json",
+        "src/research_x/presentation/facts.py",
+        "docs/presentation/presentation.config.yaml"
+      ]
+    }
+  ],
+  "data_stores": [
+    {
+      "name": "X collection SQLite database",
+      "exists": true,
+      "purpose": "Stores raw tweets, bookmarks, accounts, media, edges, and collection state.",
+      "evidence": ["src/research_x/x_store.py", "src/research_x/pipeline.py"]
+    },
+    {
+      "name": "Memory schema tables",
+      "exists": true,
+      "purpose": "Stores rebuildable memory documents, embeddings, evals, workflows, governance, and search traces.",
+      "evidence": ["src/research_x/memory/schema.py"]
+    }
+  ],
+  "external_dependencies": [
+    {
+      "name": "Provider-backed memory and answer lanes",
+      "status": "gated",
+      "gate": "No-quota provider freeze and API Budget Guard.",
+      "evidence": ["AGENTS.md", "PROJECT.md", "docs/memory-pipeline-v2.md"]
+    },
+    {
+      "name": "D2 and Marp Node dependencies",
+      "status": "local_dependency_boundary",
+      "gate": "Presentation build surface only; no plugins, hooks, MCP, or provider calls.",
+      "evidence": ["package.json", "package-lock.json", "scripts/presentation/preflight.mjs"]
+    }
+  ],
+  "key_flows": [
+    {
+      "name": "Acquisition to local store",
+      "steps": [
+        "Run an adapter through the resilient acquisition pipeline.",
+        "Normalize results into the local X store.",
+        "Use local database rows as the raw provenance base."
+      ],
+      "source_files": ["src/research_x/pipeline.py", "src/research_x/x_store.py"],
+      "evidence": ["src/research_x/pipeline.py", "src/research_x/x_store.py"]
+    },
+    {
+      "name": "Memory workflow",
+      "steps": [
+        "Build or query searchable memory documents.",
+        "Restore source bundles before claims are supported.",
+        "Produce context chunks, citation annotations, answer status, and workflow traces."
+      ],
+      "source_files": [
+        "src/research_x/memory/corpus.py",
+        "src/research_x/memory/evidence.py",
+        "src/research_x/memory/workflow.py"
+      ],
+      "evidence": ["docs/memory-pipeline-v2.md", "src/research_x/memory/workflow.py"]
+    },
+    {
+      "name": "Presentation generation",
+      "steps": [
+        "Validate project-facts.json.",
+        "Render D2 diagrams from validated facts.",
+        "Build Marp slides only after facts and slides exist."
+      ],
+      "source_files": [
+        "src/research_x/presentation/facts.py",
+        "scripts/presentation/render-d2.mjs",
+        "scripts/presentation/build.mjs"
+      ],
+      "evidence": [
+        "src/research_x/presentation/facts.py",
+        "scripts/presentation/preflight.mjs",
+        "scripts/presentation/build.mjs"
+      ]
+    }
+  ],
+  "database": {
+    "exists": true,
+    "evidence": ["src/research_x/memory/schema.py", "src/research_x/x_store.py"],
+    "tables": [
+      {
+        "name": "memory_documents",
+        "purpose": "Rebuildable searchable projections over raw X source rows.",
+        "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/corpus.py"]
+      },
+      {
+        "name": "memory_document_fts",
+        "purpose": "SQLite FTS index over searchable document text.",
+        "evidence": ["src/research_x/memory/schema.py"]
+      },
+      {
+        "name": "memory_workflow_runs",
+        "purpose": "Stored workflow traces for route choice, evidence state, context, and answer output.",
+        "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/workflow.py"]
+      },
+      {
+        "name": "memory_api_usage_events",
+        "purpose": "Budget-guard usage records for provider-facing operations.",
+        "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/api_budget.py"]
+      }
+    ]
+  },
+  "claims": [
+    {
+      "id": "claim-local-x-memory",
+      "claim": "research_x is a local, user-specific X data memory/search project whose goal is AI-callable search with provenance preserved.",
+      "evidence": ["PROJECT.md", "README.codex.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-evidence-first",
+      "claim": "The memory pipeline is evidence-first: raw sources, searchable documents, results, bundles, chunks, citations, and answers are separate stages.",
+      "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-search-results-are-candidates",
+      "claim": "Search hits are candidates and cannot support claims until they restore a source bundle and pass citation checks.",
+      "evidence": ["docs/memory-pipeline-v2.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-provider-gated",
+      "claim": "Provider-backed embeddings, OCR, rerank, Reader, classifier, answer, external search, and managed-RAG lanes are blocked by the no-quota freeze until explicitly approved.",
+      "evidence": ["AGENTS.md", "PROJECT.md", "docs/memory-pipeline-v2.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-cli-entrypoint",
+      "claim": "The primary Python command surface is the research-x CLI implemented by research_x.cli:main.",
+      "evidence": ["pyproject.toml", "src/research_x/__main__.py", "src/research_x/cli.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-memory-schema",
+      "claim": "The local memory layer stores searchable documents, FTS rows, workflow traces, eval records, embeddings, relations, governance records, and API budget events in SQLite tables.",
+      "evidence": ["src/research_x/memory/schema.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-presentation-stage-boundary",
+      "claim": "The presentation lane uses a local D2/Marp build boundary, but factual deck content must first pass the PresentationFacts validator.",
+      "evidence": [
+        "package.json",
+        "docs/presentation/presentation.config.yaml",
+        "src/research_x/presentation/facts.py",
+        "scripts/presentation/preflight.mjs"
+      ],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-generated-artifacts-not-evidence",
+      "claim": "Generated decks, diagram assets, WBS state, pointer maps, and consultation captures are control or presentation artifacts, not evidence or answer support.",
+      "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md", "PROJECT.md"],
+      "slide_candidate": true
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "unknown-editable-pptx",
+      "question": "Whether editable PowerPoint objects are required instead of fixed-layout Marp output.",
+      "reason": "The current approved lane only establishes D2/Marp fixed-layout generation; PptxGenJS and Marp editable PPTX remain deferred.",
+      "promoted_to_claim": false
+    },
+    {
+      "id": "unknown-final-slide-narrative",
+      "question": "The final slide order and diagram count for the first deck.",
+      "reason": "Slides must be derived after facts validation and diagram requirements are reviewed.",
+      "promoted_to_claim": false
+    }
+  ]
+}

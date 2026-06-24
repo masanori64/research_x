@@ -1,0 +1,18 @@
+direction: right
+
+python: Python / uv
+cli: research-x CLI
+memory: Memory workflow
+node: Node package surface
+d2: D2 render lane
+marp: Marp deck lane
+providers: Provider/API lanes
+
+python -> cli: pyproject script
+cli -> memory: local/fake workflow commands
+node -> d2: presentation:render-d2
+node -> marp: presentation:build
+providers -> memory: blocked unless gate lifted {
+  style.stroke: "#dc2626"
+  style.stroke-dash: 4
+}

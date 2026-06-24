@@ -1,0 +1,16 @@
+direction: right
+
+repo: Repository files
+facts: Validated facts
+build: D2 + Marp build
+deck: PPTX output
+
+repo -> facts
+facts -> build
+build -> deck
+
+generated: Generated/control artifacts
+generated.style.stroke-dash: 4
+generated -> facts {
+  style.stroke: "#dc2626"
+}
