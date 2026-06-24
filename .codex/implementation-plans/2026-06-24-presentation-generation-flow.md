@@ -13,7 +13,6 @@ Evidence status: not_evidence; planning/control artifact only.
 - `PROJECT.md`; evidence invariant, active gates, and Markdown/WBS placement rules.
 - `tools/wbs_viewer/projects/research-x-work-state.json`; current operational state,
   not evidence.
-- `tools/pdgkit_canary/README.md`; existing project diagram lane and pdgkit gates.
 - Local checks on 2026-06-24: `d2` is not on PATH, root `package.json` is absent,
   `node.exe` is present, and `outputs/research-x-project-pipeline-overview-2026-06-24.pptx`
   is an untracked generated output.
@@ -36,11 +35,9 @@ adapted to existing local owners:
 
 - Facts and claim backing belong in `docs/presentation/project-facts.json`.
 - Operational state belongs in WBS, not long Markdown.
-- Structural project diagrams already have a pinned pdgkit lane under `docs/pdg`
-  and `tools/pdgkit_canary`.
 - D2 and Marp are now the Stage 1 dependency boundary to make explicit before
   facts, diagrams, slides, and PPTX generation.
-- Generated PPTX, SVG, HTML, WBS, PDG, pointer maps, and ChatGPT output remain
+- Generated PPTX, SVG, HTML, WBS, pointer maps, and ChatGPT output remain
   control/review/presentation artifacts, not evidence or answer support.
 
 ## Planning Principle
@@ -84,7 +81,6 @@ Owner surfaces:
 - root `package.json` and lockfile, if the Node-based Marp build lane is chosen;
 - `docs/presentation/build.ps1` or `docs/presentation/build.sh`;
 - `docs/presentation/presentation.config.yaml`;
-- `tools/pdgkit_canary/README.md` only as the existing pdgkit boundary reference;
 - WBS leaf `Stage 1 D2/Marp dependency boundary`.
 
 Work packages:
@@ -92,8 +88,7 @@ Work packages:
 1. Select the smallest repeatable repo-local build lane:
    - Marp CLI through a root Node package;
    - D2 through an explicit local install path or documented preflight;
-   - existing pdgkit remains available for structural project diagrams until D2
-     is actually present and validated.
+   - no fallback diagram DSL for the presentation workflow.
 2. Add a script/preflight that reports:
    - Node availability;
    - Marp CLI availability;
@@ -223,42 +218,39 @@ Done criteria:
 - every slide-worthy claim has file evidence or is explicitly unknown;
 - no renderer is required to inspect or approve facts.
 
-### P3: Stage 2 Diagram Lane For This Repository
+### P3: Stage 2 D2 Diagram Lane
 
-Candidate band: `use-now-narrow` for existing pdgkit; `local-dependency-candidate`
-for D2.
+Candidate band: `use-now-narrow` after Stage 1 succeeds; otherwise
+`local-dependency-candidate`.
 
 ChatGPT recommends D2 as the single diagram DSL. After Stage 1, D2 should either
 be available through the selected local build surface or remain explicitly
 blocked. Therefore:
 
 - use D2 only after Stage 1 validates the CLI path;
-- use existing pdgkit for research_x structural route/state/boundary diagrams
-  where it remains the project-owned source-of-truth lane;
-- never split diagrams across pdgkit, D2, DBML, PlantUML, and Structurizr at the
+- never split diagrams across D2, DBML, PlantUML, and Structurizr at the
   same time for a first deck.
 
 Owner surfaces:
 
-- `docs/pdg/*.pdg` for project-owned structural diagrams;
-- `docs/pdg/out/*.svg` for generated review/presentation assets;
+- `docs/presentation/diagrams/*.d2` for deck diagram sources;
+- `docs/presentation/assets/*.svg` for generated review/presentation assets;
 - `docs/presentation/slides.md` only after facts and diagrams exist;
-- `tools/pdgkit_canary/` for validation/rendering with the pinned package.
+- the Stage 1 D2 package/script surface for validation/rendering.
 
 Implementation steps:
 
 1. Derive diagram requirements from `project-facts.json`, not from raw memory.
-2. Reuse existing `docs/pdg/*.pdg` where they match the deck narrative.
-3. Add at most one deck-specific `.pdg` source if the existing diagrams do not
-   cover the presentation's main flow.
-4. Validate with the pinned pdgkit package before rendering.
+2. Create deck-specific D2 sources under `docs/presentation/diagrams/`.
+3. Keep architecture, main flow, and ERD diagrams in D2 unless Stage 2 proves a
+   different renderer is necessary.
+4. Validate/render through the Stage 1 D2 lane before embedding assets.
 5. Store rendered assets as presentation/review artifacts only.
 
 Tests/evals:
 
 ```powershell
-cd tools\pdgkit_canary
-npx --no-install pdgkit validate ..\..\docs\pdg\<diagram>.pdg --lang both
+d2 docs\presentation\diagrams\<diagram>.d2 docs\presentation\assets\<diagram>.svg
 ```
 
 Do not:
@@ -266,7 +258,7 @@ Do not:
 - hand-draw a replacement structural diagram;
 - install D2 during Stage 2; it belongs to Stage 1;
 - treat rendered diagram output as evidence;
-- put active project diagrams under `tools/pdgkit_canary`.
+- use non-D2 diagram tooling for presentation diagrams.
 
 Done criteria:
 
@@ -329,8 +321,6 @@ Options:
 - Marp editable PPTX: possible but runtime-heavy and experimental.
 - PptxGenJS: better for editable PowerPoint objects, but adds a Node dependency
   and more layout code.
-- pdgkit PPTX/editable PPTX: good for individual structural diagrams, not a full
-  deck authoring system.
 - Codex/desktop presentation runtime: acceptable for one-off artifact creation,
   not a repo-owned repeatable build unless its generated output is checked in by
   explicit user intent.
@@ -352,7 +342,7 @@ Deferred items:
 - DBML: add only if database schema documentation becomes a durable product
   surface.
 - PlantUML: add only if the team already standardizes on UML sequence diagrams
-  or D2/pdgkit cannot express needed sequences.
+  or D2 cannot express needed sequences.
 - D2 outside the Stage 1 boundary: plausible later only if the selected D2 lane
   is insufficient.
 - PptxGenJS: plausible for editable decks, but not needed for the first
@@ -361,7 +351,7 @@ Deferred items:
 Promotion condition:
 
 - name the missing capability;
-- prove existing pdgkit/Markdown/Marp-style output cannot satisfy it;
+- prove existing D2/Markdown/Marp output cannot satisfy it;
 - pass dependency/source review;
 - add local tests before adopting the dependency.
 
@@ -385,8 +375,7 @@ Deferred but plausible:
 ## End-To-End Flow
 
 This Mermaid block is a planning illustration only. If this becomes a project
-diagram asset, convert it to `.pdg`, validate it with pdgkit, and keep `.pdg` as
-the source of truth.
+diagram asset, convert it to D2 and keep the `.d2` source as the source of truth.
 
 ```mermaid
 flowchart TD
@@ -399,7 +388,7 @@ flowchart TD
   F -- "no" --> G["fix evidence or unknowns"]
   G --> E
   F -- "yes" --> H["diagram requirements"]
-  H --> I{"D2 or pdgkit source?"}
+  H --> I["D2 diagram sources"]
   I --> J["validated diagram assets"]
   J --> K["slides.md from facts only"]
   K --> L["Marp PPTX/PDF build"]
@@ -418,7 +407,7 @@ flowchart TD
 6. Produce the first `docs/presentation/project-facts.json` from local repository
    files only.
 7. Review facts for unsupported claims and unknowns.
-8. Create D2 or pdgkit diagram assets from facts.
+8. Create D2 diagram assets from facts.
 9. Draft `docs/presentation/slides.md` from facts only.
 10. Build fixed-layout PPTX/PDF through the Stage 1-approved Marp lane.
 11. Consider PptxGenJS/editable output only if fixed-layout output is
@@ -434,7 +423,7 @@ flowchart TD
 - Plugin, hook, MCP, connector, or automation enablement.
 - Automatic Skill creation or AGENTS.md growth without recurring-workflow
   evidence.
-- Treating generated PPTX/SVG/HTML/PDG/WBS/Pointer/ChatGPT output as evidence.
+- Treating generated PPTX/SVG/HTML/WBS/Pointer/ChatGPT output as evidence.
 - Architecture-doc promotion from presentation material.
 
 ## Done Criteria For This Planning Phase

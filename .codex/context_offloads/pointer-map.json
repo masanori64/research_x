@@ -163,9 +163,9 @@
       "artifact_kind": "implementation_plan",
       "owner_plane": "decision_input",
       "restore_hint": "Read as the visible ChatGPT consultation-derived presentation generation implementation flow; not evidence.",
-      "sha256": "a6ba3f4d120fe83d7db1d607790ffc0d6fa093da68e1472432015053cd970648",
-      "char_count": 16731,
-      "byte_count": 16743,
+      "sha256": "34d2e019f45615e1cf80e33dae4f7a9afc9a86655a0e19c0cfb0ae1dbd19ee59",
+      "char_count": 16074,
+      "byte_count": 16086,
       "not_evidence": true
     },
     {
