@@ -98,6 +98,10 @@ boundary flows. Use Route Memory for recurring operation-route success/failure
 selection. Use Pointer Map for path/hash/size/restore hints. Keep Markdown for
 durable reasons, invariants, stop conditions, and pointers.
 
+Before creating or rendering pdgkit diagrams, read
+`tools/pdgkit_canary/README.md`; use `.pdg -> validate -> render/refs` and keep
+generated outputs review/presentation-only.
+
 ## Repo Skills
 
 Repo Skills live under `.agents/skills/` and are enabled by

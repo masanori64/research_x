@@ -73,14 +73,17 @@ def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
     assert "No plugin, MCP, hook, provider, hosted service, or evidence promotion" in vendor_lock
 
 
-def test_pdgkit_is_pinned_limited_body_canary_not_mcp_or_evidence() -> None:
+def test_pdgkit_is_pinned_local_tool_lane_not_mcp_or_evidence() -> None:
     vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert "pdgkit" in vendor_lock
     assert "@shibayama/pdgkit" in vendor_lock
     assert "0.1.2" in vendor_lock
-    assert "Pinned body-adoption canary" in vendor_lock
+    assert "Pinned local pdgkit tool lane" in vendor_lock
     assert "1023BB0031CC07D94150CCCAD13771A440C7F2094A430770E50FA65A4CB8B623" in vendor_lock
+    assert "SVG/PNG/JPEG/PDF/PPTX/editable PPTX" in vendor_lock
+    assert "`refs` Markdown/CSV" in vendor_lock
+    assert "local `.pdg -> validate -> render/refs`" in vendor_lock
     assert "No `pdgkit-mcp`" in vendor_lock
     assert "evidence promotion" in vendor_lock
 

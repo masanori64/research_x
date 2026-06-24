@@ -181,6 +181,12 @@ Prompt-dependent triggers:
   Xiaohei-style explanatory visual plan: use
   `.agents/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
   normal explicit image-generation gate and are never evidence;
+- PDG, pdgkit, PatentDSL, structural diagram, route diagram, state-machine diagram, or
+  presentation diagram request: read `tools/pdgkit_canary/README.md` before drawing or rendering.
+  Use `.pdg -> validate -> render/refs`, keep `.pdg` as the source of truth, do not hand-draw a
+  replacement when pdgkit is the right tool, and do not narrow pdgkit to SVG-only. Generated
+  diagrams and reference tables remain review/presentation artifacts, not evidence or answer
+  support;
 - `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
   target or a real oversight gate is reached, using
   `.agents/skills/research-x-goal-runner/SKILL.md` for the detailed loop;
