@@ -9,6 +9,7 @@ REQUIRED_STEMS = {
     "control-artifact-structure-view",
     "memory-evidence-pipeline",
     "objective-route-policy",
+    "route-memory-preflight",
     "skill-lifecycle-governance",
     "source-intake-gate-flow",
     "visual-context-offload-lane",
@@ -81,6 +82,20 @@ def test_skill_lifecycle_pdg_preserves_auto_apply_stop_gate() -> None:
     assert "Human accept or reject decision" in source
     assert "Manifest validation" in source
     assert "Stop: automatic Skill growth, hook, plugin, MCP, or provider" in source
+
+
+def test_route_memory_pdg_preserves_canonical_route_and_gate_flow() -> None:
+    source = (PDG_DIR / "route-memory-preflight.pdg").read_text(encoding="utf-8")
+
+    assert "Route Memory Index Lookup" in source
+    assert "Exact positive match and no negative trigger?" in source
+    assert "Use canonical first action" in source
+    assert "Verify route success signal" in source
+    assert "Local diagnosis plus conditional world lane or sidecar" in source
+    assert (
+        "Stop: permission, provider, browser, MCP, connector, install, or evidence gate"
+        in source
+    )
 
 
 def test_project_pdg_svgs_are_generated_review_artifacts() -> None:

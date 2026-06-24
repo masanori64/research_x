@@ -88,6 +88,7 @@ The following artifacts are control, planning, review, or restore-index surfaces
 - generated SVGs;
 - screenshots;
 - `.codex/context_offloads/pointer-map.json`;
+- `.codex/route_memory/route-memory.json`;
 - ChatGPT/GPT Pro consultation captures;
 - sub-agent notes;
 - compressed summaries and previews.
@@ -130,6 +131,18 @@ Pointer entries must keep `pointer_id`, `artifact_path`, `sha256`, `char_count`,
 `byte_count`, `restore_hint`, `artifact_kind`, `owner_plane`, and
 `not_evidence: true`. Hash and size must match the current file before the pointer
 is trusted for context restoration.
+
+Operation route memory belongs in:
+
+```text
+.codex/route_memory/route-memory.json
+```
+
+Route Memory owns recurring operation-route fingerprints, positive and negative
+triggers, canonical first actions, known failed routes, verification signals, and
+local gates. It is a control-plane preflight input only. It must not be used as
+provider/API approval, browser/ChatGPT approval, source evidence, citation support,
+or permission to enable hooks, plugins, MCP servers, connectors, or installs.
 
 ## Route And Retrieval Contract
 

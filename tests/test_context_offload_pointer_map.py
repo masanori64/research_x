@@ -33,14 +33,21 @@ def test_pointer_map_covers_canonical_wbs_project_pdg_and_gpt_pro_input() -> Non
     paths = {entry["artifact_path"] for entry in data["entries"]}
 
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in paths
+    assert ".codex/route_memory/route-memory.json" in paths
+    assert ".codex/route_memory/route-memory.schema.json" in paths
     assert (
         ".codex/chatgpt-control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md"
+        in paths
+    )
+    assert (
+        ".codex/chatgpt-control/route-memory-pipeline-20260624/gpt-pro-response.md"
         in paths
     )
     for stem in (
         "control-artifact-structure-view",
         "memory-evidence-pipeline",
         "objective-route-policy",
+        "route-memory-preflight",
         "skill-lifecycle-governance",
         "source-intake-gate-flow",
         "visual-context-offload-lane",

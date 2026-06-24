@@ -12,3 +12,5 @@ runs/
 node_modules/
 .codex/chatgpt-control/chatgpt-control-*.json
 .codex/chatgpt-control/downloads/
+.codex/chatgpt-control/*/package/
+.codex/chatgpt-control/*/*.zip

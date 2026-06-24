@@ -10,15 +10,18 @@ Read in this order:
 1. `AGENTS.md`: mandatory rules, no-quota freeze, uv command policy, publish
    policy, notification, and native repo Skill dispatcher.
 2. `README.codex.md`: this compact orientation.
-3. `.codex/context_offloads/pointer-map.json`: authoritative pointer/hash/restore
+3. `.codex/route_memory/route-memory.json`: only when choosing a recurring
+   browser/upload/download/tool-bridge/provider/search route or avoiding a known
+   failure class.
+4. `.codex/context_offloads/pointer-map.json`: authoritative pointer/hash/restore
    index for offloaded Codex work context.
-4. `tools/wbs_viewer/projects/research-x-work-state.json`: only when operational
+5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when operational
    state, candidate bands, dates, gates, or remaining work are needed.
-5. `docs/pdg/*.pdg`: only when route, state-machine, implementation boundary, or
+6. `docs/pdg/*.pdg`: only when route, state-machine, implementation boundary, or
    artifact-transition structure is needed.
-6. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
+7. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
    architecture boundary changes.
-7. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
+8. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
    historical rationale is needed.
 
 Avoid routine reads of `.codex/chatgpt-control/x-url-analysis-20260622/*.md`; that
@@ -41,8 +44,8 @@ raw source != searchable document != search result != source bundle
 ```
 
 WBS, PDG, SVG, screenshots, pointer maps, ChatGPT captures, sub-agent notes, and
-compressed summaries are control or review artifacts. They are not evidence or
-answer support.
+route-memory registries, and compressed summaries are control or review artifacts.
+They are not evidence or answer support.
 
 ## Mandatory Runtime Rules
 
@@ -88,9 +91,11 @@ provider-backed commands gated.
 - Project PDG sources: `docs/pdg/*.pdg`
 - Project PDG review SVGs: `docs/pdg/out/*.svg`
 - pdgkit execution environment: `tools/pdgkit_canary/`
+- Operation route memory: `.codex/route_memory/route-memory.json`
 
 Use WBS for phase/candidate/gate/status data. Use PDG for route, state-machine, and
-boundary flows. Use Pointer Map for path/hash/size/restore hints. Keep Markdown for
+boundary flows. Use Route Memory for recurring operation-route success/failure
+selection. Use Pointer Map for path/hash/size/restore hints. Keep Markdown for
 durable reasons, invariants, stop conditions, and pointers.
 
 ## Repo Skills

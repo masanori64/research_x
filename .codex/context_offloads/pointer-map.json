@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "be62389106a95ad2c2d496504c9df060afb0df04ca21be0431d071556fd635f5",
-      "char_count": 87110,
-      "byte_count": 89209,
+      "sha256": "2cdd3523bc209769ea8ae619bee90c3c55bd16fbbbae9783b7adcdb3ecaf27aa",
+      "char_count": 88348,
+      "byte_count": 90475,
       "not_evidence": true
     },
     {
@@ -254,6 +254,61 @@
       "sha256": "6b3862989a3346ac497685915ee123574cc657b2cbdf6b7aab93ad1575448472",
       "char_count": 4968,
       "byte_count": 4968,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "route_memory_pipeline_gpt_pro_response_20260624",
+      "artifact_path": ".codex/chatgpt-control/route-memory-pipeline-20260624/gpt-pro-response.md",
+      "artifact_kind": "gpt_pro_plan",
+      "owner_plane": "decision_input",
+      "restore_hint": "Raw visible GPT Pro consultation output accepted as the Route Memory implementation plan; not evidence.",
+      "sha256": "6fe97527167e8eb4a768b5b2c120ab4c742d368e6e4bb1179fc89e60768bf8e7",
+      "char_count": 32971,
+      "byte_count": 45411,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "route_memory_registry",
+      "artifact_path": ".codex/route_memory/route-memory.json",
+      "artifact_kind": "route_memory_registry",
+      "owner_plane": "operation_route_memory",
+      "restore_hint": "Local registry for recurring operation-route success/failure selection. Read during Route Memory Preflight; not evidence or permission.",
+      "sha256": "0f6541a7fce3ab329c062ff6f90c031881ac89f642dcb5d5a3721a8131f25666",
+      "char_count": 4197,
+      "byte_count": 4217,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "route_memory_registry_schema",
+      "artifact_path": ".codex/route_memory/route-memory.schema.json",
+      "artifact_kind": "json_schema",
+      "owner_plane": "operation_route_memory",
+      "restore_hint": "Schema for route-memory.json control-plane entries; not evidence or permission.",
+      "sha256": "8a2fbaa41648ec953e73d1a0f06100914911fb8e2d59028961f594cda435a020",
+      "char_count": 2955,
+      "byte_count": 2955,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "project_pdg_source_route-memory-preflight",
+      "artifact_path": "docs/pdg/route-memory-preflight.pdg",
+      "artifact_kind": "pdg_source",
+      "owner_plane": "structure",
+      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\route-memory-preflight.pdg --lang en.",
+      "sha256": "65a4b3b50a59962b4188ef00208e8ff96b20dd53931112113f85204650c421cc",
+      "char_count": 975,
+      "byte_count": 975,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "project_pdg_svg_route-memory-preflight",
+      "artifact_path": "docs/pdg/out/route-memory-preflight.svg",
+      "artifact_kind": "pdg_svg",
+      "owner_plane": "structure_review",
+      "restore_hint": "Regenerate from docs/pdg/route-memory-preflight.pdg using pdgkit render; SVG is review-only.",
+      "sha256": "78f3f672c4a54412b6b6598a3fc01f210f048aa7337b692683165ee03a6b2065",
+      "char_count": 8729,
+      "byte_count": 8729,
       "not_evidence": true
     }
   ]

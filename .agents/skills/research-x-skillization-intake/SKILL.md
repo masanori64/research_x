@@ -184,6 +184,7 @@ Prefer updating one of these before creating another adjacent skill.
 | Memory/source-bundle invariant, retrieval route, citation, evidence workflow | `research-x-memory-workflow` |
 | Provider/API/network permission, quota, budget, external search | `research-x-provider-gate` |
 | Markdown source-of-truth placement or archive drift | `research-x-doc-governance` |
+| Recurring operation route, known failure class, route-memory registry placement | `research-x-skillization-intake` plus `.codex/route_memory/route-memory.json` |
 | Skill routing ambiguity, missed automatic invocation, short prompt route recovery | `research-x-skillization-intake` |
 
 ## Skill Creation Precheck

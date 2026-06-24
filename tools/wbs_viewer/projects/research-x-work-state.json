@@ -650,6 +650,34 @@
                   }
                 }
               ]
+            },
+            {
+              "id": "4.6",
+              "name": "Route Memory Registry and Preflight",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "actual": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "note": "Local registry, dispatcher, PDG, pointer, and tests added for recurring route choice.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "operation_route_memory",
+                "decision_band": "project_state",
+                "gate": "route_memory_preflight_no_provider_no_network_by_default",
+                "status": "complete",
+                "artifact_pointer": ".codex/route_memory/route-memory.json",
+                "owner_doc": "AGENTS.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if route-memory entries are used as evidence, provider permission, browser approval, or external-action approval."
+              }
             }
           ]
         },

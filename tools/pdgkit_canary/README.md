@@ -37,8 +37,11 @@ tools/pdgkit_canary/out/item-11-35-flow.svg
 Current structural sources live outside this canary folder:
 
 ```text
+docs/pdg/control-artifact-structure-view.pdg
 docs/pdg/memory-evidence-pipeline.pdg
 docs/pdg/objective-route-policy.pdg
+docs/pdg/route-memory-preflight.pdg
+docs/pdg/skill-lifecycle-governance.pdg
 docs/pdg/source-intake-gate-flow.pdg
 docs/pdg/visual-context-offload-lane.pdg
 ```

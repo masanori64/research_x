@@ -129,3 +129,23 @@ def test_visual_context_lane_points_to_canonical_artifacts() -> None:
     }
     assert "11 WBS operational state lane" not in {leaf["name"] for leaf in visual}
     assert "35 pdgkit structural flow lane" not in {leaf["name"] for leaf in visual}
+
+
+def test_route_memory_preflight_is_codex_foundation_state_not_evidence() -> None:
+    leaves = _leaf_tasks(_project()["tasks"])
+    route_memory = next(
+        leaf
+        for leaf in leaves
+        if leaf["name"] == "Route Memory Registry and Preflight"
+    )
+    meta = route_memory["_research_x"]
+
+    assert route_memory["id"] == "4.6"
+    assert meta["artifact_layer"] == "operation_route_memory"
+    assert meta["decision_band"] == "project_state"
+    assert meta["gate"] == "route_memory_preflight_no_provider_no_network_by_default"
+    assert meta["status"] == "complete"
+    assert meta["artifact_pointer"] == ".codex/route_memory/route-memory.json"
+    assert meta["owner_doc"] == "AGENTS.md"
+    assert meta["evidence_status"] == "not_evidence"
+    assert meta["answer_support_allowed"] is False

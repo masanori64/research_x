@@ -19,6 +19,7 @@ def test_project_and_readme_are_thin_pointer_first_surfaces() -> None:
     assert _line_count(PROJECT) <= 100
     assert _line_count(README_CODEX) <= 180
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in project
+    assert ".codex/route_memory/route-memory.json" in readme
     assert ".codex/context_offloads/pointer-map.json" in readme
     assert "docs/pdg/*.pdg" in readme
     assert "Completed Milestones" not in project
@@ -32,12 +33,13 @@ def test_project_and_readme_are_thin_pointer_first_surfaces() -> None:
 def test_readme_reduced_read_path_is_pointer_before_state_and_structure() -> None:
     text = README_CODEX.read_text(encoding="utf-8")
 
+    route_memory = text.index(".codex/route_memory/route-memory.json")
     pointer = text.index(".codex/context_offloads/pointer-map.json")
     wbs = text.index("tools/wbs_viewer/projects/research-x-work-state.json")
     pdg = text.index("docs/pdg/*.pdg")
     memory = text.index("docs/memory-pipeline-v2.md")
 
-    assert pointer < wbs < pdg < memory
+    assert route_memory < pointer < wbs < pdg < memory
 
 
 def test_memory_pipeline_v2_keeps_evidence_contract_not_task_database() -> None:
@@ -48,6 +50,7 @@ def test_memory_pipeline_v2_keeps_evidence_contract_not_task_database() -> None:
     assert "WBS JSON" in text
     assert "PDG source" in text
     assert "Pointer entries" in text
+    assert ".codex/route_memory/route-memory.json" in text
     assert "Completed Milestones" not in text
     assert "Current active decisions" not in text
     assert "Post-V1 Implementation Boundaries" not in text
