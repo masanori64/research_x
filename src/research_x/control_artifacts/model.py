@@ -6,11 +6,11 @@ from typing import Any
 
 CONTROL_ARTIFACT_KINDS = {
     "chatgpt_consultation",
+    "d2_source",
     "gpt_pro_plan",
     "html_review",
-    "pdg_source",
-    "pdg_svg",
     "pointer_map",
+    "presentation_svg",
     "svg_review",
     "wbs_json",
     "x_url",

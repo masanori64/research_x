@@ -20,9 +20,9 @@ def _diagram_payload() -> dict[str, object]:
         "owner_plane": "structure_review",
         "source_artifacts": [
             {
-                "artifact_id": "pdg",
-                "artifact_path": "docs/pdg/control-artifact-structure-view.pdg",
-                "artifact_kind": "pdg_source",
+                "artifact_id": "d2",
+                "artifact_path": "docs/presentation/diagrams/control-artifact-structure-view.d2",
+                "artifact_kind": "d2_source",
                 "not_evidence": True,
                 "answer_support_allowed": False,
                 "evidence_role": "control",
@@ -32,8 +32,8 @@ def _diagram_payload() -> dict[str, object]:
         "sections": [{"heading": "Diagram", "body": "Review-only structure aid."}],
         "gates": [{"gate_id": "not_evidence", "label": "Diagram cannot support answers."}],
         "diagram_kind": "workflow",
-        "source_of_structure": "pdg",
-        "consistency_refs": ["docs/pdg/control-artifact-structure-view.pdg"],
+        "source_of_structure": "d2",
+        "consistency_refs": ["docs/presentation/diagrams/control-artifact-structure-view.d2"],
         "not_evidence": True,
         "answer_support_allowed": False,
     }

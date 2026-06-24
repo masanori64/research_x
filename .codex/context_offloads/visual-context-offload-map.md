@@ -7,13 +7,13 @@ The authoritative pointer map is:
 ```
 
 This Markdown file is only a thin human index. It must not hold the canonical
-hash table, task state, PDG edge list, or source evidence.
+hash table, task state, diagram edge list, or source evidence.
 
 Use the JSON map to restore:
 
 - canonical WBS work state;
-- project-owned PDG sources;
-- generated PDG review SVGs;
+- presentation generation planning context;
+- D2/Marp build-boundary pointers when those artifacts exist;
 - GPT Pro architecture-refresh consultation text when historical input context is
   explicitly needed.
 

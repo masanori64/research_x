@@ -17,11 +17,9 @@ Read in this order:
    index for offloaded Codex work context.
 5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when operational
    state, candidate bands, dates, gates, or remaining work are needed.
-6. `docs/pdg/*.pdg`: only when route, state-machine, implementation boundary, or
-   artifact-transition structure is needed.
-7. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
+6. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
    architecture boundary changes.
-8. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
+7. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
    historical rationale is needed.
 
 Avoid routine reads of `.codex/chatgpt-control/x-url-analysis-20260622/*.md`; that
@@ -43,9 +41,9 @@ raw source != searchable document != search result != source bundle
 != context chunk != citation != answer
 ```
 
-WBS, PDG, SVG, screenshots, pointer maps, ChatGPT captures, sub-agent notes, and
-route-memory registries, and compressed summaries are control or review artifacts.
-They are not evidence or answer support.
+WBS, rendered diagrams, screenshots, pointer maps, ChatGPT captures, sub-agent
+notes, route-memory registries, and compressed summaries are control or review
+artifacts. They are not evidence or answer support.
 
 ## Mandatory Runtime Rules
 
@@ -81,26 +79,22 @@ uv run python -m research_x test-diagnose --help
 
 Common local/fake verification families include memory audit/eval/portfolio checks,
 research-intake dry-runs, prompt-contract tests, Skill manifest validation, WBS
-structure checks, PDG validate/render checks, and pointer-map hash checks. Keep
+structure checks, D2/Marp build-boundary checks, and pointer-map hash checks. Keep
 provider-backed commands gated.
 
 ## Work-State And Structure
 
 - Operational state source: `tools/wbs_viewer/projects/research-x-work-state.json`
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html`
-- Project PDG sources: `docs/pdg/*.pdg`
-- Project PDG review SVGs: `docs/pdg/out/*.svg`
-- pdgkit execution environment: `tools/pdgkit_canary/`
+- Presentation generation flow:
+  `.codex/implementation-plans/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `.codex/route_memory/route-memory.json`
 
-Use WBS for phase/candidate/gate/status data. Use PDG for route, state-machine, and
-boundary flows. Use Route Memory for recurring operation-route success/failure
-selection. Use Pointer Map for path/hash/size/restore hints. Keep Markdown for
-durable reasons, invariants, stop conditions, and pointers.
-
-Before creating or rendering pdgkit diagrams, read
-`tools/pdgkit_canary/README.md`; use `.pdg -> validate -> render/refs` and keep
-generated outputs review/presentation-only.
+Use WBS for phase/candidate/gate/status data. Use Route Memory for recurring
+operation-route success/failure selection. Use Pointer Map for path/hash/size/
+restore hints. Use D2 + Marp for presentation diagram and deck generation after
+the Stage 1 build-tool boundary is in place. Keep Markdown for durable reasons,
+invariants, stop conditions, and pointers.
 
 ## Repo Skills
 

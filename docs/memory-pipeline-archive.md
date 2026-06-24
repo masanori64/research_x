@@ -25,11 +25,17 @@ or old source links. Do not scan the whole archive by default.
 | Retrieval policy detailed notes moved out of active V2 | 2026-06-08: Retrieval Policy Detail Archived From Active V2 |
 | Codex-wide external tools, memory MCP, retrospective/fluent, SkillOpt/Sleep | 2026-06-09: Codex-Wide External Tool Candidates |
 | `_codex_inbox` design package placement, implemented/residual split | 2026-06-10: Codex Inbox Design Package Placement |
-| Active V2 Markdown thinning and WBS/PDG/Pointer split | 2026-06-24: Active V2 Information Architecture Thinning |
+| Historical V2 Markdown thinning and WBS/PDG/Pointer split | 2026-06-24: Active V2 Information Architecture Thinning |
+| PDG/pdgkit active-route decommission | 2026-06-24: PDG Surface Decommission |
 
 ## Decision Notes
 
 ### 2026-06-24: Active V2 Information Architecture Thinning
+
+Superseded note: the PDG/pdgkit route described here was decommissioned later on
+2026-06-24. Treat this section as historical rationale only; active diagram and
+presentation generation now uses the D2/Marp boundary named in `README.codex.md`
+and `PROJECT.md`.
 
 Scope:
 
@@ -52,6 +58,24 @@ Decision:
   `.codex/context_offloads/pointer-map.json`.
 - Keep WBS, PDG, SVG, screenshots, pointer maps, and ChatGPT consultation captures out
   of the evidence/citation/answer-support chain.
+
+### 2026-06-24: PDG Surface Decommission
+
+Scope:
+
+- The Patent Diagram Grammar tool lane was useful as a deterministic canary, but
+  it was not needed for routine documentation, WBS, or presentation generation.
+- The active presentation generation route is D2 + Marp, with facts-first content
+  gates before diagrams and slides.
+
+Decision:
+
+- Remove the tracked project diagram sources, rendered review assets, isolated
+  canary tool folder, and active pointer-map entries for that lane.
+- Keep old consultation captures and canary reports as historical/reference-only
+  records when they appear in this archive or `.codex/chatgpt-control`.
+- Keep generated diagrams, WBS, pointer maps, and consultation captures out of the
+  evidence/citation/answer-support chain.
 
 ### 2026-06-10: Codex Inbox Design Package Placement
 

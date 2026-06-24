@@ -14,8 +14,9 @@ interests.
 
 - Current evidence architecture: `docs/memory-pipeline-v2.md`
 - Current work state: `tools/wbs_viewer/projects/research-x-work-state.json`
-- Project-owned structural flows: `docs/pdg/*.pdg`
 - Context/offload pointer index: `.codex/context_offloads/pointer-map.json`
+- Presentation generation flow:
+  `.codex/implementation-plans/2026-06-24-presentation-generation-flow.md`
 - Acquisition/auth/provider pipeline: `docs/pipeline.md`
 - Historical rationale archive: `docs/memory-pipeline-archive.md`
 
@@ -26,10 +27,10 @@ raw source != searchable document != search result != source bundle
 != context chunk != citation != answer
 ```
 
-WBS JSON, PDG source, generated SVG, screenshots, pointer maps, consultation
-captures, rendered HTML views, and compressed summaries are control or review
-artifacts. They are not evidence, citations, answer support, or provider
-execution permission.
+WBS JSON, generated diagrams, screenshots, pointer maps, consultation captures,
+rendered HTML views, and compressed summaries are control or review artifacts.
+They are not evidence, citations, answer support, or provider execution
+permission.
 
 ## Active Gates
 

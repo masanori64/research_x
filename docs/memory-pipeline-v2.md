@@ -84,8 +84,7 @@ reason when a task depends on those states.
 The following artifacts are control, planning, review, or restore-index surfaces:
 
 - WBS JSON;
-- PDG source;
-- generated SVGs;
+- generated diagram sources and rendered assets;
 - screenshots;
 - `.codex/context_offloads/pointer-map.json`;
 - `.codex/route_memory/route-memory.json`;
@@ -97,7 +96,7 @@ They may point to source material or explain workflow structure. They must not b
 used as citation-ready evidence, answer support, source-quality evidence, or
 permission to call providers.
 
-## WBS / PDG / Pointer Boundary
+## WBS / Presentation / Pointer Boundary
 
 Work state belongs in:
 
@@ -110,16 +109,18 @@ status, planned/actual dates, gates, next actions, owner surfaces, source candid
 URLs, and artifact pointers. WBS notes must stay short and must not become source
 review prose or answer evidence.
 
-Structure belongs in:
+Presentation diagram and deck generation belongs to the D2 + Marp build-tool
+boundary described in:
 
 ```text
-docs/pdg/*.pdg
+.codex/implementation-plans/2026-06-24-presentation-generation-flow.md
 ```
 
-PDG owns route flows, state transitions, implementation boundaries, source-intake
-gates, evidence pipeline transitions, visual context offload procedure, and
-provider/dependency/MCP stop transitions. Generated SVGs in `docs/pdg/out/*.svg`
-are review artifacts generated from PDG source.
+Deck-specific diagram sources should be derived from reviewed repository facts,
+validated through the selected local D2 lane, and rendered only as
+review/presentation assets. Route, state-machine, and implementation-boundary
+truth should remain in code, tests, or the narrow owning Markdown section unless a
+presentation artifact is explicitly being built.
 
 Restore pointers belong in:
 
@@ -190,14 +191,14 @@ citations, or answer evidence.
   answers.
 - Obsolete decision history belongs in `docs/memory-pipeline-archive.md` only when
   future decisions need the rationale; otherwise Git history is sufficient.
-- Long task state belongs in WBS, long route/state flow belongs in PDG, and long
-  restore pointers belong in Pointer Map.
+- Long task state belongs in WBS and long restore pointers belong in Pointer Map.
+  Presentation diagrams must stay reproducible through the D2/Marp boundary and
+  must not become evidence or architecture source of truth by themselves.
 
 ## Open Risks
 
 - WBS can become another long prose database if notes are allowed to hold rationale
   or source review text.
-- PDG can become unreadable if a single graph tries to carry every specification.
 - Pointer Map loses value if hashes, byte counts, or restore hints are stale.
 - Provider-free local fixtures can prove wiring and boundaries, but not real model
   quality.

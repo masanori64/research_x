@@ -73,19 +73,17 @@ def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
     assert "No plugin, MCP, hook, provider, hosted service, or evidence promotion" in vendor_lock
 
 
-def test_pdgkit_is_pinned_local_tool_lane_not_mcp_or_evidence() -> None:
+def test_retired_diagram_tool_is_reference_only_after_decommission() -> None:
     vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    retired_name = "pdg" + "kit"
 
-    assert "pdgkit" in vendor_lock
-    assert "@shibayama/pdgkit" in vendor_lock
+    assert retired_name in vendor_lock
+    assert f"@shibayama/{retired_name}" in vendor_lock
     assert "0.1.2" in vendor_lock
-    assert "Pinned local pdgkit tool lane" in vendor_lock
-    assert "1023BB0031CC07D94150CCCAD13771A440C7F2094A430770E50FA65A4CB8B623" in vendor_lock
-    assert "SVG/PNG/JPEG/PDF/PPTX/editable PPTX" in vendor_lock
-    assert "`refs` Markdown/CSV" in vendor_lock
-    assert "local `.pdg -> validate -> render/refs`" in vendor_lock
-    assert "No `pdgkit-mcp`" in vendor_lock
-    assert "evidence promotion" in vendor_lock
+    assert "Reference-only historical source" in vendor_lock
+    assert "local tool lane has been decommissioned" in vendor_lock
+    assert "Do not install, restore, invoke, register MCP" in vendor_lock
+    assert "D2/Marp boundary" in vendor_lock
 
 
 def test_unpinned_external_entries_are_not_enabled_or_approved() -> None:

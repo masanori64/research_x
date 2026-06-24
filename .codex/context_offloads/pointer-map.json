@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "c697bfbaeb5c3e92aecb504a5861b6c81bf9960e2f62ff4a1314acb6b38f81a5",
-      "char_count": 91215,
-      "byte_count": 93327,
+      "sha256": "50f9c9d0f45b3378b679a6c28da238a5f8f1f0af7d9c3697428d2ee7da10c93d",
+      "char_count": 91184,
+      "byte_count": 91184,
       "not_evidence": true
     },
     {
@@ -31,9 +31,9 @@
       "artifact_kind": "historical_index",
       "owner_plane": "archive",
       "restore_hint": "Use as the only active index for the historical X/GPT consultation capture.",
-      "sha256": "ff77bdf02045ef9cd05a802d039a8a5ebc17dbaf8c735ae4112284387867bab8",
-      "char_count": 1144,
-      "byte_count": 1144,
+      "sha256": "2182948488e803bc3359d620c76d053b213216e8a37634b571017f511666af3a",
+      "char_count": 1150,
+      "byte_count": 1150,
       "not_evidence": true
     },
     {
@@ -42,97 +42,9 @@
       "artifact_kind": "human_index",
       "owner_plane": "pointer",
       "restore_hint": "Thin human index that points back to pointer-map.json; not the canonical hash table.",
-      "sha256": "f1560e4e96952deef4086a1601e35838b538b02682f804f2b91a23e6fe12b9e9",
-      "char_count": 611,
-      "byte_count": 611,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_source_memory-evidence-pipeline",
-      "artifact_path": "docs/pdg/memory-evidence-pipeline.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\memory-evidence-pipeline.pdg --lang en.",
-      "sha256": "c1880d9af15eb3c656133a03ba17e205eb5fe0df76bc12db7d2a143977f0025f",
-      "char_count": 528,
-      "byte_count": 528,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_memory-evidence-pipeline",
-      "artifact_path": "docs/pdg/out/memory-evidence-pipeline.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/memory-evidence-pipeline.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "c32deae630e955774bffaeec5b458124e6fe709a6195c74670f28c6ef58b3796",
-      "char_count": 6287,
-      "byte_count": 6287,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_source_objective-route-policy",
-      "artifact_path": "docs/pdg/objective-route-policy.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\objective-route-policy.pdg --lang en.",
-      "sha256": "0333b23cf7611bd4b5ec7dd6b10852430a13f912daa1b47f9365ddd08e67d02a",
-      "char_count": 597,
-      "byte_count": 597,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_objective-route-policy",
-      "artifact_path": "docs/pdg/out/objective-route-policy.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/objective-route-policy.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "b9507f2f2e3c754442d68c924c40c19119fc1b4df0efdd9dd530d2f342e3a353",
-      "char_count": 6467,
-      "byte_count": 6467,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_source_source-intake-gate-flow",
-      "artifact_path": "docs/pdg/source-intake-gate-flow.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\source-intake-gate-flow.pdg --lang en.",
-      "sha256": "edff8cd36b7c9721bdb0c336aa83aa910f8db85f5677cd4dfdafd8899848ef1f",
-      "char_count": 748,
-      "byte_count": 748,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_source-intake-gate-flow",
-      "artifact_path": "docs/pdg/out/source-intake-gate-flow.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/source-intake-gate-flow.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "18116fb924b3ebed25dd2861727a0734161da3dc08b31b50690b944876bfca5f",
-      "char_count": 7506,
-      "byte_count": 7506,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_source_visual-context-offload-lane",
-      "artifact_path": "docs/pdg/visual-context-offload-lane.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\visual-context-offload-lane.pdg --lang en.",
-      "sha256": "ea63c3211e8e7922f7b8a5424b0cd1dc8b4463753d029331f1851d48a1ecd22b",
-      "char_count": 973,
-      "byte_count": 973,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_visual-context-offload-lane",
-      "artifact_path": "docs/pdg/out/visual-context-offload-lane.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/visual-context-offload-lane.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "fd7d4dfc2ceb2858088672bff3d166f9adaee71c9c4291da80a4a0c587f707f2",
-      "char_count": 10832,
-      "byte_count": 10832,
+      "sha256": "0f60c20c1f5700fab204e65cac24592dc2a4a57496006645163c652a5e31213c",
+      "char_count": 663,
+      "byte_count": 663,
       "not_evidence": true
     },
     {
@@ -140,10 +52,10 @@
       "artifact_path": ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
       "artifact_kind": "implementation_plan",
       "owner_plane": "decision_input",
-      "restore_hint": "Read only as the GPT Pro implementation plan for source items 33, 5, 24, and 10; not evidence.",
-      "sha256": "f00fa7994416d69d8f126f0e2d88d1aae108a12ca6e92bca1b72150fc5466e49",
-      "char_count": 14594,
-      "byte_count": 18072,
+      "restore_hint": "Closed implementation-plan input for source items 33, 5, 24, and 10; diagram-tool notes inside are historical/reference-only and superseded by the D2/Marp boundary.",
+      "sha256": "faeb07d762ce2980660d844d7e7a5731fd6eeedf137d5abac0d9bd3c4b1a624b",
+      "char_count": 14871,
+      "byte_count": 18349,
       "not_evidence": true
     },
     {
@@ -151,7 +63,7 @@
       "artifact_path": ".codex/chatgpt-control/next-wave-33-5-24-10-20260624/gpt-pro-response.md",
       "artifact_kind": "gpt_pro_plan",
       "owner_plane": "decision_input",
-      "restore_hint": "Raw visible ChatGPT Pro consultation output for the next-wave plan; not evidence.",
+      "restore_hint": "Raw visible ChatGPT Pro consultation output for the next-wave plan; historical/reference-only, not active diagram-tool routing, and not evidence.",
       "sha256": "f00fa7994416d69d8f126f0e2d88d1aae108a12ca6e92bca1b72150fc5466e49",
       "char_count": 14594,
       "byte_count": 18072,
@@ -169,58 +81,14 @@
       "not_evidence": true
     },
     {
-      "pointer_id": "project_pdg_source_control-artifact-structure-view",
-      "artifact_path": "docs/pdg/control-artifact-structure-view.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\control-artifact-structure-view.pdg --lang en.",
-      "sha256": "5de0ccbc23c1f1f0c982b13d0719ba9a691a18b17a31d63103ede58e8ef44e27",
-      "char_count": 611,
-      "byte_count": 611,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_control-artifact-structure-view",
-      "artifact_path": "docs/pdg/out/control-artifact-structure-view.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/control-artifact-structure-view.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "bde64a38728cea71d088643045f54af071b790de2669ccdb8d8e4b2080ae224d",
-      "char_count": 5901,
-      "byte_count": 5901,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_source_skill-lifecycle-governance",
-      "artifact_path": "docs/pdg/skill-lifecycle-governance.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\skill-lifecycle-governance.pdg --lang en.",
-      "sha256": "ce0c0c634f788b66df595865c3ef2f106f8477b66e32d5e5ac9a6378a3db7c67",
-      "char_count": 621,
-      "byte_count": 621,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_skill-lifecycle-governance",
-      "artifact_path": "docs/pdg/out/skill-lifecycle-governance.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/skill-lifecycle-governance.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "55c19880e3a25985e41d9469f4b6ed98a8e2bb5361d8a2cbc7c17ecb6a2d9da4",
-      "char_count": 5835,
-      "byte_count": 5835,
-      "not_evidence": true
-    },
-    {
       "pointer_id": "control_artifact_model_py",
       "artifact_path": "src/research_x/control_artifacts/model.py",
       "artifact_kind": "source_code",
       "owner_plane": "control_artifact",
       "restore_hint": "Review-only control artifact schema; not evidence or answer support.",
-      "sha256": "09e670e7eb2419d7d1a2902610a02ba3591d9431562618a2ad297f46d2d0fbeb",
-      "char_count": 9282,
-      "byte_count": 9282,
+      "sha256": "cb7171f48fdf4d3ed733bc62d2c2e11b68d884889a2848da960ed70874ee0773",
+      "char_count": 9290,
+      "byte_count": 9290,
       "not_evidence": true
     },
     {
@@ -298,28 +166,6 @@
       "sha256": "8a2fbaa41648ec953e73d1a0f06100914911fb8e2d59028961f594cda435a020",
       "char_count": 2955,
       "byte_count": 2955,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_source_route-memory-preflight",
-      "artifact_path": "docs/pdg/route-memory-preflight.pdg",
-      "artifact_kind": "pdg_source",
-      "owner_plane": "structure",
-      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\route-memory-preflight.pdg --lang en.",
-      "sha256": "65a4b3b50a59962b4188ef00208e8ff96b20dd53931112113f85204650c421cc",
-      "char_count": 975,
-      "byte_count": 975,
-      "not_evidence": true
-    },
-    {
-      "pointer_id": "project_pdg_svg_route-memory-preflight",
-      "artifact_path": "docs/pdg/out/route-memory-preflight.svg",
-      "artifact_kind": "pdg_svg",
-      "owner_plane": "structure_review",
-      "restore_hint": "Regenerate from docs/pdg/route-memory-preflight.pdg using pdgkit render; SVG is review-only.",
-      "sha256": "78f3f672c4a54412b6b6598a3fc01f210f048aa7337b692683165ee03a6b2065",
-      "char_count": 8729,
-      "byte_count": 8729,
       "not_evidence": true
     }
   ]

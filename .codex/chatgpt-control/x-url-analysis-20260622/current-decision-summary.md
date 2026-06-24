@@ -1,4 +1,4 @@
-<!-- Historical consultation capture. Active path: README.md, tools/wbs_viewer/projects/research-x-work-state.json, docs/pdg/*.pdg, and .codex/context_offloads/pointer-map.json. Not evidence; do not update as an active tracker. -->
+<!-- Historical consultation capture. Active path: README.md, tools/wbs_viewer/projects/research-x-work-state.json, and .codex/context_offloads/pointer-map.json. Retired diagram-tool notes inside are closed/reference-only. Not evidence; do not update as an active tracker. -->
 
 # X URL Analysis Current Decision Summary
 

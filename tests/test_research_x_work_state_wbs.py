@@ -117,18 +117,27 @@ def test_visual_context_lane_points_to_canonical_artifacts() -> None:
         if leaf["_research_x"]["decision_band"] == "visual_context_offload"
     ]
     pointers = {leaf["_research_x"]["artifact_pointer"] for leaf in visual}
+    serialized = json.dumps(visual, ensure_ascii=False)
+    retired_docs = "docs/" + "pdg"
+    retired_tool = "tools/" + "pdg" + "kit_canary"
+    retired_ext = "." + "pdg"
+    retired_upper = "P" + "DG"
+    retired_name = "pdg" + "kit"
 
     assert WBS_PATH.as_posix() in pointers
-    assert "docs/pdg/visual-context-offload-lane.pdg" in pointers
     assert ".codex/context_offloads/pointer-map.json" in pointers
+    assert ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md" in pointers
     assert "tools/wbs_viewer/projects/research-x-visual-context-offload.json" not in pointers
-    assert "tools/pdgkit_canary/canaries/visual-context-offload-lane.pdg" not in pointers
     assert {leaf["name"] for leaf in visual} >= {
         "WBS operational state lane",
-        "PDG structural flow lane",
+        "Presentation diagram build boundary",
     }
     assert "11 WBS operational state lane" not in {leaf["name"] for leaf in visual}
-    assert "35 pdgkit structural flow lane" not in {leaf["name"] for leaf in visual}
+    assert retired_docs not in serialized
+    assert retired_tool not in serialized
+    assert retired_ext not in serialized
+    assert retired_upper not in serialized
+    assert retired_name not in serialized
 
 
 def test_route_memory_preflight_is_codex_foundation_state_not_evidence() -> None:

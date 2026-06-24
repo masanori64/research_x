@@ -15,19 +15,25 @@ def _line_count(path: Path) -> int:
 def test_project_and_readme_are_thin_pointer_first_surfaces() -> None:
     project = PROJECT.read_text(encoding="utf-8")
     readme = README_CODEX.read_text(encoding="utf-8")
+    retired_docs = "docs/" + "pdg"
+    retired_tool = "tools/" + "pdg" + "kit_canary"
+    retired_canary = retired_tool + "/canaries/visual-context-offload-lane." + "pdg"
 
     assert _line_count(PROJECT) <= 100
     assert _line_count(README_CODEX) <= 180
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in project
     assert ".codex/route_memory/route-memory.json" in readme
     assert ".codex/context_offloads/pointer-map.json" in readme
-    assert "docs/pdg/*.pdg" in readme
+    assert ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md" in readme
+    assert "D2 + Marp" in readme
+    assert retired_docs not in readme
+    assert retired_tool not in readme
     assert "Completed Milestones" not in project
     assert "Current Gates" not in project
     assert "Post-V1 Work Boundaries" not in project
     assert "Main CLI Surfaces" not in readme
     assert "tools/wbs_viewer/projects/research-x-visual-context-offload.json" not in readme
-    assert "tools/pdgkit_canary/canaries/visual-context-offload-lane.pdg" not in readme
+    assert retired_canary not in readme
 
 
 def test_readme_reduced_read_path_is_pointer_before_state_and_structure() -> None:
@@ -36,21 +42,23 @@ def test_readme_reduced_read_path_is_pointer_before_state_and_structure() -> Non
     route_memory = text.index(".codex/route_memory/route-memory.json")
     pointer = text.index(".codex/context_offloads/pointer-map.json")
     wbs = text.index("tools/wbs_viewer/projects/research-x-work-state.json")
-    pdg = text.index("docs/pdg/*.pdg")
     memory = text.index("docs/memory-pipeline-v2.md")
 
-    assert route_memory < pointer < wbs < pdg < memory
+    assert route_memory < pointer < wbs < memory
 
 
 def test_memory_pipeline_v2_keeps_evidence_contract_not_task_database() -> None:
     text = MEMORY_V2.read_text(encoding="utf-8")
+    retired_docs = "docs/" + "pdg"
 
     assert _line_count(MEMORY_V2) <= 260
     assert "raw source != searchable document" in text
     assert "WBS JSON" in text
-    assert "PDG source" in text
+    assert "generated diagram sources and rendered assets" in text
+    assert "D2 + Marp" in text
     assert "Pointer entries" in text
     assert ".codex/route_memory/route-memory.json" in text
+    assert retired_docs not in text
     assert "Completed Milestones" not in text
     assert "Current active decisions" not in text
     assert "Post-V1 Implementation Boundaries" not in text
@@ -61,16 +69,22 @@ def test_memory_pipeline_v2_keeps_evidence_contract_not_task_database() -> None:
 def test_x_gpt_folder_has_thin_active_index_and_historical_markdown_notices() -> None:
     index = X_GPT_DIR / "README.md"
     text = index.read_text(encoding="utf-8")
+    retired_docs = "docs/" + "pdg"
+    retired_tool = "tools/" + "pdg" + "kit_canary"
 
     assert _line_count(index) <= 60
     assert "historical ChatGPT/GPT Pro control capture" in text
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in text
-    assert "docs/pdg/source-intake-gate-flow.pdg" in text
     assert ".codex/context_offloads/pointer-map.json" in text
+    assert ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md" in text
+    assert retired_docs not in text
+    assert retired_tool not in text
 
     for path in X_GPT_DIR.glob("*.md"):
         if path.name == "README.md":
             continue
         head = path.read_text(encoding="utf-8")[:500]
         assert "Historical consultation capture. Active path:" in head, path.name
+        assert "Retired diagram-tool notes inside are closed/reference-only" in head, path.name
+        assert retired_docs not in head, path.name
         assert "Not evidence" in head, path.name

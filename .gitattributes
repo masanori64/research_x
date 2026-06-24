@@ -1,7 +1,3 @@
 .codex/context_offloads/*.md text eol=lf
 .codex/context_offloads/*.json text eol=lf
 tools/wbs_viewer/projects/*.json text eol=lf
-docs/pdg/*.pdg text eol=lf
-docs/pdg/out/*.svg text eol=lf
-tools/pdgkit_canary/canaries/*.pdg text eol=lf
-tools/pdgkit_canary/out/*.svg text eol=lf

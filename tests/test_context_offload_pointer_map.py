@@ -28,13 +28,22 @@ def test_pointer_map_entries_match_current_artifacts() -> None:
         assert entry["byte_count"] == path.stat().st_size
 
 
-def test_pointer_map_covers_canonical_wbs_project_pdg_and_gpt_pro_input() -> None:
+def test_pointer_map_covers_canonical_wbs_presentation_plan_and_gpt_pro_input() -> None:
     data = json.loads(POINTER_MAP.read_text(encoding="utf-8"))
     paths = {entry["artifact_path"] for entry in data["entries"]}
+    artifact_kinds = {entry["artifact_kind"] for entry in data["entries"]}
+    retired_docs = "docs/" + "pdg/"
+    retired_tool = "tools/" + "pdg" + "kit_canary/"
+    retired_source_kind = "pdg" + "_source"
+    retired_svg_kind = "pdg" + "_svg"
 
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in paths
     assert ".codex/route_memory/route-memory.json" in paths
     assert ".codex/route_memory/route-memory.schema.json" in paths
+    assert (
+        ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md"
+        in paths
+    )
     assert (
         ".codex/chatgpt-control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md"
         in paths
@@ -43,17 +52,10 @@ def test_pointer_map_covers_canonical_wbs_project_pdg_and_gpt_pro_input() -> Non
         ".codex/chatgpt-control/route-memory-pipeline-20260624/gpt-pro-response.md"
         in paths
     )
-    for stem in (
-        "control-artifact-structure-view",
-        "memory-evidence-pipeline",
-        "objective-route-policy",
-        "route-memory-preflight",
-        "skill-lifecycle-governance",
-        "source-intake-gate-flow",
-        "visual-context-offload-lane",
-    ):
-        assert f"docs/pdg/{stem}.pdg" in paths
-        assert f"docs/pdg/out/{stem}.svg" in paths
+    assert not any(path.startswith(retired_docs) for path in paths)
+    assert not any(path.startswith(retired_tool) for path in paths)
+    assert retired_source_kind not in artifact_kinds
+    assert retired_svg_kind not in artifact_kinds
 
 
 def test_human_pointer_index_is_thin_and_defers_to_json() -> None:
