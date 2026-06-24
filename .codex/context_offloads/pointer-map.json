@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "a35d42cab3f9bdffa2a505febed20e0f1c101de6d755ded5e8e5dd51a7c243a1",
-      "char_count": 81461,
-      "byte_count": 83430,
+      "sha256": "a0e7e6a2d03236509250561fa3b64d84bf8b206163d9de051c268a0921558572",
+      "char_count": 81556,
+      "byte_count": 83525,
       "not_evidence": true
     },
     {
@@ -31,9 +31,9 @@
       "artifact_kind": "historical_index",
       "owner_plane": "archive",
       "restore_hint": "Use as the only active index for the historical X/GPT consultation capture.",
-      "sha256": "60a484dcb9bc870b557556d44b06c1ba4c77195146d53cec45fa8c7004325704",
-      "char_count": 937,
-      "byte_count": 937,
+      "sha256": "ff77bdf02045ef9cd05a802d039a8a5ebc17dbaf8c735ae4112284387867bab8",
+      "char_count": 1144,
+      "byte_count": 1144,
       "not_evidence": true
     },
     {

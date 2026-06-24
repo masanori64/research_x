@@ -4,6 +4,10 @@ This folder contains the isolated `@shibayama/pdgkit` dependency used to validat
 and render PDG sources. It is a tool environment, not the owner of project
 architecture.
 
+The X/GPT item 35 canary explains why this dependency entered the project, but
+item 35 is historical intake state. The general project mechanism is PDG source
+under `docs/pdg/*.pdg`.
+
 ## Package
 
 - npm package: `@shibayama/pdgkit`

@@ -4,6 +4,10 @@ This folder is a historical ChatGPT/GPT Pro control capture for the 35 X URL
 candidate review. It is not evidence, not the active implementation plan, and not
 the current work-state source.
 
+Items 11 and 35 remain item-specific historical records inside the 35-item intake.
+They are not general workflow names. The generalized mechanisms are WBS for
+operational state and PDG for structural flow.
+
 Current active surfaces:
 
 - Work state and 35-item candidate status:

@@ -93,7 +93,7 @@ def test_x_gpt_intake_keeps_all_35_items_without_becoming_evidence() -> None:
         assert meta["owner_doc"] == ".codex/chatgpt-control/x-url-analysis-20260622/README.md"
 
 
-def test_items_11_and_35_are_recorded_as_completed_body_adoption_canaries() -> None:
+def test_items_11_and_35_remain_item_specific_historical_records() -> None:
     leaves = _leaf_tasks(_project()["tasks"])
     by_item = {
         leaf["_research_x"]["item"]: leaf
@@ -123,3 +123,9 @@ def test_visual_context_lane_points_to_canonical_artifacts() -> None:
     assert ".codex/context_offloads/pointer-map.json" in pointers
     assert "tools/wbs_viewer/projects/research-x-visual-context-offload.json" not in pointers
     assert "tools/pdgkit_canary/canaries/visual-context-offload-lane.pdg" not in pointers
+    assert {leaf["name"] for leaf in visual} >= {
+        "WBS operational state lane",
+        "PDG structural flow lane",
+    }
+    assert "11 WBS operational state lane" not in {leaf["name"] for leaf in visual}
+    assert "35 pdgkit structural flow lane" not in {leaf["name"] for leaf in visual}

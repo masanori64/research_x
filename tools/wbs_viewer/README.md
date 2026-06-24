@@ -1,7 +1,8 @@
 # WBS Viewer Tool
 
-This folder vendors the item 11 WBS Viewer canary and provides a local review
-surface for the `research_x` canonical work-state JSON.
+This folder vendors the WBS Viewer reviewed during the X/GPT item 11 canary and
+provides a local review surface for the `research_x` canonical work-state JSON.
+Item 11 is historical intake state, not the general name of this WBS lane.
 
 ## Upstream Copy
 

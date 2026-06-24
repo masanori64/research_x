@@ -10,7 +10,7 @@
         },
         {
           "date": "2026-06-23",
-          "label": "X/GPT 11/35 canaries complete",
+          "label": "WBS/PDG canaries complete",
           "color": "#7c3aed"
         },
         {
@@ -1677,7 +1677,7 @@
             },
             {
               "id": "1.2",
-              "name": "11 WBS operational state lane",
+              "name": "WBS operational state lane",
               "qty": 1,
               "hours": 1,
               "assignee": "Codex",
@@ -1689,7 +1689,7 @@
                 "start": "2026-06-23",
                 "end": "2026-06-23"
               },
-              "note": "state pointer only",
+              "note": "General WBS lane; item 11 remains only as historical X/GPT intake state.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "operational_state",
@@ -1705,7 +1705,7 @@
             },
             {
               "id": "1.3",
-              "name": "35 pdgkit structural flow lane",
+              "name": "PDG structural flow lane",
               "qty": 1,
               "hours": 1,
               "assignee": "Codex",
@@ -1717,7 +1717,7 @@
                 "start": "2026-06-23",
                 "end": "2026-06-23"
               },
-              "note": "state pointer only",
+              "note": "General PDG lane; item 35 remains only as historical X/GPT intake state.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "structural_flow",
