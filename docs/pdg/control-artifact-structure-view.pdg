@@ -1,0 +1,19 @@
+#! kind: flow
+S100 = Structured control data
+S110 = Validate schema and not_evidence contract
+S120 = Reject invalid evidence fields
+S130 = Render self-contained safe HTML
+S140 = Update pointer-map JSON
+S150 = Review-only output
+S160 = Diagram review boundary check
+S170 = Needs review until consistency refs exist
+S900 = Stop at evidence claim external script fetch or storage
+S100 -> S110
+S110 -> S120 : answer support requested
+S110 -> S130 : valid review artifact
+S120 -> S900
+S130 -> S140
+S140 -> S150
+S150 -> S160 : diagram artifact
+S150 -> S900 : evidence claim appears
+S160 -> S170 : no consistency refs

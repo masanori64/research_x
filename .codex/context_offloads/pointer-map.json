@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "a0e7e6a2d03236509250561fa3b64d84bf8b206163d9de051c268a0921558572",
-      "char_count": 81556,
-      "byte_count": 83525,
+      "sha256": "be62389106a95ad2c2d496504c9df060afb0df04ca21be0431d071556fd635f5",
+      "char_count": 87110,
+      "byte_count": 89209,
       "not_evidence": true
     },
     {
@@ -133,6 +133,127 @@
       "sha256": "fd7d4dfc2ceb2858088672bff3d166f9adaee71c9c4291da80a4a0c587f707f2",
       "char_count": 10832,
       "byte_count": 10832,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "next_wave_33_5_24_10_plan_20260624",
+      "artifact_path": ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
+      "artifact_kind": "implementation_plan",
+      "owner_plane": "decision_input",
+      "restore_hint": "Read only as the GPT Pro implementation plan for source items 33, 5, 24, and 10; not evidence.",
+      "sha256": "f00fa7994416d69d8f126f0e2d88d1aae108a12ca6e92bca1b72150fc5466e49",
+      "char_count": 14594,
+      "byte_count": 18072,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "next_wave_33_5_24_10_gpt_pro_response_20260624",
+      "artifact_path": ".codex/chatgpt-control/next-wave-33-5-24-10-20260624/gpt-pro-response.md",
+      "artifact_kind": "gpt_pro_plan",
+      "owner_plane": "decision_input",
+      "restore_hint": "Raw visible ChatGPT Pro consultation output for the next-wave plan; not evidence.",
+      "sha256": "f00fa7994416d69d8f126f0e2d88d1aae108a12ca6e92bca1b72150fc5466e49",
+      "char_count": 14594,
+      "byte_count": 18072,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "project_pdg_source_control-artifact-structure-view",
+      "artifact_path": "docs/pdg/control-artifact-structure-view.pdg",
+      "artifact_kind": "pdg_source",
+      "owner_plane": "structure",
+      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\control-artifact-structure-view.pdg --lang en.",
+      "sha256": "5de0ccbc23c1f1f0c982b13d0719ba9a691a18b17a31d63103ede58e8ef44e27",
+      "char_count": 611,
+      "byte_count": 611,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "project_pdg_svg_control-artifact-structure-view",
+      "artifact_path": "docs/pdg/out/control-artifact-structure-view.svg",
+      "artifact_kind": "pdg_svg",
+      "owner_plane": "structure_review",
+      "restore_hint": "Regenerate from docs/pdg/control-artifact-structure-view.pdg using pdgkit render; SVG is review-only.",
+      "sha256": "bde64a38728cea71d088643045f54af071b790de2669ccdb8d8e4b2080ae224d",
+      "char_count": 5901,
+      "byte_count": 5901,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "project_pdg_source_skill-lifecycle-governance",
+      "artifact_path": "docs/pdg/skill-lifecycle-governance.pdg",
+      "artifact_kind": "pdg_source",
+      "owner_plane": "structure",
+      "restore_hint": "Validate from tools/pdgkit_canary with npx --no-install pdgkit validate ..\\..\\docs\\pdg\\skill-lifecycle-governance.pdg --lang en.",
+      "sha256": "ce0c0c634f788b66df595865c3ef2f106f8477b66e32d5e5ac9a6378a3db7c67",
+      "char_count": 621,
+      "byte_count": 621,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "project_pdg_svg_skill-lifecycle-governance",
+      "artifact_path": "docs/pdg/out/skill-lifecycle-governance.svg",
+      "artifact_kind": "pdg_svg",
+      "owner_plane": "structure_review",
+      "restore_hint": "Regenerate from docs/pdg/skill-lifecycle-governance.pdg using pdgkit render; SVG is review-only.",
+      "sha256": "55c19880e3a25985e41d9469f4b6ed98a8e2bb5361d8a2cbc7c17ecb6a2d9da4",
+      "char_count": 5835,
+      "byte_count": 5835,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "control_artifact_model_py",
+      "artifact_path": "src/research_x/control_artifacts/model.py",
+      "artifact_kind": "source_code",
+      "owner_plane": "control_artifact",
+      "restore_hint": "Review-only control artifact schema; not evidence or answer support.",
+      "sha256": "09e670e7eb2419d7d1a2902610a02ba3591d9431562618a2ad297f46d2d0fbeb",
+      "char_count": 9282,
+      "byte_count": 9282,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "control_artifact_renderer_py",
+      "artifact_path": "src/research_x/control_artifacts/renderer.py",
+      "artifact_kind": "source_code",
+      "owner_plane": "control_artifact",
+      "restore_hint": "Safe deterministic HTML renderer for review artifacts; not evidence.",
+      "sha256": "9dc959abc89c78e95c69bf9dfa7e07fbb8dbe93b3068f30f4e6fd2234291cd2c",
+      "char_count": 3084,
+      "byte_count": 3084,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "control_artifact_sanitize_py",
+      "artifact_path": "src/research_x/control_artifacts/sanitize.py",
+      "artifact_kind": "source_code",
+      "owner_plane": "control_artifact",
+      "restore_hint": "HTML safety checks for review-only control artifacts.",
+      "sha256": "8fa474d51741c6dd75bf0d81e7c9f71e8f8b9c0f5fb1c3f8f5d12f6f5474f88a",
+      "char_count": 608,
+      "byte_count": 608,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "codex_improvement_skill_lifecycle_py",
+      "artifact_path": "src/research_x/codex_improvement/skill_lifecycle.py",
+      "artifact_kind": "source_code",
+      "owner_plane": "codex_foundation",
+      "restore_hint": "Proposal-only Skill lifecycle input gate; does not edit Skill files or manifests.",
+      "sha256": "62e2071d972793e5d9de7134fc941225b540cd9d20eb10712abe26da6f463f44",
+      "char_count": 6233,
+      "byte_count": 6233,
+      "not_evidence": true
+    },
+    {
+      "pointer_id": "codex_improvement_overimplementation_guard_py",
+      "artifact_path": "src/research_x/codex_improvement/overimplementation_guard.py",
+      "artifact_kind": "source_code",
+      "owner_plane": "codex_foundation",
+      "restore_hint": "Report-only over-implementation guard canary; no hook, plugin, MCP, or auto-block.",
+      "sha256": "6b3862989a3346ac497685915ee123574cc657b2cbdf6b7aab93ad1575448472",
+      "char_count": 4968,
+      "byte_count": 4968,
       "not_evidence": true
     }
   ]

@@ -6,8 +6,10 @@ PDG_DIR = Path("docs/pdg")
 PDG_OUT = PDG_DIR / "out"
 
 REQUIRED_STEMS = {
+    "control-artifact-structure-view",
     "memory-evidence-pipeline",
     "objective-route-policy",
+    "skill-lifecycle-governance",
     "source-intake-gate-flow",
     "visual-context-offload-lane",
 }
@@ -58,6 +60,27 @@ def test_visual_context_pdg_preserves_wbs_pdg_pointer_and_evidence_gates() -> No
     assert "Update pointer-map JSON" in source
     assert "Restore source bundle, context chunks, and citations" in source
     assert "Keep visual artifact as review only" in source
+
+
+def test_control_artifact_pdg_preserves_review_only_boundary() -> None:
+    source = (PDG_DIR / "control-artifact-structure-view.pdg").read_text(encoding="utf-8")
+
+    assert "Structured control data" in source
+    assert "Validate schema and not_evidence contract" in source
+    assert "Render self-contained safe HTML" in source
+    assert "Update pointer-map JSON" in source
+    assert "Review-only output" in source
+    assert "Stop at evidence claim external script fetch or storage" in source
+
+
+def test_skill_lifecycle_pdg_preserves_auto_apply_stop_gate() -> None:
+    source = (PDG_DIR / "skill-lifecycle-governance.pdg").read_text(encoding="utf-8")
+
+    assert "Create SkillLifecycleInput" in source
+    assert "Run over-implementation guard canary" in source
+    assert "Human accept or reject decision" in source
+    assert "Manifest validation" in source
+    assert "Stop: automatic Skill growth, hook, plugin, MCP, or provider" in source
 
 
 def test_project_pdg_svgs_are_generated_review_artifacts() -> None:

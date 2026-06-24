@@ -551,6 +551,105 @@
                   }
                 }
               ]
+            },
+            {
+              "id": "4.5",
+              "name": "Next-wave local control artifact adjuncts",
+              "children": [
+                {
+                  "id": "4.5.1",
+                  "name": "Structure-view split local renderer",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "complete",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "artifact_renderer",
+                    "decision_band": "local_implementation",
+                    "gate": "local_artifact_schema_renderer",
+                    "status": "complete",
+                    "artifact_pointer": "src/research_x/control_artifacts/renderer.py",
+                    "owner_doc": ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "source_items": [
+                      5
+                    ],
+                    "stop_condition": "Stop if WBS, PDG, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
+                  }
+                },
+                {
+                  "id": "4.5.2",
+                  "name": "Skill lifecycle input gate",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "complete",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "codex_foundation",
+                    "decision_band": "local_implementation",
+                    "gate": "codex_foundation_design_only",
+                    "status": "complete",
+                    "artifact_pointer": "src/research_x/codex_improvement/skill_lifecycle.py",
+                    "owner_doc": ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "source_items": [
+                      24
+                    ],
+                    "stop_condition": "Stop if WBS, PDG, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
+                  }
+                },
+                {
+                  "id": "4.5.3",
+                  "name": "Over-implementation guard canary",
+                  "qty": 1,
+                  "hours": 1,
+                  "assignee": "Codex",
+                  "plan": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "actual": {
+                    "start": "2026-06-24",
+                    "end": "2026-06-24"
+                  },
+                  "note": "complete",
+                  "_research_x": {
+                    "owner_plane": "wbs",
+                    "artifact_layer": "guard_canary",
+                    "decision_band": "local_eval_canary",
+                    "gate": "no_plugin_no_hook",
+                    "status": "complete",
+                    "artifact_pointer": "src/research_x/codex_improvement/overimplementation_guard.py",
+                    "owner_doc": ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
+                    "evidence_status": "not_evidence",
+                    "answer_support_allowed": false,
+                    "source_items": [
+                      33
+                    ],
+                    "stop_condition": "Stop if WBS, PDG, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
+                  }
+                }
+              ]
             }
           ]
         },
@@ -1869,6 +1968,37 @@
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if WBS/PDG/Pointer artifacts are used as evidence or answer support."
+              }
+            },
+            {
+              "id": "4.1",
+              "name": "Diagram review boundary hardening",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "actual": {
+                "start": "2026-06-24",
+                "end": "2026-06-24"
+              },
+              "note": "Archify remains reference-only; diagram output is review-only.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "structure_review",
+                "decision_band": "reference_only_boundary",
+                "gate": "source_review_before_install",
+                "status": "complete",
+                "artifact_pointer": "docs/pdg/control-artifact-structure-view.pdg",
+                "owner_doc": ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "source_items": [
+                  10
+                ],
+                "stop_condition": "Stop if WBS, PDG, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
               }
             }
           ]

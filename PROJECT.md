@@ -27,8 +27,9 @@ raw source != searchable document != search result != source bundle
 ```
 
 WBS JSON, PDG source, generated SVG, screenshots, pointer maps, consultation
-captures, and compressed summaries are control or review artifacts. They are not
-evidence, citations, answer support, or provider execution permission.
+captures, rendered HTML views, and compressed summaries are control or review
+artifacts. They are not evidence, citations, answer support, or provider
+execution permission.
 
 ## Active Gates
 
@@ -41,6 +42,8 @@ evidence, citations, answer support, or provider execution permission.
   defaults, connector changes, and third-party Skill enablement are separate gates.
 - Source candidates from X/GPT/ChatGPT/community material remain source candidates
   until restored into source bundles, context chunks, and citation annotations.
+- Automatic Skill growth is not allowed; lifecycle inputs stay proposal-only until
+  replay, qualifier, and human accept/reject gates are explicit.
 
 ## Current Tracker Rule
 

@@ -1,0 +1,41 @@
+{
+  "view_id": "structure-view-unit",
+  "view_kind": "structure_view",
+  "title": "Control Artifact Structure View",
+  "generated_at": "2026-06-24T00:00:00+00:00",
+  "owner_plane": "control_artifact",
+  "source_artifacts": [
+    {
+      "artifact_id": "wbs",
+      "artifact_path": "tools/wbs_viewer/projects/research-x-work-state.json",
+      "artifact_kind": "wbs_json",
+      "not_evidence": true,
+      "answer_support_allowed": false,
+      "evidence_role": "control",
+      "evidence_status": "not_evidence"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Boundary",
+      "body": "This view is review-only and cannot support answers."
+    },
+    {
+      "heading": "Rendered Items",
+      "items": [
+        "WBS state",
+        "PDG structure",
+        "Pointer map restore hints"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "gate_id": "not_evidence",
+      "label": "HTML output is review-only.",
+      "status": "complete"
+    }
+  ],
+  "not_evidence": true,
+  "answer_support_allowed": false
+}

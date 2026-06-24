@@ -1,0 +1,19 @@
+#! kind: flow
+S100 = Failed run, user request, or review finding
+S110 = Create SkillLifecycleInput
+S120 = Attach ImprovementSignal or candidate report
+S130 = Run replay and qualifier
+S140 = Run over-implementation guard canary
+S150 = Human accept or reject decision
+S160 = Manifest validation
+S170 = Proposal-only lifecycle report
+S900 = Stop: automatic Skill growth, hook, plugin, MCP, or provider
+S100 -> S110
+S110 -> S120
+S120 -> S130
+S130 -> S140
+S140 -> S900 : hook, plugin, MCP, provider, or auto-apply
+S140 -> S150 : report-only local result
+S150 -> S160 : accepted
+S150 -> S170 : rejected or pending
+S160 -> S170

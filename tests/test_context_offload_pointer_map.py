@@ -38,8 +38,10 @@ def test_pointer_map_covers_canonical_wbs_project_pdg_and_gpt_pro_input() -> Non
         in paths
     )
     for stem in (
+        "control-artifact-structure-view",
         "memory-evidence-pipeline",
         "objective-route-policy",
+        "skill-lifecycle-governance",
         "source-intake-gate-flow",
         "visual-context-offload-lane",
     ):
