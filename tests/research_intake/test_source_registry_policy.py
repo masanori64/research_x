@@ -22,6 +22,29 @@ def test_source_registry_keeps_provider_sources_disabled() -> None:
     assert validate_registry(registry) == []
 
 
+def test_source_registry_names_external_provider_candidates_without_enabling_them() -> None:
+    registry = load_registry(Path(".codex/research_intake/source_registry.toml"))
+    sources = {source.source_id: source for source in registry.sources}
+    expected = {
+        "future_serper_external_search",
+        "future_brave_llm_context",
+        "future_jina_reader",
+        "future_firecrawl",
+        "future_tavily",
+        "future_exa",
+        "future_perplexity",
+        "future_searxng_local",
+    }
+
+    assert set(sources) >= expected
+    for source_id in expected:
+        source = sources[source_id]
+        assert source.enabled_when == "disabled"
+        assert source.policy.fetch_mode == "metadata_only"
+        assert source.policy.allow_network is False
+        assert source.policy.allow_provider is False
+
+
 def test_source_registry_local_sources_are_metadata_only() -> None:
     registry = load_registry(Path(".codex/research_intake/source_registry.toml"))
     local_sources = [

@@ -61,6 +61,9 @@ artifacts. They are not evidence or answer support.
   permission, and root instructions do not cross into `research_x`.
 - For AI-facing workflow output, prefer `memory workflow --tool-json` over the
   internal `--json` shape.
+- The machine-readable `research_x` adoption boundary is `.codex/adoption_registry.toml`;
+  validate it with `uv run python -m research_x adoption audit`. The Codex foundation
+  registry lives outside this repo at `C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml`.
 
 ## Mandatory Runtime Rules
 

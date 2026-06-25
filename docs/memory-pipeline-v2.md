@@ -45,6 +45,9 @@ plugins, native dependencies, and local model candidates enter through isolated
 staging, dry-run, dependency review, and manual promotion rather than permanent
 rejection.
 
+Boundary registry: `.codex/adoption_registry.toml`; validate with
+`research-x adoption audit`. Codex-foundation ownership stays in `.codex`.
+
 ## Ideal Runtime Layers
 
 `research_x` is organized as four runtime layers:

@@ -110,3 +110,5 @@ def test_vendor_lock_is_not_install_permission() -> None:
     assert "Provider-backed sources remain blocked by the no-quota freeze" in vendor_lock
     assert "`adopt`, `bridge`, `staging`, `provider_gated`, or `historical`" in vendor_lock
     assert "Codex foundation candidates belong to `maasa/.codex`" in vendor_lock
+    assert ".codex/adoption_registry.toml" in vendor_lock
+    assert "enable, install, clone, call, or promote" in vendor_lock

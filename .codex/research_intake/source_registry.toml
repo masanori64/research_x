@@ -63,3 +63,131 @@ allow_network = false
 allow_provider = false
 storage_rights = "blocked_by_no_quota_freeze"
 prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_serper_external_search"
+source_type = "serper"
+locator = "research_x external source candidates"
+enabled_when = "disabled"
+title = "Future Serper external-search candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_brave_llm_context"
+source_type = "brave"
+locator = "research_x current-context candidates"
+enabled_when = "disabled"
+title = "Future Brave LLM Context candidate lane"
+quality_hint = "unknown"
+topics = ["external context", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_jina_reader"
+source_type = "jina_reader"
+locator = "research_x reader extraction candidates"
+enabled_when = "disabled"
+title = "Future Jina Reader extraction candidate lane"
+quality_hint = "unknown"
+topics = ["reader", "source extraction"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_firecrawl"
+source_type = "external_search_provider"
+locator = "https://www.firecrawl.dev/"
+enabled_when = "disabled"
+title = "Future Firecrawl source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "reader", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_tavily"
+source_type = "external_search_provider"
+locator = "source-lock-needed:tavily"
+enabled_when = "disabled"
+title = "Future Tavily source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_exa"
+source_type = "external_search_provider"
+locator = "source-lock-needed:exa"
+enabled_when = "disabled"
+title = "Future Exa source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_perplexity"
+source_type = "external_search_provider"
+locator = "source-lock-needed:perplexity"
+enabled_when = "disabled"
+title = "Future Perplexity source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "answer provider", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "blocked_by_no_quota_freeze"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_searxng_local"
+source_type = "local_note"
+locator = "Self-hosted SearXNG remains a dependency/network staging candidate; no query is executed by this registry."
+enabled_when = "disabled"
+title = "Future SearXNG local discovery candidate"
+quality_hint = "unknown"
+topics = ["local discovery", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "dependency_review_before_fetch"
+prompt_injection_review = "required_before_fetch"

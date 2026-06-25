@@ -326,6 +326,25 @@ def main(argv: list[str] | None = None) -> int:
         help="return non-zero if no notification method succeeds",
     )
 
+    adoption_parser = subparsers.add_parser(
+        "adoption",
+        help="audit source adoption boundaries for research_x and Codex foundation bridge",
+    )
+    adoption_subparsers = adoption_parser.add_subparsers(
+        dest="adoption_command",
+        required=True,
+    )
+    adoption_audit_parser = adoption_subparsers.add_parser(
+        "audit",
+        help="validate .codex/adoption_registry.toml",
+    )
+    adoption_audit_parser.add_argument(
+        "--registry",
+        type=Path,
+        default=Path(".codex/adoption_registry.toml"),
+    )
+    adoption_audit_parser.add_argument("--json", action="store_true")
+
     progress_parser = subparsers.add_parser(
         "progress",
         help="serve a live progress page for an output directory",
@@ -2653,6 +2672,18 @@ def main(argv: list[str] | None = None) -> int:
         if result.errors:
             print("notification warnings: " + "; ".join(result.errors), file=sys.stderr)
         return 0 if result.ok or not args.strict else 1
+    if args.command == "adoption":
+        from research_x.adoption_registry import adoption_audit, format_adoption_audit
+
+        if args.adoption_command == "audit":
+            audit = adoption_audit(args.registry)
+            print(
+                json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_adoption_audit(args.registry)
+            )
+            return 0 if audit["status"] == "ok" else 2
+        raise AssertionError(f"unhandled adoption command {args.adoption_command}")
     if args.command == "progress":
         from research_x.progress import serve_progress_monitor
 

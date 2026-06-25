@@ -678,6 +678,34 @@
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if route-memory entries are used as evidence, provider permission, browser approval, or external-action approval."
               }
+            },
+            {
+              "id": "4.7",
+              "name": "Codex/research_x adoption boundary registry",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Machine-readable adoption registry, CLI audit, tests, and external .codex foundation registry added.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "artifact_layer": "adoption_governance",
+                "decision_band": "project_state",
+                "gate": "codex_foundation_bridge_only",
+                "status": "complete",
+                "artifact_pointer": ".codex/adoption_registry.toml",
+                "owner_doc": "README.codex.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if adoption registry entries are treated as install permission, provider permission, or evidence."
+              }
             }
           ]
         },

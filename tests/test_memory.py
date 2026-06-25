@@ -4464,6 +4464,7 @@ def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> No
     assert all(citation["citation_ready"] for citation in payload["citations"])
     assert payload["trace"]["route"] == workflow.route
     assert payload["trace"]["provider_gate"]["required"] is False
+    assert payload["trace"]["codex_bridge"]["contract_version"] == "research-x-codex-bridge-v1"
     assert "codex_transcript_included" not in payload["trace"]
 
 

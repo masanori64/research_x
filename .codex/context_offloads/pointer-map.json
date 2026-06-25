@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "a857635f362df7bb169e54362bafe79c47949cc4a38de045fab199e1b95f137e",
-      "char_count": 91218,
-      "byte_count": 91218,
+      "sha256": "f4e5c5d421f599a875fb4a43bc8274012cc0aeba8c9038e5c8a1c35cbfc86696",
+      "char_count": 92430,
+      "byte_count": 92430,
       "not_evidence": true
     },
     {

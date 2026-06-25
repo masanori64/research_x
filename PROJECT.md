@@ -56,6 +56,9 @@ permission.
 - External candidates are classified by adoption shape: `adopt`, `bridge`,
   `staging`, `provider_gated`, or `historical`. Hook/MCP/plugin/dependency risk is
   staged, not treated as a permanent rejection; provider/API quota remains gated.
+- The current machine-readable adoption boundary is `.codex/adoption_registry.toml`.
+  It is the registry for what this project owns, what it only bridges to
+  `maasa/.codex`, and what remains provider-gated or historical.
 
 ## Current Tracker Rule
 

@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from research_x.codex_bridge import bridge_trace_contract
 from research_x.memory.answer import MemoryAnswer
 from research_x.memory.context import CitationAnnotation
 from research_x.memory.workflow import MemoryWorkflow
@@ -209,15 +210,7 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
         },
         "eval_warnings": eval_warnings,
         "route_plan": route_plan,
-        "codex_bridge": {
-            "accepted_inputs": ["query", "objective", "context_budget", "source_candidate"],
-            "forbidden_inputs": [
-                "codex_transcript",
-                "skill_auto_edit_permission",
-                "provider_execution_permission",
-                "root_instruction",
-            ],
-        },
+        "codex_bridge": bridge_trace_contract(),
     }
 
 
