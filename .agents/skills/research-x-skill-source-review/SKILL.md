@@ -24,7 +24,7 @@ as reference. It does not create or install Skills.
 
 - The task mentions Superpowers, Headroom, SearXNG, Supermemory, Composio, Vercel skills,
   Anthropic skills, MiniMax skills, skill catalogs, or similar external sources.
-- `.codex/skill_manifest.lock` or `.codex/vendor_sources.lock.md` needs a source decision.
+- `.codex/skill_manifest.lock` or `control/vendor_sources.lock.md` needs a source decision.
 - A new repo-local Skill is proposed from imported material.
 - The user asks whether a source should be installed, enabled, adapted, rejected, or kept as
   reference.
@@ -87,6 +87,6 @@ as reference. It does not create or install Skills.
 
 ## Manifest Obligations
 
-- Keep source decisions in `.codex/vendor_sources.lock.md`.
+- Keep source decisions in `control/vendor_sources.lock.md`.
 - Keep enablement state in `.codex/skill_manifest.lock`.
 - Never treat a source review entry as install permission.

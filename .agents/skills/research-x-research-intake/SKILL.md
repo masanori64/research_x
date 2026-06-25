@@ -127,5 +127,5 @@ Use explicit risk flags rather than burying risk in prose: `not_evidence`,
 
 - Keep this repo Skill enabled only as repo-owned local behavior in `.codex/skill_manifest.lock`.
 - Do not enable external source candidates from intake without `research-x-skill-source-review`.
-- Record rejected/gated provider or connector candidates in `.codex/vendor_sources.lock.md` when the
+- Record rejected/gated provider or connector candidates in `control/vendor_sources.lock.md` when the
   decision is durable.

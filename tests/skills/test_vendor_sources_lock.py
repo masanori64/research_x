@@ -21,7 +21,7 @@ def test_ian_xiaohei_is_creative_optional_not_evidence_or_enabled() -> None:
     entry = next(
         entry for entry in manifest["entries"] if entry["name"] == "ian-xiaohei-illustrations"
     )
-    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert entry["enabled"] is False
     assert entry["scope"] == "creative_optional"
@@ -36,7 +36,7 @@ def test_ian_xiaohei_is_creative_optional_not_evidence_or_enabled() -> None:
 def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
     entry = next(entry for entry in manifest["entries"] if entry["name"] == "superpowers")
-    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert entry["enabled"] is False
     assert entry["implicit_invocation"] is False
@@ -49,7 +49,7 @@ def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
 def test_agentmemory_is_pinned_but_disabled_until_hook_and_retention_review() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
     entry = next(entry for entry in manifest["entries"] if entry["name"] == "agentmemory")
-    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert entry["enabled"] is False
     assert entry["implicit_invocation"] is False
@@ -64,7 +64,7 @@ def test_agentmemory_is_pinned_but_disabled_until_hook_and_retention_review() ->
 
 
 def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
-    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert "single-file-wbs" in vendor_lock
     assert "v1.2.0" in vendor_lock
@@ -74,7 +74,7 @@ def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
 
 
 def test_retired_diagram_tool_is_reference_only_after_decommission() -> None:
-    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
     retired_name = "pdg" + "kit"
 
     assert retired_name in vendor_lock
@@ -103,7 +103,7 @@ def test_unpinned_external_entries_are_not_enabled_or_approved() -> None:
 
 
 def test_vendor_lock_is_not_install_permission() -> None:
-    vendor_lock = Path(".codex/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert "not permission to install, clone, enable, or call" in vendor_lock
     assert "Catalogs are reference-only and must never be bulk-installed" in vendor_lock

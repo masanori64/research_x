@@ -41,7 +41,7 @@ def test_skill_manifest_lock_is_valid() -> None:
     errors = validator.validate_manifest(
         REPO_ROOT / ".codex" / "skill_manifest.lock",
         repo_root=REPO_ROOT,
-        source_lock_path=REPO_ROOT / ".codex" / "vendor_sources.lock.md",
+        source_lock_path=REPO_ROOT / "control" / "vendor_sources.lock.md",
     )
     assert errors == []
 
@@ -75,7 +75,7 @@ def test_external_enabled_requires_pin_review_and_negative_tests(tmp_path: Path)
     manifest = tmp_path / "skill_manifest.lock"
     source_lock = tmp_path / "vendor_sources.lock.md"
     shutil.copy2(REPO_ROOT / ".codex" / "skill_manifest.lock", manifest)
-    shutil.copy2(REPO_ROOT / ".codex" / "vendor_sources.lock.md", source_lock)
+    shutil.copy2(REPO_ROOT / "control" / "vendor_sources.lock.md", source_lock)
     text = manifest.read_text(encoding="utf-8")
     text = text.replace('enabled = false', 'enabled = true', 9)
     text = text.replace('implicit_invocation = false', 'implicit_invocation = true', 1)
@@ -98,7 +98,7 @@ def test_repo_skill_path_and_frontmatter_are_checked(tmp_path: Path) -> None:
     manifest = tmp_path / "skill_manifest.lock"
     source_lock = tmp_path / "vendor_sources.lock.md"
     shutil.copy2(REPO_ROOT / ".codex" / "skill_manifest.lock", manifest)
-    shutil.copy2(REPO_ROOT / ".codex" / "vendor_sources.lock.md", source_lock)
+    shutil.copy2(REPO_ROOT / "control" / "vendor_sources.lock.md", source_lock)
     text = manifest.read_text(encoding="utf-8").replace(
         ".agents/skills/research-x-provider-gate/SKILL.md",
         ".agents/skills/research-x-provider-gate/MISSING.md",

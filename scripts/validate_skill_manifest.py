@@ -9,7 +9,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = REPO_ROOT / ".codex" / "skill_manifest.lock"
-DEFAULT_SOURCE_LOCK = REPO_ROOT / ".codex" / "vendor_sources.lock.md"
+DEFAULT_SOURCE_LOCK = REPO_ROOT / "control" / "vendor_sources.lock.md"
 
 REQUIRED_ENTRY_FIELDS = {
     "name",

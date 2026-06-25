@@ -315,8 +315,8 @@
                 "decision_band": "project_state",
                 "gate": "source_lock",
                 "status": "complete",
-                "artifact_pointer": ".codex/vendor_sources.lock.md",
-                "owner_doc": ".codex/vendor_sources.lock.md",
+                "artifact_pointer": "control/vendor_sources.lock.md",
+                "owner_doc": "control/vendor_sources.lock.md",
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": ""
@@ -543,8 +543,8 @@
                     "decision_band": "architecture_refresh_required",
                     "gate": "legacy_diagram_tool_decommissioned",
                     "status": "complete",
-                    "artifact_pointer": ".codex/vendor_sources.lock.md",
-                    "owner_doc": ".codex/vendor_sources.lock.md",
+                    "artifact_pointer": "control/vendor_sources.lock.md",
+                    "owner_doc": "control/vendor_sources.lock.md",
                     "evidence_status": "not_evidence",
                     "answer_support_allowed": false,
                     "stop_condition": ""
@@ -2019,8 +2019,8 @@
                 "decision_band": "visual_context_offload",
                 "gate": "no_mcp_no_hook_no_provider",
                 "status": "complete",
-                "artifact_pointer": ".codex/vendor_sources.lock.md",
-                "owner_doc": ".codex/vendor_sources.lock.md",
+                "artifact_pointer": "control/vendor_sources.lock.md",
+                "owner_doc": "control/vendor_sources.lock.md",
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if WBS/Pointer artifacts are used as evidence or answer support."
