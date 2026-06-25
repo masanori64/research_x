@@ -126,6 +126,7 @@ Use explicit risk flags rather than burying risk in prose: `not_evidence`,
 ## Manifest Obligations
 
 - Keep this repo Skill enabled only as repo-owned local behavior in `.codex/skill_manifest.lock`.
-- Do not enable external source candidates from intake without `research-x-skill-source-review`.
+- Do not enable external source candidates from intake without global `skill-security-review` or an
+  equivalent source-lock review.
 - Record rejected/gated provider or connector candidates in `control/vendor_sources.lock.md` when the
   decision is durable.

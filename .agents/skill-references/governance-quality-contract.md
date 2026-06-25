@@ -43,8 +43,8 @@ non-duplicative.
   Codex-wide Skill growth belongs in `C:/Users/maasa/.codex`.
 - `research-x-prompt-contract`: owns prompt schema/status/tool-boundary contracts and prompt
   regression cases.
-- `research-x-skill-source-review`: owns external or internal source trust, pinning, enable/reject,
-  reference-only, and manifest/vendor-lock risk.
+- Global `skill-security-review` owns external or internal source trust, pinning,
+  enable/reject, reference-only, and manifest/vendor-lock risk.
 
 ## Do Not
 

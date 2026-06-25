@@ -150,22 +150,6 @@ negative_trigger_tests = "repo_policy"
 notes = "Repo skill for prompt contracts, schema/status behavior, allowed/forbidden tools, and prompt regression cases."
 
 [[entries]]
-name = "research-x-skill-source-review"
-entry_type = "repo_skill"
-source = ".agents/skills/research-x-skill-source-review/SKILL.md"
-source_ref = "repo"
-scope = "project_research_x"
-decision = "enabled_repo_local"
-enabled = true
-implicit_invocation = true
-review_status = "repo_owned"
-risk = "medium"
-allowed_scripts = "repo_policy"
-commit = ""
-negative_trigger_tests = "repo_policy"
-notes = "Repo skill for third-party and internal Skill/source trust, pin, gate, reject, and reference-only decisions."
-
-[[entries]]
 name = "research-x-implementation-plan-flow"
 entry_type = "repo_skill"
 source = ".agents/skills/research-x-implementation-plan-flow/SKILL.md"

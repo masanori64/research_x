@@ -48,7 +48,7 @@ limited to static inspection, local/fake providers, monkeypatched tests, and off
   promotion decision.
 - `research-x-memory-workflow`: owns downstream evidence restoration before any provider recall arm
   can support answers.
-- `research-x-skill-source-review`: owns third-party provider/tool enablement and source-lock risk
+- Global `skill-security-review` owns third-party provider/tool enablement and source-lock risk
   when an external package or connector is being considered.
 
 ## Do Not

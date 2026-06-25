@@ -11,7 +11,6 @@ NEW_REPO_SKILLS = {
     "research-x-research-intake",
     "research-x-context-budget",
     "research-x-prompt-contract",
-    "research-x-skill-source-review",
     "research-x-implementation-plan-flow",
 }
 REQUIRED_NEW_SKILL_SECTIONS = (
