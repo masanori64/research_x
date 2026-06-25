@@ -4,8 +4,11 @@ import hashlib
 import json
 from pathlib import Path
 
-POINTER_MAP = Path(".codex/context_offloads/pointer-map.json")
-HUMAN_INDEX = Path(".codex/context_offloads/visual-context-offload-map.md")
+CODEX_CONTEXT_OFFLOADS = Path(
+    "C:/Users/maasa/.codex/foundation/context_offloads/research_x"
+)
+POINTER_MAP = CODEX_CONTEXT_OFFLOADS / "pointer-map.json"
+HUMAN_INDEX = CODEX_CONTEXT_OFFLOADS / "visual-context-offload-map.md"
 
 
 def test_pointer_map_entries_match_current_artifacts() -> None:
@@ -41,7 +44,7 @@ def test_pointer_map_covers_canonical_wbs_presentation_plan_and_gpt_pro_input() 
     assert "C:/Users/maasa/.codex/route_memory/route-memory.json" in paths
     assert "C:/Users/maasa/.codex/route_memory/route-memory.schema.json" in paths
     assert (
-        ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md"
+        "C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md"
         in paths
     )
     assert (

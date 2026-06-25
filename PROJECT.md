@@ -23,9 +23,9 @@ The proposal-only self-improvement package is external-owned at
 
 - Current evidence architecture: `docs/memory-pipeline-v2.md`
 - Current work state: `tools/wbs_viewer/projects/research-x-work-state.json`
-- Context/offload pointer index: `.codex/context_offloads/pointer-map.json`
+- Context/offload pointer index: `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`
 - Presentation generation flow:
-  `.codex/implementation-plans/2026-06-24-presentation-generation-flow.md`
+  `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Acquisition/auth/provider pipeline: `docs/pipeline.md`
 - Historical rationale archive: `docs/memory-pipeline-archive.md`
 

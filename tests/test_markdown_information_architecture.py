@@ -9,6 +9,9 @@ CODEX_PROJECT_REVIEWS = Path(
     "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
 )
 X_GPT_DIR = CODEX_PROJECT_REVIEWS / "x-url-analysis-20260622"
+CODEX_CONTEXT_OFFLOADS = "C:/Users/maasa/.codex/foundation/context_offloads/research_x"
+CODEX_PROJECT_PLANS = "C:/Users/maasa/.codex/foundation/project_plans/research_x"
+PRESENTATION_PLAN = CODEX_PROJECT_PLANS + "/2026-06-24-presentation-generation-flow.md"
 
 
 def _line_count(path: Path) -> int:
@@ -26,8 +29,8 @@ def test_project_and_readme_are_thin_pointer_first_surfaces() -> None:
     assert _line_count(README_CODEX) <= 180
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in project
     assert "C:/Users/maasa/.codex/route_memory/route-memory.json" in readme
-    assert ".codex/context_offloads/pointer-map.json" in readme
-    assert ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md" in readme
+    assert CODEX_CONTEXT_OFFLOADS + "/pointer-map.json" in readme
+    assert PRESENTATION_PLAN in readme
     assert "D2 + Marp" in readme
     assert retired_docs not in readme
     assert retired_tool not in readme
@@ -43,7 +46,7 @@ def test_readme_reduced_read_path_is_pointer_before_state_and_structure() -> Non
     text = README_CODEX.read_text(encoding="utf-8")
 
     route_memory = text.index("C:/Users/maasa/.codex/route_memory/route-memory.json")
-    pointer = text.index(".codex/context_offloads/pointer-map.json")
+    pointer = text.index(CODEX_CONTEXT_OFFLOADS + "/pointer-map.json")
     wbs = text.index("tools/wbs_viewer/projects/research-x-work-state.json")
     memory = text.index("docs/memory-pipeline-v2.md")
 
@@ -78,8 +81,8 @@ def test_x_gpt_folder_has_thin_active_index_and_historical_markdown_notices() ->
     assert _line_count(index) <= 60
     assert "historical ChatGPT/GPT Pro control capture" in text
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in text
-    assert ".codex/context_offloads/pointer-map.json" in text
-    assert ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md" in text
+    assert CODEX_CONTEXT_OFFLOADS + "/pointer-map.json" in text
+    assert PRESENTATION_PLAN in text
     assert retired_docs not in text
     assert retired_tool not in text
 

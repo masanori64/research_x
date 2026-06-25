@@ -55,7 +55,7 @@ Decision:
 - Move route, state-machine, source-intake, and context-offload structure to
   `docs/pdg/*.pdg`.
 - Move context restoration pointers, hashes, sizes, and restore hints to
-  `.codex/context_offloads/pointer-map.json`.
+  `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`.
 - Keep WBS, PDG, SVG, screenshots, pointer maps, and ChatGPT consultation captures out
   of the evidence/citation/answer-support chain.
 

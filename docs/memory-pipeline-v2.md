@@ -140,7 +140,7 @@ The following artifacts are control, planning, review, or restore-index surfaces
 - WBS JSON;
 - generated diagram sources and rendered assets;
 - screenshots;
-- `.codex/context_offloads/pointer-map.json`;
+- `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`;
 - `C:/Users/maasa/.codex/route_memory/route-memory.json`;
 - ChatGPT/GPT Pro consultation captures;
 - sub-agent notes;
@@ -167,7 +167,7 @@ Presentation diagram and deck generation belongs to the D2 + Marp build-tool
 boundary described in:
 
 ```text
-.codex/implementation-plans/2026-06-24-presentation-generation-flow.md
+C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md
 ```
 
 Deck-specific diagram sources should be derived from reviewed repository facts,
@@ -179,7 +179,7 @@ presentation artifact is explicitly being built.
 Restore pointers belong in:
 
 ```text
-.codex/context_offloads/pointer-map.json
+C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json
 ```
 
 Pointer entries must keep `pointer_id`, `artifact_path`, `sha256`, `char_count`,

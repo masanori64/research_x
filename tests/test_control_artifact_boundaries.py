@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 WBS = Path("tools/wbs_viewer/projects/research-x-work-state.json")
-POINTER_MAP = Path(".codex/context_offloads/pointer-map.json")
+POINTER_MAP = Path("C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json")
 
 
 def _leaf_tasks(tasks: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -47,7 +47,7 @@ def test_pointer_map_marks_next_wave_plan_and_artifacts_not_evidence() -> None:
     by_path = {entry["artifact_path"]: entry for entry in data["entries"]}
 
     for path in (
-        ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
+        "C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-next-wave-33-5-24-10.md",
         "src/research_x/control_artifacts/renderer.py",
         "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
         "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",

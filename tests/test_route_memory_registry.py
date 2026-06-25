@@ -6,7 +6,7 @@ from typing import Any
 
 REGISTRY = Path("C:/Users/maasa/.codex/route_memory/route-memory.json")
 SCHEMA = Path("C:/Users/maasa/.codex/route_memory/route-memory.schema.json")
-POINTER_MAP = Path(".codex/context_offloads/pointer-map.json")
+POINTER_MAP = Path("C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json")
 
 
 def _registry() -> dict[str, Any]:

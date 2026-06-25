@@ -13,7 +13,7 @@ Read in this order:
 3. `C:/Users/maasa/.codex/route_memory/route-memory.json`: only when choosing a recurring
    browser/upload/download/tool-bridge/provider/search route or avoiding a known
    failure class.
-4. `.codex/context_offloads/pointer-map.json`: authoritative pointer/hash/restore
+4. `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`: authoritative pointer/hash/restore
    index for offloaded Codex work context.
 5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when operational
    state, candidate bands, dates, gates, or remaining work are needed.
@@ -110,7 +110,7 @@ provider-backed commands gated.
 - Operational state source: `tools/wbs_viewer/projects/research-x-work-state.json`
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html`
 - Presentation generation flow:
-  `.codex/implementation-plans/2026-06-24-presentation-generation-flow.md`
+  `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
 Use WBS for phase/candidate/gate/status data. Use Route Memory for recurring

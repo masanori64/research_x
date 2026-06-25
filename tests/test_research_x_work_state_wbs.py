@@ -8,6 +8,9 @@ WBS_PATH = Path("tools/wbs_viewer/projects/research-x-work-state.json")
 CODEX_PROJECT_REVIEWS = (
     "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
 )
+CODEX_CONTEXT_OFFLOADS = "C:/Users/maasa/.codex/foundation/context_offloads/research_x"
+CODEX_PROJECT_PLANS = "C:/Users/maasa/.codex/foundation/project_plans/research_x"
+PRESENTATION_PLAN = CODEX_PROJECT_PLANS + "/2026-06-24-presentation-generation-flow.md"
 
 EXPECTED_GROUPS = [
     "Memory no-spend foundation",
@@ -130,8 +133,8 @@ def test_visual_context_lane_points_to_canonical_artifacts() -> None:
     retired_name = "pdg" + "kit"
 
     assert WBS_PATH.as_posix() in pointers
-    assert ".codex/context_offloads/pointer-map.json" in pointers
-    assert ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md" in pointers
+    assert CODEX_CONTEXT_OFFLOADS + "/pointer-map.json" in pointers
+    assert PRESENTATION_PLAN in pointers
     assert "tools/wbs_viewer/projects/research-x-visual-context-offload.json" not in pointers
     assert {leaf["name"] for leaf in visual} >= {
         "WBS operational state lane",
