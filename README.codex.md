@@ -27,7 +27,8 @@ folder is a historical consultation capture, not the active plan or evidence sou
 
 ## Current Mission
 
-Build and operate a local, user-specific X data memory system:
+Build and operate a local, user-specific X data memory system that an AI can call
+as an external search tool:
 
 ```text
 X acquisition DB -> searchable documents -> source bundles
@@ -44,6 +45,22 @@ raw source != searchable document != search result != source bundle
 WBS, rendered diagrams, screenshots, pointer maps, ChatGPT captures, sub-agent
 notes, route-memory registries, and compressed summaries are control or review
 artifacts. They are not evidence or answer support.
+
+## Codex Foundation Boundary
+
+`maasa/.codex` and `maasa/research_x` are separate foundations.
+
+- `.codex` owns Codex-wide Skills, self-improvement, local Codex memory,
+  retrospectives, session hygiene, Skill/Plugin/MCP governance, and source-locked
+  Codex foundation candidates.
+- `research_x` owns only the AI-callable X memory-search tool and its evidence,
+  retrieval, citation, eval, observability, and provider-budget contracts.
+- The bridge is query/objective/context-budget/source-candidate in, and
+  `answer|abstain|needs_review|provider_gated|blocked` plus citations and audit
+  trace out. Codex transcripts, Skill auto-edit authority, provider execution
+  permission, and root instructions do not cross into `research_x`.
+- For AI-facing workflow output, prefer `memory workflow --tool-json` over the
+  internal `--json` shape.
 
 ## Mandatory Runtime Rules
 

@@ -19,6 +19,57 @@ The final system is evidence-first, not vector-first, router-first, or diagram-f
 ObjectiveRoutePolicy chooses candidate routes, but it does not replace source
 bundles, citation verification, answer abstention, workflow traces, or eval gates.
 
+## Ownership Boundary
+
+`research_x` is the canonical project for the AI-callable X memory-search tool,
+not the canonical project for Codex self-improvement.
+
+- `maasa/research_x` owns X acquisition state, source restoration, retrieval,
+  context chunks, citations, answer boundaries, evals, workflow traces, provider
+  gates, and local tool output contracts.
+- `maasa/.codex` owns Codex-wide Skills, self-improvement, session memory,
+  retrospectives, handoffs, Skill/Plugin/MCP governance, and external Codex
+  foundation candidates.
+- The bridge is intentionally narrow. Codex may pass a query, objective, context
+  budget, and reviewed source candidate into `research_x`. `research_x` returns
+  evidence status, citation-ready answer or abstention, provider-gated state, and
+  audit trace.
+- Codex transcripts, automatic Skill edit permission, provider execution
+  permission, and root instructions are not inputs to the `research_x` evidence
+  pipeline.
+
+This split is not conservative minimalism. External candidates are kept alive by
+adoption shape: `adopt`, `bridge`, `staging`, `provider_gated`, or `historical`.
+Only paid/quota provider execution is a hard execution block. Hooks, MCP,
+plugins, native dependencies, and local model candidates enter through isolated
+staging, dry-run, dependency review, and manual promotion rather than permanent
+rejection.
+
+## Ideal Runtime Layers
+
+`research_x` is organized as four runtime layers:
+
+1. Source Layer: raw X tables, media, raw payloads, account/bookmark ownership,
+   and external source candidates.
+2. Evidence Layer: source bundles, context chunks, citation annotations, answer
+   support, and source-backed governance records.
+3. Retrieval/Eval Layer: FTS, metadata, relations, vector projections, OCR/media,
+   rerank, answerability, relevance, stop-condition, and backend benchmark gates.
+4. Tool Interface Layer: stable AI-callable JSON, CLI/API surfaces, observability,
+   budget reporting, and audit traces.
+
+The Tool Interface Layer must present a stable contract even when internal
+workflow JSON changes. The current AI-callable output contract is implemented as
+`research_x.memory.tool_contract` and exposes:
+
+- `status`: `answer`, `abstain`, `needs_review`, `source_not_restored`,
+  `citation_missing`, `provider_gated`, or `blocked`;
+- `evidence_level`: `raw`, `candidate`, `source_bundle`, `context_chunk`, or
+  `citation_ready`;
+- `citations`: restore pointers back to context chunks and source IDs;
+- `trace`: route, stop/skip reason, provider gate, budget state, eval warnings,
+  and the narrow Codex bridge boundary.
+
 ## Core Invariant
 
 ```text

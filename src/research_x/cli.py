@@ -1402,6 +1402,14 @@ def main(argv: list[str] | None = None) -> int:
     memory_workflow_parser.add_argument("--account", default=None)
     memory_workflow_parser.add_argument("--json", action="store_true")
     memory_workflow_parser.add_argument(
+        "--tool-json",
+        action="store_true",
+        help=(
+            "emit the stable AI-callable research_x tool contract instead of "
+            "internal workflow JSON"
+        ),
+    )
+    memory_workflow_parser.add_argument(
         "--semantic-provider",
         default=None,
         choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
@@ -3754,6 +3762,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         print(answer_json(answer, budget_policy=_context_budget_policy_for_args(args)))
         return 0
     if args.memory_command == "workflow":
+        from research_x.memory.tool_contract import workflow_tool_output_json
         from research_x.memory.workflow import (
             format_workflow,
             run_memory_workflow,
@@ -3844,7 +3853,9 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             max_steps=args.max_steps,
             store=store,
         )
-        if args.json:
+        if args.tool_json:
+            print(workflow_tool_output_json(workflow))
+        elif args.json:
             print(workflow_json(workflow, budget_policy=_context_budget_policy_for_args(args)))
         else:
             print(format_workflow(workflow))

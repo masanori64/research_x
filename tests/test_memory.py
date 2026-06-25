@@ -136,6 +136,11 @@ from research_x.memory.search import (
     strong_anchor_terms_for_query,
 )
 from research_x.memory.source_kinds import classify_external_source_kind
+from research_x.memory.tool_contract import (
+    validate_tool_output,
+    workflow_tool_output,
+    workflow_tool_output_json,
+)
 from research_x.memory.vector_projection import (
     benchmark_json,
     benchmark_vector_backends,
@@ -4430,6 +4435,89 @@ def test_memory_workflow_answer_uses_merged_llm_context(tmp_path: Path) -> None:
     assert workflow.answer.retrieval_config["context_parameters"]["llm_context"][
         "provider_role"
     ] == "llm_context_provider"
+
+
+def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=2,
+        answer_provider="fake",
+        max_context_chars=240,
+    )
+    output = workflow_tool_output(workflow)
+    payload = json.loads(workflow_tool_output_json(workflow))
+
+    assert validate_tool_output(output) == []
+    assert validate_tool_output(payload) == []
+    assert payload["contract_version"] == "research-x-ai-tool-v1"
+    assert payload["tool_kind"] == "research_x.memory.workflow"
+    assert payload["status"] == "answer"
+    assert payload["evidence_level"] == "citation_ready"
+    assert payload["answer_text"]
+    assert payload["citations"]
+    assert all(citation["citation_ready"] for citation in payload["citations"])
+    assert payload["trace"]["route"] == workflow.route
+    assert payload["trace"]["provider_gate"]["required"] is False
+    assert "codex_transcript_included" not in payload["trace"]
+
+
+def test_memory_workflow_tool_output_marks_provider_gap_without_citation_promotion(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット 今も正しい？",
+        limit=2,
+        answer_provider="none",
+        llm_context_provider="none",
+    )
+    payload = workflow_tool_output(workflow).as_dict()
+
+    assert validate_tool_output(payload) == []
+    assert payload["status"] == "provider_gated"
+    assert payload["evidence_level"] == "context_chunk"
+    assert payload["trace"]["provider_gate"]["required"] is True
+    assert payload["trace"]["skip_reason"] == "external_context_needed"
+
+
+def test_memory_workflow_cli_can_emit_tool_json(tmp_path: Path, capsys) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    _seed_db(db_path)
+    build_memory_corpus(db_path)
+    build_memory_relations(db_path)
+
+    assert (
+        main(
+            [
+                "memory",
+                "workflow",
+                "--db",
+                str(db_path),
+                "--query",
+                "強化学習 ロボット",
+                "--answer-provider",
+                "fake",
+                "--tool-json",
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert validate_tool_output(payload) == []
+    assert payload["contract_version"] == "research-x-ai-tool-v1"
+    assert payload["status"] == "answer"
 
 
 def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:

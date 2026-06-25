@@ -26,6 +26,7 @@ def test_guard_accepts_checked_local_new_code() -> None:
     result = evaluate_overimplementation_guard(record)
 
     assert result.decision == "implement_new"
+    assert result.adoption_shape == "adopt"
     assert result.report_only is True
 
 
@@ -39,25 +40,27 @@ def test_guard_moves_unchecked_new_module_to_needs_review() -> None:
     assert "existing surfaces were not checked" in result.reasons[0]
 
 
-def test_guard_blocks_new_dependency_without_existing_surface_checks() -> None:
+def test_guard_stages_new_dependency_without_existing_surface_checks() -> None:
     record = _record()
     record["requested_change"] = "Install a new dependency for rendering."
     record["stdlib_or_native_checked"] = False
 
     result = evaluate_overimplementation_guard(record)
 
-    assert result.decision == "blocked"
-    assert "new dependency/install proposal" in result.reasons[0]
+    assert result.decision == "staging"
+    assert result.adoption_shape == "staging"
+    assert "dependency-review staging" in result.reasons[0]
 
 
-def test_guard_blocks_plugin_hook_or_mcp_adoption() -> None:
+def test_guard_stages_plugin_hook_or_mcp_adoption() -> None:
     record = _record()
     record["requested_change"] = "Enable Ponytail plugin hook for every Codex run."
 
     result = evaluate_overimplementation_guard(record)
 
-    assert result.decision == "blocked"
-    assert "plugin/hook/MCP adoption is blocked" in result.reasons
+    assert result.decision == "staging"
+    assert result.adoption_shape == "staging"
+    assert "plugin/hook/MCP adoption requires isolated staging" in result.reasons[0]
 
 
 def test_security_or_accessibility_exception_cannot_be_removed_as_yagni() -> None:
@@ -79,3 +82,4 @@ def test_existing_renderer_reuse_is_allowed() -> None:
     result = evaluate_overimplementation_guard(record)
 
     assert result.decision == "reuse_existing"
+    assert result.adoption_shape == "adopt"

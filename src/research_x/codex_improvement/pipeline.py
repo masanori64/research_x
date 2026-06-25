@@ -27,7 +27,7 @@ SOURCE_TYPES = {
     "manual",
 }
 SEVERITIES = {"low", "medium", "high", "blocker"}
-PROJECT_SCOPES = {"global", "research_x", "stack_specific"}
+PROJECT_SCOPES = {"codex_foundation", "global", "research_x", "research_x_bridge", "stack_specific"}
 CHANGE_TYPES = {
     "skill_update",
     "agents_update",
@@ -591,6 +591,10 @@ def _recommended_artifacts(
     affected = tuple(str(item) for item in signal.get("affected_artifacts", []))
     if affected:
         return affected
+    if signal.get("project_scope") == "codex_foundation":
+        return ("C:/Users/maasa/.codex",)
+    if signal.get("project_scope") == "research_x_bridge":
+        return ("src/research_x/memory/tool_contract.py", ".codex/skill_manifest.lock")
     if change_type == "agents_update":
         return ("AGENTS.md",)
     if change_type == "skill_update":

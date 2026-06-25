@@ -10,11 +10,17 @@ tool.
 
 - Repo-local Skills under `.agents/skills/` are the only enabled entries.
 - Third-party Skills and tools are disabled until pinned, reviewed, scanned, and covered by negative
-  trigger tests.
+  trigger tests, but disabled does not mean discarded. Durable candidates are assigned an adoption
+  shape: `adopt`, `bridge`, `staging`, `provider_gated`, or `historical`.
 - Connector and credential-bearing sources must not be enabled globally.
 - Provider-backed sources remain blocked by the no-quota freeze unless the user explicitly lifts it
   in the current conversation and API Budget Guard preflight passes.
 - Catalogs are reference-only and must never be bulk-installed.
+- Hook, MCP, plugin, connector, dependency, and local-model risks route to isolated staging,
+  dry-run, source/dependency review, and manual promotion. Only paid/quota provider execution is a
+  hard execution block by this lock.
+- Codex foundation candidates belong to `maasa/.codex`; `research_x` keeps only thin bridge
+  contracts needed by the AI-callable X memory-search tool.
 
 ## Locked Sources
 

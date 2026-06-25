@@ -2169,7 +2169,7 @@
                   "_research_x": {
                     "owner_plane": "wbs",
                     "artifact_layer": "presentation_content_workflow",
-                    "decision_band": "local_implementation",
+                    "decision_band": "presentation_build_boundary",
                     "gate": "facts_first_after_build_boundary",
                     "status": "complete",
                     "artifact_pointer": ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md",

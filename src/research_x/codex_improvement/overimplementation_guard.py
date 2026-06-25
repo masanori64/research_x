@@ -10,7 +10,14 @@ RISK_EXCEPTIONS = {
     "performance",
     "security",
 }
-DECISIONS = {"blocked", "implement_new", "needs_review", "reuse_existing", "simplify"}
+DECISIONS = {
+    "blocked",
+    "implement_new",
+    "needs_review",
+    "reuse_existing",
+    "simplify",
+    "staging",
+}
 BLOCKED_TERMS = ("hook", "mcp", "plugin")
 DEPENDENCY_TERMS = ("dependency", "install", "new package", "pip install", "uv add")
 
@@ -35,6 +42,7 @@ class OverImplementationGuardResult:
     decision: str
     reasons: tuple[str, ...]
     report_only: bool = True
+    adoption_shape: str = "review"
 
 
 def validate_overimplementation_guard_input(record: dict[str, object]) -> list[str]:
@@ -93,29 +101,59 @@ def evaluate_overimplementation_guard(
     text = f"{guard.requested_change} {guard.why_new_code_is_needed}".casefold()
     reasons: list[str] = []
     if any(term in text for term in BLOCKED_TERMS):
-        reasons.append("plugin/hook/MCP adoption is blocked")
-        return OverImplementationGuardResult("blocked", tuple(reasons))
+        reasons.append("plugin/hook/MCP adoption requires isolated staging and manual promotion")
+        return OverImplementationGuardResult("staging", tuple(reasons), adoption_shape="staging")
     if any(term in text for term in DEPENDENCY_TERMS) and (
         not guard.stdlib_or_native_checked or not guard.existing_dependency_checked
     ):
         reasons.append(
-            "new dependency/install proposal lacks stdlib/native/existing dependency check"
+            "new dependency/install proposal needs dependency-review staging before adoption"
         )
-        return OverImplementationGuardResult("blocked", tuple(reasons))
+        return OverImplementationGuardResult("staging", tuple(reasons), adoption_shape="staging")
     if guard.risk_exception in {"security", "accessibility", "data_integrity", "migration"}:
         if guard.decision == "simplify":
             reasons.append("risk exception cannot be removed as YAGNI")
-            return OverImplementationGuardResult("needs_review", tuple(reasons))
+            return OverImplementationGuardResult(
+                "needs_review",
+                tuple(reasons),
+                adoption_shape="review",
+            )
         reasons.append("risk exception allows non-minimal implementation when justified")
-        return OverImplementationGuardResult(guard.decision, tuple(reasons))
+        return OverImplementationGuardResult(
+            guard.decision,
+            tuple(reasons),
+            adoption_shape=_adoption_shape_for_decision(guard.decision),
+        )
     if guard.decision == "implement_new" and not guard.existing_surfaces_checked:
         reasons.append("existing surfaces were not checked before implement_new")
-        return OverImplementationGuardResult("needs_review", tuple(reasons))
+        return OverImplementationGuardResult(
+            "needs_review",
+            tuple(reasons),
+            adoption_shape="review",
+        )
     if guard.delete_or_simplify_option and guard.decision == "implement_new":
         reasons.append("delete_or_simplify option exists and must be reviewed before new code")
-        return OverImplementationGuardResult("needs_review", tuple(reasons))
+        return OverImplementationGuardResult(
+            "needs_review",
+            tuple(reasons),
+            adoption_shape="review",
+        )
     if guard.decision in {"reuse_existing", "simplify"}:
         reasons.append("existing or simpler surface is preferred")
     else:
         reasons.append("new code passed local guard inputs")
-    return OverImplementationGuardResult(guard.decision, tuple(reasons))
+    return OverImplementationGuardResult(
+        guard.decision,
+        tuple(reasons),
+        adoption_shape=_adoption_shape_for_decision(guard.decision),
+    )
+
+
+def _adoption_shape_for_decision(decision: str) -> str:
+    if decision in {"implement_new", "reuse_existing", "simplify"}:
+        return "adopt"
+    if decision == "staging":
+        return "staging"
+    if decision == "blocked":
+        return "blocked"
+    return "review"

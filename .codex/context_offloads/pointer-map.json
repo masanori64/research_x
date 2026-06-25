@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "51a9708609a9cc5a26620bc7c2c5cfb90a9b343a50ef5c508d9d1244797d900a",
-      "char_count": 91211,
-      "byte_count": 91211,
+      "sha256": "a857635f362df7bb169e54362bafe79c47949cc4a38de045fab199e1b95f137e",
+      "char_count": 91218,
+      "byte_count": 91218,
       "not_evidence": true
     },
     {
@@ -130,9 +130,9 @@
       "artifact_kind": "source_code",
       "owner_plane": "codex_foundation",
       "restore_hint": "Report-only over-implementation guard canary; no hook, plugin, MCP, or auto-block.",
-      "sha256": "6b3862989a3346ac497685915ee123574cc657b2cbdf6b7aab93ad1575448472",
-      "char_count": 4968,
-      "byte_count": 4968,
+      "sha256": "e99214e647cce0b4f1186572bc78e5811a78ac173a7d948e4e250ba216650a53",
+      "char_count": 5842,
+      "byte_count": 5842,
       "not_evidence": true
     },
     {

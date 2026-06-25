@@ -201,6 +201,46 @@ def test_triage_report_marks_proposal_only() -> None:
     assert "evaluation_gap" in report
 
 
+def test_codex_foundation_and_research_x_bridge_scopes_route_to_separate_surfaces() -> None:
+    foundation_signal = capture_signal(
+        signal_id="sig_foundation",
+        created_at="2026-06-25T00:00:00+00:00",
+        source_type="skill_route_miss",
+        source_ref="codex-history",
+        severity="medium",
+        project_scope="codex_foundation",
+        symptom="Global Skill self-improvement needs staged replay before adoption",
+        proposed_change_type="skill_update",
+        evidence=({"kind": "session", "ref": "codex-global"},),
+        privacy_level="project_private",
+    )
+    bridge_signal = capture_signal(
+        signal_id="sig_bridge",
+        created_at="2026-06-25T00:00:00+00:00",
+        source_type="workflow_trace",
+        source_ref="workflow:search",
+        severity="medium",
+        project_scope="research_x_bridge",
+        symptom="Codex needs a stable AI-tool output contract from research_x",
+        proposed_change_type="code_change",
+        evidence=({"kind": "trace", "ref": "memory.workflow"},),
+        privacy_level="project_private",
+    )
+
+    assert validate_signal(foundation_signal.as_dict()) == []
+    assert validate_signal(bridge_signal.as_dict()) == []
+
+    foundation_decision, bridge_decision = triage_signals(
+        [foundation_signal.as_dict(), bridge_signal.as_dict()]
+    )
+
+    assert foundation_decision.recommended_artifacts == ("C:/Users/maasa/.codex",)
+    assert bridge_decision.recommended_artifacts == (
+        "src/research_x/memory/tool_contract.py",
+        ".codex/skill_manifest.lock",
+    )
+
+
 def test_cli_capture_triage_propose_validate_roundtrip(tmp_path, capsys) -> None:
     signals = tmp_path / "signals.jsonl"
     triage_report = tmp_path / "triage.md"
