@@ -336,12 +336,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     adoption_audit_parser = adoption_subparsers.add_parser(
         "audit",
-        help="validate .codex/adoption_registry.toml",
+        help="validate control/adoption_registry.toml",
     )
     adoption_audit_parser.add_argument(
         "--registry",
         type=Path,
-        default=Path(".codex/adoption_registry.toml"),
+        default=Path("control/adoption_registry.toml"),
     )
     adoption_audit_parser.add_argument("--json", action="store_true")
 

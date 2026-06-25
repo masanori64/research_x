@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-DEFAULT_REGISTRY_PATH = Path(".codex") / "adoption_registry.toml"
+DEFAULT_REGISTRY_PATH = Path("control") / "adoption_registry.toml"
 ALLOWED_ADOPTION_SHAPES = {
     "adopt",
     "bridge",

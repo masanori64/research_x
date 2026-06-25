@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-DEFAULT_BASE_DIR = Path(".codex") / "research_intake"
+DEFAULT_BASE_DIR = Path("control") / "research_intake"
 DEFAULT_PROFILE_PATH = DEFAULT_BASE_DIR / "codex_ai_tools.profile.toml"
 DEFAULT_REGISTRY_PATH = DEFAULT_BASE_DIR / "source_registry.toml"
 DEFAULT_RUN_PATH = Path("runs") / "research_intake" / "discovery_run.json"

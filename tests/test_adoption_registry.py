@@ -13,7 +13,7 @@ from research_x.adoption_registry import (
 )
 from research_x.cli import main
 
-REGISTRY = Path(".codex/adoption_registry.toml")
+REGISTRY = Path("control/adoption_registry.toml")
 CODEX_FOUNDATION_REGISTRY = Path("C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml")
 
 

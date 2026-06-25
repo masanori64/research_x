@@ -19,8 +19,8 @@ from research_x.research_intake.pipeline import (
 
 
 def test_default_research_intake_config_is_dry_run_only() -> None:
-    profile = load_profile(Path(".codex/research_intake/codex_ai_tools.profile.toml"))
-    registry = load_registry(Path(".codex/research_intake/source_registry.toml"))
+    profile = load_profile(Path("control/research_intake/codex_ai_tools.profile.toml"))
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
 
     assert validate_configuration(profile, registry) == []
 

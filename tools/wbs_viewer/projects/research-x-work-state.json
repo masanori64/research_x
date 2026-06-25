@@ -700,7 +700,7 @@
                 "decision_band": "project_state",
                 "gate": "codex_foundation_bridge_only",
                 "status": "complete",
-                "artifact_pointer": ".codex/adoption_registry.toml",
+                "artifact_pointer": "control/adoption_registry.toml",
                 "owner_doc": "README.codex.md",
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,

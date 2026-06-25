@@ -21,7 +21,7 @@ tool.
   hard execution block by this lock.
 - Codex foundation candidates belong to `maasa/.codex`; `research_x` keeps only thin bridge
   contracts needed by the AI-callable X memory-search tool.
-- `.codex/adoption_registry.toml` is the machine-readable project adoption boundary. It must not
+- `control/adoption_registry.toml` is the machine-readable project adoption boundary. It must not
   enable, install, clone, call, or promote external sources by itself.
 
 ## Locked Sources

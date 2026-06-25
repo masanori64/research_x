@@ -16,7 +16,7 @@ from research_x.codex_bridge import (
 REPO_CODEX_IMPROVEMENT = Path("src/research_x/codex_improvement")
 CODEX_FOUNDATION = Path("C:/Users/maasa/.codex/foundation")
 CODEX_IMPROVEMENT = CODEX_FOUNDATION / "codex_improvement"
-REGISTRY = Path(".codex/adoption_registry.toml")
+REGISTRY = Path("control/adoption_registry.toml")
 
 
 def test_research_x_no_longer_owns_codex_improvement_package() -> None:

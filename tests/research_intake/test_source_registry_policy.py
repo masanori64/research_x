@@ -11,7 +11,7 @@ from research_x.research_intake.pipeline import (
 
 
 def test_source_registry_keeps_provider_sources_disabled() -> None:
-    registry = load_registry(Path(".codex/research_intake/source_registry.toml"))
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
 
     provider_sources = [
         source for source in registry.sources if source.source_type in PROVIDER_SOURCE_TYPES
@@ -23,7 +23,7 @@ def test_source_registry_keeps_provider_sources_disabled() -> None:
 
 
 def test_source_registry_names_external_provider_candidates_without_enabling_them() -> None:
-    registry = load_registry(Path(".codex/research_intake/source_registry.toml"))
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
     sources = {source.source_id: source for source in registry.sources}
     expected = {
         "future_serper_external_search",
@@ -46,7 +46,7 @@ def test_source_registry_names_external_provider_candidates_without_enabling_the
 
 
 def test_source_registry_local_sources_are_metadata_only() -> None:
-    registry = load_registry(Path(".codex/research_intake/source_registry.toml"))
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
     local_sources = [
         source for source in registry.sources if source.source_type in LOCAL_SOURCE_TYPES
     ]
