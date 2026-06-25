@@ -43,8 +43,8 @@ candidate signals, derived outputs, and answer claims separated across local mem
 - `research-x-observability-review`: owns making hidden run state and evidence gaps inspectable.
 - `research-x-context-budget`: owns evidence-preserving compression, offload pointers, hashes, and
   handoff capsules.
-- `research-x-publishing-illustration`: owns visual claim maps and keeps generated visuals outside
-  evidence/citation workflows.
+- Global `research-x-publishing-illustration`: consumes visual claim maps and keeps generated
+  visuals outside evidence/citation workflows.
 - `research-x-provider-gate`: owns provider quota before provider-derived observations can enter
   this workflow.
 

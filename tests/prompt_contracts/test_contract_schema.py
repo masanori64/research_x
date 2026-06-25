@@ -7,7 +7,6 @@ CONTRACTS = {
     "research_x_memory_search_v1.yaml",
     "research_x_research_intake_v1.yaml",
     "research_x_bridge_signal_v1.yaml",
-    "research_x_publishing_illustration_v1.yaml",
 }
 REQUIRED_KEYS = (
     "contract_id:",
@@ -32,7 +31,6 @@ def test_prompt_contract_artifacts_exist_and_have_required_sections() -> None:
             assert key in text, f"{name} missing {key}"
         assert (
             "github_write" in text
-            or "generated_image_as_evidence" in text
             or name == "research_x_memory_search_v1.yaml"
         )
 

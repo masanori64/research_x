@@ -62,5 +62,5 @@ or durable decisions.
   items that must not be destructively compressed.
 - To `research-x-prompt-contract`: require explicit source-bundle, provider, allowed-tool, and
   forbidden-tool constraints for memory prompts.
-- To `research-x-publishing-illustration`: provide claim/source maps only; generated visuals are
-  output artifacts, not evidence.
+- To global `research-x-publishing-illustration`: provide claim/source maps only; generated visuals
+  are output artifacts, not evidence.

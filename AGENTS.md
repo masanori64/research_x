@@ -179,7 +179,7 @@ Prompt-dependent triggers:
   or vendor/source lock update: use `.agents/skills/research-x-skill-source-review/SKILL.md`;
 - article-to-visual, publishing illustration, storyboard, shot list, image prompt pack, or
   Xiaohei-style explanatory visual plan: use
-  `.agents/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
+  `C:/Users/maasa/.codex/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
   normal explicit image-generation gate and are never evidence;
 - structural diagram, route diagram, state-machine diagram, or presentation diagram request: use
   the D2 + Marp presentation build-tool boundary for deck diagrams and keep generated diagrams as

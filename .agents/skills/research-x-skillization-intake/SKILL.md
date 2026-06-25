@@ -122,13 +122,13 @@ the narrower owner.
 |---|---|---|
 | Router and surface selection | Choose the active workflow or durable instruction surface. | `research-x-skillization-intake`, `research-x-doc-governance`, `research-x-decision-loop`, `research-x-implementation-plan-flow` |
 | Governance and contracts | Keep docs, Skills, prompts, source locks, and instruction boundaries narrow and auditable. | `research-x-skillization-intake`, `research-x-doc-governance`, `research-x-prompt-contract`, `research-x-skill-source-review` |
-| Gates and risk control | Stop or narrow provider, install, connector, sub-agent, image, or external-source actions. | `research-x-provider-gate`, `research-x-skill-source-review`, `research-x-research-intake`, `research-x-parallel-review`, `research-x-publishing-illustration` |
+| Gates and risk control | Stop or narrow provider, install, connector, sub-agent, image, or external-source actions. | `research-x-provider-gate`, `research-x-skill-source-review`, `research-x-research-intake`, `research-x-parallel-review`, global `research-x-publishing-illustration` |
 | Intake and classification | Classify candidate sources, tools, Skills, repositories, or implementation candidates before adoption. | `research-x-research-intake`, `research-x-skill-source-review`, `research-x-implementation-plan-flow`, `research-x-skillization-intake` |
-| Evidence preservation | Preserve source bundles, citations, context chunks, hashes, traces, and offload pointers. | `research-x-memory-workflow`, `research-x-context-budget`, `research-x-research-intake`, `research-x-publishing-illustration` |
+| Evidence preservation | Preserve source bundles, citations, context chunks, hashes, traces, and offload pointers. | `research-x-memory-workflow`, `research-x-context-budget`, `research-x-research-intake`, global `research-x-publishing-illustration` |
 | Decision and review loops | Compare alternatives, counterarguments, stop conditions, and promotion criteria. | `research-x-decision-loop`, `research-x-implementation-plan-flow`, `research-x-skill-source-review`, `research-x-provider-gate` |
 | Execution orchestration | Continue phases, split independent work, verify, and keep the repo resumable. | `research-x-goal-runner`, `research-x-parallel-review`, `research-x-implementation-plan-flow` |
 | Observability and trace visibility | Make progress, route choices, run state, evidence state, and budget state inspectable. | `research-x-observability-review`, `research-x-memory-workflow`, `research-x-context-budget`, `research-x-provider-gate` |
-| Output transformation | Convert inputs into implementation plans, prompt contracts, visual briefs, or context packs. | `research-x-implementation-plan-flow`, `research-x-prompt-contract`, `research-x-publishing-illustration`, `research-x-context-budget` |
+| Output transformation | Convert inputs into implementation plans, prompt contracts, visual briefs, or context packs. | `research-x-implementation-plan-flow`, `research-x-prompt-contract`, global `research-x-publishing-illustration`, `research-x-context-budget` |
 
 When Skills share a group, choose by owner boundary:
 
@@ -153,8 +153,8 @@ When Skills share a group, choose by owner boundary:
 - `research-x-prompt-contract`: prompt/schema/status/tool-boundary contracts and prompt tests.
 - `research-x-skill-source-review`: third-party or internal source/Skill trust, pin, gate, reject,
   or reference-only decisions.
-- `research-x-publishing-illustration`: output-layer visual briefs, shot lists, and storyboards that
-  do not replace evidence.
+- Global `research-x-publishing-illustration`: output-layer visual briefs, shot lists, and
+  storyboards that do not replace evidence.
 - `research-x-implementation-plan-flow`: GPT/X/source-candidate review to gated local-first
   implementation priority flow.
 - `.agents/skill-references/search-quality-contract.md`: shared baseline for search/research/source
@@ -179,12 +179,12 @@ Prefer updating one of these before creating another adjacent skill.
 | Git savepoint, checkpoint, current-state pin, milestone state marker | `research-x-context-budget` plus `research-x-doc-governance` |
 | Prompt schema, MNP-like contract, allowed/forbidden tools, prompt tests | `research-x-prompt-contract` |
 | Third-party Skill/source adoption, import, trust, pin, install decision | `research-x-skill-source-review` |
-| Article visual brief, storyboard, Xiaohei-style explanatory plan | `research-x-publishing-illustration` |
+| Article visual brief, storyboard, Xiaohei-style explanatory plan | global `research-x-publishing-illustration` |
 | GPT/X/source-candidate review to implementation-priority flow | `research-x-implementation-plan-flow` |
 | Memory/source-bundle invariant, retrieval route, citation, evidence workflow | `research-x-memory-workflow` |
 | Provider/API/network permission, quota, budget, external search | `research-x-provider-gate` |
 | Markdown source-of-truth placement or archive drift | `research-x-doc-governance` |
-| Recurring operation route, known failure class, route-memory registry placement | `research-x-skillization-intake` plus `.codex/route_memory/route-memory.json` |
+| Recurring operation route, known failure class, route-memory registry placement | `research-x-skillization-intake` plus `C:/Users/maasa/.codex/route_memory/route-memory.json` |
 | Skill routing ambiguity, missed automatic invocation, short prompt route recovery | `research-x-skillization-intake` |
 
 ## Skill Creation Precheck

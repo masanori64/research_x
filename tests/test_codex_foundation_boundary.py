@@ -33,6 +33,7 @@ def test_codex_foundation_package_exists_on_owner_machine_and_is_importable() ->
         "__main__.py",
         "cli.py",
         "pipeline.py",
+        "signals.schema.json",
         "skill_lifecycle.py",
         "overimplementation_guard.py",
     ):

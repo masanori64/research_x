@@ -214,22 +214,6 @@ negative_trigger_tests = "repo_policy"
 notes = "Repo skill for third-party and internal Skill/source trust, pin, gate, reject, and reference-only decisions."
 
 [[entries]]
-name = "research-x-publishing-illustration"
-entry_type = "repo_skill"
-source = ".agents/skills/research-x-publishing-illustration/SKILL.md"
-source_ref = "repo"
-scope = "project_research_x"
-decision = "enabled_repo_local"
-enabled = true
-implicit_invocation = true
-review_status = "repo_owned"
-risk = "medium"
-allowed_scripts = "repo_policy"
-commit = ""
-negative_trigger_tests = "repo_policy"
-notes = "Repo skill for output-layer visual briefs, shot lists, and storyboards; generated images are gated and never evidence."
-
-[[entries]]
 name = "research-x-implementation-plan-flow"
 entry_type = "repo_skill"
 source = ".agents/skills/research-x-implementation-plan-flow/SKILL.md"
