@@ -168,7 +168,9 @@ Prompt-dependent triggers:
   candidate ordering, or transparent handling of deferred/non-promoted candidates: use
   `.agents/skills/research-x-implementation-plan-flow/SKILL.md`;
 - context pack, context budget, compression, offload, Headroom candidate, large trace, or
-  handoff-capsule work: use `.agents/skills/research-x-context-budget/SKILL.md`;
+  handoff-capsule work: use the global `context-budget` Skill when available. Keep `research_x`
+  changes limited to runtime `ContextBudgetPolicy`, evidence/offload tests, or source-sensitive
+  workflow contracts;
 - prompt schema, MNP-like contract, allowed/forbidden tools, prompt regression, or prompt-injection
   test work: use `.agents/skills/research-x-prompt-contract/SKILL.md`;
 - third-party Skill/source adoption, source trust, pinning, enable/reject/reference-only decision,

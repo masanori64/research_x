@@ -9,7 +9,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "validate_skill_manifest.py"
 NEW_REPO_SKILLS = {
     "research-x-research-intake",
-    "research-x-context-budget",
     "research-x-prompt-contract",
     "research-x-implementation-plan-flow",
 }

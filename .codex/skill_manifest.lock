@@ -111,22 +111,6 @@ negative_trigger_tests = "repo_policy"
 notes = "Repo skill for source candidate classification, provenance, risk flags, and source-bundle intake handoff."
 
 [[entries]]
-name = "research-x-context-budget"
-entry_type = "repo_skill"
-source = ".agents/skills/research-x-context-budget/SKILL.md"
-source_ref = "repo"
-scope = "project_research_x"
-decision = "enabled_repo_local"
-enabled = true
-implicit_invocation = true
-review_status = "repo_owned"
-risk = "low"
-allowed_scripts = "repo_policy"
-commit = ""
-negative_trigger_tests = "repo_policy"
-notes = "Repo skill for context packs, offload, compression decisions, and evidence-preserving budget handoff."
-
-[[entries]]
 name = "research-x-prompt-contract"
 entry_type = "repo_skill"
 source = ".agents/skills/research-x-prompt-contract/SKILL.md"
@@ -156,4 +140,4 @@ risk = "low"
 allowed_scripts = "repo_policy"
 commit = ""
 negative_trigger_tests = "repo_policy"
-notes = "Repo skill for converting GPT/X/source-candidate reviews into gated local-first implementation priority flows."
+notes = "Repo skill for converting research_x candidate sets into gated local-first implementation priority flows."

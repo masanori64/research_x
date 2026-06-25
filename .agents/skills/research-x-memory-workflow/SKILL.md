@@ -58,8 +58,9 @@ or durable decisions.
 
 - From `research-x-research-intake`: accept only candidates with provenance, risk flags, and a
   source-bundle restoration path.
-- To `research-x-context-budget`: pass source pointers, hashes, trace paths, and evidence-critical
-  items that must not be destructively compressed.
+- To global `context-budget`: pass source pointers, hashes, trace paths, and evidence-critical
+  items that must not be destructively compressed; keep runtime offload behavior in
+  `ContextBudgetPolicy`.
 - To `research-x-prompt-contract`: require explicit source-bundle, provider, allowed-tool, and
   forbidden-tool constraints for memory prompts.
 - To global `research-x-publishing-illustration`: provide claim/source maps only; generated visuals
