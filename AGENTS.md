@@ -157,14 +157,10 @@ Prompt-dependent triggers:
 - design, architecture, provider, or memory-search change: update the relevant Markdown source of
   truth before code, then use `.agents/skills/research-x-memory-workflow/SKILL.md` when applicable;
 - research, review, audit, "もう一度", "loop", "徹底", "終わっていない", or similar continuation
-  language: use `.agents/skills/research-x-decision-loop/SKILL.md`. If the active explicit
-  sub-agent policy requires exploration/research sidecars, also use
-  `.agents/skills/research-x-parallel-review/SKILL.md` for non-trivial exploration/research tasks,
-  regardless of which other Skill is primary;
-- recurring Codex behavior, skillization, AGENTS.md bloat, or instruction-surface placement: use
-  `research-x-skillization-intake` or
-  `.agents/skills/research-x-skillization-intake/SKILL.md` to decide whether the behavior belongs in
-  prompt context, `AGENTS.md`, repository docs, a repo skill, hook, plugin, MCP, or automation;
+  language: use `.agents/skills/research-x-decision-loop/SKILL.md`;
+- recurring Codex behavior, Skill routing, AGENTS.md bloat, or instruction-surface placement:
+  keep Codex-wide behavior in `C:/Users/maasa/.codex`. Change `research_x` files only when the
+  rule is repository-specific and needed before a repo Skill can fire;
 - source candidate intake, research-source expansion, source registry, community signal, paper,
   repo, article, export, or discovery-to-source-bundle handoff: use
   `.agents/skills/research-x-research-intake/SKILL.md`;
@@ -176,7 +172,8 @@ Prompt-dependent triggers:
 - prompt schema, MNP-like contract, allowed/forbidden tools, prompt regression, or prompt-injection
   test work: use `.agents/skills/research-x-prompt-contract/SKILL.md`;
 - third-party Skill/source adoption, source trust, pinning, enable/reject/reference-only decision,
-  or vendor/source lock update: use `.agents/skills/research-x-skill-source-review/SKILL.md`;
+  or vendor/source lock update: use the global `skill-security-review` Skill when available; keep
+  `control/vendor_sources.lock.md` as this project's provenance lock;
 - article-to-visual, publishing illustration, storyboard, shot list, image prompt pack, or
   Xiaohei-style explanatory visual plan: use
   `C:/Users/maasa/.codex/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
@@ -184,16 +181,13 @@ Prompt-dependent triggers:
 - structural diagram, route diagram, state-machine diagram, or presentation diagram request: use
   the D2 + Marp presentation build-tool boundary for deck diagrams and keep generated diagrams as
   review/presentation artifacts, not evidence or answer support;
-- `/goal` or goal-like target state: activate Goal Continuation and continue phase by phase until the
-  target or a real oversight gate is reached, using
-  `.agents/skills/research-x-goal-runner/SKILL.md` for the detailed loop;
+- `/goal` or goal-like target state: use the human-on-the-loop execution rules in this file and
+  continue phase by phase until the target or a real oversight gate is reached;
 - sub-agent policy prompt: when the user permits, bans, pauses, mentions, or asks to follow/check
   agent, sub-agent, エージェント, parallel, or 並列-agent behavior, update the current sub-agent
   policy from the latest explicit user instruction in this conversation, not only the newest
   message. Mentioning the topic fires the policy check; spawning still requires explicit
-  permission. If the active policy requires sub-agents for exploration, use
-  `.agents/skills/research-x-parallel-review/SKILL.md` for exploration even when another Skill also
-  applies;
+  permission;
 - app/UI observability concern: treat hidden workflow state as an implementation gap, not just a UI
   wording issue. Use `.agents/skills/research-x-observability-review/SKILL.md` to expose the
   relevant trace or evidence state before considering the task done;
@@ -261,9 +255,8 @@ unrelated work or otherwise has unclear scope.
 
 ## Goal Continuation
 
-When a user-provided `/goal` or goal-like context defines a target state, use
-`.agents/skills/research-x-goal-runner/SKILL.md`. Continue autonomously until the goal is complete
-or a real oversight gate is reached.
+When a user-provided `/goal` or goal-like context defines a target state, continue autonomously
+until the goal is complete or a real oversight gate is reached.
 
 ## Completion Notification
 
@@ -279,10 +272,9 @@ Use the latest explicit user instruction for sub-agent permission. Do not spawn 
 current conversation bans or pauses them; compensate with local code inspection, parallel shell
 reads, web research, and focused review loops instead.
 
-When sub-agent use is explicitly permitted and a task can be split into independent parts, use
-`.agents/skills/research-x-parallel-review/SKILL.md` for role design and integration. The parent
-agent remains responsible for checking outputs, integrating changes, verification, notification, and
-publish steps.
+When sub-agent use is explicitly permitted and a task can be split into independent parts, the
+parent agent remains responsible for checking outputs, integrating changes, verification,
+notification, and publish steps.
 Treat each sub-agent as a bounded lifecycle: spawn, optionally wait or send a targeted follow-up,
 integrate the result, then close the completed agent. Keep a completed agent open only when an
 immediate follow-up needs its retained context, and state that reason.

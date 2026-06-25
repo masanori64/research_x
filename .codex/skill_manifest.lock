@@ -54,22 +54,6 @@ negative_trigger_tests = "repo_policy"
 notes = "Existing repo skill for Markdown placement and archive drift control."
 
 [[entries]]
-name = "research-x-goal-runner"
-entry_type = "repo_skill"
-source = ".agents/skills/research-x-goal-runner/SKILL.md"
-source_ref = "repo"
-scope = "project_research_x"
-decision = "enabled_repo_local"
-enabled = true
-implicit_invocation = true
-review_status = "repo_owned"
-risk = "low"
-allowed_scripts = "repo_policy"
-commit = ""
-negative_trigger_tests = "repo_policy"
-notes = "Existing repo skill for long goal continuation."
-
-[[entries]]
 name = "research-x-memory-workflow"
 entry_type = "repo_skill"
 source = ".agents/skills/research-x-memory-workflow/SKILL.md"
@@ -102,22 +86,6 @@ negative_trigger_tests = "repo_policy"
 notes = "Existing repo skill for app/CLI/workflow trace visibility."
 
 [[entries]]
-name = "research-x-parallel-review"
-entry_type = "repo_skill"
-source = ".agents/skills/research-x-parallel-review/SKILL.md"
-source_ref = "repo"
-scope = "project_research_x"
-decision = "enabled_repo_local"
-enabled = true
-implicit_invocation = true
-review_status = "repo_owned"
-risk = "low"
-allowed_scripts = "repo_policy"
-commit = ""
-negative_trigger_tests = "repo_policy"
-notes = "Existing repo skill for sub-agent role design when explicitly permitted."
-
-[[entries]]
 name = "research-x-provider-gate"
 entry_type = "repo_skill"
 source = ".agents/skills/research-x-provider-gate/SKILL.md"
@@ -132,22 +100,6 @@ allowed_scripts = "repo_policy"
 commit = ""
 negative_trigger_tests = "repo_policy"
 notes = "Existing repo skill for no-quota and provider-facing lane checks."
-
-[[entries]]
-name = "research-x-skillization-intake"
-entry_type = "repo_skill"
-source = ".agents/skills/research-x-skillization-intake/SKILL.md"
-source_ref = "repo"
-scope = "project_research_x"
-decision = "enabled_repo_local"
-enabled = true
-implicit_invocation = true
-review_status = "repo_owned"
-risk = "low"
-allowed_scripts = "repo_policy"
-commit = ""
-negative_trigger_tests = "repo_policy"
-notes = "Existing repo skill for instruction-surface placement and AGENTS bloat control."
 
 [[entries]]
 name = "research-x-research-intake"

@@ -56,8 +56,8 @@ local evidence/citation promotion, repository governance, or implementation exec
   durable design decision is justified.
 - `research-x-research-intake`: owns source candidate classification, provenance, risk flags, and
   source-bundle handoff readiness.
-- `research-x-parallel-review`: owns sub-agent role scoping, read-only/worker separation, result
-  integration, and parent-agent accountability for exploration sidecars.
+- `AGENTS.md` owns any explicitly permitted sub-agent policy; sub-agent notes remain hints until
+  the parent agent verifies them through the relevant evidence workflow.
 
 ## Do Not
 

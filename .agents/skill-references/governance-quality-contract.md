@@ -1,8 +1,8 @@
 # Governance Quality Contract
 
-This is a shared quality contract for `research_x` Markdown governance, Skill routing, prompt
-contracts, source/Skill adoption review, manifest locks, vendor/source locks, and instruction
-surface placement.
+This is a shared quality contract for `research_x` Markdown governance, prompt contracts,
+source/Skill adoption review, manifest locks, vendor/source locks, and instruction-surface
+placement.
 
 It is not an evidence contract and not an implementation workflow. Its job is to keep durable
 instructions, docs, prompts, Skills, and external-source decisions narrow, auditable, and
@@ -39,8 +39,8 @@ non-duplicative.
 
 - `research-x-doc-governance`: owns Markdown placement, archive moves, drift checks, and source of
   truth boundaries.
-- `research-x-skillization-intake`: owns whether behavior belongs in prompt context, docs, a Skill,
-  hook/plugin/MCP/app, automation, or no durable surface.
+- `AGENTS.md` owns repository-specific always-on routing and instruction-surface placement rules;
+  Codex-wide Skill growth belongs in `C:/Users/maasa/.codex`.
 - `research-x-prompt-contract`: owns prompt schema/status/tool-boundary contracts and prompt
   regression cases.
 - `research-x-skill-source-review`: owns external or internal source trust, pinning, enable/reject,

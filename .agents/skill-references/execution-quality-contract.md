@@ -1,7 +1,7 @@
 # Execution Quality Contract
 
-This is a shared quality contract for `research_x` implementation phases, goal runs, worker or
-verifier sidecars, and scoped repository changes.
+This is a shared quality contract for `research_x` implementation phases, goal runs, and scoped
+repository changes.
 
 It is not a search, provider, evidence, or governance contract. Its job is to keep execution scoped,
 verifiable, resumable, human-on-the-loop, and respectful of the shared worktree.
@@ -45,12 +45,10 @@ verifiable, resumable, human-on-the-loop, and respectful of the shared worktree.
 
 ## Skill-Specific Ownership
 
-- `research-x-goal-runner`: owns phase execution, verification, commit/push, and true oversight
-  gates.
-- `research-x-parallel-review`: owns bounded worker/verifier sidecars and parent-agent integration.
-- `research-x-doc-governance`, `research-x-skillization-intake`, and
-  `research-x-memory-workflow` own domain-specific source-of-truth or architecture gates before
-  implementation edits.
+- `AGENTS.md` owns repository execution gates, command policy, publish policy, and goal
+  continuation defaults.
+- `research-x-doc-governance` and `research-x-memory-workflow` own domain-specific
+  source-of-truth or architecture gates before implementation edits.
 
 ## Do Not
 
