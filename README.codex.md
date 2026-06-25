@@ -136,8 +136,9 @@ applicable Skill, then read that Skill and its directly referenced contracts bef
 acting.
 
 Do not duplicate the Skill catalog here. Use the manifest and Skill files for the
-current list. `control/skill_quality_audit.toml` is only a compact boundary
-audit for overlap and retired-Skill guardrails; it is not a second registry.
+current list. Cross-Skill audit belongs to the Codex foundation at
+`C:/Users/maasa/.codex/foundation/skill_audit.py`; `research_x` is the audit
+target, not the audit owner.
 
 ## Verification
 
@@ -152,8 +153,7 @@ Skill governance checks:
 
 ```powershell
 uv run python scripts\validate_skill_manifest.py
-uv run python scripts\validate_skill_quality_audit.py
-uv run pytest tests\test_skill_manifest.py tests\skills\test_vendor_sources_lock.py tests\test_codex_foundation_boundary.py tests\skills\test_skill_quality_audit.py
+uv run pytest tests\test_skill_manifest.py tests\skills\test_vendor_sources_lock.py tests\test_codex_foundation_boundary.py
 ```
 
 For slow or stuck pytest runs:
