@@ -52,21 +52,18 @@ def test_codex_foundation_package_exists_on_owner_machine_and_is_importable() ->
     assert lifecycle.validate_skill_lifecycle_input.__name__ == "validate_skill_lifecycle_input"
 
 
-def test_research_x_registry_points_codex_self_improvement_to_external_owner() -> None:
+def test_research_x_registry_points_codex_details_to_external_owner() -> None:
     registry = tomllib.loads(REGISTRY.read_text(encoding="utf-8"))
     candidates = {item["name"]: item for item in registry["candidates"]}
-    self_improvement = candidates["codex_self_improvement_pack"]
+    bridge = candidates["codex_foundation_registry_bridge"]
 
-    assert self_improvement["owner_surface"] == "codex_foundation"
-    assert self_improvement["adoption_shape"] == "bridge"
-    assert self_improvement["enabled"] is False
-    assert self_improvement["source_url"] == (
+    assert bridge["owner_surface"] == "codex_foundation"
+    assert bridge["adoption_shape"] == "bridge"
+    assert bridge["enabled"] is False
+    assert bridge["source_url"] == (
         "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
     )
-    assert self_improvement["active_artifact"] == (
-        "C:/Users/maasa/.codex/foundation/codex_improvement/pipeline.py"
-    )
-    assert not self_improvement["active_artifact"].startswith("src/research_x/")
+    assert bridge["active_artifact"] == "src/research_x/codex_bridge.py"
 
 
 def test_research_x_bridge_stays_thin_without_codex_runtime_ownership() -> None:

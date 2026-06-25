@@ -458,76 +458,16 @@ enabled = false
 notes = "Raw media vector match remains a candidate signal."
 
 [[candidates]]
-name = "codex_self_improvement_pack"
+name = "codex_foundation_registry_bridge"
 category = "codex_foundation_bridge"
 owner_surface = "codex_foundation"
 adoption_shape = "bridge"
 status = "external_owned"
 source_ref = "codex_foundation"
 source_url = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
-active_artifact = "C:/Users/maasa/.codex/foundation/codex_improvement/pipeline.py"
-first_local_step = "Emit only search-quality ImprovementSignal records from research_x."
-promotion_gate = ".codex replay, qualifier, and human accept/reject own Skill changes."
+active_artifact = "src/research_x/codex_bridge.py"
+first_local_step = "Keep only the stable research_x bridge contract and emit search-quality signals when needed."
+promotion_gate = ".codex registry owns Codex Skills, memory, route memory, self-improvement, and output helpers."
 provider_or_quota = false
 enabled = false
-notes = "Covers SkillOpt, SkillAdaptor, MUSE-Autoskill, EvoSkill, GEPA, TextGrad, Trace2Skill, SkillGrad, and SkillSmith."
-
-[[candidates]]
-name = "codex_memory_pack"
-category = "codex_foundation_bridge"
-owner_surface = "codex_foundation"
-adoption_shape = "bridge"
-status = "external_owned"
-source_ref = "codex_foundation"
-source_url = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
-active_artifact = "src/research_x/memory/tool_contract.py"
-first_local_step = "Keep Codex memory separate from research_x evidence DB."
-promotion_gate = ".codex memory registry must not overwrite source bundles or citations."
-provider_or_quota = false
-enabled = false
-notes = "Covers Basic Memory, Agentmemory, Supermemory, Mem0, CORE, AutoMem, memoryOSS, memories.sh, and codex-memory."
-
-[[candidates]]
-name = "codex_route_memory"
-category = "codex_foundation_bridge"
-owner_surface = "codex_foundation"
-adoption_shape = "bridge"
-status = "external_owned"
-source_ref = "codex_foundation"
-source_url = "C:/Users/maasa/.codex/route_memory/route-memory.json"
-active_artifact = "C:/Users/maasa/.codex/route_memory/route-memory.json"
-first_local_step = "Use only as Codex operation-route memory before browser/upload/download/tool-bridge route selection."
-promotion_gate = "Route memory never grants provider, browser, ChatGPT, MCP, connector, install, hook, destructive-action, or evidence permission."
-provider_or_quota = false
-enabled = false
-notes = "Moved out of research_x because it is Codex control-plane memory, not an X evidence/search artifact."
-
-[[candidates]]
-name = "ian_xiaohei_illustrations"
-category = "codex_foundation_bridge"
-owner_surface = "codex_foundation"
-adoption_shape = "bridge"
-status = "external_owned"
-source_ref = "S26"
-source_url = "https://github.com/helloianneo/ian-xiaohei-illustrations"
-active_artifact = "control/vendor_sources.lock.md"
-first_local_step = "Use only as .codex output helper for visual briefs."
-promotion_gate = "Generated images remain outside evidence/citation workflow."
-provider_or_quota = false
-enabled = false
-notes = "Not research_x core."
-
-[[candidates]]
-name = "publishing_illustration"
-category = "codex_foundation_bridge"
-owner_surface = "codex_foundation"
-adoption_shape = "bridge"
-status = "external_owned"
-source_ref = "codex_foundation"
-source_url = "C:/Users/maasa/.codex/skills/research-x-publishing-illustration/SKILL.md"
-active_artifact = "C:/Users/maasa/.codex/skills/research-x-publishing-illustration/SKILL.md"
-first_local_step = "Pass claim/source maps only; no image artifact becomes evidence."
-promotion_gate = ".codex owns the reusable output helper; research_x owns only claim/source map boundaries."
-provider_or_quota = false
-enabled = false
-notes = "Bridge from evidence map to visual brief only."
+notes = "Thin registry pointer only; do not duplicate Codex foundation candidate families inside research_x."

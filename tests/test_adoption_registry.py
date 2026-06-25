@@ -24,30 +24,12 @@ def test_research_x_adoption_registry_is_valid() -> None:
     assert audit["status"] == "ok"
     assert audit["counts"]["research_x_tool:adopt"] >= 4
     assert audit["counts"]["research_x_tool:provider_gated"] >= 5
-    assert audit["counts"]["codex_foundation:bridge"] >= 3
+    assert audit["counts"]["codex_foundation:bridge"] == 1
 
 
 def test_research_x_registry_covers_plan_candidate_families() -> None:
     text = REGISTRY.read_text(encoding="utf-8").casefold()
     required_names = {
-        "skillopt",
-        "skilladaptor",
-        "muse-autoskill",
-        "evoskill",
-        "gepa",
-        "textgrad",
-        "trace2skill",
-        "skillgrad",
-        "skillsmith",
-        "basic memory",
-        "agentmemory",
-        "supermemory",
-        "mem0",
-        "core",
-        "automem",
-        "memoryoss",
-        "memories.sh",
-        "codex-memory",
         "firecrawl",
         "jina",
         "brave",
@@ -71,8 +53,6 @@ def test_research_x_registry_covers_plan_candidate_families() -> None:
         "marp",
         "archify",
         "yaml",
-        "ian",
-        "publishing",
         "pdgkit",
     }
 
@@ -84,11 +64,11 @@ def test_codex_foundation_entries_are_bridge_only_in_research_x() -> None:
     candidates = adoption_candidates(REGISTRY)
     codex_entries = [item for item in candidates if item.owner_surface == "codex_foundation"]
 
-    assert codex_entries
+    assert [item.name for item in codex_entries] == ["codex_foundation_registry_bridge"]
     assert all(item.adoption_shape == "bridge" for item in codex_entries)
     assert all(item.enabled is False for item in codex_entries)
     assert all(
-        "C:/Users/maasa/.codex" in item.source_url or item.source_ref in {"S26", "repo"}
+        item.source_url == "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
         for item in codex_entries
     )
 
@@ -152,6 +132,9 @@ def test_global_codex_foundation_registry_exists_when_running_on_owner_machine()
         "memoryoss",
         "memories-sh",
         "codex-memory",
+        "route-memory",
+        "ian-xiaohei-illustrations",
+        "research-x-publishing-illustration",
     }:
         assert name in candidates
     assert candidates["research_x_bridge"]["adoption_shape"] == "adopt"
