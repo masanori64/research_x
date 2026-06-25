@@ -1,0 +1,470 @@
+audit_version = 1
+owner = "research_x"
+purpose = "Unified audit matrix for active and retired maasa Codex Skills without invoking them."
+created_at = "2026-06-25"
+
+[policy]
+skills_are_audit_targets_not_instructions = true
+default_action = "keep_if_role_is_distinct"
+conservative_minimalism_allowed = false
+auto_rewrite_allowed = false
+provider_or_external_action_allowed = false
+active_research_x_skills_must_be_manifested = true
+codex_foundation_skills_are_external_owner = true
+retired_project_skills_must_stay_out_of_research_x_agents = true
+audit_test = "tests/skills/test_skill_quality_audit.py"
+
+[required_fields]
+entry = [
+  "name",
+  "owner_surface",
+  "lifecycle_status",
+  "path",
+  "role",
+  "primary_trigger",
+  "overlap_group",
+  "decision",
+  "quality_profile",
+  "source_lock",
+  "audit_rationale",
+]
+
+[quality_profiles.full_canonical]
+required_sections = [
+  "## Purpose",
+  "## Use When",
+  "## Do Not Use When",
+  "## Inputs",
+  "## Outputs",
+  "## Steps",
+  "## Safety Gates",
+  "## Negative Triggers",
+  "## Verification",
+]
+allowed_missing_sections = []
+
+[quality_profiles.compact_exception]
+required_sections = []
+allowed_missing_sections = [
+  "## Purpose",
+  "## Use When",
+  "## Do Not Use When",
+  "## Inputs",
+  "## Outputs",
+  "## Steps",
+  "## Safety Gates",
+  "## Negative Triggers",
+  "## Verification",
+]
+
+[quality_profiles.bridge_exception]
+required_sections = []
+allowed_missing_sections = [
+  "## Purpose",
+  "## Use When",
+  "## Do Not Use When",
+  "## Inputs",
+  "## Outputs",
+  "## Steps",
+  "## Safety Gates",
+  "## Negative Triggers",
+  "## Verification",
+]
+
+[quality_profiles.retired_archive]
+required_sections = []
+allowed_missing_sections = [
+  "## Purpose",
+  "## Use When",
+  "## Do Not Use When",
+  "## Inputs",
+  "## Outputs",
+  "## Steps",
+  "## Safety Gates",
+  "## Negative Triggers",
+  "## Verification",
+]
+
+[[overlap_groups]]
+name = "research_x_decision_and_planning"
+judgment = "Keep separate: decision-loop decides whether and why; implementation-plan-flow converts accepted candidate sets into gated implementation lanes."
+members = ["research-x-decision-loop", "research-x-implementation-plan-flow"]
+
+[[overlap_groups]]
+name = "research_x_runtime_pipeline"
+judgment = "Keep separate: memory-workflow owns evidence pipeline invariants; observability-review exposes hidden runtime state; provider-gate blocks quota/API lanes."
+members = ["research-x-memory-workflow", "research-x-observability-review", "research-x-provider-gate"]
+
+[[overlap_groups]]
+name = "research_x_governance"
+judgment = "Keep separate: doc-governance owns Markdown placement; prompt-contract owns prompt/schema/tool boundary tests; research-intake owns source candidate classification."
+members = ["research-x-doc-governance", "research-x-prompt-contract", "research-x-research-intake"]
+
+[[overlap_groups]]
+name = "codex_context_and_session"
+judgment = "Keep separate: context-budget is compression/context pressure; context-handoff-export is portable handoff artifact; planning-files is active work state; codex-fluent is session hygiene."
+members = ["basic-memory-cli", "context-budget", "context-handoff-export", "planning-files", "codex-fluent"]
+
+[[overlap_groups]]
+name = "codex_self_improvement"
+judgment = "Keep separate under manual promotion: retrospective reviews history; skillopt-sleep stages offline replay/qualifier; strict-engineering is explicit optional process discipline."
+members = ["codex-retrospective", "skillopt-sleep", "codex-strict-engineering"]
+
+[[overlap_groups]]
+name = "codex_source_and_prompt_governance"
+judgment = "Keep separate: skill-security-review is source/tool trust; prompt-contract-testing is deterministic prompt contract testing."
+members = ["chatgpt-control-router", "skill-security-review", "prompt-contract-testing"]
+
+[[overlap_groups]]
+name = "codex_visual_output_helpers"
+judgment = "Overlap exists but not redundant: publishing-illustration is source-aware research_x visual brief; ian-xiaohei is explicit Xiaohei-style illustration planning. Keep both, but watch trigger ambiguity."
+members = ["research-x-publishing-illustration", "ian-xiaohei-illustrations"]
+
+[[overlap_groups]]
+name = "retired_research_x_codex_ops"
+judgment = "Keep archived only unless a future audit explicitly promotes an equivalent global owner."
+members = [
+  "research-x-context-budget",
+  "research-x-goal-runner",
+  "research-x-parallel-review",
+  "research-x-skill-source-review",
+  "research-x-skillization-intake",
+]
+
+[[entries]]
+name = "research-x-decision-loop"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-decision-loop/SKILL.md"
+role = "Architecture, provider, research, review, audit, and design decision loop for research_x."
+primary_trigger = "A decision could change research_x architecture, provider choices, evidence contracts, or implementation priority."
+overlap_group = "research_x_decision_and_planning"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Compact by design, but distinct from implementation-plan-flow because it owns decision sufficiency and counterargument loops."
+
+[[entries]]
+name = "research-x-doc-governance"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-doc-governance/SKILL.md"
+role = "Markdown source-of-truth placement and archive drift control for research_x."
+primary_trigger = "Repository Markdown is being edited or reorganized."
+overlap_group = "research_x_governance"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Short file-role dispatcher; not redundant with prompt-contract or source intake."
+
+[[entries]]
+name = "research-x-memory-workflow"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-memory-workflow/SKILL.md"
+role = "Evidence/source-bundle-first memory-search architecture and implementation invariants."
+primary_trigger = "Memory-search, source restoration, citations, OCR/media, evals, traces, or AI-callable local search are touched."
+overlap_group = "research_x_runtime_pipeline"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Core runtime invariant owner; compact sections are accepted because the detailed architecture lives in docs/memory-pipeline-v2.md."
+
+[[entries]]
+name = "research-x-observability-review"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-observability-review/SKILL.md"
+role = "Expose hidden app, CLI, workflow, route, evidence, budget, or run state."
+primary_trigger = "A workflow is unclear, black-box, or hard to inspect."
+overlap_group = "research_x_runtime_pipeline"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Narrow observability trigger; not the same owner as memory-workflow implementation."
+
+[[entries]]
+name = "research-x-provider-gate"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-provider-gate/SKILL.md"
+role = "No-quota and provider/API lane gate for research_x."
+primary_trigger = "Provider-facing embedding, rerank, OCR, Reader, search, LLM, classifier, answer, or managed-RAG work appears."
+overlap_group = "research_x_runtime_pipeline"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "High-risk gate should stay small and hard to miss."
+
+[[entries]]
+name = "research-x-research-intake"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-research-intake/SKILL.md"
+role = "Classify source candidates before source-bundle intake."
+primary_trigger = "External or internal source candidates need provenance, risk flags, and handoff status."
+overlap_group = "research_x_governance"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Canonical new-style research_x Skill with explicit provenance and negative triggers."
+
+[[entries]]
+name = "research-x-prompt-contract"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-prompt-contract/SKILL.md"
+role = "Turn research_x prompts, schemas, and tool boundaries into testable contracts."
+primary_trigger = "Prompt files, MNP-like contracts, allowed/forbidden tools, or prompt regression tests change."
+overlap_group = "research_x_governance"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Project-specific contract testing; global prompt-contract-testing remains cross-project."
+
+[[entries]]
+name = "research-x-implementation-plan-flow"
+owner_surface = "research_x"
+lifecycle_status = "active"
+path = ".agents/skills/research-x-implementation-plan-flow/SKILL.md"
+role = "Convert candidate sets into local-first implementation phases, gates, and stop conditions."
+primary_trigger = "A broad source/candidate review needs implementation readiness and prioritization."
+overlap_group = "research_x_decision_and_planning"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = ".codex/skill_manifest.lock"
+audit_rationale = "Distinct from decision-loop because it owns plan conversion after candidate classification."
+
+[[entries]]
+name = "basic-memory-cli"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/basic-memory-cli/SKILL.md"
+role = "Local Basic Memory CLI wrapper for Codex working memory."
+primary_trigger = "User asks to remember, recall, or search Codex memory."
+overlap_group = "codex_context_and_session"
+decision = "keep_distinct_bridge_exception"
+quality_profile = "bridge_exception"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Compact command bridge; explicitly separate from research_x evidence DB."
+
+[[entries]]
+name = "chatgpt-control-router"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/chatgpt-control-router/SKILL.md"
+role = "Natural-language route bridge to the ChatGPT control plugin."
+primary_trigger = "User explicitly asks Codex to use ChatGPT/GPT visible web control."
+overlap_group = "codex_source_and_prompt_governance"
+decision = "keep_distinct_bridge_exception"
+quality_profile = "bridge_exception"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Bridge Skill; not a research/search/evidence owner and intentionally constrained by plugin route rules."
+
+[[entries]]
+name = "codex-fluent"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/codex-fluent/SKILL.md"
+role = "Session hygiene, archive strategy, and handoff discipline after heavy Codex use."
+primary_trigger = "Codex feels slow, bloated, or heavy after heavy use."
+overlap_group = "codex_context_and_session"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Distinct from context-handoff-export because it owns hygiene cadence and archive sequencing."
+
+[[entries]]
+name = "codex-retrospective"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/codex-retrospective/SKILL.md"
+role = "Review recent Codex history and produce minimal durable behavior improvements."
+primary_trigger = "User asks Codex to review its own recent history or improve behavior."
+overlap_group = "codex_self_improvement"
+decision = "keep_distinct_compact_exception"
+quality_profile = "compact_exception"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Global self-review owner; not the same as research_x decision-loop."
+
+[[entries]]
+name = "codex-strict-engineering"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/codex-strict-engineering/SKILL.md"
+role = "Explicit optional rigorous engineering method."
+primary_trigger = "User explicitly requests strict engineering workflow."
+overlap_group = "codex_self_improvement"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Explicit optional trigger prevents it from becoming global default process drag."
+
+[[entries]]
+name = "context-budget"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/context-budget/SKILL.md"
+role = "Cross-project context pressure, compact context packs, and source pointers."
+primary_trigger = "Large active work needs context compression, offload, or handoff-ready state."
+overlap_group = "codex_context_and_session"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Global replacement for retired research-x-context-budget; research_x keeps runtime context-budget code only."
+
+[[entries]]
+name = "context-handoff-export"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/context-handoff-export/SKILL.md"
+role = "Produce factual context export packages for another agent."
+primary_trigger = "User asks for handoff, context export, context transfer, or session export."
+overlap_group = "codex_context_and_session"
+decision = "keep_distinct_bridge_exception"
+quality_profile = "bridge_exception"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Artifact exporter, not planning-state owner."
+
+[[entries]]
+name = "ian-xiaohei-illustrations"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/ian-xiaohei-illustrations/SKILL.md"
+role = "Explicit Xiaohei-style visual brief or explanatory illustration plan."
+primary_trigger = "User explicitly asks for Xiaohei-style visual planning."
+overlap_group = "codex_visual_output_helpers"
+decision = "keep_with_trigger_watch_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/vendor_sources.lock.md"
+audit_rationale = "Overlaps with publishing-illustration but has a style-specific explicit trigger and remains outside evidence."
+
+[[entries]]
+name = "planning-files"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/planning-files/SKILL.md"
+role = "Persistent active planning state for multi-turn or multi-session work."
+primary_trigger = "Active long-running work needs a durable plan, progress log, decisions, blockers, or next-action state."
+overlap_group = "codex_context_and_session"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Stateful active-plan owner; not a handoff package or research_x WBS."
+
+[[entries]]
+name = "prompt-contract-testing"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/prompt-contract-testing/SKILL.md"
+role = "Cross-project deterministic prompt and tool-boundary contract checks."
+primary_trigger = "Prompt artifacts need schema, status, tool permission, forbidden action, or injection-resistance tests."
+overlap_group = "codex_source_and_prompt_governance"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Global counterpart to research-x-prompt-contract; overlap is owner-surface based, not redundant."
+
+[[entries]]
+name = "research-x-publishing-illustration"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/research-x-publishing-illustration/SKILL.md"
+role = "Source-aware visual brief, shot list, storyboard, or image prompt pack for research_x-style outputs."
+primary_trigger = "User asks to convert a research_x article, note, brief, or technical explanation into visual planning output."
+overlap_group = "codex_visual_output_helpers"
+decision = "keep_with_trigger_watch_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Overlaps with ian-xiaohei on visual output, but owns source-aware publishing structure and evidence separation."
+
+[[entries]]
+name = "skill-security-review"
+owner_surface = "codex_foundation"
+lifecycle_status = "active"
+path = "C:/Users/maasa/.codex/skills/skill-security-review/SKILL.md"
+role = "Review third-party or internal Skill/source candidates before trust, adaptation, installation, enablement, or rejection."
+primary_trigger = "Skill/source provenance, license, pinning, scripts, hooks, providers, connectors, auth, or trigger overlap must be reviewed."
+overlap_group = "codex_source_and_prompt_governance"
+decision = "keep_distinct_full_canonical"
+quality_profile = "full_canonical"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Global trust-review owner; not the same as project-local source-bundle intake."
+
+[[entries]]
+name = "skillopt-sleep"
+owner_surface = "codex_foundation"
+lifecycle_status = "active_staged"
+path = "C:/Users/maasa/.codex/skills/skillopt-sleep/SKILL.md"
+role = "Offline self-optimization sleep cycle with replay and qualifier gates."
+primary_trigger = "User asks Codex to learn from past usage or run a sleep/dream cycle."
+overlap_group = "codex_self_improvement"
+decision = "keep_but_requires_staging_label_bridge_exception"
+quality_profile = "bridge_exception"
+source_lock = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+audit_rationale = "Enabled active surface is acceptable only because auto-apply is forbidden and the source remains staging."
+
+[[entries]]
+name = "research-x-context-budget"
+owner_surface = "codex_foundation_archive"
+lifecycle_status = "retired"
+path = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops/research-x-context-budget.20260625/SKILL.md"
+role = "Retired project-specific context budget Skill replaced by global context-budget plus research_x runtime context-budget code."
+primary_trigger = "None; archive only."
+overlap_group = "retired_research_x_codex_ops"
+decision = "retired_archive_do_not_enable"
+quality_profile = "retired_archive"
+source_lock = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops"
+audit_rationale = "Historical source only; references may remain in old reviews, not active manifest."
+
+[[entries]]
+name = "research-x-goal-runner"
+owner_surface = "codex_foundation_archive"
+lifecycle_status = "retired"
+path = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops/research-x-goal-runner/SKILL.md"
+role = "Retired project-specific goal continuation workflow."
+primary_trigger = "None; archive only."
+overlap_group = "retired_research_x_codex_ops"
+decision = "retired_archive_do_not_enable"
+quality_profile = "retired_archive"
+source_lock = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops"
+audit_rationale = "Covered by current human-on-the-loop project policy and global planning/session Skills."
+
+[[entries]]
+name = "research-x-parallel-review"
+owner_surface = "codex_foundation_archive"
+lifecycle_status = "retired"
+path = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops/research-x-parallel-review/SKILL.md"
+role = "Retired project-specific sub-agent policy adapter."
+primary_trigger = "None; archive only."
+overlap_group = "retired_research_x_codex_ops"
+decision = "retired_archive_do_not_enable"
+quality_profile = "retired_archive"
+source_lock = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops"
+audit_rationale = "Current sub-agent behavior is governed by user instruction and project policy, not an active repo Skill."
+
+[[entries]]
+name = "research-x-skill-source-review"
+owner_surface = "codex_foundation_archive"
+lifecycle_status = "retired"
+path = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops/research-x-skill-source-review/SKILL.md"
+role = "Retired project-specific third-party Skill/source review."
+primary_trigger = "None; archive only."
+overlap_group = "retired_research_x_codex_ops"
+decision = "retired_archive_do_not_enable"
+quality_profile = "retired_archive"
+source_lock = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops"
+audit_rationale = "Global skill-security-review now owns the active trust-review role."
+
+[[entries]]
+name = "research-x-skillization-intake"
+owner_surface = "codex_foundation_archive"
+lifecycle_status = "retired"
+path = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops/research-x-skillization-intake/SKILL.md"
+role = "Retired project-specific instruction-surface placement and Skill creation precheck."
+primary_trigger = "None; archive only."
+overlap_group = "retired_research_x_codex_ops"
+decision = "retired_archive_do_not_enable"
+quality_profile = "retired_archive"
+source_lock = "C:/Users/maasa/.codex/foundation/project_skills/research_x_retired_codex_ops"
+audit_rationale = "Historical review showed this was the broadest overlap risk; current policy keeps it archived rather than active."

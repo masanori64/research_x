@@ -136,7 +136,9 @@ applicable Skill, then read that Skill and its directly referenced contracts bef
 acting.
 
 Do not duplicate the Skill catalog here. Use the manifest and Skill files for the
-current list.
+current list. The unified active/retired/overlap/quality audit lives in
+`control/skill_quality_audit.toml` and is validated by
+`scripts/validate_skill_quality_audit.py`.
 
 ## Verification
 
@@ -145,6 +147,14 @@ Default broad checks, when appropriate:
 ```powershell
 uv run ruff check src\research_x tests
 uv run pytest
+```
+
+Skill governance checks:
+
+```powershell
+uv run python scripts\validate_skill_manifest.py
+uv run python scripts\validate_skill_quality_audit.py
+uv run pytest tests\test_skill_manifest.py tests\skills\test_vendor_sources_lock.py tests\test_codex_foundation_boundary.py tests\skills\test_skill_quality_audit.py
 ```
 
 For slow or stuck pytest runs:
