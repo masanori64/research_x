@@ -5,7 +5,10 @@ from pathlib import Path
 PROJECT = Path("PROJECT.md")
 README_CODEX = Path("README.codex.md")
 MEMORY_V2 = Path("docs/memory-pipeline-v2.md")
-X_GPT_DIR = Path(".codex/chatgpt-control/x-url-analysis-20260622")
+CODEX_PROJECT_REVIEWS = Path(
+    "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
+)
+X_GPT_DIR = CODEX_PROJECT_REVIEWS / "x-url-analysis-20260622"
 
 
 def _line_count(path: Path) -> int:

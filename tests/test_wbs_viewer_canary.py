@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-WBS_JSON = Path(".codex/chatgpt-control/x-url-analysis-20260622/wbs-35-item-flow.json")
+CODEX_PROJECT_REVIEWS = Path(
+    "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
+)
+WBS_JSON = CODEX_PROJECT_REVIEWS / "x-url-analysis-20260622" / "wbs-35-item-flow.json"
 WBS_VIEWER = Path("tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html")
 WBS_LICENSE = Path("tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/LICENSE")
 

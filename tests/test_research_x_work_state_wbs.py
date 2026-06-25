@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Any
 
 WBS_PATH = Path("tools/wbs_viewer/projects/research-x-work-state.json")
+CODEX_PROJECT_REVIEWS = (
+    "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
+)
 
 EXPECTED_GROUPS = [
     "Memory no-spend foundation",
@@ -90,7 +93,9 @@ def test_x_gpt_intake_keeps_all_35_items_without_becoming_evidence() -> None:
         assert meta["answer_support_allowed"] is False
         assert meta["source_candidate_url"].startswith("https://x.com/")
         assert meta["artifact_pointer"] == WBS_PATH.as_posix()
-        assert meta["owner_doc"] == ".codex/chatgpt-control/x-url-analysis-20260622/README.md"
+        assert meta["owner_doc"] == (
+            CODEX_PROJECT_REVIEWS + "/x-url-analysis-20260622/README.md"
+        )
 
 
 def test_items_11_and_35_remain_item_specific_historical_records() -> None:

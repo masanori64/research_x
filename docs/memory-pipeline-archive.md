@@ -1,4 +1,4 @@
-﻿# Memory Pipeline Decision Archive
+# Memory Pipeline Decision Archive
 
 This file stores historical decision notes and source-review logs moved out of
 docs/memory-pipeline-v2.md so the active architecture source stays small.
@@ -73,7 +73,8 @@ Decision:
 - Remove the tracked project diagram sources, rendered review assets, isolated
   canary tool folder, and active pointer-map entries for that lane.
 - Keep old consultation captures and canary reports as historical/reference-only
-  records when they appear in this archive or `.codex/chatgpt-control`.
+  records when they appear in this archive or
+  `C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control`.
 - Keep generated diagrams, WBS, pointer maps, and consultation captures out of the
   evidence/citation/answer-support chain.
 

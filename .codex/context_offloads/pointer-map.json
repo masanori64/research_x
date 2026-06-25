@@ -5,7 +5,7 @@
   "entries": [
     {
       "pointer_id": "architecture_refresh_gpt_pro_response_20260623",
-      "artifact_path": ".codex/chatgpt-control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md",
+      "artifact_path": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md",
       "artifact_kind": "gpt_pro_plan",
       "owner_plane": "decision_input",
       "restore_hint": "Read only to inspect the consultation input behind the 2026-06-24 information architecture refresh.",
@@ -20,14 +20,14 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "4b4cfb7b26162bdedbf5d868f39ef13c47f463754ae2f60c11b44ddbf3c233cb",
-      "char_count": 92539,
-      "byte_count": 92539,
+      "sha256": "6507c17a202816f62b26cd89af95a36c599df4385f4a2d70856ecc8f4506793c",
+      "char_count": 96249,
+      "byte_count": 96249,
       "not_evidence": true
     },
     {
       "pointer_id": "x_gpt_20260622_consultation_index",
-      "artifact_path": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+      "artifact_path": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
       "artifact_kind": "historical_index",
       "owner_plane": "archive",
       "restore_hint": "Use as the only active index for the historical X/GPT consultation capture.",
@@ -60,7 +60,7 @@
     },
     {
       "pointer_id": "next_wave_33_5_24_10_gpt_pro_response_20260624",
-      "artifact_path": ".codex/chatgpt-control/next-wave-33-5-24-10-20260624/gpt-pro-response.md",
+      "artifact_path": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/next-wave-33-5-24-10-20260624/gpt-pro-response.md",
       "artifact_kind": "gpt_pro_plan",
       "owner_plane": "decision_input",
       "restore_hint": "Raw visible ChatGPT Pro consultation output for the next-wave plan; historical/reference-only, not active diagram-tool routing, and not evidence.",
@@ -137,7 +137,7 @@
     },
     {
       "pointer_id": "route_memory_pipeline_gpt_pro_response_20260624",
-      "artifact_path": ".codex/chatgpt-control/route-memory-pipeline-20260624/gpt-pro-response.md",
+      "artifact_path": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/route-memory-pipeline-20260624/gpt-pro-response.md",
       "artifact_kind": "gpt_pro_plan",
       "owner_plane": "decision_input",
       "restore_hint": "Raw visible GPT Pro consultation output accepted as the Route Memory implementation plan; not evidence.",

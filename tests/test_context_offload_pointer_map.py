@@ -45,11 +45,11 @@ def test_pointer_map_covers_canonical_wbs_presentation_plan_and_gpt_pro_input() 
         in paths
     )
     assert (
-        ".codex/chatgpt-control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md"
+        "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/architecture-refresh-gpt-pro-20260623/gpt-pro-response.md"
         in paths
     )
     assert (
-        ".codex/chatgpt-control/route-memory-pipeline-20260624/gpt-pro-response.md"
+        "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/route-memory-pipeline-20260624/gpt-pro-response.md"
         in paths
     )
     assert not any(path.startswith(retired_docs) for path in paths)

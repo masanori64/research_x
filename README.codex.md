@@ -22,7 +22,7 @@ Read in this order:
 7. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
    historical rationale is needed.
 
-Avoid routine reads of `.codex/chatgpt-control/x-url-analysis-20260622/*.md`; that
+Avoid routine reads of `C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/*.md`; that
 folder is a historical consultation capture, not the active plan or evidence source.
 
 ## Current Mission

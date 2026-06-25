@@ -459,8 +459,8 @@
                     "decision_band": "architecture_refresh_required",
                     "gate": "active_path_reduction_required",
                     "status": "complete",
-                    "artifact_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
-                    "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                    "artifact_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
+                    "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                     "evidence_status": "not_evidence",
                     "answer_support_allowed": false,
                     "stop_condition": ""
@@ -735,13 +735,13 @@
                 "gate": "local_answerability_fixture",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 7,
                 "source_candidate_url": "https://x.com/itarutomy/status/2067376489805263233?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/phase-gate-report.md"
               }
             },
             {
@@ -766,13 +766,13 @@
                 "gate": "route_context_policy_eval",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 8,
                 "source_candidate_url": "https://x.com/itarutomy/status/2067263698134343717?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/phase-gate-report.md"
               }
             },
             {
@@ -797,7 +797,7 @@
                 "gate": "disabled_source_lock",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 12,
@@ -827,13 +827,13 @@
                 "gate": "improvement_signal_qualifier",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 14,
                 "source_candidate_url": "https://x.com/itarutomy/status/2066909949012119667?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/phase-gate-report.md"
               }
             },
             {
@@ -858,13 +858,13 @@
                 "gate": "local_backend_benchmark",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 16,
                 "source_candidate_url": "https://x.com/L_go_mrk/status/2066808500655706328?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/phase-gate-report.md"
               }
             },
             {
@@ -889,13 +889,13 @@
                 "gate": "stop_condition_audit",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 17,
                 "source_candidate_url": "https://x.com/itarutomy/status/2066807598909673494?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/phase-gate-report.md"
               }
             },
             {
@@ -920,13 +920,13 @@
                 "gate": "relevance_support_fixture",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 22,
                 "source_candidate_url": "https://x.com/Trtd6Trtd/status/2066424586665939066?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/phase-gate-report.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/phase-gate-report.md"
               }
             },
             {
@@ -951,7 +951,7 @@
                 "gate": "source_review_vendor_copy_wbs_json_canary",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 11,
@@ -981,13 +981,13 @@
                 "gate": "historical_canary_decommissioned",
                 "status": "complete",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 35,
                 "source_candidate_url": "https://x.com/mottolicht/status/2064182506090627212?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1012,13 +1012,13 @@
                 "gate": "local_artifact_schema_renderer",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 5,
                 "source_candidate_url": "https://x.com/mhlyc/status/2067317558748094950?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1043,13 +1043,13 @@
                 "gate": "source_review_before_install",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 10,
                 "source_candidate_url": "https://x.com/t20000622yy/status/2065272121937576174?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1074,13 +1074,13 @@
                 "gate": "codex_foundation_design_only",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 24,
                 "source_candidate_url": "https://x.com/itarutomy/status/2063223302215152036?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1105,13 +1105,13 @@
                 "gate": "source_review_before_hook_or_plugin",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 33,
                 "source_candidate_url": "https://x.com/bryanonchain/status/2065722260586103147?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1136,13 +1136,13 @@
                 "gate": "existing_context_budget_policy",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 2,
                 "source_candidate_url": "https://x.com/madonomori/status/2067783199317770445?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1167,13 +1167,13 @@
                 "gate": "existing_skill_boundaries",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 3,
                 "source_candidate_url": "https://x.com/syossan27/status/2067460732430762029?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1198,13 +1198,13 @@
                 "gate": "human_gate_improvement_policy",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 4,
                 "source_candidate_url": "https://x.com/fukkyy/status/2067198990295462067?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1229,13 +1229,13 @@
                 "gate": "design_input_only",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 13,
                 "source_candidate_url": "https://x.com/itarutomy/status/2067014978175930500?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1260,13 +1260,13 @@
                 "gate": "existing_workflow_state",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 18,
                 "source_candidate_url": "https://x.com/at_sushi_/status/2066693208986521853?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1291,13 +1291,13 @@
                 "gate": "existing_review_policy",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 19,
                 "source_candidate_url": "https://x.com/pospome/status/2066010971488002064?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1322,13 +1322,13 @@
                 "gate": "existing_decision_loop",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 20,
                 "source_candidate_url": "https://x.com/azukiazusa9/status/2066067194207997998?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1353,13 +1353,13 @@
                 "gate": "existing_decision_parallel_review",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 21,
                 "source_candidate_url": "https://x.com/ushiro_noko/status/2066402769913983456?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1384,13 +1384,13 @@
                 "gate": "existing_workflow_state",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 28,
                 "source_candidate_url": "https://x.com/itarutomy/status/2066377584280051813?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1415,13 +1415,13 @@
                 "gate": "existing_agents_skill_surfaces",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 30,
                 "source_candidate_url": "https://x.com/itarutomy/status/2065708143980495078?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1446,13 +1446,13 @@
                 "gate": "retrieval_review_checklist",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 32,
                 "source_candidate_url": "https://x.com/snaga/status/2065992572414341348?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1477,13 +1477,13 @@
                 "gate": "gui_exploration_objective_required",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 23,
                 "source_candidate_url": "https://x.com/itarutomy/status/2066448312035889553?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1508,13 +1508,13 @@
                 "gate": "visual_provenance_privacy_required",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 29,
                 "source_candidate_url": "https://x.com/itarutomy/status/2066124619577528377?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1539,13 +1539,13 @@
                 "gate": "closed_reference_only",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 34,
                 "source_candidate_url": "https://x.com/mottolicht/status/2064281743897788764?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1570,13 +1570,13 @@
                 "gate": "provider_approval_required",
                 "status": "blocked",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 1,
                 "source_candidate_url": "https://x.com/bryanonchain/status/2067623872455680344?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1601,13 +1601,13 @@
                 "gate": "aws_provider_approval_required",
                 "status": "blocked",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 25,
                 "source_candidate_url": "https://x.com/PKSHA_saiyo/status/2066332310623129884?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1632,13 +1632,13 @@
                 "gate": "google_provider_approval_required",
                 "status": "blocked",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 26,
                 "source_candidate_url": "https://x.com/keigohtr/status/2066294358480228707?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1663,13 +1663,13 @@
                 "gate": "aws_provider_approval_required",
                 "status": "blocked",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 31,
                 "source_candidate_url": "https://x.com/kamo__shika/status/2065937238677221529?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1694,13 +1694,13 @@
                 "gate": "source_rights_and_external_dependency_blockers",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 6,
                 "source_candidate_url": "https://x.com/Trtd6Trtd/status/2067442961005281358?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1725,13 +1725,13 @@
                 "gate": "original_context_required",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 9,
                 "source_candidate_url": "https://x.com/pkm_tk111/status/2066985615850393845?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1756,13 +1756,13 @@
                 "gate": "separate_vendor_eval_required",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 15,
                 "source_candidate_url": "https://x.com/ebiflyyyyyyyy/status/2066815214558105766?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             },
             {
@@ -1787,13 +1787,13 @@
                 "gate": "source_context_missing",
                 "status": "closed",
                 "artifact_pointer": "tools/wbs_viewer/projects/research-x-work-state.json",
-                "owner_doc": ".codex/chatgpt-control/x-url-analysis-20260622/README.md",
+                "owner_doc": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/README.md",
                 "evidence_status": "source_candidate",
                 "answer_support_allowed": false,
                 "item": 27,
                 "source_candidate_url": "https://x.com/Trtd6Trtd/status/2066355591887700212?s=20",
                 "stop_condition": "Do not treat X/GPT analysis, WBS, or source URLs here as citation-ready evidence.",
-                "history_pointer": ".codex/chatgpt-control/x-url-analysis-20260622/current-decision-summary.md"
+                "history_pointer": "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/current-decision-summary.md"
               }
             }
           ]
