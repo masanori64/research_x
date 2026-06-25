@@ -5,47 +5,83 @@ description: Use when updating or reorganizing research_x Markdown such as AGENT
 
 # research-x Doc Governance
 
-Use this skill before editing repository Markdown.
-Global handoff and session-hygiene skills handle context packaging and session upkeep; this skill
-governs `research_x` repository Markdown placement and source-of-truth ownership.
-Also apply `../../skill-references/governance-quality-contract.md` when changing docs, Skills,
-prompt contracts, source locks, or instruction surfaces.
+Markdown placement and source-of-truth control for `research_x`. This Skill keeps
+durable repository docs sparse and correctly owned. It does not create Skills,
+run source reviews, or manage global Codex context exports.
 
-## File Roles
+## Purpose
 
-- `AGENTS.md`: always-read agent rules, command policy, safety freezes, trigger routing, publish
-  policy, and completion notification.
-- `README.codex.md`: compact Codex-facing repository reference. Use this for routine agent
-  orientation instead of `README.md`.
-- `README.md`: human/GitHub repository entry point only.
-- `PROJECT.md`: short milestone tracker and current gates.
-- `docs/memory-pipeline-v2.md`: detailed current memory/search architecture and durable decisions.
-- `docs/memory-pipeline-archive.md`: indexed historical notes. Inspect the index first and read only
-  targeted sections.
-- `docs/pipeline.md`: acquisition/auth/provider pipeline details.
-- `.agents/skills`: repeatable Codex workflows that would bloat `AGENTS.md`.
+- Put durable rules, architecture, milestones, historical notes, and public docs
+  in the correct existing file.
+- Prevent duplicate explanations across AGENTS, README, PROJECT, docs, WBS,
+  source locks, and Skill text.
+- Archive obsolete architecture notes with index pointers instead of letting
+  active docs bloat.
 
-Savepoints are not architecture docs. Prefer annotated git tags for commit-level state checkpoints.
-If a user explicitly wants a file, keep one small status pointer outside `docs/`. It may summarize
-completed/unfinished pipeline areas for quick reread, but it must avoid rationale history and point
-back to the owning docs.
+## Use When
 
-## Workflow
+- Editing or reorganizing `AGENTS.md`, `README.codex.md`, `README.md`,
+  `PROJECT.md`, `docs/memory-pipeline-v2.md`,
+  `docs/memory-pipeline-archive.md`, or `docs/pipeline.md`.
+- Markdown bloat, source-of-truth drift, archive moves, savepoint placement, or
+  scope cleanup is part of the task.
+- Skill/source-lock/registry docs need a short pointer from repository docs.
 
-1. Identify whether the change is a durable rule, public reference, milestone, active architecture,
-   or historical note.
-2. Update the narrowest file. Do not duplicate the same design text across files.
-3. If active architecture notes become bulky or obsolete, move them to
-   `docs/memory-pipeline-archive.md` with an index entry instead of leaving them in
-   `docs/memory-pipeline-v2.md`.
-4. Keep `PROJECT.md` short. It should show current state and gates, not rationale history.
-5. Keep `AGENTS.md` short. If the text is a repeatable procedure rather than always-on policy,
-   create or update a repo skill.
-6. For git savepoints, do not add new memory-architecture Markdown. Store only commit, verification,
-   unrelated-worktree notes, compact pipeline status, and pointers to the owning docs or headings.
+## Do Not Use When
+
+- The task is a final handoff ZIP; use `context-handoff-export`.
+- The task is active context compression; use `context-budget`.
+- The task is Skill trust review or third-party source adoption; use the
+  foundation governance owner and source locks.
+- The task asks to create or rewrite Skills automatically. Skill edits require
+  an explicit Skill-editing task and the audit registry.
+
+## Inputs
+
+- Target Markdown file and reason for change.
+- Existing docs and owner surfaces.
+- Current WBS, registry, source-lock, or audit references when relevant.
+- User instruction about public vs Codex-facing audience.
+
+## Outputs
+
+- Minimal doc edits in the owning file.
+- Archive/index entries when moving historical material.
+- Pointers to registry, source lock, WBS, audit table, or detailed docs instead
+  of duplicated prose.
+
+## Steps
+
+1. Classify the change: durable rule, compact reference, public README,
+   milestone, active architecture, historical note, or pointer.
+2. Update the narrowest existing file.
+3. Move bulky or obsolete architecture notes to
+   `docs/memory-pipeline-archive.md` with an index entry.
+4. Keep `PROJECT.md` short and current.
+5. Keep `AGENTS.md` limited to always-on policy and routing.
+6. For git savepoints, prefer commit/tag metadata or one small status pointer;
+   do not create new architecture Markdown unless explicitly requested.
+
+## Safety Gates
+
+- Do not duplicate the same design text across multiple docs.
+- Do not create new memory-architecture docs unless the user explicitly asks.
+- Do not move project-specific command policy, no-quota freeze, or evidence
+  invariants out of always-read surfaces without another durable owner.
+- Do not turn WBS, diagrams, screenshots, or source reviews into evidence docs.
+
+## Negative Triggers
+
+- "This is useful context" is not enough to add Markdown.
+- "Make a new doc for clarity" is rejected when an existing owner fits.
+- "Archive it" must keep an index and restore pointer.
+- "Create a Skill for this procedure" is outside doc governance unless the user
+  explicitly requested Skill editing.
 
 ## Verification
 
 - Run `git diff --check`.
 - Confirm the changed file matches its role.
-- Confirm no new memory-architecture Markdown file was created unless explicitly requested.
+- Confirm no new memory-architecture Markdown file was created unless explicitly
+  requested.
+- Confirm stale or historical content has an archive index pointer.

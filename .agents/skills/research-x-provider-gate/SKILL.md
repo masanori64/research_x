@@ -5,33 +5,83 @@ description: "Use before any provider-facing or quota-sensitive work in research
 
 # research-x Provider Gate
 
-Use this skill before implementing, estimating, or running provider-facing lanes.
-The global Provider And External Action Gate blocks external actions by default; this skill applies
-the stricter `research_x` no-quota rule and API Budget Guard expectations to provider-facing lanes.
-For provider-facing pricing, quality comparisons, estimates, or execution checks, also apply
-`../../skill-references/provider-quality-contract.md`.
+No-quota and provider/API boundary for `research_x`. This Skill decides whether a
+path may send provider/network requests or spend quota; it does not choose the
+architecture by itself and does not make provider output citation-ready.
 
-## Rules
+## Purpose
 
-- The no-quota provider freeze is active unless the user explicitly lifts it in the current
-  conversation.
-- Free-tier, trial-credit, and zero-dollar provider quota are still prohibited while frozen.
-- Estimates and coverage are allowed only when they do not send provider HTTP requests.
-- Fake/local providers and monkeypatched tests are allowed.
+- Prevent accidental provider/API/quota use while the no-quota freeze is active.
+- Separate fake/local implementation from real provider execution.
+- Require budget, pricing, and smallest-limit evidence before any approved
+  provider call.
+
+## Use When
+
+- Work may send HTTP requests to embedding, rerank, OCR, Reader, external search,
+  LLM, classifier, answer-engine, or managed-RAG providers.
+- A command, test, smoke check, estimate, or benchmark mentions provider pricing,
+  quota, API keys, free tier, trial credit, or `--allow-unpriced-api`.
+- A fake/local provider path could accidentally fall through to a real provider.
+
+## Do Not Use When
+
+- The task is purely local code editing and cannot send provider/network
+  requests.
+- The issue is source-bundle/citation integrity; use `research-x-memory-workflow`.
+- The issue is app/CLI visibility; use `research-x-observability-review`.
+- The issue is whether an architecture decision is justified; use
+  `research-x-decision-loop`.
+
+## Inputs
+
+- Provider, model, operation, command path, and environment variables involved.
+- Whether the path can send HTTP or consume free/paid/trial quota.
+- Current user approval state and project no-quota freeze state.
+- Fake/local/monkeypatched verification option.
+
+## Outputs
+
+- Gate status: `local_allowed`, `provider_gated`, `needs_budget_evidence`,
+  `approved_smallest_limit`, or `blocked`.
+- Skip reason, allowed local substitute, and required approval/evidence.
+- Budget guard and verification notes when provider use is explicitly approved.
+
+## Steps
+
+1. Identify provider, model, operation, command, and HTTP/quota risk.
+2. If the no-quota freeze is active, block real provider execution.
+3. Use fake/local providers, static inspection, monkeypatched tests, or offline
+   estimates where possible.
+4. If the user explicitly permits provider use in the current task, keep the API
+   Budget Guard enabled, run offline estimates first, start with the smallest
+   limit, and stop before the next provider call if pricing or quota evidence is
+   unclear.
+5. Record durable provider decisions only when they affect architecture,
+   command surface, or registry/source-lock state.
+
+## Safety Gates
+
+- The no-quota provider freeze is active unless the user explicitly lifts it in
+  the current conversation.
+- Free-tier, trial-credit, and zero-dollar quota are still prohibited while
+  frozen.
 - `--allow-unpriced-api` is disallowed while frozen.
+- Tests must monkeypatch provider calls unless the freeze is explicitly lifted.
+- Provider output is a candidate signal until restored to source bundles and
+  citations by the memory workflow.
 
-## Workflow
+## Negative Triggers
 
-1. Identify provider, model, operation, and whether the path can send HTTP.
-2. If quota is frozen, block real provider execution and use fake/local verification.
-3. If quota is explicitly permitted, keep API Budget Guard enabled, run offline estimates first,
-   start with the smallest limit, and stop before the next provider call if pricing, quota, or
-   budget evidence is unclear.
-4. Record provider decisions only as durable conclusions when they affect architecture or command
-   surface.
+- "Just a tiny smoke test" is still provider use.
+- "Free tier" is still provider/quota use.
+- "The API key is already configured" is not approval.
+- "Provider answer looks good" is not citation-ready evidence.
 
 ## Verification
 
-- Tests must monkeypatch provider calls.
-- Commands must not call Gemini, OpenAI, Voyage, Jina, Cohere, Mistral, Serper, Brave, or similar
-  services unless the freeze is explicitly lifted.
+- Confirm no command contacted Gemini, OpenAI, Voyage, Jina, Cohere, Mistral,
+  Serper, Brave, or similar services while frozen.
+- Confirm tests use fake/local/monkeypatched providers.
+- Confirm approved provider runs have budget guard, smallest limit, and stop
+  condition.

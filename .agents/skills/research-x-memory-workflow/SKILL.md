@@ -5,63 +5,101 @@ description: "Use when implementing or reviewing research_x memory-search pipeli
 
 # research-x Memory Workflow
 
-Use this skill for memory-search architecture or implementation work.
-`basic-memory-cli` handles the user's separate Basic Memory knowledge base; this skill governs the
-`research_x` X evidence pipeline and citation-ready memory workflow.
-For AI-callable local search, evidence review, or retrieval-quality outputs, also apply
-`../../skill-references/evidence-workflow-quality-contract.md` before promoting results to answers
-or durable decisions.
+Evidence pipeline owner for `research_x`. This Skill governs source restoration,
+context chunks, citations, retrieval/eval contracts, and AI-callable local search.
+It does not own personal Basic Memory, provider approval, or UI visibility
+implementation beyond requiring traceable evidence state.
 
-## Source Files
+## Purpose
 
-- Read `docs/memory-pipeline-v2.md` for current architecture.
-- Read `PROJECT.md` for current milestone state and gates.
-- Read `README.md` only when public command surface or user-facing usage changes.
+- Keep the memory-search system Evidence/Source Bundle first.
+- Preserve restoration from every retrieval signal back to raw source and
+  citation-ready support.
+- Prevent generated labels, summaries, scores, media observations, and local
+  hashes from becoming evidence by accident.
+- Keep AI-callable answers bounded by evidence status and citations.
 
-## Invariants
+## Use When
 
-- Evidence / Source Bundle first.
-- ObjectiveRoutePolicy controls routes; it is not evidence.
-- Generated labels, summaries, query transforms, media roles, observations, and scores are hints
-  until promoted through evidence contracts.
-- `raw source != searchable document != search result != context chunk != citation != answer`.
+- Work touches source bundles, context chunks, citations, retrieval strategy,
+  OCR/media evidence preparation, evals, workflow traces, or AI-callable local
+  search.
+- Architecture changes could alter the evidence pipeline or restoration path.
+- A result needs to move from candidate signal to citation-ready support.
+
+## Do Not Use When
+
+- The user asks to remember or recall personal Codex notes; use
+  `basic-memory-cli`.
+- The issue is provider/API/quota permission; use `research-x-provider-gate`.
+- The issue is app/CLI/run-state visibility; use
+  `research-x-observability-review`.
+- The issue is prompt/tool-boundary text; use `research-x-prompt-contract`.
+- The work is only visual output planning; use the `.codex` publishing
+  illustration helper.
+
+## Inputs
+
+- Current architecture docs, especially `docs/memory-pipeline-v2.md`.
+- Source bundle, raw source, searchable document, context chunk, citation,
+  workflow trace, eval, or retrieval-route artifacts.
+- Provider gate state when provider-backed lanes are present.
+- Current milestone state from `PROJECT.md` when prioritizing work.
+
+## Outputs
+
+- Code/doc/test changes that preserve evidence boundaries.
+- Evidence status, citation-readiness, route/eval warnings, and restoration gaps.
+- Handoff requirements for provider gate, observability, prompt contract, or
+  publishing output when those owners are involved.
+
+## Steps
+
+1. Read `docs/memory-pipeline-v2.md` before changing architecture.
+2. Check `PROJECT.md` for current milestone state and gates.
+3. Keep source-bundle restoration central: every retrieval arm must return to
+   tweet, quote, media, author, bookmark account, URL, relation, time, and source
+   hash where applicable.
+4. Preserve no-spend/fake-first verification unless the user explicitly lifts
+   the provider freeze.
+5. Verify with explicit `uv` commands and scoped tests.
+
+## Safety Gates
+
 - Real provider APIs are gated by no-quota freeze and API Budget Guard.
 - Diagnostic `local_hash` embeddings are wiring checks only.
+- OCR/caption/VLM text must stay separate from raw media and corrected text until
+  promoted through citation-ready context chunks.
+- Contradictions must keep both source bundles; do not silently overwrite one
+  with another.
+- Forgetting must distinguish raw source, derived document, search projection,
+  context chunk, and tombstone policy.
 
-## Workflow
+## Negative Triggers
 
-1. Update the relevant Markdown source of truth before code when changing architecture.
-2. Keep source-bundle restoration central: every retrieval arm must return to tweet, quote, media,
-   author, bookmark account, URL, relation, time, and source hash where applicable.
-3. Preserve no-spend/fake-first verification unless the user explicitly lifts the provider freeze.
-4. Expose hidden run state through CLI/app traces when the user reports black-box behavior.
-5. Verify with explicit `uv` commands and commit/push scoped changes.
+- "Search result" is not a citation.
+- "Generated summary" is not source evidence.
+- "Raw media vector match" is only a candidate signal.
+- "Basic Memory found it" is not `research_x` evidence.
+- "Provider answered it" is not citation-ready without source restoration.
 
-## Harness And Retrieval Portfolio Eval
+## Verification
 
-- Treat retrieval arms as candidates until eval shows source-bundle restoration and citation
-  integrity.
-- Portfolio eval must report restoration rate, unsupported context chunks, route gaps, and
-  provider-gated lanes separately.
-- Harness changes must expose route decisions and failure modes through traceable CLI/app surfaces.
+- Confirm `raw source != searchable document != search result != context chunk
+  != citation != answer`.
+- Confirm retrieval/eval reports restoration rate, unsupported context chunks,
+  route gaps, and provider-gated lanes separately.
+- Confirm every promoted answer can return to source bundle and citation IDs.
+- Confirm provider-backed tests are fake/local or explicitly approved.
 
-## Contradiction, Forgetting, And Profile Governance
+## Boundaries
 
-- Inferred profile, preference, or memory-governance facts require source references.
-- Contradictions must keep both source bundles; do not silently overwrite one with another.
-- Forgetting must distinguish raw source, derived document, search projection, context chunk, and
-  tombstone policy.
-- Hosted or cross-project memory runtimes are architecture references only unless a separate privacy
-  and provider gate approves them.
-
-## Handoffs
-
-- From `research-x-research-intake`: accept only candidates with provenance, risk flags, and a
-  source-bundle restoration path.
-- To global `context-budget`: pass source pointers, hashes, trace paths, and evidence-critical
-  items that must not be destructively compressed; keep runtime offload behavior in
-  `ContextBudgetPolicy`.
-- To `research-x-prompt-contract`: require explicit source-bundle, provider, allowed-tool, and
-  forbidden-tool constraints for memory prompts.
-- To global `research-x-publishing-illustration`: provide claim/source maps only; generated visuals
-  are output artifacts, not evidence.
+- `research-x-research-intake` hands over only candidates with provenance, risk
+  flags, and a source-bundle restoration path.
+- `research-x-provider-gate` owns provider/API/quota permission.
+- `research-x-observability-review` owns app/CLI visibility of stored state.
+- `research-x-prompt-contract` owns prompt/tool contract text.
+- Global `context-budget` may receive source pointers, hashes, trace paths, and
+  evidence-critical items, but not replace evidence stores.
+- Global `research-x-publishing-illustration` may receive claim/source maps;
+  generated visuals remain output artifacts, not evidence.

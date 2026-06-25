@@ -51,7 +51,10 @@ def validate_skill_quality_audit(
         entries = []
 
     manifest_names = _manifest_names(manifest_path, errors)
-    foundation_names = _foundation_names(foundation_registry_path, errors)
+    foundation_names, foundation_surfaces = _foundation_registry_index(
+        foundation_registry_path,
+        errors,
+    )
 
     names: set[str] = set()
     active_research_x_names: set[str] = set()
@@ -75,6 +78,7 @@ def validate_skill_quality_audit(
             repo_root,
             manifest_names,
             foundation_names,
+            foundation_surfaces,
             active_research_x_names,
             errors,
         )
@@ -165,15 +169,24 @@ def _manifest_names(manifest_path: Path, errors: list[str]) -> set[str]:
     }
 
 
-def _foundation_names(registry_path: Path, errors: list[str]) -> set[str]:
+def _foundation_registry_index(
+    registry_path: Path,
+    errors: list[str],
+) -> tuple[set[str], set[str]]:
     if not registry_path.exists():
-        return set()
+        return set(), set()
     registry = load_toml(registry_path)
     entries = registry.get("candidates", [])
     if not isinstance(entries, list):
         errors.append("foundation registry candidates must be a list")
-        return set()
-    return {str(entry["name"]) for entry in entries if isinstance(entry, dict)}
+        return set(), set()
+    names = {str(entry["name"]) for entry in entries if isinstance(entry, dict)}
+    surfaces = {
+        str(entry["active_surface"]).replace("\\", "/")
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("active_surface")
+    }
+    return names, surfaces
 
 
 def _validate_entry(
@@ -184,6 +197,7 @@ def _validate_entry(
     repo_root: Path,
     manifest_names: set[str],
     foundation_names: set[str],
+    foundation_surfaces: set[str],
     active_research_x_names: set[str],
     errors: list[str],
 ) -> None:
@@ -220,9 +234,13 @@ def _validate_entry(
     elif owner.startswith("codex_foundation") and status.startswith("active"):
         if not path.is_absolute():
             errors.append(f"{name}: active codex foundation Skill path must be absolute")
+        registry_has_entry = (
+            name in foundation_names
+            or str(path).replace("\\", "/") in foundation_surfaces
+        )
         if (
             foundation_names
-            and name not in foundation_names
+            and not registry_has_entry
             and "bridge" not in profile_name
             and "bridge" not in decision
         ):
