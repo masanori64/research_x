@@ -65,16 +65,17 @@ permission.
 
 ## Current Tracker Rule
 
-Operational state, candidate bands, completed/blocked/closed status, planned and
-actual dates, artifact pointers, and remaining local gates live in:
+Current Source, Evidence, Retrieval-Eval, and Tool Interface layer work state,
+gates, artifact pointers, stop conditions, and next actions live in:
 
 ```text
 tools/wbs_viewer/projects/research-x-work-state.json
 ```
 
-Do not mirror that task state back into this file. If a gate, candidate, or phase
-state changes, update the WBS and only adjust this file when a top-level boundary or
-canonical pointer changes.
+Do not mirror that task state back into this file. Historical 35-item candidate
+intake, source-review prose, and Codex foundation work state do not belong in the
+current WBS. If a gate or layer state changes, update the WBS and only adjust this
+file when a top-level boundary or canonical pointer changes.
 
 ## Implementation Rules
 

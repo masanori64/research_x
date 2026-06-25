@@ -21,7 +21,7 @@ def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
     assert "single-file-wbs" in vendor_lock
     assert "v1.2.0" in vendor_lock
     assert "322895a23f49028b53ae8c8a1710d6db45cdf726" in vendor_lock
-    assert "Pinned local tool canary" in vendor_lock
+    assert "Pinned local WBS/progress visualization tool" in vendor_lock
     assert "No plugin, MCP, hook, provider, hosted service, or evidence promotion" in vendor_lock
 
 

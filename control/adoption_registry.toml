@@ -53,7 +53,7 @@ promotion_gate = "WBS tests prove rendered/state artifacts are not evidence or a
 stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
 provider_or_quota = false
 enabled = true
-notes = "Pinned local control artifact only."
+notes = "Pinned local control artifact for the current 4-layer WBS only; historical candidate lists stay outside current WBS."
 
 [[candidates]]
 name = "d2_marp_presentation_boundary"

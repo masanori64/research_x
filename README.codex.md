@@ -15,8 +15,9 @@ Read in this order:
    failure class.
 4. `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`: authoritative pointer/hash/restore
    index for offloaded Codex work context.
-5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when operational
-   state, candidate bands, dates, gates, or remaining work are needed.
+5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when current
+   Source/Evidence/Retrieval-Eval/Tool Interface layer state, gates, stop
+   conditions, or next actions are needed.
 6. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
    architecture boundary changes.
 7. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
@@ -111,17 +112,20 @@ provider-backed commands gated.
 - Operational state source: `tools/wbs_viewer/projects/research-x-work-state.json`
 - Codex foundation work-state archive:
   `C:/Users/maasa/.codex/foundation/work_state/research-x-codex-foundation-adjuncts.json`
+- Historical mixed WBS archive:
+  `C:/Users/maasa/.codex/foundation/work_state/research-x-pre-layer-wbs-archive-20260625.json`
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html`
 - Presentation generation flow:
   `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
-Use research_x WBS for project phase/candidate/gate/status data only. Use the
-Codex foundation work-state archive for externalized Skill lifecycle,
-self-improvement, and route-memory operational leaves. Use Route Memory for
-recurring operation-route success/failure selection. Use Pointer Map for
-path/hash/size/restore hints. Use D2 + Marp for presentation diagram and deck
-generation after the Stage 1 build-tool boundary is in place. Keep Markdown for
+Use research_x WBS only for current 4-layer runtime work state. Keep historical
+35-item consultation lists, candidate inventories, source-review prose, and Codex
+foundation tasks out of it. Use adoption/source-lock files for candidate
+decisions, the Codex foundation work-state archive for externalized Skill
+lifecycle/self-improvement/route-memory leaves, Route Memory for recurring
+operation-route success/failure selection, and Pointer Map for path/hash/size
+restore hints. D2 + Marp remains the presentation/deck boundary. Keep Markdown for
 durable reasons, invariants, stop conditions, and pointers.
 
 ## Repo Skills

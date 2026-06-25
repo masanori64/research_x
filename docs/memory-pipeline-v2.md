@@ -153,13 +153,14 @@ permission to call providers.
 ## WBS / Presentation / Pointer Boundary
 
 Work state belongs in `tools/wbs_viewer/projects/research-x-work-state.json`.
-WBS owns candidate lists, decision bands, status, dates, gates, owner surfaces,
-source candidate URLs, and artifact pointers. Notes must stay short and must not
-become source review prose or answer evidence. Codex foundation work state belongs
-outside this repository at
-`C:/Users/maasa/.codex/foundation/work_state/research-x-codex-foundation-adjuncts.json`;
-self-improvement, Skill lifecycle, route-memory, and session-operation work items
-must not reappear as active `research_x` WBS leaves.
+WBS owns only current Source, Evidence, Retrieval-Eval, and Tool Interface layer
+work state: status, gates, owner surfaces, artifact pointers, stop conditions, and
+next actions. It must not hold historical 35-item consultation lists, source-review
+prose, candidate inventories, or Codex foundation tasks. Historical mixed WBS state
+is archived outside the repo at
+`C:/Users/maasa/.codex/foundation/work_state/research-x-pre-layer-wbs-archive-20260625.json`;
+Codex foundation work state lives at
+`C:/Users/maasa/.codex/foundation/work_state/research-x-codex-foundation-adjuncts.json`.
 
 Presentation diagram and deck generation belongs to the D2 + Marp build-tool
 boundary described in
@@ -240,7 +241,8 @@ citations, or answer evidence.
   answers.
 - Obsolete decision history belongs in `docs/memory-pipeline-archive.md` only when
   future decisions need the rationale; otherwise Git history is sufficient.
-- Long task state belongs in WBS and long restore pointers belong in Pointer Map.
+- Current task state belongs in WBS and long restore pointers belong in Pointer
+  Map. Historical candidate lists and mixed work logs belong in external archives.
   Presentation diagrams must stay reproducible through the D2/Marp boundary and
   must not become evidence or architecture source of truth by themselves.
 
