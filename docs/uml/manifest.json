@@ -1,0 +1,108 @@
+{
+  "generated_by": "node scripts/uml/build-research-x-uml.mjs",
+  "purpose": "research_x SI事業者向けのUML説明図。スライドではなく単体SVG/PNG成果物。",
+  "selection_policy": [
+    "8種類はUse Case, Component, Package, Deployment, Class, Activity, State Machine, Sequenceを採用。",
+    "Object, Communication, Timing, Interaction Overview, Profile, Composite Structureは重複または過詳細のため除外。",
+    "全図はreview/presentation artifactであり、answer evidenceではない。"
+  ],
+  "selected": [
+    {
+      "file": "01-use-case",
+      "title": "UML Use Case: research_x利用者視点",
+      "reason": "採用: SI事業者が利用者・AI agent・承認者の責務を把握するため。",
+      "svg": "01-use-case.svg",
+      "png": "01-use-case.png"
+    },
+    {
+      "file": "02-component",
+      "title": "UML Component: 主要実装部品",
+      "reason": "採用: 実装分担・レビュー境界をC4より一段詳しく示すため。",
+      "svg": "02-component.svg",
+      "png": "02-component.png"
+    },
+    {
+      "file": "03-package",
+      "title": "UML Package: コード配置と依存",
+      "reason": "採用: SI事業者が最初に読むpackage境界を示すため。",
+      "svg": "03-package.svg",
+      "png": "03-package.png"
+    },
+    {
+      "file": "04-deployment",
+      "title": "UML Deployment: 実行配置",
+      "reason": "採用: ローカル実行・秘密情報・外部Providerゲートを明確化するため。",
+      "svg": "04-deployment.svg",
+      "png": "04-deployment.png"
+    },
+    {
+      "file": "05-class-core",
+      "title": "UML Class: 中核データ構造",
+      "reason": "採用: 実装レビューで型・永続化・workflow traceの対応を確認するため。",
+      "svg": "05-class-core.svg",
+      "png": "05-class-core.png"
+    },
+    {
+      "file": "06-activity-acquisition",
+      "title": "UML Activity: 取得から共有Storeまで",
+      "reason": "採用: provider chainと失敗分類の運用フローを説明するため。",
+      "svg": "06-activity-acquisition.svg",
+      "png": "06-activity-acquisition.png"
+    },
+    {
+      "file": "07-state-workflow",
+      "title": "UML State Machine: Memory Workflow",
+      "reason": "採用: stop_reasonとprovider gateで止まる状態を説明するため。",
+      "svg": "07-state-workflow.svg",
+      "png": "07-state-workflow.png"
+    },
+    {
+      "file": "08-sequence-memory-query",
+      "title": "UML Sequence: Memory query",
+      "reason": "採用: 1回の問い合わせでどの部品が順に動くかを示すため。",
+      "svg": "08-sequence-memory-query.svg",
+      "png": "08-sequence-memory-query.png"
+    }
+  ],
+  "excluded": [
+    {
+      "type": "Object",
+      "reason": "特定時点のインスタンス状態は現段階のSI説明ではClass/DB表で足りる。"
+    },
+    {
+      "type": "Communication",
+      "reason": "Sequence diagramと情報が重複し、読み手の負荷が増える。"
+    },
+    {
+      "type": "Timing",
+      "reason": "時間制約やリアルタイム挙動が主要論点ではない。"
+    },
+    {
+      "type": "Interaction Overview",
+      "reason": "Activity + Sequenceで十分に説明できる。"
+    },
+    {
+      "type": "Profile",
+      "reason": "UML拡張メタモデルは今回の引き継ぎ範囲外。"
+    },
+    {
+      "type": "Composite Structure",
+      "reason": "内部部品構成はComponent diagramで十分。"
+    }
+  ],
+  "web_sources": [
+    "https://www.omg.org/spec/UML/2.5.1/About-UML",
+    "https://www.uml-diagrams.org/uml-25-diagrams.html",
+    "https://plantuml.com/",
+    "https://www.atlassian.com/work-management/project-management/uml-diagram"
+  ],
+  "local_sources": [
+    "README.codex.md",
+    "docs/memory-pipeline-v2.md",
+    "docs/pipeline.md",
+    "src/research_x/pipeline.py",
+    "src/research_x/x_store.py",
+    "src/research_x/memory/schema.py",
+    "src/research_x/memory/workflow.py"
+  ]
+}
