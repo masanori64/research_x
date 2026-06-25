@@ -29,16 +29,9 @@ REQUIRED_ENTRY_FIELDS = {
 }
 VALID_ENTRY_TYPES = {
     "repo_skill",
-    "third_party_skill_candidate",
-    "reference_source",
-    "connector_candidate",
-    "provider_candidate",
-    "tool_candidate",
-    "rejected_source",
 }
 VALID_RISKS = {"low", "medium", "high"}
 VALID_ALLOWED_SCRIPTS = {"repo_policy", "disabled", "reviewed_only"}
-UNPINNED_VALUES = {"", "TBD", "TBD_PINNED_COMMIT", "latest", "main", "master"}
 SOURCE_REF_RE = re.compile(r"^(repo|docs|S\d{2})$")
 
 
@@ -77,7 +70,6 @@ def validate_manifest(
     names: set[str] = set()
     source_refs: set[str] = set()
     repo_skill_count = 0
-    enabled_external = []
     for index, entry in enumerate(entries, start=1):
         if not isinstance(entry, dict):
             errors.append(f"entry {index}: must be a table")
@@ -97,41 +89,21 @@ def validate_manifest(
             repo_skill_count += 1
             _validate_repo_skill(name, entry, repo_root, errors)
         else:
-            if bool(entry["enabled"]):
-                enabled_external.append(name)
-            _validate_external_entry(name, entry, policy, errors)
+            errors.append(
+                f"{name}: non-repo entries belong in control/vendor_sources.lock.md, "
+                "not .codex/skill_manifest.lock"
+            )
 
     if repo_skill_count == 0:
         errors.append("manifest must include repo-local skills")
-    if enabled_external:
-        errors.append(
-            "external entries must remain disabled until reviewed: "
-            + ", ".join(sorted(enabled_external))
-        )
     if source_lock_path is not None:
         _validate_source_lock(source_lock_path, source_refs, errors)
     return errors
 
 
 def _validate_policy(policy: dict[str, Any], errors: list[str]) -> None:
-    expected_false = {
-        "default_external_enabled",
-        "connector_global_enabled_allowed",
-        "provider_quota_calls_allowed",
-        "bulk_install_allowed",
-        "auto_merge_guidance_allowed",
-    }
-    expected_true = {
-        "require_commit_pin_for_external_enabled",
-        "require_human_review_for_external_enabled",
-        "require_negative_trigger_tests_for_external_enabled",
-    }
-    for key in expected_false:
-        if policy.get(key) is not False:
-            errors.append(f"policy.{key} must be false")
-    for key in expected_true:
-        if policy.get(key) is not True:
-            errors.append(f"policy.{key} must be true")
+    if policy.get("external_entries_allowed") is not False:
+        errors.append("policy.external_entries_allowed must be false")
     if policy.get("repo_skills_path") != ".agents/skills":
         errors.append("policy.repo_skills_path must be .agents/skills")
 
@@ -180,35 +152,6 @@ def _validate_repo_skill(
             f"{name}: SKILL.md frontmatter name mismatch "
             f"(manifest={name!r}, skill={declared_name!r})"
         )
-
-
-def _validate_external_entry(
-    name: str,
-    entry: dict[str, Any],
-    policy: dict[str, Any],
-    errors: list[str],
-) -> None:
-    if bool(entry["enabled"]):
-        if policy.get("default_external_enabled") is not False:
-            errors.append(f"{name}: external enabling requires default_external_enabled=false")
-        if str(entry["commit"]) in UNPINNED_VALUES:
-            errors.append(f"{name}: enabled external entry requires a pinned commit")
-        if str(entry["review_status"]) not in {"approved", "repo_owned"}:
-            errors.append(f"{name}: enabled external entry requires approved review_status")
-        if str(entry["negative_trigger_tests"]) != "present":
-            errors.append(f"{name}: enabled external entry requires negative_trigger_tests=present")
-    else:
-        if entry["implicit_invocation"]:
-            errors.append(f"{name}: disabled external entries cannot have implicit_invocation=true")
-    if entry["entry_type"] == "connector_candidate" and bool(entry["enabled"]):
-        errors.append(f"{name}: connector candidates cannot be enabled globally")
-    if entry["entry_type"] == "provider_candidate" and bool(entry["enabled"]):
-        errors.append(f"{name}: provider candidates cannot be enabled during no-quota freeze")
-    if entry["entry_type"] == "rejected_source":
-        if bool(entry["enabled"]):
-            errors.append(f"{name}: rejected_source entries must be disabled")
-        if str(entry["review_status"]) != "rejected":
-            errors.append(f"{name}: rejected_source review_status must be rejected")
 
 
 def _validate_source_lock(

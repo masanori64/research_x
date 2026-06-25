@@ -2,9 +2,9 @@
 
 Created: 2026-06-10
 
-This lock records source decisions used by `.codex/skill_manifest.lock`. It is a review artifact,
-not permission to install, clone, enable, or call any third-party Skill, connector, provider, or
-tool.
+This lock records external source and candidate decisions for `research_x`. It is a review
+artifact, not permission to install, clone, enable, or call any third-party Skill, connector,
+provider, or tool.
 
 ## Policy
 
@@ -26,7 +26,7 @@ tool.
 
 ## Locked Sources
 
-| Ref | Manifest entry | Source | Locked decision |
+| Ref | Candidate | Source | Locked decision |
 |---|---|---|---|
 | repo | `research-x-*` repo Skills | `.agents/skills/*/SKILL.md` | Enabled repo-local only. |
 | S08 | `headroom` | https://github.com/chopratejas/headroom | Disabled; security/local-dependency gate. |

@@ -69,15 +69,30 @@ def test_new_repo_skills_are_manifested_and_complete() -> None:
         assert "allow_implicit_invocation: true" in agent_text
 
 
-def test_external_enabled_requires_pin_review_and_negative_tests(tmp_path: Path) -> None:
+def test_external_candidates_do_not_belong_in_skill_manifest(tmp_path: Path) -> None:
     validator = _load_validator()
     manifest = tmp_path / "skill_manifest.lock"
     source_lock = tmp_path / "vendor_sources.lock.md"
     shutil.copy2(REPO_ROOT / ".codex" / "skill_manifest.lock", manifest)
     shutil.copy2(REPO_ROOT / "control" / "vendor_sources.lock.md", source_lock)
-    text = manifest.read_text(encoding="utf-8")
-    text = text.replace('enabled = false', 'enabled = true', 9)
-    text = text.replace('implicit_invocation = false', 'implicit_invocation = true', 1)
+    text = manifest.read_text(encoding="utf-8") + """
+
+[[entries]]
+name = "external-example"
+entry_type = "third_party_skill_candidate"
+source = "https://example.invalid/skill"
+source_ref = "S11"
+scope = "global_optional"
+decision = "review_then_optional"
+enabled = false
+implicit_invocation = false
+review_status = "unreviewed"
+risk = "medium"
+allowed_scripts = "disabled"
+commit = "TBD_PINNED_COMMIT"
+negative_trigger_tests = "required_before_enable"
+notes = "External candidates belong in the source lock, not the repo Skill manifest."
+"""
     manifest.write_text(text, encoding="utf-8")
 
     errors = validator.validate_manifest(
@@ -87,9 +102,7 @@ def test_external_enabled_requires_pin_review_and_negative_tests(tmp_path: Path)
     )
 
     joined = "\n".join(errors)
-    assert "enabled external entry requires a pinned commit" in joined
-    assert "enabled external entry requires approved review_status" in joined
-    assert "enabled external entry requires negative_trigger_tests=present" in joined
+    assert "non-repo entries belong in control/vendor_sources.lock.md" in joined
 
 
 def test_repo_skill_path_and_frontmatter_are_checked(tmp_path: Path) -> None:

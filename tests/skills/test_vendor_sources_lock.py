@@ -8,56 +8,37 @@ UNPINNED_VALUES = {"", "TBD", "TBD_PINNED_COMMIT", "latest", "main", "master"}
 
 def test_vendor_lock_keeps_external_sources_disabled_or_reference_only() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
-    entries = manifest["entries"]
-    external_entries = [entry for entry in entries if entry["entry_type"] != "repo_skill"]
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
-    assert external_entries
-    assert all(entry["enabled"] is False for entry in external_entries)
-    assert all(entry["implicit_invocation"] is False for entry in external_entries)
+    assert all(entry["entry_type"] == "repo_skill" for entry in manifest["entries"])
+    assert "Third-party Skills and tools are disabled" in vendor_lock
+    assert "Reference only" in vendor_lock
 
 
 def test_ian_xiaohei_is_creative_optional_not_evidence_or_enabled() -> None:
-    manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
-    entry = next(
-        entry for entry in manifest["entries"] if entry["name"] == "ian-xiaohei-illustrations"
-    )
     vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
-    assert entry["enabled"] is False
-    assert entry["scope"] == "creative_optional"
-    assert entry["decision"] == "not_research_x_core"
-    assert entry["review_status"] == "pinned_license_checked"
-    assert entry["commit"] == "686575741a61e2c0be5e4c6d3615ebf6217dd322"
+    assert "ian-xiaohei-illustrations" in vendor_lock
+    assert "686575741a61e2c0be5e4c6d3615ebf6217dd322" in vendor_lock
     assert "not research_x core or evidence" in vendor_lock
     assert "no image generation without gate" in vendor_lock
     assert "v1.0.0" in vendor_lock
 
 
 def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
-    manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
-    entry = next(entry for entry in manifest["entries"] if entry["name"] == "superpowers")
     vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
-    assert entry["enabled"] is False
-    assert entry["implicit_invocation"] is False
-    assert entry["review_status"] == "pinned_license_checked"
-    assert entry["commit"] == "f2cbfbefebbfef77321e4c9abc9e949826bea9d7"
-    assert entry["negative_trigger_tests"] == "required_before_enable"
+    assert "superpowers" in vendor_lock
+    assert "f2cbfbefebbfef77321e4c9abc9e949826bea9d7" in vendor_lock
+    assert "Disabled; review then optional" in vendor_lock
     assert "no full source/script/hook audit yet" in vendor_lock
 
 
 def test_agentmemory_is_pinned_but_disabled_until_hook_and_retention_review() -> None:
-    manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
-    entry = next(entry for entry in manifest["entries"] if entry["name"] == "agentmemory")
     vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
-    assert entry["enabled"] is False
-    assert entry["implicit_invocation"] is False
-    assert entry["review_status"] == "pinned_license_surface_checked"
-    assert entry["risk"] == "high"
-    assert entry["commit"] == "25158519d5d68b9060a97ba5bdcccc3e1aba6d79"
-    assert entry["allowed_scripts"] == "disabled"
-    assert entry["negative_trigger_tests"] == "required_before_enable"
+    assert "agentmemory" in vendor_lock
+    assert "25158519d5d68b9060a97ba5bdcccc3e1aba6d79" in vendor_lock
     assert "source-review-required" in vendor_lock
     assert "hook/MCP/auto-capture" in vendor_lock
     assert "no install now" in vendor_lock
@@ -86,20 +67,14 @@ def test_retired_diagram_tool_is_reference_only_after_decommission() -> None:
     assert "D2/Marp boundary" in vendor_lock
 
 
-def test_unpinned_external_entries_are_not_enabled_or_approved() -> None:
+def test_unpinned_external_candidates_stay_in_source_lock_not_manifest() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
-    entries = manifest["entries"]
-    unpinned_external_entries = [
-        entry
-        for entry in entries
-        if entry["entry_type"] != "repo_skill" and str(entry["commit"]) in UNPINNED_VALUES
-    ]
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
-    assert unpinned_external_entries
-    for entry in unpinned_external_entries:
-        assert entry["enabled"] is False, entry["name"]
-        assert entry["implicit_invocation"] is False, entry["name"]
-        assert entry["review_status"] != "approved", entry["name"]
+    assert all(entry["entry_type"] == "repo_skill" for entry in manifest["entries"])
+    assert "superclaude-framework" in vendor_lock
+    assert "minimax-skills" in vendor_lock
+    assert "Reference only" in vendor_lock or "Disabled" in vendor_lock
 
 
 def test_vendor_lock_is_not_install_permission() -> None:
