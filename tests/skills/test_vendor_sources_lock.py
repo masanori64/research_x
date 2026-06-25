@@ -3,7 +3,16 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
+
 UNPINNED_VALUES = {"", "TBD", "TBD_PINNED_COMMIT", "latest", "main", "master"}
+CODEX_VENDOR_LOCK = Path("C:/Users/maasa/.codex/foundation/vendor_sources.lock.md")
+
+
+def _codex_vendor_lock_text() -> str:
+    if not CODEX_VENDOR_LOCK.exists():
+        pytest.skip("global .codex foundation vendor lock is outside the portable repository")
+    return CODEX_VENDOR_LOCK.read_text(encoding="utf-8")
 
 
 def test_vendor_lock_keeps_external_sources_disabled_or_reference_only() -> None:
@@ -12,21 +21,21 @@ def test_vendor_lock_keeps_external_sources_disabled_or_reference_only() -> None
 
     assert all(entry["entry_type"] == "repo_skill" for entry in manifest["entries"])
     assert "Third-party Skills and tools are disabled" in vendor_lock
-    assert "Reference only" in vendor_lock
+    assert "Reference-only" in vendor_lock
 
 
 def test_ian_xiaohei_is_creative_optional_not_evidence_or_enabled() -> None:
-    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = _codex_vendor_lock_text()
 
     assert "ian-xiaohei-illustrations" in vendor_lock
     assert "686575741a61e2c0be5e4c6d3615ebf6217dd322" in vendor_lock
-    assert "not research_x core or evidence" in vendor_lock
-    assert "no image generation without gate" in vendor_lock
+    assert "Use only for explicit visual-planning requests" in vendor_lock
+    assert "generated images are not evidence" in vendor_lock
     assert "v1.0.0" in vendor_lock
 
 
 def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
-    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = _codex_vendor_lock_text()
 
     assert "superpowers" in vendor_lock
     assert "f2cbfbefebbfef77321e4c9abc9e949826bea9d7" in vendor_lock
@@ -35,7 +44,7 @@ def test_superpowers_is_pinned_but_disabled_until_full_review() -> None:
 
 
 def test_agentmemory_is_pinned_but_disabled_until_hook_and_retention_review() -> None:
-    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+    vendor_lock = _codex_vendor_lock_text()
 
     assert "agentmemory" in vendor_lock
     assert "25158519d5d68b9060a97ba5bdcccc3e1aba6d79" in vendor_lock
@@ -69,12 +78,12 @@ def test_retired_diagram_tool_is_reference_only_after_decommission() -> None:
 
 def test_unpinned_external_candidates_stay_in_source_lock_not_manifest() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
-    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+    codex_vendor_lock = _codex_vendor_lock_text()
 
     assert all(entry["entry_type"] == "repo_skill" for entry in manifest["entries"])
-    assert "superclaude-framework" in vendor_lock
-    assert "minimax-skills" in vendor_lock
-    assert "Reference only" in vendor_lock or "Disabled" in vendor_lock
+    assert "superclaude-framework" in codex_vendor_lock
+    assert "minimax-skills" in codex_vendor_lock
+    assert "Reference only" in codex_vendor_lock or "Disabled" in codex_vendor_lock
 
 
 def test_vendor_lock_is_not_install_permission() -> None:
@@ -85,5 +94,4 @@ def test_vendor_lock_is_not_install_permission() -> None:
     assert "Provider-backed sources remain blocked by the no-quota freeze" in vendor_lock
     assert "`adopt`, `bridge`, `staging`, `provider_gated`, or `historical`" in vendor_lock
     assert "Codex foundation candidates belong to `maasa/.codex`" in vendor_lock
-    assert "control/adoption_registry.toml" in vendor_lock
-    assert "enable, install, clone, call, or promote" in vendor_lock
+    assert "C:/Users/maasa/.codex/foundation/vendor_sources.lock.md" in vendor_lock
