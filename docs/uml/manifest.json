@@ -1,65 +1,71 @@
 {
   "generated_by": "node scripts/uml/build-research-x-uml.mjs",
-  "purpose": "research_x SI事業者向けのUML説明図。スライドではなく単体SVG/PNG成果物。",
+  "purpose": "research_x全体の仕組みを日本語で確認するためのUML説明図。単体SVG/PNG成果物であり、回答根拠ではない。",
+  "created_for": "プロジェクト全体UML図の一からの作り直し",
+  "route_applied": [
+    "research-x-implementation-plan-flow: 計画作成ではなく、入力境界・ローカル優先・停止ゲート・完了条件の確認に使用。",
+    "ian-xiaohei-illustrations: 図の視覚設計メモとして追加使用。画像生成や証拠扱いはしない。"
+  ],
   "selection_policy": [
-    "8種類はUse Case, Component, Package, Deployment, Class, Activity, State Machine, Sequenceを採用。",
-    "Object, Communication, Timing, Interaction Overview, Profile, Composite Structureは重複または過詳細のため除外。",
-    "全図はreview/presentation artifactであり、answer evidenceではない。"
+    "採用: ユースケース、コンポーネント、パッケージ、配置、クラス、アクティビティ、状態機械、シーケンスの8種類。",
+    "目的: 利用場面、責務、コード配置、実行境界、データ構造、取得手順、実行状態、問い合わせ順序を別々に確認する。",
+    "全図は確認・発表用の成果物であり、ソース束、文脈チャンク、引用、回答根拠ではない。",
+    "外部API、読取、埋め込み、再順位付け、生成AI、外部検索の実行許可を図から与えない。"
   ],
   "selected": [
     {
       "file": "01-use-case",
-      "title": "UML Use Case: research_x利用者視点",
-      "reason": "採用: SI事業者が利用者・AI agent・承認者の責務を把握するため。",
+      "title": "UMLユースケース図：research_x の利用場面",
+      "reason": "採用: 利用者、AIエージェント、開発者、承認者の責務を1枚で確認するため。",
       "svg": "01-use-case.svg",
       "png": "01-use-case.png"
     },
     {
       "file": "02-component",
-      "title": "UML Component: 主要実装部品",
-      "reason": "採用: 実装分担・レビュー境界をC4より一段詳しく示すため。",
+      "title": "UMLコンポーネント図：主要部品と責務境界",
+      "reason": "採用: 実装部品、保存境界、外部APIゲート、確認成果物の関係を俯瞰するため。",
       "svg": "02-component.svg",
       "png": "02-component.png"
     },
     {
       "file": "03-package",
-      "title": "UML Package: コード配置と依存",
-      "reason": "採用: SI事業者が最初に読むpackage境界を示すため。",
+      "title": "UMLパッケージ図：コード配置と依存の読み順",
+      "reason": "採用: 初見でどのPython/Node領域を読めばよいかを示すため。",
       "svg": "03-package.svg",
       "png": "03-package.png"
     },
     {
       "file": "04-deployment",
-      "title": "UML Deployment: 実行配置",
-      "reason": "採用: ローカル実行・秘密情報・外部Providerゲートを明確化するため。",
+      "title": "UML配置図：ローカル実行と外部ゲート",
+      "reason": "採用: ローカルファイル、データベース、ブラウザ、外部APIの実行境界を明確にするため。",
       "svg": "04-deployment.svg",
       "png": "04-deployment.png"
     },
     {
       "file": "05-class-core",
-      "title": "UML Class: 中核データ構造",
-      "reason": "採用: 実装レビューで型・永続化・workflow traceの対応を確認するため。",
+      "title": "UMLクラス図：中核データと証拠オブジェクト",
+      "reason": "採用: 型、データベース投影、ソース復元、文脈、引用、回答の対応を確認するため。",
       "svg": "05-class-core.svg",
       "png": "05-class-core.png"
     },
     {
       "file": "06-activity-acquisition",
-      "title": "UML Activity: 取得から共有Storeまで",
-      "reason": "採用: provider chainと失敗分類の運用フローを説明するため。",
+      "title": "UMLアクティビティ図：X取得から共有保存まで",
+      "reason": "採用: 取得部品の順序、失敗分類、保存、次段の記憶構築への接続を確認するため。",
       "svg": "06-activity-acquisition.svg",
       "png": "06-activity-acquisition.png"
     },
     {
       "file": "07-state-workflow",
-      "title": "UML State Machine: Memory Workflow",
-      "reason": "採用: stop_reasonとprovider gateで止まる状態を説明するため。",
+      "title": "UML状態機械図：メモリ実行履歴の停止理由",
+      "reason": "採用: 外部APIゲート、引用不足、レビュー待ち、成功状態を明確にするため。",
       "svg": "07-state-workflow.svg",
       "png": "07-state-workflow.png"
     },
     {
       "file": "08-sequence-memory-query",
-      "title": "UML Sequence: Memory query",
-      "reason": "採用: 1回の問い合わせでどの部品が順に動くかを示すため。",
+      "title": "UMLシーケンス図：1回のメモリ検索",
+      "reason": "採用: 問い合わせ1回でコマンド入口、実行履歴、検索、データベース、予算ガードがどう連動するかを見るため。",
       "svg": "08-sequence-memory-query.svg",
       "png": "08-sequence-memory-query.png"
     }
@@ -67,42 +73,49 @@
   "excluded": [
     {
       "type": "Object",
-      "reason": "特定時点のインスタンス状態は現段階のSI説明ではClass/DB表で足りる。"
+      "reason": "特定時点のインスタンス例は現段階ではクラス図とDB表の説明で足りる。"
     },
     {
       "type": "Communication",
-      "reason": "Sequence diagramと情報が重複し、読み手の負荷が増える。"
+      "reason": "シーケンス図と重複し、部品間メッセージの理解に追加価値が少ない。"
     },
     {
       "type": "Timing",
-      "reason": "時間制約やリアルタイム挙動が主要論点ではない。"
+      "reason": "リアルタイム制約よりも証拠境界と停止理由が主要論点。"
     },
     {
       "type": "Interaction Overview",
-      "reason": "Activity + Sequenceで十分に説明できる。"
+      "reason": "アクティビティ図とシーケンス図で十分に分解できる。"
     },
     {
       "type": "Profile",
-      "reason": "UML拡張メタモデルは今回の引き継ぎ範囲外。"
+      "reason": "UML拡張メタモデルはこの確認成果物の範囲外。"
     },
     {
       "type": "Composite Structure",
-      "reason": "内部部品構成はComponent diagramで十分。"
+      "reason": "内部部品構造はコンポーネント図で十分に確認できる。"
     }
   ],
-  "web_sources": [
-    "https://www.omg.org/spec/UML/2.5.1/About-UML",
-    "https://www.uml-diagrams.org/uml-25-diagrams.html",
-    "https://plantuml.com/",
-    "https://www.atlassian.com/work-management/project-management/uml-diagram"
-  ],
+  "xiaohei_visual_brief": {
+    "concept": "証拠の階段、赤い外部ゲート、ローカル作業台を反復モチーフにし、UMLでも説明図として読める密度にする。",
+    "shot_list": [
+      "生ソースから回答までを同一物扱いしない階段構図",
+      "外部APIを赤い門として表示し、承認なしには通過しない構図",
+      "ローカルPC上のデータベース・ファイル・ブラウザ・図表生成を1つの作業台として見せる構図"
+    ],
+    "evidence_boundary": "この視覚メモは説明補助であり、生成画像・図・目録を引用や回答根拠として扱わない。"
+  },
   "local_sources": [
     "README.codex.md",
+    "PROJECT.md",
     "docs/memory-pipeline-v2.md",
     "docs/pipeline.md",
+    "src/research_x/contracts.py",
     "src/research_x/pipeline.py",
     "src/research_x/x_store.py",
     "src/research_x/memory/schema.py",
+    "src/research_x/memory/context.py",
+    "src/research_x/memory/answer.py",
     "src/research_x/memory/workflow.py"
   ]
 }
