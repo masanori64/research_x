@@ -1,7 +1,7 @@
 interface:
   display_name: "research_x Implementation Plan Flow"
-  short_description: "Turn GPT/X/source-candidate reviews into gated local-first implementation priority flows."
-  default_prompt: "Use this when converting GPT Pro/X URL analysis, source-intake results, candidate matrices, deferred-item reviews, or project-usability reviews into a reproducible research_x implementation-priority flow with phases, gates, stop conditions, and local-first execution order."
+  short_description: "Turn research_x candidate sets into gated local-first implementation priority flows."
+  default_prompt: "Use this when checking or converting source-intake results, candidate matrices, deferred-item reviews, WBS groups, or project-usability reviews into a reproducible research_x implementation-priority flow with owner surfaces, gates, stop conditions, and local verification."
 
 policy:
   allow_implicit_invocation: true
