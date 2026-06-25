@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-REGISTRY = Path(".codex/route_memory/route-memory.json")
+REGISTRY = Path("C:/Users/maasa/.codex/route_memory/route-memory.json")
 
 
 def _zip_upload_route() -> dict[str, object]:

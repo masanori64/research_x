@@ -38,8 +38,8 @@ def test_pointer_map_covers_canonical_wbs_presentation_plan_and_gpt_pro_input() 
     retired_svg_kind = "pdg" + "_svg"
 
     assert "tools/wbs_viewer/projects/research-x-work-state.json" in paths
-    assert ".codex/route_memory/route-memory.json" in paths
-    assert ".codex/route_memory/route-memory.schema.json" in paths
+    assert "C:/Users/maasa/.codex/route_memory/route-memory.json" in paths
+    assert "C:/Users/maasa/.codex/route_memory/route-memory.schema.json" in paths
     assert (
         ".codex/implementation-plans/2026-06-24-presentation-generation-flow.md"
         in paths

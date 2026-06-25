@@ -10,7 +10,7 @@ def test_agents_has_route_memory_preflight_dispatcher_without_permission_grant()
     normalized = " ".join(text.split())
 
     assert "Route Memory Preflight" in text
-    assert ".codex/route_memory/route-memory.json" in text
+    assert "C:/Users/maasa/.codex/route_memory/route-memory.json" in text
     assert "known failed" in text
     assert "canonical first action" in text
     assert "Prefer a matching canonical first action over rediscovery" in normalized

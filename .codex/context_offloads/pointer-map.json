@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "01c56c0ca5e68f0917eef425ec064653361e38139e258b1db61b5e6e694cf55d",
-      "char_count": 92502,
-      "byte_count": 92502,
+      "sha256": "4b4cfb7b26162bdedbf5d868f39ef13c47f463754ae2f60c11b44ddbf3c233cb",
+      "char_count": 92539,
+      "byte_count": 92539,
       "not_evidence": true
     },
     {
@@ -148,7 +148,7 @@
     },
     {
       "pointer_id": "route_memory_registry",
-      "artifact_path": ".codex/route_memory/route-memory.json",
+      "artifact_path": "C:/Users/maasa/.codex/route_memory/route-memory.json",
       "artifact_kind": "route_memory_registry",
       "owner_plane": "operation_route_memory",
       "restore_hint": "Local registry for recurring operation-route success/failure selection. Read during Route Memory Preflight; not evidence or permission.",
@@ -159,13 +159,13 @@
     },
     {
       "pointer_id": "route_memory_registry_schema",
-      "artifact_path": ".codex/route_memory/route-memory.schema.json",
+      "artifact_path": "C:/Users/maasa/.codex/route_memory/route-memory.schema.json",
       "artifact_kind": "json_schema",
       "owner_plane": "operation_route_memory",
       "restore_hint": "Schema for route-memory.json control-plane entries; not evidence or permission.",
-      "sha256": "8a2fbaa41648ec953e73d1a0f06100914911fb8e2d59028961f594cda435a020",
-      "char_count": 2955,
-      "byte_count": 2955,
+      "sha256": "5da6778ea510e46d25be336b164e5f5d5190122a377a4e51f6ac967e4acc8f1a",
+      "char_count": 2945,
+      "byte_count": 2945,
       "not_evidence": true
     }
   ]

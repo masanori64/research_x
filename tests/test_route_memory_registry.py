@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-REGISTRY = Path(".codex/route_memory/route-memory.json")
-SCHEMA = Path(".codex/route_memory/route-memory.schema.json")
+REGISTRY = Path("C:/Users/maasa/.codex/route_memory/route-memory.json")
+SCHEMA = Path("C:/Users/maasa/.codex/route_memory/route-memory.schema.json")
 POINTER_MAP = Path(".codex/context_offloads/pointer-map.json")
 
 
@@ -29,6 +29,7 @@ def test_route_memory_registry_has_required_control_plane_shape() -> None:
         for entry in json.loads(POINTER_MAP.read_text(encoding="utf-8"))["entries"]
     }
 
+    assert schema["title"] == "Codex Route Memory Registry"
     assert data["schema_version"] == schema["properties"]["schema_version"]["const"] == 1
     assert data["not_evidence"] is True
     assert REGISTRY.as_posix() in pointer_paths

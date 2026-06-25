@@ -154,7 +154,7 @@ def test_route_memory_preflight_is_codex_foundation_state_not_evidence() -> None
     assert meta["decision_band"] == "project_state"
     assert meta["gate"] == "route_memory_preflight_no_provider_no_network_by_default"
     assert meta["status"] == "complete"
-    assert meta["artifact_pointer"] == ".codex/route_memory/route-memory.json"
-    assert meta["owner_doc"] == "AGENTS.md"
+    assert meta["artifact_pointer"] == "C:/Users/maasa/.codex/route_memory/route-memory.json"
+    assert meta["owner_doc"] == "C:/Users/maasa/.codex/AGENTS.md"
     assert meta["evidence_status"] == "not_evidence"
     assert meta["answer_support_allowed"] is False

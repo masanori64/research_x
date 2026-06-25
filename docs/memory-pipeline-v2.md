@@ -141,7 +141,7 @@ The following artifacts are control, planning, review, or restore-index surfaces
 - generated diagram sources and rendered assets;
 - screenshots;
 - `.codex/context_offloads/pointer-map.json`;
-- `.codex/route_memory/route-memory.json`;
+- `C:/Users/maasa/.codex/route_memory/route-memory.json`;
 - ChatGPT/GPT Pro consultation captures;
 - sub-agent notes;
 - compressed summaries and previews.
@@ -190,7 +190,7 @@ is trusted for context restoration.
 Operation route memory belongs in:
 
 ```text
-.codex/route_memory/route-memory.json
+C:/Users/maasa/.codex/route_memory/route-memory.json
 ```
 
 Route Memory owns recurring operation-route fingerprints, positive and negative

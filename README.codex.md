@@ -10,7 +10,7 @@ Read in this order:
 1. `AGENTS.md`: mandatory rules, no-quota freeze, uv command policy, publish
    policy, notification, and native repo Skill dispatcher.
 2. `README.codex.md`: this compact orientation.
-3. `.codex/route_memory/route-memory.json`: only when choosing a recurring
+3. `C:/Users/maasa/.codex/route_memory/route-memory.json`: only when choosing a recurring
    browser/upload/download/tool-bridge/provider/search route or avoiding a known
    failure class.
 4. `.codex/context_offloads/pointer-map.json`: authoritative pointer/hash/restore
@@ -111,7 +111,7 @@ provider-backed commands gated.
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html`
 - Presentation generation flow:
   `.codex/implementation-plans/2026-06-24-presentation-generation-flow.md`
-- Operation route memory: `.codex/route_memory/route-memory.json`
+- Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
 Use WBS for phase/candidate/gate/status data. Use Route Memory for recurring
 operation-route success/failure selection. Use Pointer Map for path/hash/size/

@@ -102,11 +102,11 @@ route detail: primary=<skill>; secondary=<skill(s)>; not selected=<skill: reason
 
 Before selecting an operation route for recurring browser, upload/download, tool-bridge, provider,
 external search, or previously seen failure classes, run Route Memory Preflight: check
-`.codex/route_memory/route-memory.json` for exact positive/negative trigger matches, known failed
-routes, the canonical first action, verification signals, and gates. Prefer a matching canonical
-first action over rediscovery. This registry is local control-plane memory only; it does not grant
-provider/API, network, browser, ChatGPT, MCP, connector, install, hook, destructive-action, or
-evidence permission.
+`C:/Users/maasa/.codex/route_memory/route-memory.json` for exact positive/negative trigger matches,
+known failed routes, the canonical first action, verification signals, and gates. Prefer a matching
+canonical first action over rediscovery. This registry is global Codex control-plane memory only; it
+does not grant provider/API, network, browser, ChatGPT, MCP, connector, install, hook,
+destructive-action, or evidence permission.
 
 If provider/API/quota, network, browser, GitHub write outside the Git Publish Policy, MCP,
 connector, or install actions are needed, stop before executing them and ask for explicit approval.

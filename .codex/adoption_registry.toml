@@ -488,6 +488,21 @@ enabled = false
 notes = "Covers Basic Memory, Agentmemory, Supermemory, Mem0, CORE, AutoMem, memoryOSS, memories.sh, and codex-memory."
 
 [[candidates]]
+name = "codex_route_memory"
+category = "codex_foundation_bridge"
+owner_surface = "codex_foundation"
+adoption_shape = "bridge"
+status = "external_owned"
+source_ref = "codex_foundation"
+source_url = "C:/Users/maasa/.codex/route_memory/route-memory.json"
+active_artifact = "C:/Users/maasa/.codex/route_memory/route-memory.json"
+first_local_step = "Use only as Codex operation-route memory before browser/upload/download/tool-bridge route selection."
+promotion_gate = "Route memory never grants provider, browser, ChatGPT, MCP, connector, install, hook, destructive-action, or evidence permission."
+provider_or_quota = false
+enabled = false
+notes = "Moved out of research_x because it is Codex control-plane memory, not an X evidence/search artifact."
+
+[[candidates]]
 name = "ian_xiaohei_illustrations"
 category = "codex_foundation_bridge"
 owner_surface = "codex_foundation"
