@@ -68,17 +68,29 @@ SI事業者側に期待する理解は、画面や単体機能ではなく、責
 | 検索 | 検索結果をいつ証拠として扱えるか |
 | 回答 | citation-readyでない場合にどう止めるか |
 | 運用 | provider/API/secretsを誰が承認するか |
+| 表現 | C4 Context/Containerまで。UMLクラス図・シーケンス図は出さない |
 
 ---
 
-# 全体アーキテクチャ
+# C4 Context: システム境界
 
 <!-- claim: claim-runtime-architecture -->
 <!-- _class: diagram -->
 
 ![Runtime boundary](assets/runtime-boundary.svg)
 
-<p class="small">実装入口は Python/uv の `research-x` CLI。D2/Marpは資料生成専用で、memory architectureの正本ではない。</p>
+<p class="small">research_xを中心に、利用者、AIエージェント、既存X SQLite、外部Provider/API承認ゲート、資料生成レーンを分けて見る。</p>
+
+---
+
+# C4 Container: 実装コンテナ
+
+<!-- claim: claim-c4-container-boundary -->
+<!-- _class: diagram -->
+
+![C4 container](assets/c4-container.svg)
+
+<p class="small">UML詳細図ではなく、SI事業者が見積もり・分担・レビューで使う主要実装単位に絞る。</p>
 
 ---
 
@@ -176,35 +188,20 @@ SI事業者の作業では、fake/local provider、静的検査、monkeypatch済
 
 ---
 
-# 開発者が最初に見る入口
+# 開発入口と作業境界
 
 <!-- claim: claim-dev-entrypoints -->
-
-| 目的 | コマンド / ファイル |
-| --- | --- |
-| CLI確認 | `uv run python -m research_x --help` |
-| memory確認 | `uv run python -m research_x memory --help` |
-| slow test診断 | `uv run python -m research_x test-diagnose ...` |
-| facts検証 | `uv run python -m research_x presentation validate-facts --json` |
-| slides検証 | `uv run python -m research_x presentation validate-slides --json` |
-| PPTX生成 | `npm run presentation:build` |
-
-Python tooling は必ず `uv run ...` 経由。provider-backed command は承認なしに実行しません。
-
----
-
-# SI事業者作業時の責任境界
-
 <!-- claim: claim-sier-boundary -->
 
-| 作業 | 原則 |
+| 分類 | 最初に見るもの / 原則 |
 | --- | --- |
-| local/fake provider実装 | 実行可。deterministic testで検証 |
-| DB schema変更 | migration / audit / backward compatibilityを明示 |
-| provider API連携 | 承認、budget status、offline estimate後 |
-| secrets/session | `.secrets/` をstageしない。値をログに出さない |
-| hook/plugin/MCP | 別ゲート。資料や計画だけでは有効化しない |
-| generated artifacts | レビュー補助。answer evidenceにしない |
+| CLI | `uv run python -m research_x --help`, `uv run python -m research_x memory --help` |
+| テスト | `uv run pytest ...`, `uv run python -m research_x test-diagnose ...` |
+| 資料 | `presentation validate-facts/slides`, `npm run presentation:build` |
+| 実行可 | local/fake provider、静的検査、deterministic test、互換性を明示したmigration |
+| 要承認 | real API、secrets/session、model download、MCP/plugin/hook、破壊的DB変更 |
+
+Python tooling は必ず `uv run ...` 経由。provider-backed command は承認なしに実行しません。
 
 ---
 

@@ -242,12 +242,26 @@
     },
     {
       "id": "claim-runtime-architecture",
-      "claim": "実行入口は research-x CLI で、取得pipeline、共有X store、memory workflow が段階接続され、provider/API gate は明示的に分離される。",
+      "claim": "research_x は利用者、AIエージェント、既存X SQLite、外部Provider/API gate、資料生成レーンと分離して説明できる。",
       "evidence": [
         "README.codex.md",
         "src/research_x/cli.py",
         "src/research_x/pipeline.py",
         "src/research_x/memory/workflow.py"
+      ],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-c4-container-boundary",
+      "claim": "research_x の主要実装コンテナは CLI、取得Adapter群、共有X Store、Memory DB、Memory Workflow、API Budget Guard、Presentation Lane に分けられる。",
+      "evidence": [
+        "README.codex.md",
+        "src/research_x/cli.py",
+        "src/research_x/pipeline.py",
+        "src/research_x/x_store.py",
+        "src/research_x/memory/schema.py",
+        "src/research_x/memory/workflow.py",
+        "package.json"
       ],
       "slide_candidate": true
     },

@@ -1,0 +1,19 @@
+direction: right
+
+cli: "CLI\nPython / uv"
+acq: "取得Adapter群\nprofile / search / url / bookmarks"
+xstore: "共有X Store\nSQLite"
+memorydb: "Memory DB\nSQLite"
+workflow: "Memory Workflow\nroute / context / answer"
+budget: "API Budget Guard\n承認ゲート"
+slides: "Presentation Lane\nfacts / slides / D2 / Marp"
+
+cli -> acq
+acq -> xstore
+xstore -> memorydb
+memorydb -> workflow
+budget -> workflow {
+  style.stroke: "#dc2626"
+  style.stroke-dash: 4
+}
+cli -> slides

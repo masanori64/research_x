@@ -20,6 +20,7 @@ def test_presentation_slides_map_to_fact_claims_before_assets_are_rendered() -> 
     assert result.ok, result.errors
     assert result.summary["claim_markers"] >= 6
     assert set(result.summary["asset_paths"]) == {
+        "assets/c4-container.svg",
         "assets/memory-evidence-flow.svg",
         "assets/runtime-boundary.svg",
     }

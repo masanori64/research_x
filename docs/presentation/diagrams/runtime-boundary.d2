@@ -1,17 +1,17 @@
 direction: right
 
-user: "開発者 / SI事業者"
-cli: "research-x CLI"
-acq: "取得パイプライン"
-store: "X SQLite Store"
-memory: "記憶ワークフロー"
-gate: "Provider/APIゲート"
+dev: "開発者 / SI事業者"
+agent: "AIエージェント"
+system: "research_x\nMemory/Search System"
+xstore: "既存XコレクションDB\nSQLite"
+provider: "外部Provider/API\n承認ゲート"
+deck: "資料生成レーン\nD2 / Marp"
 
-user -> cli
-cli -> acq
-acq -> store
-store -> memory
-gate -> memory {
+dev -> system
+agent -> system
+system -> xstore
+system -> deck
+system -> provider {
   style.stroke: "#dc2626"
   style.stroke-dash: 4
 }
