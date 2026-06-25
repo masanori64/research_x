@@ -43,7 +43,6 @@ implementation beyond requiring traceable evidence state.
 - Current architecture docs, especially `docs/memory-pipeline-v2.md`.
 - Source bundle, raw source, searchable document, context chunk, citation,
   workflow trace, eval, or retrieval-route artifacts.
-- Provider gate state when provider-backed lanes are present.
 - Current milestone state from `PROJECT.md` when prioritizing work.
 
 ## Outputs
@@ -60,13 +59,14 @@ implementation beyond requiring traceable evidence state.
 3. Keep source-bundle restoration central: every retrieval arm must return to
    tweet, quote, media, author, bookmark account, URL, relation, time, and source
    hash where applicable.
-4. Preserve no-spend/fake-first verification unless the user explicitly lifts
-   the provider freeze.
+4. Route provider/API/quota permission to `research-x-provider-gate`; keep local
+   verification fake-first unless that gate is explicitly opened.
 5. Verify with explicit `uv` commands and scoped tests.
 
 ## Safety Gates
 
-- Real provider APIs are gated by no-quota freeze and API Budget Guard.
+- Real provider APIs are owned by `research-x-provider-gate`; approved lanes
+  still require API Budget Guard.
 - Diagnostic `local_hash` embeddings are wiring checks only.
 - OCR/caption/VLM text must stay separate from raw media and corrected text until
   promoted through citation-ready context chunks.

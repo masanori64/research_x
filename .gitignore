@@ -6,6 +6,7 @@ __pycache__/
 *.py[cod]
 accounts*.db
 runs/
+outputs/
 .tools/
 *.exe
 *.test

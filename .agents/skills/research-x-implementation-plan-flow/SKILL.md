@@ -5,87 +5,70 @@ description: Use when checking or converting research_x candidate sets into loca
 
 # research-x Implementation Plan Flow
 
-Use this skill to turn a candidate set into an implementation-readiness flow for
-`research_x`. The input may be source-intake output, a review matrix, a
-consultation capture, WBS state, or a user-supplied candidate list, but the output
-is a control artifact. It is not evidence, not an architecture decision by itself,
-and not permission to install dependencies, call providers, enable plugins/MCP,
-or edit Skills automatically.
-
-Also apply `../../skill-references/search-quality-contract.md` when source
-candidate quality matters, `../../skill-references/governance-quality-contract.md`
-for docs/lock placement, and `../../skill-references/execution-quality-contract.md`
-before implementing the resulting phases.
+Candidate-to-execution planning for `research_x`. This Skill turns candidate
+sets, WBS leaves, consultation captures, or review matrices into gated local
+implementation phases. The output is a control artifact, not evidence and not
+permission to install, call providers, enable tools, or edit Skills
+automatically.
 
 ## Purpose
 
-- Convert broad candidate material into a gated local-first execution order.
-- Keep adopted, staged, provider-gated, historical, and rejected candidates
-  visibly separate.
-- Require every promoted item to name an owner surface, first local step,
+- Convert broad candidate material into local-first execution order.
+- Keep adopted, staged, provider-gated, historical, reference-only, and rejected
+  states separate.
+- Require every promoted item to name owner surface, first local step,
   verification path, and stop condition.
-- Preserve the boundary between consultation/control artifacts and
-  citation-ready evidence.
 
 ## Use When
 
-- A candidate matrix, WBS group, source-intake result, deferred-item review, or
-  project-usability review needs to become executable phases.
-- The user asks whether a set of tools, sources, providers, renderers, or
-  workflow ideas can be adopted into `research_x`.
-- A prior broad review exists and the next task is to check readiness, order the
-  work, or expose why some items remain staged.
+- A candidate matrix, WBS group, source-intake result, or deferred-item review
+  needs to become executable phases.
+- The user asks whether tools, sources, providers, renderers, or workflow ideas
+  can be adopted into `research_x`.
+- A broad review exists and the next work is readiness, ordering, or explaining
+  why items remain staged.
 
 ## Do Not Use When
 
-- The task is final evidence-backed answering; use `research-x-memory-workflow`.
-- The task is source discovery or source-bundle restoration; use
-  `research-x-research-intake` and the evidence workflow.
+- The task is final evidence-backed answering.
+- The task is source discovery or source-bundle restoration.
 - The task is a single already-scoped code change with clear owner and tests.
-- The next step would be provider/API usage, install, plugin/MCP/hook enablement,
-  model download, connector change, or automatic Skill edit.
+- The next step would be provider/API usage, install, plugin/MCP/hook
+  enablement, model download, connector change, or automatic Skill edit.
 
 ## Inputs
 
 - Candidate names, source refs, current status, and intended value.
-- Current project anchors: code paths, docs, tests, WBS leaves, adoption registry,
+- Current anchors: code paths, docs, tests, WBS leaves, adoption registry,
   source lock, and provider gates.
-- Constraints: no-quota freeze, no install, no external network/provider calls,
-  no automatic Skill edits, and any user priority.
+- Constraints such as no-quota freeze, no install, no external action, no
+  automatic Skill edits, and user priority.
 
 ## Outputs
 
-- A compact implementation-readiness flow or phase list.
+- Compact implementation-readiness flow or phase list.
 - Per-candidate classification: `adopt`, `staging`, `provider_gated`,
   `historical`, `reference_only`, `rejected`, or `needs_review`.
-- For each promoted item: owner surface, first local step, verification command,
-  stop condition, and evidence status.
-- For each non-promoted item: blocker and promotion condition.
+- For promoted items: owner, first local step, local verification, stop
+  condition, and evidence status.
+- For non-promoted items: blocker and promotion condition.
 
 ## Steps
 
-1. Preserve the input boundary.
-   - Name the input artifacts and mark consultation, WBS, pointer maps, generated
-     diagrams, and summaries as `not_evidence`.
-   - Do not use model or community summaries as citation-ready support.
-2. Classify candidates before ordering them.
-   - Use the adoption shapes in `control/adoption_registry.toml` where possible.
-   - Do not merge provider-gated, reference-only, historical, and staged states.
-3. Put shared gates first.
-   - Prefer local fixtures, fake providers, schema checks, eval reports,
-     source-bundle restoration tests, and budget guards before new runtime work.
-4. Promote only locally verifiable work.
-   - Rank higher when it strengthens source restoration, citations, evals,
-     observability, provider safety, or AI-callable tool contracts.
-   - Rank lower when it depends on quota, network fetches, hosted services,
-     native dependencies, unresolved source rights, hooks, plugins, or MCP.
-5. End with execution boundaries.
-   - Name the first implementation unit, relevant tests, and hard stop gates.
-   - Keep deferred items alive with a concrete promotion condition.
+1. Preserve the input boundary: consultation captures, WBS, pointer maps,
+   diagrams, and summaries are `not_evidence`.
+2. Classify candidates before ordering them, using `control/adoption_registry.toml`
+   where possible.
+3. Put shared gates first: local fixtures, fake providers, schema checks, eval
+   reports, source-bundle restoration tests, and budget guards.
+4. Promote only locally verifiable work that strengthens source restoration,
+   citations, evals, observability, provider safety, or AI-callable contracts.
+5. End with first implementation unit, tests, stop gates, and deferred promotion
+   conditions.
 
 ## Safety Gates
 
-- No real provider/API/search/Reader/OCR/LLM/model calls from the plan itself.
+- No real provider/API/search/Reader/OCR/LLM/model call from the plan itself.
 - No dependency install, model download, plugin/MCP/hook enablement, connector
   change, or third-party Skill installation from the plan itself.
 - No generated diagram, WBS, pointer map, ChatGPT capture, or summary becomes
@@ -101,21 +84,9 @@ before implementing the resulting phases.
 
 ## Verification
 
-- Check that every promoted item has an owner, first local step, local
-  verification path, and stop condition.
-- Check that every deferred item has a blocker or promotion condition.
-- Check that provider/API, install, plugin/MCP/hook, connector, and automatic
+- Check every promoted item has owner, first local step, verification path, and
+  stop condition.
+- Check every deferred item has blocker or promotion condition.
+- Check provider/API, install, plugin/MCP/hook, connector, and automatic
   Skill-edit gates are explicit when relevant.
-- For manifest or source-lock changes, run:
-
-```powershell
-uv run python scripts/validate_skill_manifest.py
-uv run pytest tests/test_skill_manifest.py
-```
-
-## Manifest Obligations
-
-- Keep this repo Skill enabled only as repo-owned local behavior in
-  `.codex/skill_manifest.lock`.
-- External source decisions belong in `control/vendor_sources.lock.md` and
-  `control/adoption_registry.toml`.
+- For manifest/source-lock changes, run the repository Skill governance checks.

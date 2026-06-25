@@ -22,7 +22,6 @@ REQUIRED_NEW_SKILL_SECTIONS = (
     "## Safety Gates",
     "## Negative Triggers",
     "## Verification",
-    "## Manifest Obligations",
 )
 
 

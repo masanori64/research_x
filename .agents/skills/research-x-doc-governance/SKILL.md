@@ -34,20 +34,20 @@ run source reviews, or manage global Codex context exports.
 - The task is Skill trust review or third-party source adoption; use the
   foundation governance owner and source locks.
 - The task asks to create or rewrite Skills automatically. Skill edits require
-  an explicit Skill-editing task and the audit registry.
+  an explicit Skill-editing task and source-of-truth checks.
 
 ## Inputs
 
 - Target Markdown file and reason for change.
 - Existing docs and owner surfaces.
-- Current WBS, registry, source-lock, or audit references when relevant.
+- Current WBS, registry, source-lock, or boundary-audit references when relevant.
 - User instruction about public vs Codex-facing audience.
 
 ## Outputs
 
 - Minimal doc edits in the owning file.
 - Archive/index entries when moving historical material.
-- Pointers to registry, source lock, WBS, audit table, or detailed docs instead
+- Pointers to registry, source lock, WBS, boundary audit, or detailed docs instead
   of duplicated prose.
 
 ## Steps

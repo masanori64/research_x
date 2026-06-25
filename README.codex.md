@@ -136,9 +136,8 @@ applicable Skill, then read that Skill and its directly referenced contracts bef
 acting.
 
 Do not duplicate the Skill catalog here. Use the manifest and Skill files for the
-current list. The unified active/retired/overlap/quality audit lives in
-`control/skill_quality_audit.toml` and is validated by
-`scripts/validate_skill_quality_audit.py`.
+current list. `control/skill_quality_audit.toml` is only a compact boundary
+audit for overlap and retired-Skill guardrails; it is not a second registry.
 
 ## Verification
 
