@@ -40,7 +40,8 @@ write action is part of this plan.
 
 - Global `.codex` `AGENTS.md` G10/G11 is already reflected in the active global context.
 - `research_x` `AGENTS.md` already has a `Native Skill Invocation` dispatcher.
-- `.codex/global_skill_alignment_review.md` classified the then-reviewed repo-local Skill set as
+- `C:/Users/maasa/.codex/foundation/reviews/research-x-global-skill-alignment-20260611.md`
+  classified the then-reviewed repo-local Skill set as
   aligned with global context and `agents/openai.yaml` implicit invocation as `KEEP with watch`.
 - `.codex/skill_manifest.lock` recorded the then-reviewed repo-local Skill set as enabled and
   implicitly invocable.
