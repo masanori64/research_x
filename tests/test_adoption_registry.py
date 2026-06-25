@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import tomllib
 from pathlib import Path
 
@@ -58,6 +59,43 @@ def test_research_x_registry_covers_plan_candidate_families() -> None:
 
     missing = sorted(name for name in required_names if name not in text)
     assert missing == []
+
+
+def test_research_x_registry_has_no_unresolved_source_locks() -> None:
+    text = REGISTRY.read_text(encoding="utf-8")
+
+    assert "needs_source_lock" not in text
+    assert "source-lock-needed:" not in text
+
+
+def test_adoption_candidates_have_stop_conditions() -> None:
+    candidates = adoption_candidates(REGISTRY)
+
+    assert candidates
+    assert all(item.stop_condition.strip() for item in candidates)
+    provider_entries = [item for item in candidates if item.provider_or_quota]
+    assert all("provider" in item.stop_condition.lower() for item in provider_entries)
+
+
+def test_adoption_registry_source_refs_must_exist_in_vendor_lock(tmp_path: Path) -> None:
+    registry = tmp_path / "adoption_registry.toml"
+    source_lock = tmp_path / "vendor_sources.lock.md"
+    shutil.copy2(REGISTRY, registry)
+    shutil.copy2(Path("control/vendor_sources.lock.md"), source_lock)
+
+    source_lock.write_text(
+        source_lock.read_text(encoding="utf-8").replace(
+            "| S39 | `bosun` | https://huggingface.co/blog/Hanno-Labs/bosun | "
+            "Staged local-model/relevance-judge candidate. Source-locked for evaluation design "
+            "only; model download/inference is not part of active research_x runtime. |\n",
+            "",
+        ),
+        encoding="utf-8",
+    )
+
+    errors = validate_adoption_registry(registry, source_lock_path=source_lock)
+
+    assert "source lock missing row for S39" in errors
 
 
 def test_codex_foundation_entries_are_bridge_only_in_research_x() -> None:

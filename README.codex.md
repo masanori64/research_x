@@ -67,6 +67,7 @@ artifacts. They are not evidence or answer support.
 - The machine-readable `research_x` adoption boundary is `control/adoption_registry.toml`;
   validate it with `uv run python -m research_x adoption audit`. The Codex foundation
   registry lives outside this repo at `C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml`.
+  Tool-interface code lives under `src/research_x/tool_interface/`.
 
 ## Mandatory Runtime Rules
 
@@ -108,16 +109,20 @@ provider-backed commands gated.
 ## Work-State And Structure
 
 - Operational state source: `tools/wbs_viewer/projects/research-x-work-state.json`
+- Codex foundation work-state archive:
+  `C:/Users/maasa/.codex/foundation/work_state/research-x-codex-foundation-adjuncts.json`
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html`
 - Presentation generation flow:
   `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
-Use WBS for phase/candidate/gate/status data. Use Route Memory for recurring
-operation-route success/failure selection. Use Pointer Map for path/hash/size/
-restore hints. Use D2 + Marp for presentation diagram and deck generation after
-the Stage 1 build-tool boundary is in place. Keep Markdown for durable reasons,
-invariants, stop conditions, and pointers.
+Use research_x WBS for project phase/candidate/gate/status data only. Use the
+Codex foundation work-state archive for externalized Skill lifecycle,
+self-improvement, and route-memory operational leaves. Use Route Memory for
+recurring operation-route success/failure selection. Use Pointer Map for
+path/hash/size/restore hints. Use D2 + Marp for presentation diagram and deck
+generation after the Stage 1 build-tool boundary is in place. Keep Markdown for
+durable reasons, invariants, stop conditions, and pointers.
 
 ## Repo Skills
 

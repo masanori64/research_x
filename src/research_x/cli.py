@@ -3793,12 +3793,12 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         print(answer_json(answer, budget_policy=_context_budget_policy_for_args(args)))
         return 0
     if args.memory_command == "workflow":
-        from research_x.memory.tool_contract import workflow_tool_output_json
         from research_x.memory.workflow import (
             format_workflow,
             run_memory_workflow,
             workflow_json,
         )
+        from research_x.tool_interface.memory_tool_contract import workflow_tool_output_json
 
         store = _resolve_fixture_sensitive_store(
             args.store,

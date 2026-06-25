@@ -63,7 +63,7 @@ Boundary registry: `control/adoption_registry.toml`; validate with
 
 The Tool Interface Layer must present a stable contract even when internal
 workflow JSON changes. The current AI-callable output contract is implemented as
-`research_x.memory.tool_contract` and exposes:
+`research_x.tool_interface.memory_tool_contract` and exposes:
 
 - `status`: `answer`, `abstain`, `needs_review`, `source_not_restored`,
   `citation_missing`, `provider_gated`, or `blocked`;
@@ -152,23 +152,18 @@ permission to call providers.
 
 ## WBS / Presentation / Pointer Boundary
 
-Work state belongs in:
-
-```text
-tools/wbs_viewer/projects/research-x-work-state.json
-```
-
-WBS owns candidate lists, decision bands, `complete|active|blocked|closed|archived`
-status, planned/actual dates, gates, next actions, owner surfaces, source candidate
-URLs, and artifact pointers. WBS notes must stay short and must not become source
-review prose or answer evidence.
+Work state belongs in `tools/wbs_viewer/projects/research-x-work-state.json`.
+WBS owns candidate lists, decision bands, status, dates, gates, owner surfaces,
+source candidate URLs, and artifact pointers. Notes must stay short and must not
+become source review prose or answer evidence. Codex foundation work state belongs
+outside this repository at
+`C:/Users/maasa/.codex/foundation/work_state/research-x-codex-foundation-adjuncts.json`;
+self-improvement, Skill lifecycle, route-memory, and session-operation work items
+must not reappear as active `research_x` WBS leaves.
 
 Presentation diagram and deck generation belongs to the D2 + Marp build-tool
-boundary described in:
-
-```text
-C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md
-```
+boundary described in
+`C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`.
 
 Deck-specific diagram sources should be derived from reviewed repository facts,
 validated through the selected local D2 lane, and rendered only as

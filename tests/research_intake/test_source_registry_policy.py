@@ -45,6 +45,14 @@ def test_source_registry_names_external_provider_candidates_without_enabling_the
         assert source.policy.allow_provider is False
 
 
+def test_source_registry_has_no_codex_foundation_or_unresolved_source_lock_entries() -> None:
+    text = Path("control/research_intake/source_registry.toml").read_text(encoding="utf-8")
+
+    assert "source-lock-needed:" not in text
+    assert "Codex Skills" not in text
+    assert "codex ai tools" not in text
+
+
 def test_source_registry_local_sources_are_metadata_only() -> None:
     registry = load_registry(Path("control/research_intake/source_registry.toml"))
     local_sources = [

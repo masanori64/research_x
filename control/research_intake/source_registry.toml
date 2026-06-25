@@ -1,29 +1,13 @@
 registry_id = "research_x_default_dry_run_sources"
 
 [[sources]]
-source_id = "manual_openai_codex_docs"
-source_type = "manual_url"
-locator = "https://developers.openai.com/codex/"
-enabled_when = "always"
-title = "OpenAI Codex documentation landing page"
-quality_hint = "official"
-topics = ["Codex Skills", "agent workflow"]
-
-[sources.policy]
-fetch_mode = "metadata_only"
-allow_network = false
-allow_provider = false
-storage_rights = "review_before_fetch"
-prompt_injection_review = "required_before_fetch"
-
-[[sources]]
-source_id = "local_inbox_research_notes"
+source_id = "local_research_x_evidence_architecture"
 source_type = "local_note"
-locator = "_codex_inbox design inventory and current source-of-truth docs"
+locator = "docs/memory-pipeline-v2.md"
 enabled_when = "always"
-title = "Local inbox design notes"
-quality_hint = "medium"
-topics = ["source manifest", "provider freeze", "research intake"]
+title = "research_x evidence workflow architecture"
+quality_hint = "high"
+topics = ["source candidates", "evidence workflow", "source bundles"]
 
 [sources.policy]
 fetch_mode = "metadata_only"
@@ -33,13 +17,29 @@ storage_rights = "project_private"
 prompt_injection_review = "not_applicable_local_note"
 
 [[sources]]
-source_id = "fake_codex_research_discovery"
-source_type = "fake_search"
-locator = "codex ai tools research"
+source_id = "local_x_store_schema"
+source_type = "local_note"
+locator = "src/research_x/x_store.py"
 enabled_when = "always"
-title = "Synthetic Codex research discovery"
+title = "Local X raw source schema"
+quality_hint = "high"
+topics = ["source candidates", "raw X source", "source bundles"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "project_private"
+prompt_injection_review = "not_applicable_local_note"
+
+[[sources]]
+source_id = "fake_x_source_candidate_discovery"
+source_type = "fake_search"
+locator = "X bookmark source candidate discovery"
+enabled_when = "always"
+title = "Synthetic X source candidate discovery"
 quality_hint = "unknown"
-topics = ["Codex Skills", "provider freeze", "dry-run research intake"]
+topics = ["external search", "source candidates", "dry-run research intake"]
 
 [sources.policy]
 fetch_mode = "metadata_only"
@@ -47,22 +47,6 @@ allow_network = false
 allow_provider = false
 storage_rights = "synthetic"
 prompt_injection_review = "not_applicable_synthetic"
-
-[[sources]]
-source_id = "future_provider_search"
-source_type = "serper"
-locator = "codex ai tools"
-enabled_when = "disabled"
-title = "Future provider-backed search placeholder"
-quality_hint = "unknown"
-topics = ["Codex Skills"]
-
-[sources.policy]
-fetch_mode = "metadata_only"
-allow_network = false
-allow_provider = false
-storage_rights = "blocked_by_no_quota_freeze"
-prompt_injection_review = "required_before_fetch"
 
 [[sources]]
 source_id = "future_serper_external_search"
@@ -131,7 +115,7 @@ prompt_injection_review = "required_before_fetch"
 [[sources]]
 source_id = "future_tavily"
 source_type = "external_search_provider"
-locator = "source-lock-needed:tavily"
+locator = "https://docs.tavily.com/documentation/api-reference/introduction"
 enabled_when = "disabled"
 title = "Future Tavily source candidate lane"
 quality_hint = "unknown"
@@ -147,7 +131,7 @@ prompt_injection_review = "required_before_fetch"
 [[sources]]
 source_id = "future_exa"
 source_type = "external_search_provider"
-locator = "source-lock-needed:exa"
+locator = "https://exa.ai/docs/reference/search-api-guide"
 enabled_when = "disabled"
 title = "Future Exa source candidate lane"
 quality_hint = "unknown"
@@ -163,7 +147,7 @@ prompt_injection_review = "required_before_fetch"
 [[sources]]
 source_id = "future_perplexity"
 source_type = "external_search_provider"
-locator = "source-lock-needed:perplexity"
+locator = "https://docs.perplexity.ai/docs/search/quickstart"
 enabled_when = "disabled"
 title = "Future Perplexity source candidate lane"
 quality_hint = "unknown"

@@ -3,8 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 WBS = Path("tools/wbs_viewer/projects/research-x-work-state.json")
-POINTER_MAP = Path("C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json")
+CODEX_FOUNDATION_WORK_STATE = Path(
+    "C:/Users/maasa/.codex/foundation/work_state/"
+    "research-x-codex-foundation-adjuncts.json"
+)
 
 
 def _leaf_tasks(tasks: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -29,12 +34,14 @@ def test_next_wave_implementation_leaves_point_to_source_items_not_new_items() -
         in {"local_implementation", "local_eval_canary", "reference_only_boundary"}
     ]
 
-    assert {tuple(leaf["_research_x"]["source_items"]) for leaf in next_wave} >= {
+    source_items = {tuple(leaf["_research_x"]["source_items"]) for leaf in next_wave}
+
+    assert source_items >= {
         (5,),
         (10,),
-        (24,),
-        (33,),
     }
+    assert (24,) not in source_items
+    assert (33,) not in source_items
     for leaf in next_wave:
         meta = leaf["_research_x"]
         assert "item" not in meta
@@ -42,14 +49,15 @@ def test_next_wave_implementation_leaves_point_to_source_items_not_new_items() -
         assert meta["evidence_status"] == "not_evidence"
 
 
-def test_pointer_map_marks_next_wave_plan_and_artifacts_not_evidence() -> None:
-    data = json.loads(POINTER_MAP.read_text(encoding="utf-8"))
-    by_path = {entry["artifact_path"]: entry for entry in data["entries"]}
+def test_codex_foundation_next_wave_items_are_externalized() -> None:
+    if not CODEX_FOUNDATION_WORK_STATE.exists():
+        pytest.skip("Codex foundation work-state archive is outside the portable repository")
 
-    for path in (
-        "C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-next-wave-33-5-24-10.md",
-        "src/research_x/control_artifacts/renderer.py",
-        "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
-        "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
-    ):
-        assert by_path[path]["not_evidence"] is True
+    archive = json.loads(CODEX_FOUNDATION_WORK_STATE.read_text(encoding="utf-8"))
+    moved_source_items = {
+        tuple(task["_research_x"]["source_items"])
+        for task in archive["moved_tasks"]
+        if "source_items" in task["_research_x"]
+    }
+
+    assert moved_source_items >= {(24,), (33,)}

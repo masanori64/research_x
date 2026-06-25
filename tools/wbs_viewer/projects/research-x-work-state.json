@@ -292,7 +292,7 @@
         },
         {
           "id": "4",
-          "name": "Codex foundation adjuncts",
+          "name": "Boundary governance and control artifacts",
           "children": [
             {
               "id": "4.1",
@@ -324,34 +324,6 @@
             },
             {
               "id": "4.2",
-              "name": "ImprovementSignal local pipeline",
-              "qty": 1,
-              "hours": 1,
-              "assignee": "Codex",
-              "plan": {
-                "start": null,
-                "end": null
-              },
-              "actual": {
-                "start": "2026-06-22",
-                "end": "2026-06-22"
-              },
-              "note": "complete",
-              "_research_x": {
-                "owner_plane": "wbs",
-                "artifact_layer": "operational_state",
-                "decision_band": "project_state",
-                "gate": "local_only_no_provider",
-                "status": "complete",
-                "artifact_pointer": "docs/memory-pipeline-v2.md",
-                "owner_doc": "docs/memory-pipeline-v2.md",
-                "evidence_status": "not_evidence",
-                "answer_support_allowed": false,
-                "stop_condition": ""
-              }
-            },
-            {
-              "id": "4.3",
               "name": "PromptContract deterministic checks",
               "qty": 1,
               "hours": 1,
@@ -379,11 +351,11 @@
               }
             },
             {
-              "id": "4.4",
+              "id": "4.3",
               "name": "Architecture refresh completion gates",
               "children": [
                 {
-                  "id": "4.4.1",
+                  "id": "4.3.1",
                   "name": "Thin PROJECT.md",
                   "qty": 1,
                   "hours": 1,
@@ -411,7 +383,7 @@
                   }
                 },
                 {
-                  "id": "4.4.2",
+                  "id": "4.3.2",
                   "name": "Thin README.codex.md first-read path",
                   "qty": 1,
                   "hours": 1,
@@ -439,7 +411,7 @@
                   }
                 },
                 {
-                  "id": "4.4.3",
+                  "id": "4.3.3",
                   "name": "Move X/GPT folder out of active path",
                   "qty": 1,
                   "hours": 1,
@@ -467,7 +439,7 @@
                   }
                 },
                 {
-                  "id": "4.4.4",
+                  "id": "4.3.4",
                   "name": "Keep docs/memory-pipeline-v2.md from accumulating operational state",
                   "qty": 1,
                   "hours": 1,
@@ -495,7 +467,7 @@
                   }
                 },
                 {
-                  "id": "4.4.5",
+                  "id": "4.3.5",
                   "name": "Add WBS/Pointer/Markdown boundary regression tests",
                   "qty": 1,
                   "hours": 1,
@@ -523,7 +495,7 @@
                   }
                 },
                 {
-                  "id": "4.4.6",
+                  "id": "4.3.6",
                   "name": "Retire legacy diagram tool lane",
                   "qty": 1,
                   "hours": 1,
@@ -553,11 +525,11 @@
               ]
             },
             {
-              "id": "4.5",
-              "name": "Next-wave local control artifact adjuncts",
+              "id": "4.4",
+              "name": "Local control artifact adjuncts",
               "children": [
                 {
-                  "id": "4.5.1",
+                  "id": "4.4.1",
                   "name": "Structure-view split local renderer",
                   "qty": 1,
                   "hours": 1,
@@ -586,101 +558,11 @@
                     ],
                     "stop_condition": "Stop if WBS, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
                   }
-                },
-                {
-                  "id": "4.5.2",
-                  "name": "Skill lifecycle input gate",
-                  "qty": 1,
-                  "hours": 1,
-                  "assignee": "Codex",
-                  "plan": {
-                    "start": "2026-06-24",
-                    "end": "2026-06-24"
-                  },
-                  "actual": {
-                    "start": "2026-06-24",
-                    "end": "2026-06-24"
-                  },
-                  "note": "complete",
-                  "_research_x": {
-                    "owner_plane": "wbs",
-                    "artifact_layer": "codex_foundation",
-                    "decision_band": "local_implementation",
-                    "gate": "codex_foundation_design_only",
-                    "status": "complete",
-                    "artifact_pointer": "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
-                    "owner_doc": "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
-                    "evidence_status": "not_evidence",
-                    "answer_support_allowed": false,
-                    "source_items": [
-                      24
-                    ],
-                    "stop_condition": "Stop if WBS, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
-                  }
-                },
-                {
-                  "id": "4.5.3",
-                  "name": "Over-implementation guard canary",
-                  "qty": 1,
-                  "hours": 1,
-                  "assignee": "Codex",
-                  "plan": {
-                    "start": "2026-06-24",
-                    "end": "2026-06-24"
-                  },
-                  "actual": {
-                    "start": "2026-06-24",
-                    "end": "2026-06-24"
-                  },
-                  "note": "complete",
-                  "_research_x": {
-                    "owner_plane": "wbs",
-                    "artifact_layer": "guard_canary",
-                    "decision_band": "local_eval_canary",
-                    "gate": "no_plugin_no_hook",
-                    "status": "complete",
-                    "artifact_pointer": "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
-                    "owner_doc": "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
-                    "evidence_status": "not_evidence",
-                    "answer_support_allowed": false,
-                    "source_items": [
-                      33
-                    ],
-                    "stop_condition": "Stop if WBS, Pointer, HTML, SVG, or GPT output is used as evidence or answer support."
-                  }
                 }
               ]
             },
             {
-              "id": "4.6",
-              "name": "Route Memory Registry and Preflight",
-              "qty": 1,
-              "hours": 1,
-              "assignee": "Codex",
-              "plan": {
-                "start": "2026-06-24",
-                "end": "2026-06-24"
-              },
-              "actual": {
-                "start": "2026-06-24",
-                "end": "2026-06-24"
-              },
-              "note": "Local registry, dispatcher, pointer, and tests added for recurring route choice.",
-              "_research_x": {
-                "owner_plane": "wbs",
-                "artifact_layer": "operation_route_memory",
-                "decision_band": "project_state",
-                "gate": "route_memory_preflight_no_provider_no_network_by_default",
-                "status": "complete",
-                "artifact_pointer": "C:/Users/maasa/.codex/route_memory/route-memory.json",
-                "owner_doc": "C:/Users/maasa/.codex/AGENTS.md",
-                "evidence_status": "not_evidence",
-                "answer_support_allowed": false,
-                "stop_condition": "Stop if route-memory entries are used as evidence, provider permission, browser approval, or external-action approval."
-              }
-            },
-            {
-              "id": "4.7",
+              "id": "4.5",
               "name": "Codex/research_x adoption boundary registry",
               "qty": 1,
               "hours": 1,
@@ -1816,7 +1698,7 @@
                 "start": "2026-06-23",
                 "end": "2026-06-23"
               },
-              "note": "state pointer only",
+              "note": "closed: on-demand trigger only; no current active local work.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "architecture_boundary",
@@ -1934,7 +1816,7 @@
                 "artifact_layer": "trigger",
                 "decision_band": "visual_context_offload",
                 "gate": "only_when_text_context_is_too_large",
-                "status": "active",
+                "status": "closed",
                 "artifact_pointer": "README.codex.md",
                 "owner_doc": "README.codex.md",
                 "evidence_status": "not_evidence",
@@ -1956,13 +1838,13 @@
                 "start": null,
                 "end": null
               },
-              "note": "state pointer only",
+              "note": "closed: on-demand presentation artifact trigger only.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "trigger",
                 "decision_band": "visual_context_offload",
                 "gate": "d2_marp_when_presentation_artifact_needed",
-                "status": "active",
+                "status": "closed",
                 "artifact_pointer": "README.codex.md",
                 "owner_doc": "README.codex.md",
                 "evidence_status": "not_evidence",
@@ -2077,13 +1959,13 @@
                 "start": null,
                 "end": null
               },
-              "note": "Add only when a concrete bulky output recurs.",
+              "note": "closed: add only when a concrete bulky output recurs.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "operational_state",
                 "decision_band": "project_state",
                 "gate": "context_budget_hardening",
-                "status": "active",
+                "status": "closed",
                 "artifact_pointer": "C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json",
                 "owner_doc": "README.codex.md",
                 "evidence_status": "not_evidence",
@@ -2105,13 +1987,13 @@
                 "start": null,
                 "end": null
               },
-              "note": "Implement only when a concrete visibility gap appears.",
+              "note": "closed: implement only when a concrete visibility gap appears.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "operational_state",
                 "decision_band": "project_state",
                 "gate": "observability_gap_driven",
-                "status": "active",
+                "status": "closed",
                 "artifact_pointer": "docs/memory-pipeline-v2.md",
                 "owner_doc": "docs/memory-pipeline-v2.md",
                 "evidence_status": "not_evidence",
@@ -2133,13 +2015,13 @@
                 "start": null,
                 "end": null
               },
-              "note": "Add when they protect a concrete local/fake lane.",
+              "note": "closed: add when they protect a concrete local/fake lane.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "artifact_layer": "operational_state",
                 "decision_band": "project_state",
                 "gate": "regression_driven_eval",
-                "status": "active",
+                "status": "closed",
                 "artifact_pointer": "tests/",
                 "owner_doc": "PROJECT.md",
                 "evidence_status": "not_evidence",

@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 WBS_PATH = Path("tools/wbs_viewer/projects/research-x-work-state.json")
 CODEX_PROJECT_REVIEWS = (
     "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
@@ -11,12 +13,16 @@ CODEX_PROJECT_REVIEWS = (
 CODEX_CONTEXT_OFFLOADS = "C:/Users/maasa/.codex/foundation/context_offloads/research_x"
 CODEX_PROJECT_PLANS = "C:/Users/maasa/.codex/foundation/project_plans/research_x"
 PRESENTATION_PLAN = CODEX_PROJECT_PLANS + "/2026-06-24-presentation-generation-flow.md"
+CODEX_FOUNDATION_WORK_STATE = (
+    "C:/Users/maasa/.codex/foundation/work_state/"
+    "research-x-codex-foundation-adjuncts.json"
+)
 
 EXPECTED_GROUPS = [
     "Memory no-spend foundation",
     "Provider-quota gate",
     "Local dependency gate",
-    "Codex foundation adjuncts",
+    "Boundary governance and control artifacts",
     "X/GPT 35-item intake",
     "Visual context offload lane",
     "Future local hardening",
@@ -148,21 +154,42 @@ def test_visual_context_lane_points_to_canonical_artifacts() -> None:
     assert retired_name not in serialized
 
 
-def test_route_memory_preflight_is_codex_foundation_state_not_evidence() -> None:
+def test_codex_foundation_operation_state_is_externalized_from_research_x_wbs() -> None:
     leaves = _leaf_tasks(_project()["tasks"])
-    route_memory = next(
-        leaf
-        for leaf in leaves
-        if leaf["name"] == "Route Memory Registry and Preflight"
-    )
-    meta = route_memory["_research_x"]
+    names = {leaf["name"] for leaf in leaves}
+    serialized = json.dumps(_project(), ensure_ascii=False)
 
-    assert route_memory["id"] == "4.6"
-    assert meta["artifact_layer"] == "operation_route_memory"
-    assert meta["decision_band"] == "project_state"
-    assert meta["gate"] == "route_memory_preflight_no_provider_no_network_by_default"
-    assert meta["status"] == "complete"
-    assert meta["artifact_pointer"] == "C:/Users/maasa/.codex/route_memory/route-memory.json"
-    assert meta["owner_doc"] == "C:/Users/maasa/.codex/AGENTS.md"
-    assert meta["evidence_status"] == "not_evidence"
-    assert meta["answer_support_allowed"] is False
+    assert "Codex foundation adjuncts" not in EXPECTED_GROUPS
+    assert "ImprovementSignal local pipeline" not in names
+    assert "Skill lifecycle input gate" not in names
+    assert "Over-implementation guard canary" not in names
+    assert "Route Memory Registry and Preflight" not in names
+    assert "C:/Users/maasa/.codex/route_memory/route-memory.json" not in serialized
+    assert "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py" not in serialized
+    assert (
+        "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py"
+        not in serialized
+    )
+
+
+def test_codex_foundation_work_state_exists_on_owner_machine_and_is_not_evidence() -> None:
+    path = Path(CODEX_FOUNDATION_WORK_STATE)
+    if not path.exists():
+        pytest.skip("Codex foundation work-state archive is outside the portable repository")
+
+    archive = json.loads(path.read_text(encoding="utf-8"))
+    moved = archive["moved_tasks"]
+    names = {task["name"] for task in moved}
+
+    assert archive["owner"] == "maasa/.codex"
+    assert archive["source_wbs"] == WBS_PATH.as_posix()
+    assert archive["not_evidence"] is True
+    assert names >= {
+        "ImprovementSignal local pipeline",
+        "Skill lifecycle input gate",
+        "Over-implementation guard canary",
+        "Route Memory Registry and Preflight",
+    }
+    for task in moved:
+        assert task["_research_x"]["evidence_status"] == "not_evidence"
+        assert task["_research_x"]["answer_support_allowed"] is False

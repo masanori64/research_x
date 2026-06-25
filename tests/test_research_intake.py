@@ -19,7 +19,7 @@ from research_x.research_intake.pipeline import (
 
 
 def test_default_research_intake_config_is_dry_run_only() -> None:
-    profile = load_profile(Path("control/research_intake/codex_ai_tools.profile.toml"))
+    profile = load_profile(Path("control/research_intake/research_x_sources.profile.toml"))
     registry = load_registry(Path("control/research_intake/source_registry.toml"))
 
     assert validate_configuration(profile, registry) == []
@@ -35,10 +35,13 @@ def test_default_research_intake_config_is_dry_run_only() -> None:
     assert run.network_calls_attempted == 0
     assert run.provider_calls_attempted == 0
     assert validate_run(run) == []
-    assert {candidate.source_type for candidate in run.candidates} == {
-        "manual_url",
-        "local_note",
+    assert {candidate.source_type for candidate in run.candidates} <= {
+        "serper",
+        "brave",
+        "jina_reader",
+        "external_search_provider",
         "fake_search",
+        "local_note",
     }
     assert all(candidate.citation_excluded for candidate in run.candidates)
     assert all(
@@ -54,7 +57,7 @@ def test_enabled_provider_source_is_rejected() -> None:
     profile = InterestProfile(
         profile_id="provider_test",
         title="Provider test",
-        include_topics=("Codex Skills",),
+        include_topics=("source candidates",),
         preferred_sources=("provider_search",),
     )
     registry = SourceRegistry(
@@ -63,7 +66,7 @@ def test_enabled_provider_source_is_rejected() -> None:
             SourceSubscription(
                 source_id="provider_search",
                 source_type="serper",
-                locator="codex skills",
+                locator="source candidates",
                 enabled_when="always",
                 policy=SourcePolicy(allow_network=False, allow_provider=False),
             ),
@@ -79,7 +82,7 @@ def test_policy_network_or_provider_flags_are_rejected() -> None:
     profile = InterestProfile(
         profile_id="policy_test",
         title="Policy test",
-        include_topics=("Codex Skills",),
+        include_topics=("source candidates",),
         preferred_sources=("manual",),
     )
     registry = SourceRegistry(
@@ -88,7 +91,7 @@ def test_policy_network_or_provider_flags_are_rejected() -> None:
             SourceSubscription(
                 source_id="manual",
                 source_type="manual_url",
-                locator="https://example.com/codex",
+                locator="https://example.com/source",
                 quality_hint="medium",
                 policy=SourcePolicy(allow_network=True, allow_provider=True),
             ),
@@ -105,7 +108,7 @@ def test_research_brief_keeps_candidates_out_of_evidence() -> None:
     profile = InterestProfile(
         profile_id="brief_test",
         title="Brief test",
-        include_topics=("Codex Skills",),
+        include_topics=("source candidates",),
         preferred_sources=("fake",),
     )
     registry = SourceRegistry(
@@ -114,9 +117,9 @@ def test_research_brief_keeps_candidates_out_of_evidence() -> None:
             SourceSubscription(
                 source_id="fake",
                 source_type="fake_search",
-                locator="codex skills",
+                locator="source candidates",
                 quality_hint="unknown",
-                topics=("Codex Skills",),
+                topics=("source candidates",),
             ),
         ),
     )

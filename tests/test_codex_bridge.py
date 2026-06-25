@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_x.codex_bridge import (
+from research_x.tool_interface.codex_bridge import (
     bridge_trace_contract,
     validate_codex_to_research_x_payload,
     validate_research_x_to_codex_payload,

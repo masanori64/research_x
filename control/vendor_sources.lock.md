@@ -38,6 +38,15 @@ third-party Skill, connector, provider, or tool.
 | S24 | `searxng`, `webshare` | https://docs.searxng.org/ and https://www.webshare.io/ | SearXNG optional discovery hint; Webshare rejected default. |
 | S33 | `single-file-wbs` | https://github.com/piguo45/single-file-wbs | Pinned local tool canary for item 11 WBS/progress visualization. MIT license and `v1.2.0` commit `322895a23f49028b53ae8c8a1710d6db45cdf726` checked 2026-06-23. Vendored unchanged under `tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/`; allowed for local WBS JSON visual review only. No plugin, MCP, hook, provider, hosted service, or evidence promotion; do not edit vendored upstream in place. |
 | S34 | `pdgkit` | https://github.com/shibayamalicht/pdgkit, https://note.com/nonoonenono/n/n0701699bbf3c, and npm `@shibayama/pdgkit` | Reference-only historical source. MIT license and npm version `0.1.2` were checked 2026-06-24 during the item 34/35 canary, but the local tool lane has been decommissioned and removed from active repo surfaces. Do not install, restore, invoke, register MCP, add a root dependency, use for presentation generation, or promote outputs as evidence. Current presentation generation uses the D2/Marp boundary in `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`. |
+| S35 | `tavily` | https://docs.tavily.com/documentation/api-reference/introduction | Provider-gated external source/search candidate; official docs require API key authentication, so no call under no-quota freeze. |
+| S36 | `exa` | https://exa.ai/docs/reference/search-api-guide | Provider-gated external source/search candidate; no API use until provider gate and source restoration path pass. |
+| S37 | `perplexity-search-api` | https://docs.perplexity.ai/docs/search/quickstart | Provider-gated search/API candidate; raw results remain source candidates and no call is allowed under no-quota freeze. |
+| S38 | `llm-oriented-ir` | https://arxiv.org/abs/2605.00505 | Retrieval-eval/design reference for denoising and distractor resistance; staged as local eval/report fields, not runtime import. |
+| S39 | `bosun` | https://huggingface.co/blog/Hanno-Labs/bosun | Staged local-model/relevance-judge candidate. Source-locked for evaluation design only; model download/inference is not part of active research_x runtime. |
+| S40 | `warrantbench` | https://github.com/Hanno-Labs/warrantbench | Staged benchmark/eval candidate for instruction-following relation judgment; fixture ideas may be adapted locally, benchmark runtime is not imported. |
+| S41 | `paddleocr` | https://github.com/PaddlePaddle/PaddleOCR | Staged local OCR candidate; dependency/model review required before install or execution. |
+| S42 | `paddleocr-vl` | https://huggingface.co/PaddlePaddle/PaddleOCR-VL | Staged local VLM/OCR candidate; model download/inference is gated and outputs must stay separate from citation-ready evidence. |
+| S43 | `manga-ocr` | https://github.com/kha-white/manga-ocr | Staged local OCR candidate for Japanese manga-style text; dependency/model review required before install or execution. |
 
 ## Source Refs Not Manifest Entries
 

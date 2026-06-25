@@ -136,11 +136,6 @@ from research_x.memory.search import (
     strong_anchor_terms_for_query,
 )
 from research_x.memory.source_kinds import classify_external_source_kind
-from research_x.memory.tool_contract import (
-    validate_tool_output,
-    workflow_tool_output,
-    workflow_tool_output_json,
-)
 from research_x.memory.vector_projection import (
     benchmark_json,
     benchmark_vector_backends,
@@ -152,6 +147,11 @@ from research_x.memory.workflow import (
     plan_workflow_route,
     run_memory_workflow,
     workflow_json,
+)
+from research_x.tool_interface.memory_tool_contract import (
+    validate_tool_output,
+    workflow_tool_output,
+    workflow_tool_output_json,
 )
 
 

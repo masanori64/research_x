@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 DEFAULT_REGISTRY_PATH = Path("control") / "adoption_registry.toml"
+DEFAULT_VENDOR_SOURCE_LOCK_PATH = Path("control") / "vendor_sources.lock.md"
+SOURCE_REF_RE = re.compile(r"^S\d{2}$")
 ALLOWED_ADOPTION_SHAPES = {
     "adopt",
     "bridge",
@@ -41,6 +44,7 @@ class AdoptionCandidate:
     active_artifact: str
     first_local_step: str
     promotion_gate: str
+    stop_condition: str
     provider_or_quota: bool
     enabled: bool
     notes: str
@@ -64,6 +68,7 @@ def validate_adoption_registry(
     path: str | Path = DEFAULT_REGISTRY_PATH,
     *,
     repo_root: str | Path = ".",
+    source_lock_path: str | Path | None = DEFAULT_VENDOR_SOURCE_LOCK_PATH,
 ) -> list[str]:
     registry_path = Path(path)
     root = Path(repo_root)
@@ -91,6 +96,7 @@ def validate_adoption_registry(
         raw_candidates = []
 
     names: set[str] = set()
+    source_refs: set[str] = set()
     required_categories = {
         "tool_interface",
         "external_source_candidate",
@@ -116,11 +122,14 @@ def validate_adoption_registry(
         except ValueError as exc:
             errors.append(f"{name}: {exc}")
             continue
+        source_refs.add(candidate.source_ref)
         _validate_candidate(candidate, root, errors)
 
     missing_categories = sorted(required_categories - seen_categories)
     if missing_categories:
         errors.append("missing candidate categories: " + ", ".join(missing_categories))
+    if source_lock_path is not None:
+        _validate_source_lock(Path(source_lock_path), source_refs, errors)
     return errors
 
 
@@ -184,6 +193,7 @@ def _candidate_from_raw(raw: dict[str, Any]) -> AdoptionCandidate:
         "active_artifact",
         "first_local_step",
         "promotion_gate",
+        "stop_condition",
         "provider_or_quota",
         "enabled",
         "notes",
@@ -202,6 +212,7 @@ def _candidate_from_raw(raw: dict[str, Any]) -> AdoptionCandidate:
         active_artifact=str(raw["active_artifact"]),
         first_local_step=str(raw["first_local_step"]),
         promotion_gate=str(raw["promotion_gate"]),
+        stop_condition=str(raw["stop_condition"]),
         provider_or_quota=bool(raw["provider_or_quota"]),
         enabled=bool(raw["enabled"]),
         notes=str(raw["notes"]),
@@ -234,6 +245,8 @@ def _validate_candidate(
         errors.append(f"{candidate.name}: first_local_step is required")
     if not candidate.promotion_gate.strip():
         errors.append(f"{candidate.name}: promotion_gate is required")
+    if not candidate.stop_condition.strip():
+        errors.append(f"{candidate.name}: stop_condition is required")
     if candidate.provider_or_quota and candidate.adoption_shape != "provider_gated":
         errors.append(f"{candidate.name}: provider/quota candidate must be provider_gated")
     if candidate.adoption_shape == "provider_gated" and candidate.enabled:
@@ -252,3 +265,17 @@ def _validate_candidate(
         artifact_path = repo_root / candidate.active_artifact
         if not artifact_path.exists():
             errors.append(f"{candidate.name}: adopted active_artifact missing")
+
+
+def _validate_source_lock(
+    source_lock_path: Path,
+    source_refs: set[str],
+    errors: list[str],
+) -> None:
+    if not source_lock_path.exists():
+        errors.append(f"source lock missing: {source_lock_path}")
+        return
+    text = source_lock_path.read_text(encoding="utf-8")
+    for source_ref in sorted(ref for ref in source_refs if SOURCE_REF_RE.match(ref)):
+        if f"| {source_ref} |" not in text:
+            errors.append(f"source lock missing row for {source_ref}")

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from research_x.codex_bridge import (
+from research_x.tool_interface.codex_bridge import (
     bridge_contract,
     validate_codex_to_research_x_payload,
 )
@@ -63,7 +63,7 @@ def test_research_x_registry_points_codex_details_to_external_owner() -> None:
     assert bridge["source_url"] == (
         "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
     )
-    assert bridge["active_artifact"] == "src/research_x/codex_bridge.py"
+    assert bridge["active_artifact"] == "src/research_x/tool_interface/codex_bridge.py"
 
 
 def test_research_x_bridge_stays_thin_without_codex_runtime_ownership() -> None:

@@ -11,7 +11,7 @@ from research_x.research_intake.pipeline import (
 
 
 def test_default_discovery_records_zero_network_and_provider_calls() -> None:
-    profile = load_profile(Path("control/research_intake/codex_ai_tools.profile.toml"))
+    profile = load_profile(Path("control/research_intake/research_x_sources.profile.toml"))
     registry = load_registry(Path("control/research_intake/source_registry.toml"))
 
     run = discover_candidates(profile, registry, limit=10, created_at="2026-06-12T00:00:00Z")
@@ -27,7 +27,7 @@ def test_default_discovery_records_zero_network_and_provider_calls() -> None:
 
 
 def test_research_brief_candidates_need_source_bundle_promotion() -> None:
-    profile = load_profile(Path("control/research_intake/codex_ai_tools.profile.toml"))
+    profile = load_profile(Path("control/research_intake/research_x_sources.profile.toml"))
     registry = load_registry(Path("control/research_intake/source_registry.toml"))
 
     run = discover_candidates(profile, registry, limit=3, created_at="2026-06-12T00:00:00Z")

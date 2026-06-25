@@ -4,10 +4,10 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from research_x.codex_bridge import bridge_trace_contract
 from research_x.memory.answer import MemoryAnswer
 from research_x.memory.context import CitationAnnotation
 from research_x.memory.workflow import MemoryWorkflow
+from research_x.tool_interface.codex_bridge import bridge_trace_contract
 
 CONTRACT_VERSION = "research-x-ai-tool-v1"
 TOOL_OUTPUT_STATUSES = {
