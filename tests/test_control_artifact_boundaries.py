@@ -49,7 +49,7 @@ def test_pointer_map_marks_next_wave_plan_and_artifacts_not_evidence() -> None:
     for path in (
         ".codex/implementation-plans/2026-06-24-next-wave-33-5-24-10.md",
         "src/research_x/control_artifacts/renderer.py",
-        "src/research_x/codex_improvement/skill_lifecycle.py",
-        "src/research_x/codex_improvement/overimplementation_guard.py",
+        "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
+        "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
     ):
         assert by_path[path]["not_evidence"] is True

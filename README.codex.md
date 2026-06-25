@@ -59,6 +59,9 @@ artifacts. They are not evidence or answer support.
   `answer|abstain|needs_review|provider_gated|blocked` plus citations and audit
   trace out. Codex transcripts, Skill auto-edit authority, provider execution
   permission, and root instructions do not cross into `research_x`.
+- Proposal-only Codex self-improvement implementation lives at
+  `C:/Users/maasa/.codex/foundation/codex_improvement`; there must be no
+  `src/research_x/codex_improvement` package.
 - For AI-facing workflow output, prefer `memory workflow --tool-json` over the
   internal `--json` shape.
 - The machine-readable `research_x` adoption boundary is `.codex/adoption_registry.toml`;

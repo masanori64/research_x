@@ -39,11 +39,13 @@ def test_research_intake_contract_blocks_network_provider_and_connectors() -> No
         assert f"  - {forbidden}" in text
 
 
-def test_improvement_triage_contract_blocks_auto_merge_and_installs() -> None:
-    text = Path("prompt_contracts/research_x_improvement_triage_v1.yaml").read_text(
+def test_bridge_signal_contract_blocks_codex_improvement_actions() -> None:
+    text = Path("prompt_contracts/research_x_bridge_signal_v1.yaml").read_text(
         encoding="utf-8"
     )
 
+    assert "codex_improvement_triage" in text
     assert "auto_merge_guidance" in text
     assert "install_third_party_skill" in text
     assert "edit_global_codex_config" in text
+    assert "skill_auto_edit_permission" in text

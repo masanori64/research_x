@@ -92,7 +92,9 @@ def _validate_payload(
     for field in FORBIDDEN_BRIDGE_FIELDS:
         if field in payload:
             errors.append(f"{direction}: forbidden field {field!r}")
-    unknown = sorted(set(payload) - allowed_set - {"contract_version"})
+    unknown = sorted(
+        set(payload) - allowed_set - set(FORBIDDEN_BRIDGE_FIELDS) - {"contract_version"}
+    )
     if unknown:
         errors.append(f"{direction}: unknown bridge fields: {', '.join(unknown)}")
     if payload.get("contract_version", BRIDGE_CONTRACT_VERSION) != BRIDGE_CONTRACT_VERSION:

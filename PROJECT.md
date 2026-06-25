@@ -15,6 +15,9 @@ session memory, retrospectives, Skill/Plugin/MCP governance, and external Codex
 foundation candidates belong in `maasa/.codex`. This project keeps only the thin
 bridge needed for AI tool use: query/objective/context-budget/source-candidate in,
 evidence status, citations, answer/abstain/provider-gated state, and audit trace out.
+The proposal-only self-improvement package is external-owned at
+`C:/Users/maasa/.codex/foundation/codex_improvement`; do not restore it under
+`src/research_x`.
 
 ## Canonical Pointers
 

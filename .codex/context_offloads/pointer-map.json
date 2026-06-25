@@ -20,9 +20,9 @@
       "artifact_kind": "wbs_json",
       "owner_plane": "work_state",
       "restore_hint": "Open with tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html or parse as JSON for gates/status/candidate state.",
-      "sha256": "f4e5c5d421f599a875fb4a43bc8274012cc0aeba8c9038e5c8a1c35cbfc86696",
-      "char_count": 92430,
-      "byte_count": 92430,
+      "sha256": "01c56c0ca5e68f0917eef425ec064653361e38139e258b1db61b5e6e694cf55d",
+      "char_count": 92502,
+      "byte_count": 92502,
       "not_evidence": true
     },
     {
@@ -53,9 +53,9 @@
       "artifact_kind": "implementation_plan",
       "owner_plane": "decision_input",
       "restore_hint": "Closed implementation-plan input for source items 33, 5, 24, and 10; diagram-tool notes inside are historical/reference-only and superseded by the D2/Marp boundary.",
-      "sha256": "faeb07d762ce2980660d844d7e7a5731fd6eeedf137d5abac0d9bd3c4b1a624b",
-      "char_count": 14871,
-      "byte_count": 18349,
+      "sha256": "1f5ed0a095abccd32ffcbfeaa3dd53b5196fad8f1881ab8361e9fe757db462c9",
+      "char_count": 15177,
+      "byte_count": 18655,
       "not_evidence": true
     },
     {
@@ -115,7 +115,7 @@
     },
     {
       "pointer_id": "codex_improvement_skill_lifecycle_py",
-      "artifact_path": "src/research_x/codex_improvement/skill_lifecycle.py",
+      "artifact_path": "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
       "artifact_kind": "source_code",
       "owner_plane": "codex_foundation",
       "restore_hint": "Proposal-only Skill lifecycle input gate; does not edit Skill files or manifests.",
@@ -126,7 +126,7 @@
     },
     {
       "pointer_id": "codex_improvement_overimplementation_guard_py",
-      "artifact_path": "src/research_x/codex_improvement/overimplementation_guard.py",
+      "artifact_path": "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
       "artifact_kind": "source_code",
       "owner_plane": "codex_foundation",
       "restore_hint": "Report-only over-implementation guard canary; no hook, plugin, MCP, or auto-block.",

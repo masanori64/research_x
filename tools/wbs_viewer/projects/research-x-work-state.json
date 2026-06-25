@@ -608,8 +608,8 @@
                     "decision_band": "local_implementation",
                     "gate": "codex_foundation_design_only",
                     "status": "complete",
-                    "artifact_pointer": "src/research_x/codex_improvement/skill_lifecycle.py",
-                    "owner_doc": "src/research_x/codex_improvement/skill_lifecycle.py",
+                    "artifact_pointer": "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
+                    "owner_doc": "C:/Users/maasa/.codex/foundation/codex_improvement/skill_lifecycle.py",
                     "evidence_status": "not_evidence",
                     "answer_support_allowed": false,
                     "source_items": [
@@ -639,8 +639,8 @@
                     "decision_band": "local_eval_canary",
                     "gate": "no_plugin_no_hook",
                     "status": "complete",
-                    "artifact_pointer": "src/research_x/codex_improvement/overimplementation_guard.py",
-                    "owner_doc": "src/research_x/codex_improvement/overimplementation_guard.py",
+                    "artifact_pointer": "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
+                    "owner_doc": "C:/Users/maasa/.codex/foundation/codex_improvement/overimplementation_guard.py",
                     "evidence_status": "not_evidence",
                     "answer_support_allowed": false,
                     "source_items": [

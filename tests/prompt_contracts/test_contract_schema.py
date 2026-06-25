@@ -6,7 +6,7 @@ CONTRACT_DIR = Path("prompt_contracts")
 CONTRACTS = {
     "research_x_memory_search_v1.yaml",
     "research_x_research_intake_v1.yaml",
-    "research_x_improvement_triage_v1.yaml",
+    "research_x_bridge_signal_v1.yaml",
     "research_x_publishing_illustration_v1.yaml",
 }
 REQUIRED_KEYS = (
