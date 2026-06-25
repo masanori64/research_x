@@ -1,16 +1,21 @@
 direction: right
 
-repo: Repository files
-facts: Validated facts
-build: D2 + Marp build
-deck: PPTX output
+repo: "Repository files"
+facts: project-facts.json
+slides: slides.md
+d2: "D2 diagrams"
+build: "Marp build"
+pptx: PPTX
 
-repo -> facts
-facts -> build
-build -> deck
+repo -> facts: evidence
+facts -> slides: claims
+facts -> d2: requirements
+d2 -> build: SVG
+slides -> build: markdown
+build -> pptx
 
-generated: Generated/control artifacts
-generated.style.stroke-dash: 4
-generated -> facts {
+control: "Control artifacts"
+control.style.stroke-dash: 4
+control -> facts: rejected {
   style.stroke: "#dc2626"
 }

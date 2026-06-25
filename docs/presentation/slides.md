@@ -6,114 +6,219 @@ size: 16:9
 style: |
   section {
     color: #1f2933;
-    font-family: "Aptos", "Segoe UI", sans-serif;
+    font-family: "Aptos", "Yu Gothic", "Meiryo", "Segoe UI", sans-serif;
     letter-spacing: 0;
+    padding: 54px 72px;
   }
   h1 {
     color: #244766;
-    font-size: 44px;
+    font-size: 40px;
+    margin-bottom: 22px;
+  }
+  h2 {
+    color: #244766;
+    font-size: 28px;
   }
   p, li {
-    font-size: 25px;
-    line-height: 1.35;
+    font-size: 21px;
+    line-height: 1.34;
+  }
+  table {
+    font-size: 16px;
+  }
+  th {
+    background: #e8eef4;
   }
   code {
-    font-size: 0.82em;
+    font-size: 0.8em;
   }
   section.diagram img {
     display: block;
-    margin: 8px auto 0;
-    max-height: 450px;
+    margin: 22px auto 0;
+    max-height: 410px;
     max-width: 100%;
+  }
+  .small {
+    font-size: 17px;
   }
 ---
 
-# research_x
+# research_x プロジェクト概要
 
-Local evidence-first memory for X data
+下請けSI事業者向け 開発者説明資料
 
-<!-- claim: claim-local-x-memory -->
+<!-- claim: claim-project-purpose -->
 
-- Goal: AI-callable local search over an existing X collection database
-- Constraint: provenance, account ownership, quote/media context, and subjective interest must survive retrieval
-- Boundary: generated decks, diagrams, WBS, pointer maps, and ChatGPT captures are not evidence
-
----
-
-# Problem
-
-<!-- claim: claim-search-results-are-candidates -->
-
-Local X collections are useful only if an agent can search them without flattening provenance.
-
-- Bookmarks are account-specific, not generic web pages
-- Quote and media context change what a tweet means
-- Search hits are candidates until restored to source-backed context
+- 既存XコレクションDBを、AIエージェントがローカル検索できる memory/search system にする
+- 重点は「検索できること」より、出典・文脈・引用可能性を壊さないこと
+- 本資料は実装レビュー、見積もり、引き継ぎの前提共有を目的とする
 
 ---
 
-# Evidence Pipeline
+# この資料で合わせたい理解
 
-<!-- claim: claim-evidence-first -->
-<!-- _class: diagram -->
+<!-- claim: claim-sier-context -->
 
-![Evidence pipeline](assets/memory-evidence-flow.svg)
+SI事業者側に期待する理解は、画面や単体機能ではなく、責務境界です。
+
+| 観点 | 見るべきこと |
+| --- | --- |
+| 取得 | Xデータをどのprovider chainで集めるか |
+| 保存 | tweet/bookmark/media/edgeをどう正規化するか |
+| 検索 | 検索結果をいつ証拠として扱えるか |
+| 回答 | citation-readyでない場合にどう止めるか |
+| 運用 | provider/API/secretsを誰が承認するか |
 
 ---
 
-# Runtime Surface
+# 全体アーキテクチャ
 
-<!-- claim: claim-cli-entrypoint -->
+<!-- claim: claim-runtime-architecture -->
 <!-- _class: diagram -->
 
 ![Runtime boundary](assets/runtime-boundary.svg)
 
----
-
-# Provider Gate
-
-<!-- claim: claim-provider-gated -->
-
-- Real embeddings, OCR, rerank, Reader, classifier, answer, external search, and managed RAG are blocked by default
-- Local/fake providers and deterministic tests are allowed
-- Budget guard preflight is required before any explicitly approved provider run
+<p class="small">実装入口は Python/uv の `research-x` CLI。D2/Marpは資料生成専用で、memory architectureの正本ではない。</p>
 
 ---
 
-# Local Data Model
+# 取得パイプライン
+
+<!-- claim: claim-acquisition-chain -->
+
+profile/search/url/bookmarks ごとに provider chain を切り替え、1つのproviderに依存しない構成です。
+
+| target | chainの考え方 |
+| --- | --- |
+| profile | `twscrape_raw -> scweet -> twikit -> ... -> scrapy` |
+| search | `scweet` を先頭にした検索向けchain |
+| url | URL解決向けに `twscrape_raw/twikit` を優先 |
+| bookmarks | private session前提でbookmark専用providerを含める |
+
+失敗は `timeout`、`rate_limited`、`auth_failed`、`schema_drift`、`dom_drift` 等へ分類し、attemptごとに evidence JSON を残します。
+
+---
+
+# Bookmark と共有Store
+
+<!-- claim: claim-bookmark-store -->
+
+Bookmarkはログインユーザー固有のデータなので、通常tweet取得とは別の注意が必要です。
+
+| 保存先 | 意味 |
+| --- | --- |
+| `tweets` | tweet本体のcanonical row |
+| `account_bookmarks` | どのログインaccountがbookmarkしたか |
+| `collection_items` | どの取得run/targetで観測したか |
+| `tweet_edges` | quote/reply等の関係 |
+| `media` / `media/` | media provenanceと保存済みlocal file |
+
+同じtweetが通常取得とbookmark取得の両方で見つかっても、別物に増殖させない設計です。
+
+---
+
+# Evidence-first Memory Pipeline
+
+<!-- claim: claim-evidence-invariant -->
+<!-- _class: diagram -->
+
+![Evidence pipeline](assets/memory-evidence-flow.svg)
+
+<p class="small">検索結果は候補であり、source bundle復元とcitation checkを通るまで回答根拠ではない。</p>
+
+---
+
+# SQLite主要テーブル群
 
 <!-- claim: claim-memory-schema -->
 
-- `memory_documents` and `memory_document_fts` are rebuildable searchable projections
-- `memory_workflow_runs` and `memory_workflow_steps` expose route and stop state
-- `memory_api_usage_events` records provider-facing budget events
-- Context chunks, citation annotations, answer runs, evals, relations, and governance records remain separate tables
+| グループ | 代表テーブル | 役割 |
+| --- | --- | --- |
+| 検索投影 | `memory_documents`, `memory_document_fts` | rebuildableな検索対象 |
+| 証拠入力 | `memory_context_chunks`, `memory_citation_annotations` | 回答入力と引用注釈 |
+| 実行追跡 | `memory_workflow_runs`, `memory_workflow_steps` | route/status/stop_reason |
+| 評価 | `memory_eval_runs`, `memory_eval_results`, `memory_eval_gate_results` | local eval/audit |
+| 予算 | `memory_api_budget_policies`, `memory_api_usage_events` | provider利用管理 |
+| 統制 | `memory_governance_records`, `memory_security_boundaries` | governance/security境界 |
 
 ---
 
-# Presentation Build Boundary
+# Workflow 実行単位
 
-<!-- claim: claim-presentation-stage-boundary -->
-<!-- _class: diagram -->
+<!-- claim: claim-workflow-execution -->
 
-![Presentation generation flow](assets/presentation-facts-flow.svg)
+`run_memory_workflow()` は1回の問い合わせを、状態付きの実行単位として扱います。
 
----
+1. `plan`: query plan / route plan / objective route plan を作る
+2. `context`: local searchからsource-backed context bundleを作る
+3. `llm_context`: 承認時のみ外部/LLM contextを追加
+4. `answer`: 承認時のみ回答生成し、citation状態を記録
+5. `finish`: `status` と `stop_reason` を保存
 
-# Deck Rule
-
-<!-- claim: claim-generated-artifacts-not-evidence -->
-
-Every slide-worthy claim must map back to `project-facts.json`, and every fact must point to repository files.
-
-- Generated PPTX/SVG/HTML is presentation output, not evidence
-- Unknowns stay in `unknowns[]` until supported
-- D2 and Marp are renderer choices, not architecture truth
+重要なのは、うまく答えられない場合も `needs_review`、`provider_gated`、`citation_missing` として止まれることです。
 
 ---
 
-# Current Open Questions
+# Provider/API Gate
 
-- Whether editable PowerPoint objects are required later
-- Final narrative polish and diagram count after this first fixed-layout deck
-- Whether another renderer is justified after the D2/Marp lane is evaluated
+<!-- claim: claim-provider-gate -->
+
+現時点のデフォルトは no-quota freeze です。
+
+| 禁止または承認待ち | 理由 |
+| --- | --- |
+| real embedding / OCR / rerank / Reader | provider quota消費 |
+| classifier / answer engine / external search | API Budget Guard前提 |
+| free-tier / trial / zero-dollar quota | 「無料」でもquota消費 |
+| model download / MCP / plugin / hook | 別の導入・運用リスク |
+
+SI事業者の作業では、fake/local provider、静的検査、monkeypatch済みテスト、offline estimate を先に使います。
+
+---
+
+# 開発者が最初に見る入口
+
+<!-- claim: claim-dev-entrypoints -->
+
+| 目的 | コマンド / ファイル |
+| --- | --- |
+| CLI確認 | `uv run python -m research_x --help` |
+| memory確認 | `uv run python -m research_x memory --help` |
+| slow test診断 | `uv run python -m research_x test-diagnose ...` |
+| facts検証 | `uv run python -m research_x presentation validate-facts --json` |
+| slides検証 | `uv run python -m research_x presentation validate-slides --json` |
+| PPTX生成 | `npm run presentation:build` |
+
+Python tooling は必ず `uv run ...` 経由。provider-backed command は承認なしに実行しません。
+
+---
+
+# SI事業者作業時の責任境界
+
+<!-- claim: claim-sier-boundary -->
+
+| 作業 | 原則 |
+| --- | --- |
+| local/fake provider実装 | 実行可。deterministic testで検証 |
+| DB schema変更 | migration / audit / backward compatibilityを明示 |
+| provider API連携 | 承認、budget status、offline estimate後 |
+| secrets/session | `.secrets/` をstageしない。値をログに出さない |
+| hook/plugin/MCP | 別ゲート。資料や計画だけでは有効化しない |
+| generated artifacts | レビュー補助。answer evidenceにしない |
+
+---
+
+# 現状・未確定事項・次アクション
+
+<!-- claim: claim-current-open-items -->
+<!-- claim: claim-control-artifacts -->
+
+| 区分 | 状態 |
+| --- | --- |
+| local architecture | evidence-first boundary とCLI入口は整理済み |
+| presentation lane | D2/Marp build、facts/slides validator、PPTX生成済み |
+| provider品質検証 | no-quota freeze中。実API評価は未実施 |
+| SI事業者への委託範囲 | 契約スコープ、SLA、運用責任分界は別途決定 |
+| 注意 | WBS、pointer map、diagram、PPTX、ChatGPT相談結果は証拠ではない |
+
+次は、SI事業者に渡す作業範囲を local-only / provider-gated / secret-sensitive に分けて見積もることです。

@@ -1,10 +1,16 @@
 direction: right
 
-raw: Raw X sources
-candidates: Candidate signals
-context: Source-backed context
-answer: Citation-checked answer
+raw: "原本\nRaw Source"
+doc: "検索対象\nSearchable Document"
+result: "検索結果\nSearch Result"
+bundle: "根拠束\nSource Bundle"
+chunk: "文脈片\nContext Chunk"
+citation: "引用\nCitation"
+answer: "回答\nAnswer"
 
-raw -> candidates
-candidates -> context
-context -> answer
+raw -> doc
+doc -> result
+result -> bundle
+bundle -> chunk
+chunk -> citation
+citation -> answer

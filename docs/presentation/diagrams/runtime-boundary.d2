@@ -1,18 +1,17 @@
 direction: right
 
-python: Python / uv
-cli: research-x CLI
-memory: Memory workflow
-node: Node package surface
-d2: D2 render lane
-marp: Marp deck lane
-providers: Provider/API lanes
+user: "開発者 / SI事業者"
+cli: "research-x CLI"
+acq: "取得パイプライン"
+store: "X SQLite Store"
+memory: "記憶ワークフロー"
+gate: "Provider/APIゲート"
 
-python -> cli: pyproject script
-cli -> memory: local/fake workflow commands
-node -> d2: presentation:render-d2
-node -> marp: presentation:build
-providers -> memory: blocked unless gate lifted {
+user -> cli
+cli -> acq
+acq -> store
+store -> memory
+gate -> memory {
   style.stroke: "#dc2626"
   style.stroke-dash: 4
 }

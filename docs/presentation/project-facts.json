@@ -2,10 +2,10 @@
   "schema_version": 1,
   "project": {
     "name": "research_x",
-    "one_liner": "A local, evidence-first memory and search system for an existing X collection database.",
-    "purpose": "Let an AI agent query local X collection data while preserving provenance, account-specific bookmark ownership, quote and media context, and the user's subjective interests.",
-    "audience": "engineers and project reviewers",
-    "scope": "Local repository facts for the first presentation deck; generated decks, diagrams, WBS, pointer maps, and ChatGPT captures are excluded as evidence.",
+    "one_liner": "既存のXコレクションDBを、AIエージェントがローカル検索できる evidence-first memory/search system にするプロジェクト。",
+    "purpose": "X取得データを、出典・アカウント別ブックマーク所有・引用/メディア文脈を失わずに検索、復元、引用、回答へ接続する。",
+    "audience": "下請けSI事業者の開発者・技術リーダー",
+    "scope": "SI事業者向け開発者資料用のrepository-backed facts。生成物、WBS、pointer map、ChatGPT相談結果は証拠から除外する。",
     "evidence": ["PROJECT.md", "README.codex.md", "docs/memory-pipeline-v2.md"]
   },
   "runtime_surfaces": {
@@ -15,7 +15,7 @@
       "evidence": ["pyproject.toml", "README.codex.md"]
     },
     "node": {
-      "purpose": "Presentation-only D2 and Marp build boundary.",
+      "purpose": "D2/Marp によるrepo-owned presentation build lane。",
       "package_surface": "package.json",
       "scripts": [
         "presentation:preflight",
@@ -35,18 +35,18 @@
   },
   "tech_stack": [
     {
-      "name": "Python package",
-      "role": "Primary local application and CLI implementation.",
+      "name": "Python / uv",
+      "role": "primary CLI, acquisition, local app, memory workflow, eval, audit implementation.",
       "evidence": ["pyproject.toml", "src/research_x/cli.py"]
     },
     {
       "name": "SQLite",
-      "role": "Local storage for acquisition data, memory documents, workflow traces, evals, and provider budget guard state.",
+      "role": "raw X store, memory projections, workflow traces, citations, evals, governance, provider budget records.",
       "evidence": ["src/research_x/x_store.py", "src/research_x/memory/schema.py"]
     },
     {
-      "name": "D2 and Marp",
-      "role": "Presentation diagram and deck rendering lane only.",
+      "name": "D2 / Marp",
+      "role": "presentation diagram and deck build lane only; not architecture source of truth.",
       "evidence": ["package.json", "docs/presentation/presentation.config.yaml"]
     }
   ],
@@ -58,10 +58,10 @@
       "evidence": ["pyproject.toml", "src/research_x/__main__.py", "src/research_x/cli.py"]
     },
     {
-      "name": "presentation preflight",
-      "command": "npm run presentation:preflight",
-      "target": "scripts/presentation/preflight.mjs",
-      "evidence": ["package.json", "scripts/presentation/preflight.mjs"]
+      "name": "memory workflow",
+      "command": "uv run python -m research_x memory ...",
+      "target": "research_x.memory.workflow:run_memory_workflow",
+      "evidence": ["src/research_x/cli.py", "src/research_x/memory/workflow.py"]
     },
     {
       "name": "presentation build",
@@ -72,24 +72,30 @@
   ],
   "modules": [
     {
-      "name": "adapters",
-      "purpose": "Acquisition adapter catalog and implementations.",
-      "evidence": ["src/research_x/adapters/catalog.py", "src/research_x/adapters/registry.py"]
+      "name": "acquisition adapters",
+      "purpose": "profile/search/url/bookmarks の複数provider chainを構成する取得層。",
+      "evidence": ["docs/pipeline.md", "src/research_x/pipeline.py", "src/research_x/adapters/catalog.py"]
     },
     {
-      "name": "memory",
-      "purpose": "Searchable document projections, evidence restoration, context bundles, answers, workflows, evals, and audit surfaces.",
+      "name": "shared X store",
+      "purpose": "tweets, account_bookmarks, collection_items, tweet_edges, media を共有SQLiteへ正規化する。",
+      "evidence": ["docs/pipeline.md", "src/research_x/x_store.py"]
+    },
+    {
+      "name": "memory workflow",
+      "purpose": "searchable document, source bundle, context chunk, citation, answer, workflow trace を分離して扱う。",
       "evidence": [
+        "docs/memory-pipeline-v2.md",
         "src/research_x/memory/schema.py",
-        "src/research_x/memory/evidence.py",
         "src/research_x/memory/workflow.py"
       ]
     },
     {
       "name": "presentation",
-      "purpose": "Local validation boundary for facts-first presentation generation.",
+      "purpose": "facts-first deck generation boundary. slide claims are validated against repository evidence.",
       "evidence": [
         "src/research_x/presentation/facts.py",
+        "src/research_x/presentation/slides.py",
         "docs/presentation/project-facts.schema.json"
       ]
     }
@@ -97,39 +103,41 @@
   "boundaries": [
     {
       "name": "Evidence invariant",
-      "rule": "Raw sources, searchable documents, search results, source bundles, context chunks, citations, and answers are separate objects.",
+      "rule": "raw source, searchable document, search result, source bundle, context chunk, citation, answer must remain separate.",
       "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md", "PROJECT.md"]
     },
     {
       "name": "No-quota provider freeze",
-      "rule": "Real provider calls remain blocked unless explicitly lifted in the current conversation and budget preflight passes.",
-      "evidence": ["AGENTS.md", "PROJECT.md", "README.codex.md"]
+      "rule": "real provider/API, free-tier, trial-credit, zero-dollar quota are blocked unless explicitly lifted.",
+      "evidence": ["AGENTS.md", "PROJECT.md", "docs/memory-pipeline-v2.md"]
     },
     {
-      "name": "Presentation facts boundary",
-      "rule": "Slide-worthy claims must come from repository-file evidence and must not use generated or control artifacts as evidence.",
-      "evidence": [
-        "docs/presentation/project-facts.schema.json",
-        "src/research_x/presentation/facts.py",
-        "docs/presentation/presentation.config.yaml"
-      ]
+      "name": "SI work boundary",
+      "rule": "local/fake provider and deterministic tests are safe; real API, secrets, MCP/plugin/hook, model downloads, destructive DB rewrites are approval gates.",
+      "evidence": ["AGENTS.md", "PROJECT.md", "README.codex.md"]
     }
   ],
   "data_stores": [
     {
       "name": "X collection SQLite database",
       "exists": true,
-      "purpose": "Stores raw tweets, bookmarks, accounts, media, edges, and collection state.",
-      "evidence": ["src/research_x/x_store.py", "src/research_x/pipeline.py"]
+      "purpose": "raw tweets/bookmarks/accounts/media/edges/collection state.",
+      "evidence": ["src/research_x/x_store.py", "docs/pipeline.md"]
     },
     {
       "name": "Memory schema tables",
       "exists": true,
-      "purpose": "Stores rebuildable memory documents, embeddings, evals, workflows, governance, and search traces.",
+      "purpose": "memory documents, FTS, workflow, context, citation, answer, eval, API budget, governance state.",
       "evidence": ["src/research_x/memory/schema.py"]
     }
   ],
   "external_dependencies": [
+    {
+      "name": "X acquisition providers",
+      "status": "local implementation surface with auth/session constraints",
+      "gate": "Private bookmark acquisition depends on logged-in user session and safe secret handling.",
+      "evidence": ["docs/pipeline.md", "src/research_x/pipeline.py"]
+    },
     {
       "name": "Provider-backed memory and answer lanes",
       "status": "gated",
@@ -138,51 +146,51 @@
     },
     {
       "name": "D2 and Marp Node dependencies",
-      "status": "local_dependency_boundary",
+      "status": "local presentation dependency boundary",
       "gate": "Presentation build surface only; no plugins, hooks, MCP, or provider calls.",
       "evidence": ["package.json", "package-lock.json", "scripts/presentation/preflight.mjs"]
     }
   ],
   "key_flows": [
     {
-      "name": "Acquisition to local store",
+      "name": "Acquisition pipeline",
       "steps": [
-        "Run an adapter through the resilient acquisition pipeline.",
-        "Normalize results into the local X store.",
-        "Use local database rows as the raw provenance base."
+        "Resolve target-specific provider chain.",
+        "Run adapters with isolated failure handling.",
+        "Write evidence JSON per attempt.",
+        "Merge/dedupe items and normalize into shared store."
       ],
-      "source_files": ["src/research_x/pipeline.py", "src/research_x/x_store.py"],
-      "evidence": ["src/research_x/pipeline.py", "src/research_x/x_store.py"]
+      "source_files": ["src/research_x/pipeline.py", "docs/pipeline.md"],
+      "evidence": ["src/research_x/pipeline.py", "docs/pipeline.md"]
     },
     {
       "name": "Memory workflow",
       "steps": [
-        "Build or query searchable memory documents.",
-        "Restore source bundles before claims are supported.",
-        "Produce context chunks, citation annotations, answer status, and workflow traces."
+        "Plan route from query.",
+        "Build context bundle from local search and restored source bundles.",
+        "Optionally add gated LLM context.",
+        "Optionally generate answer with citation checks.",
+        "Persist workflow run/steps/status/stop_reason."
       ],
-      "source_files": [
-        "src/research_x/memory/corpus.py",
-        "src/research_x/memory/evidence.py",
-        "src/research_x/memory/workflow.py"
-      ],
-      "evidence": ["docs/memory-pipeline-v2.md", "src/research_x/memory/workflow.py"]
+      "source_files": ["src/research_x/memory/workflow.py", "src/research_x/memory/schema.py"],
+      "evidence": ["src/research_x/memory/workflow.py", "docs/memory-pipeline-v2.md"]
     },
     {
       "name": "Presentation generation",
       "steps": [
         "Validate project-facts.json.",
-        "Render D2 diagrams from validated facts.",
-        "Build Marp slides only after facts and slides exist."
+        "Validate slides claim markers and local assets.",
+        "Render D2 diagrams.",
+        "Build Marp PPTX."
       ],
       "source_files": [
         "src/research_x/presentation/facts.py",
-        "scripts/presentation/render-d2.mjs",
+        "src/research_x/presentation/slides.py",
         "scripts/presentation/build.mjs"
       ],
       "evidence": [
         "src/research_x/presentation/facts.py",
-        "scripts/presentation/preflight.mjs",
+        "src/research_x/presentation/slides.py",
         "scripts/presentation/build.mjs"
       ]
     }
@@ -192,93 +200,129 @@
     "evidence": ["src/research_x/memory/schema.py", "src/research_x/x_store.py"],
     "tables": [
       {
-        "name": "memory_documents",
-        "purpose": "Rebuildable searchable projections over raw X source rows.",
+        "name": "memory_documents / memory_document_fts",
+        "purpose": "rebuildable searchable projections and FTS index.",
         "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/corpus.py"]
       },
       {
-        "name": "memory_document_fts",
-        "purpose": "SQLite FTS index over searchable document text.",
-        "evidence": ["src/research_x/memory/schema.py"]
+        "name": "memory_context_chunks / memory_citation_annotations",
+        "purpose": "bounded answer inputs and source-backed citation annotations.",
+        "evidence": ["src/research_x/memory/schema.py", "docs/memory-pipeline-v2.md"]
       },
       {
-        "name": "memory_workflow_runs",
-        "purpose": "Stored workflow traces for route choice, evidence state, context, and answer output.",
+        "name": "memory_workflow_runs / memory_workflow_steps",
+        "purpose": "route, status, stop_reason, step input/output trace.",
         "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/workflow.py"]
       },
       {
-        "name": "memory_api_usage_events",
-        "purpose": "Budget-guard usage records for provider-facing operations.",
+        "name": "memory_api_budget_policies / memory_api_usage_events",
+        "purpose": "provider-facing budget guard and usage ledger.",
         "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/api_budget.py"]
       }
     ]
   },
   "claims": [
     {
-      "id": "claim-local-x-memory",
-      "claim": "research_x is a local, user-specific X data memory/search project whose goal is AI-callable search with provenance preserved.",
-      "evidence": ["PROJECT.md", "README.codex.md"],
+      "id": "claim-project-purpose",
+      "claim": "research_x は既存XコレクションDBを、AIエージェントがローカル検索できる evidence-first memory/search system にするプロジェクトである。",
+      "evidence": ["PROJECT.md", "README.codex.md", "docs/memory-pipeline-v2.md"],
       "slide_candidate": true
     },
     {
-      "id": "claim-evidence-first",
-      "claim": "The memory pipeline is evidence-first: raw sources, searchable documents, results, bundles, chunks, citations, and answers are separate stages.",
-      "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md"],
+      "id": "claim-sier-context",
+      "claim": "SI事業者向けには、取得・保存・検索・引用・回答の責務境界と、承認ゲートを明確に説明する必要がある。",
+      "evidence": ["AGENTS.md", "PROJECT.md", "README.codex.md"],
       "slide_candidate": true
     },
     {
-      "id": "claim-search-results-are-candidates",
-      "claim": "Search hits are candidates and cannot support claims until they restore a source bundle and pass citation checks.",
-      "evidence": ["docs/memory-pipeline-v2.md"],
+      "id": "claim-acquisition-chain",
+      "claim": "取得系は profile/search/url/bookmarks ごとに複数adapterのprovider chainを持ち、provider失敗を分類しながら試行証跡を残す。",
+      "evidence": ["docs/pipeline.md", "src/research_x/pipeline.py"],
       "slide_candidate": true
     },
     {
-      "id": "claim-provider-gated",
-      "claim": "Provider-backed embeddings, OCR, rerank, Reader, classifier, answer, external search, and managed-RAG lanes are blocked by the no-quota freeze until explicitly approved.",
-      "evidence": ["AGENTS.md", "PROJECT.md", "docs/memory-pipeline-v2.md"],
-      "slide_candidate": true
-    },
-    {
-      "id": "claim-cli-entrypoint",
-      "claim": "The primary Python command surface is the research-x CLI implemented by research_x.cli:main.",
-      "evidence": ["pyproject.toml", "src/research_x/__main__.py", "src/research_x/cli.py"],
-      "slide_candidate": true
-    },
-    {
-      "id": "claim-memory-schema",
-      "claim": "The local memory layer stores searchable documents, FTS rows, workflow traces, eval records, embeddings, relations, governance records, and API budget events in SQLite tables.",
-      "evidence": ["src/research_x/memory/schema.py"],
-      "slide_candidate": true
-    },
-    {
-      "id": "claim-presentation-stage-boundary",
-      "claim": "The presentation lane uses a local D2/Marp build boundary, but factual deck content must first pass the PresentationFacts validator.",
+      "id": "claim-runtime-architecture",
+      "claim": "実行入口は research-x CLI で、取得pipeline、共有X store、memory workflow が段階接続され、provider/API gate は明示的に分離される。",
       "evidence": [
-        "package.json",
-        "docs/presentation/presentation.config.yaml",
-        "src/research_x/presentation/facts.py",
-        "scripts/presentation/preflight.mjs"
+        "README.codex.md",
+        "src/research_x/cli.py",
+        "src/research_x/pipeline.py",
+        "src/research_x/memory/workflow.py"
       ],
       "slide_candidate": true
     },
     {
-      "id": "claim-generated-artifacts-not-evidence",
-      "claim": "Generated decks, diagram assets, WBS state, pointer maps, and consultation captures are control or presentation artifacts, not evidence or answer support.",
+      "id": "claim-bookmark-store",
+      "claim": "Bookmark取得はログインユーザー固有のprivate sessionに依存し、tweets/account_bookmarks/collection_items/tweet_edges/mediaへ正規化される。",
+      "evidence": ["docs/pipeline.md", "src/research_x/x_store.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-evidence-invariant",
+      "claim": "raw source、searchable document、search result、source bundle、context chunk、citation、answer は別物として扱う。",
       "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md", "PROJECT.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-memory-schema",
+      "claim": "memory layer は searchable documents、FTS、workflow、context、citation、answer、eval、budget、governance をSQLiteで分離保持する。",
+      "evidence": ["src/research_x/memory/schema.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-workflow-execution",
+      "claim": "memory workflow は route planning、context bundle、optional LLM context、optional answer を段階実行し、status と stop_reason を保存する。",
+      "evidence": ["src/research_x/memory/workflow.py", "docs/memory-pipeline-v2.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-provider-gate",
+      "claim": "real provider/API calls は no-quota freeze と API Budget Guard により停止され、free-tier や zero-dollar quota も禁止される。",
+      "evidence": ["AGENTS.md", "PROJECT.md", "docs/memory-pipeline-v2.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-dev-entrypoints",
+      "claim": "開発者確認の入口は research-x CLI、memoryサブコマンド、test-diagnose、presentation validate/build に集約される。",
+      "evidence": ["README.codex.md", "src/research_x/cli.py", "package.json"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-sier-boundary",
+      "claim": "SI事業者の作業では local/fake provider と deterministic tests は可、real API、secrets、MCP/plugin/hook、model download、破壊的DB変更は承認ゲートである。",
+      "evidence": ["AGENTS.md", "PROJECT.md", "README.codex.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-control-artifacts",
+      "claim": "WBS、pointer map、diagram、PPTX、ChatGPT相談結果はcontrol/review artifactであり、answer evidenceではない。",
+      "evidence": ["docs/memory-pipeline-v2.md", "README.codex.md", "PROJECT.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-current-open-items",
+      "claim": "現時点では provider品質検証、実API使用、editable PPTX、最終運用スコープは未確定で、承認ゲート後に扱う。",
+      "evidence": ["PROJECT.md", "docs/memory-pipeline-v2.md", "docs/presentation/project-facts.schema.json"],
       "slide_candidate": true
     }
   ],
   "unknowns": [
     {
-      "id": "unknown-editable-pptx",
-      "question": "Whether editable PowerPoint objects are required instead of fixed-layout Marp output.",
-      "reason": "The current approved lane only establishes D2/Marp fixed-layout generation; PptxGenJS and Marp editable PPTX remain deferred.",
+      "id": "unknown-real-provider-quality",
+      "question": "実providerを使った検索品質、OCR、rerank、answer品質の評価結果。",
+      "reason": "No-quota provider freeze が有効で、実API検証は未承認。",
       "promoted_to_claim": false
     },
     {
-      "id": "unknown-final-slide-narrative",
-      "question": "The final slide order and diagram count for the first deck.",
-      "reason": "Slides must be derived after facts validation and diagram requirements are reviewed.",
+      "id": "unknown-sier-delivery-scope",
+      "question": "SI事業者に委託する最終スコープ、納品物、SLA、運用責任分界。",
+      "reason": "今回の資料はプロジェクト概要と開発境界説明であり、契約スコープは別途決定が必要。",
+      "promoted_to_claim": false
+    },
+    {
+      "id": "unknown-editable-pptx",
+      "question": "PowerPoint上で完全編集可能なオブジェクトベースPPTXが必要か。",
+      "reason": "現行のrepo-owned laneはD2/Marp固定レイアウトPPTXを対象にしている。",
       "promoted_to_claim": false
     }
   ]
