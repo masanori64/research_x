@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=38b3997ba64eaf3e219148140737b7741e2e09e3c5912545d7c3e39a82806a0d
+# foundation_manifest_sha256=244e63986ceffe7937cdad47979fccfaed5d2f22008b824ea1726375f888d9fd
 name: Codex Control Artifact CI
 
 on:
@@ -42,7 +42,9 @@ jobs:
               Path("docs/control/codex/dashboard/data/dashboard-state.json"),
               Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
               Path("docs/control/codex/dashboard/data/github-collection.json"),
+              Path("docs/control/codex/dashboard/data/preview-manifest.json"),
               Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
+              Path(".codex-project/generated/effective-preview-manifest.json"),
           ]
           markers = [
               "control_artifact",
@@ -72,6 +74,29 @@ jobs:
                   failures.append(f"{path}: write_operations_available must be false")
               if payload.get("mutation_methods_available") != []:
                   failures.append(f"{path}: mutation_methods_available must be []")
+          preview = json.loads(
+              Path("docs/control/codex/dashboard/data/preview-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if preview.get("target_type") != "artifact_only":
+              failures.append("preview-manifest target_type must be artifact_only")
+          if preview.get("live_url") is not None:
+              failures.append("preview-manifest live_url must be null")
+          side_effects = preview.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_used",
+              "github_api_calls",
+              "pages_enabled",
+              "repository_settings_changed",
+              "preview_live_deploy",
+              "staging_deploy",
+              "production_deploy",
+              "rollback_executed",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"preview-manifest side_effects.{key} must be false")
           html = Path("docs/control/codex/dashboard/index.html")
           if not html.exists():
               failures.append(f"{html}: missing")

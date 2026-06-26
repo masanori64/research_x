@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: 38b3997ba64eaf3e219148140737b7741e2e09e3c5912545d7c3e39a82806a0d
+  sha256: 244e63986ceffe7937cdad47979fccfaed5d2f22008b824ea1726375f888d9fd
   exists: true
 artifact_kind: effective_gates
 gates:
@@ -77,9 +77,9 @@ capabilities:
     allowed_without_gate: false
     reason: Capability dashboard_artifact_cd is artifact_only; verify gate policy before use.
   - capability_id: preview_cd
-    status: disabled
+    status: artifact_only
     allowed_without_gate: false
-    reason: Disabled by default for Phase 2 hardening; explicit gate required before enablement.
+    reason: Capability preview_cd is artifact_only; verify gate policy before use.
   - capability_id: staging_cd
     status: disabled
     allowed_without_gate: false
