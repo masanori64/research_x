@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>research_x Codex HOTL Control Dashboard</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; color: #1f2937; background: #f8fafc; }
+    header { padding: 24px; background: #111827; color: #fff; }
+    main { max-width: 1120px; margin: 0 auto; padding: 24px; }
+    section { margin: 0 0 24px; }
+    .notice {
+      border: 2px solid #b91c1c;
+      background: #fff1f2;
+      color: #7f1d1d;
+      padding: 12px;
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .panel { background: #fff; border: 1px solid #d1d5db; border-radius: 6px; padding: 16px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #e5e7eb; }
+    pre {
+      white-space: pre-wrap;
+      overflow: auto;
+      background: #111827;
+      color: #f9fafb;
+      padding: 12px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>research_x Codex HOTL Control Dashboard</h1>
+    <p>control artifact / not evidence / not citation</p>
+  </header>
+  <main>
+    <section class="notice">
+      control artifact / not evidence / not citation. This page is never research evidence, never citation support,
+      and never answer support.
+    </section>
+    <section class="grid">
+      <div class="panel"><strong>Project</strong><br>research_x</div>
+      <div class="panel"><strong>Collection</strong><br>local_only</div>
+      <div class="panel"><strong>GitHub API</strong><br>false</div>
+      <div class="panel"><strong>Rollback execution</strong><br>false</div>
+    </section>
+    <section>
+      <h2>HOTL Gates</h2>
+      <table><thead><tr><th>Gate</th><th>Status</th><th>Reason</th></tr></thead><tbody><tr><td>provider_api_quota</td><td>requires_explicit_user_gate</td><td>Provider/API/quota use, including paid, free-tier, trial-credit, or zero-dollar quota.</td></tr>
+<tr><td>secrets_credentials</td><td>requires_explicit_user_gate</td><td>Secrets, credentials, PATs, deploy keys, environment secrets, or account login.</td></tr>
+<tr><td>install_dependency_model_download</td><td>requires_explicit_user_gate</td><td>New dependency install, native tool install, browser install, or model download.</td></tr>
+<tr><td>mcp_plugin_hook_enablement</td><td>requires_explicit_user_gate</td><td>MCP, plugin, connector, or hook enablement/change.</td></tr>
+<tr><td>destructive_action</td><td>requires_explicit_user_gate</td><td>Delete, purge, force-push, irreversible overwrite, or destructive data action.</td></tr>
+<tr><td>irreversible_db_migration</td><td>requires_explicit_user_gate</td><td>DB migration or data mutation that cannot be rolled back automatically.</td></tr>
+<tr><td>production_external_side_effect</td><td>requires_explicit_user_gate</td><td>Production action with external side effects beyond safe static deploy.</td></tr>
+<tr><td>github_pages_enablement</td><td>requires_explicit_user_gate</td><td>GitHub Pages enablement or settings change.</td></tr>
+<tr><td>repository_settings_change</td><td>requires_explicit_user_gate</td><td>Repository settings, branch protection, or environment protection change.</td></tr></tbody></table>
+    </section>
+    <section>
+      <h2>CI/CD Lanes</h2>
+      <table><thead><tr><th>Lane</th><th>Name</th><th>Automatic</th></tr></thead><tbody><tr><td>local_validation</td><td>Local Validation</td><td>true</td></tr>
+<tr><td>dashboard</td><td>Dashboard Generation</td><td>true</td></tr>
+<tr><td>preview</td><td>Preview Plan</td><td>false</td></tr>
+<tr><td>staging</td><td>Staging Plan</td><td>false</td></tr>
+<tr><td>production</td><td>Production Plan</td><td>false</td></tr>
+<tr><td>rollback</td><td>Rollback Plan</td><td>false</td></tr></tbody></table>
+    </section>
+    <section>
+      <h2>research_x Evidence Boundary</h2>
+      <p>raw source != searchable document != search result != source bundle != context chunk != citation != answer</p>
+      <p>Control artifacts are evidence: false. Control artifacts are citations: false.</p>
+    </section>
+    <section>
+      <h2>Mermaid Sources</h2>
+      <section><h3>pipeline</h3><pre>flowchart LR
+  intake[&quot;Intake&quot;]
+  plan[&quot;Plan&quot;]
+  implement[&quot;Implement&quot;]
+  verify[&quot;Verify&quot;]
+  review[&quot;Review&quot;]
+  release_ready[&quot;Release Ready&quot;]
+  done[&quot;Done&quot;]
+  gated[&quot;Gated&quot;]
+  intake --&gt; plan
+  plan --&gt; implement
+  implement --&gt; verify
+  verify --&gt; review
+  review --&gt; release_ready
+  release_ready --&gt; done
+  plan --&gt; gated
+  implement --&gt; gated
+  verify --&gt; gated
+  note[&quot;control artifact / not evidence / not citation&quot;]
+  note -.-&gt; intake
+</pre></section>
+<section><h3>ci_cd_lanes</h3><pre>flowchart TD
+  local_validation[&quot;Local Validation\nautomatic=true&quot;]
+  dashboard[&quot;Dashboard Generation\nautomatic=true&quot;]
+  local_validation --&gt; dashboard
+  preview[&quot;Preview Plan\nautomatic=false&quot;]
+  dashboard --&gt; preview
+  staging[&quot;Staging Plan\nautomatic=false&quot;]
+  preview --&gt; staging
+  production[&quot;Production Plan\nautomatic=false&quot;]
+  staging --&gt; production
+  rollback[&quot;Rollback Plan\nautomatic=false&quot;]
+  production --&gt; rollback
+  provider_gate[&quot;provider/API/quota gate&quot;]
+  production -. blocked without gate .-&gt; provider_gate
+</pre></section>
+<section><h3>rollback</h3><pre>flowchart LR
+  current[&quot;current static artifact&quot;]
+  manifest[&quot;rollback manifest\ndry_run=true&quot;]
+  previous[&quot;previous successful static artifact&quot;]
+  blocked[&quot;execution blocked in Phase 1&quot;]
+  current --&gt; manifest --&gt; previous
+  manifest -.-&gt; blocked
+  notice[&quot;control artifact / not evidence / not citation&quot;]
+  notice -.-&gt; manifest
+</pre></section>
+    </section>
+  </main>
+  <script type="application/json" id="dashboard-state">{"answer_support_allowed": false, "artifact_kind": "dashboard", "bridge": {"github": {"api_enabled": false, "default_branch": "main", "mode": "local_only", "repository": "maasa/research_x"}, "outputs": {"dashboard_dir": "docs/control/codex/dashboard", "generated_dir": ".codex-project/generated", "mermaid_dir": "docs/control/codex/dashboard/mermaid"}, "path": "C:\\Users\\maasa\\research_x\\.codex-project\\bridge.yml"}, "collection": {"github_api_enabled": false, "mode": "local_only", "reason": "Phase 1 forbids GitHub API/CD execution."}, "control_artifact": true, "dashboard": {"mermaid": {"ci_cd_lanes": "flowchart TD\n  local_validation[\"Local Validation\\nautomatic=true\"]\n  dashboard[\"Dashboard Generation\\nautomatic=true\"]\n  local_validation --&gt; dashboard\n  preview[\"Preview Plan\\nautomatic=false\"]\n  dashboard --&gt; preview\n  staging[\"Staging Plan\\nautomatic=false\"]\n  preview --&gt; staging\n  production[\"Production Plan\\nautomatic=false\"]\n  staging --&gt; production\n  rollback[\"Rollback Plan\\nautomatic=false\"]\n  production --&gt; rollback\n  provider_gate[\"provider/API/quota gate\"]\n  production -. blocked without gate .-&gt; provider_gate\n", "pipeline": "flowchart LR\n  intake[\"Intake\"]\n  plan[\"Plan\"]\n  implement[\"Implement\"]\n  verify[\"Verify\"]\n  review[\"Review\"]\n  release_ready[\"Release Ready\"]\n  done[\"Done\"]\n  gated[\"Gated\"]\n  intake --&gt; plan\n  plan --&gt; implement\n  implement --&gt; verify\n  verify --&gt; review\n  review --&gt; release_ready\n  release_ready --&gt; done\n  plan --&gt; gated\n  implement --&gt; gated\n  verify --&gt; gated\n  note[\"control artifact / not evidence / not citation\"]\n  note -.-&gt; intake\n", "rollback": "flowchart LR\n  current[\"current static artifact\"]\n  manifest[\"rollback manifest\\ndry_run=true\"]\n  previous[\"previous successful static artifact\"]\n  blocked[\"execution blocked in Phase 1\"]\n  current --&gt; manifest --&gt; previous\n  manifest -.-&gt; blocked\n  notice[\"control artifact / not evidence / not citation\"]\n  notice -.-&gt; manifest\n"}, "notice": "control artifact / not evidence / not citation", "title": "research_x Codex HOTL Control Dashboard"}, "deploy_manifest": {"control_artifact": true, "deploy_executed": false, "environment": "dashboard", "generated_at": "2026-06-26T09:45:03.505769+00:00", "health": {"checks": [{"name": "html_generation", "status": "planned"}, {"name": "state_json_generation", "status": "planned"}, {"name": "not_evidence_marker", "status": "planned"}], "status": "planned"}, "not_citation": true, "not_evidence": true, "phase": "phase_1_local_plan_only", "project_id": "research_x", "schema_version": 1, "side_effects": {"db_migration": false, "destructive_action": false, "github_api_calls": false, "production_deploy": false, "provider_api_calls": false, "secrets_changed": false}, "target_type": "local_static_artifact"}, "evidence_boundary": {"control_artifacts_are_citations": false, "control_artifacts_are_evidence": false, "forbidden_sources": ["chatgpt_output", "dashboard", "deploy_manifest", "github_state", "mermaid", "rollback_manifest", "subagent_summary", "wbs"], "invariant": "raw source != searchable document != search result != source bundle != context chunk != citation != answer", "not_citation": true, "not_evidence": true}, "gates": [{"allowed_without_gate": false, "gate_id": "provider_api_quota", "reason": "Provider/API/quota use, including paid, free-tier, trial-credit, or zero-dollar quota.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "secrets_credentials", "reason": "Secrets, credentials, PATs, deploy keys, environment secrets, or account login.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "install_dependency_model_download", "reason": "New dependency install, native tool install, browser install, or model download.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "mcp_plugin_hook_enablement", "reason": "MCP, plugin, connector, or hook enablement/change.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "destructive_action", "reason": "Delete, purge, force-push, irreversible overwrite, or destructive data action.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "irreversible_db_migration", "reason": "DB migration or data mutation that cannot be rolled back automatically.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "production_external_side_effect", "reason": "Production action with external side effects beyond safe static deploy.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "github_pages_enablement", "reason": "GitHub Pages enablement or settings change.", "severity": "blocking", "status": "requires_explicit_user_gate"}, {"allowed_without_gate": false, "gate_id": "repository_settings_change", "reason": "Repository settings, branch protection, or environment protection change.", "severity": "blocking", "status": "requires_explicit_user_gate"}], "generated_at": "2026-06-26T09:45:03.505769+00:00", "git": {"branch": "codex/context-and-design-import-20260609", "commit": "0e73c8a4929f91d9de06c7075e745b3313dafd04", "dirty": true}, "not_citation": true, "not_evidence": true, "pipeline": {"control_artifact": true, "lanes": [{"automatic": true, "id": "local_validation", "name": "Local Validation"}, {"automatic": true, "id": "dashboard", "name": "Dashboard Generation"}, {"automatic": false, "id": "preview", "name": "Preview Plan"}, {"automatic": false, "id": "staging", "name": "Staging Plan"}, {"automatic": false, "id": "production", "name": "Production Plan"}, {"automatic": false, "id": "rollback", "name": "Rollback Plan"}], "not_citation": true, "not_evidence": true, "project_id": "research_x", "schema_version": 1, "stages": [{"id": "intake", "name": "Intake"}, {"id": "plan", "name": "Plan"}, {"id": "implement", "name": "Implement"}, {"id": "verify", "name": "Verify"}, {"id": "review", "name": "Review"}, {"id": "release_ready", "name": "Release Ready"}, {"id": "done", "name": "Done"}, {"id": "gated", "name": "Gated"}], "transitions": [{"from": "intake", "to": "plan"}, {"from": "plan", "to": "implement"}, {"from": "implement", "to": "verify"}, {"from": "verify", "to": "review"}, {"from": "review", "to": "release_ready"}, {"from": "release_ready", "to": "done"}, {"from": "plan", "to": "gated"}, {"from": "implement", "to": "gated"}, {"from": "verify", "to": "gated"}]}, "profile": {"constraints": {"evidence_boundary": "raw source != searchable document != search result != source bundle != context chunk != citation != answer", "forbid_control_artifacts_as_evidence": true, "forbidden_external_actions": ["provider_api_quota", "secrets_credentials", "install_dependency_model_download", "mcp_plugin_hook_enablement", "destructive_action", "irreversible_db_migration"], "no_quota_provider_freeze": true, "use_uv": true}, "path": "C:\\Users\\maasa\\research_x\\.codex-project\\profile.yml"}, "project": {"domain": "ai_callable_x_memory_search", "id": "research_x", "name": "research_x", "root": "C:\\Users\\maasa\\research_x"}, "rollback_manifest": {"blocked_execution_gates": ["production_external_side_effect", "secrets_credentials", "destructive_action", "irreversible_db_migration"], "control_artifact": true, "dry_run": true, "environment": "dashboard", "generated_at": "2026-06-26T09:45:03.505769+00:00", "not_citation": true, "not_evidence": true, "project_id": "research_x", "rollback_executed": false, "schema_version": 1, "side_effects": {"db_migration": false, "destructive_action": false, "production_deploy": false, "provider_api_calls": false, "secrets_changed": false}, "target": {"reason": "Phase 1 creates a rollback plan only; no rollback is executed.", "resolved": false, "strategy": "previous_successful_static_artifact"}}, "schema_version": 1, "subagents": {"allowed_roles": ["impact_mapper", "pr_reviewer", "ci_log_auditor", "release_auditor"], "owner": "Codex foundation", "raw_log_in_project": false, "summaries": []}}</script>
+</body>
+</html>

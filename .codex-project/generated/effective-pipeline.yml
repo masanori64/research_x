@@ -1,0 +1,60 @@
+schema_version: 1
+control_artifact: true
+not_evidence: true
+not_citation: true
+project_id: research_x
+stages:
+  - id: intake
+    name: Intake
+  - id: plan
+    name: Plan
+  - id: implement
+    name: Implement
+  - id: verify
+    name: Verify
+  - id: review
+    name: Review
+  - id: release_ready
+    name: Release Ready
+  - id: done
+    name: Done
+  - id: gated
+    name: Gated
+transitions:
+  - from: intake
+    to: plan
+  - from: plan
+    to: implement
+  - from: implement
+    to: verify
+  - from: verify
+    to: review
+  - from: review
+    to: release_ready
+  - from: release_ready
+    to: done
+  - from: plan
+    to: gated
+  - from: implement
+    to: gated
+  - from: verify
+    to: gated
+lanes:
+  - id: local_validation
+    name: Local Validation
+    automatic: true
+  - id: dashboard
+    name: Dashboard Generation
+    automatic: true
+  - id: preview
+    name: Preview Plan
+    automatic: false
+  - id: staging
+    name: Staging Plan
+    automatic: false
+  - id: production
+    name: Production Plan
+    automatic: false
+  - id: rollback
+    name: Rollback Plan
+    automatic: false

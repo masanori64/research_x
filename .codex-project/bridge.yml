@@ -1,0 +1,17 @@
+schema_version: 1
+project_id: research_x
+codex_foundation: C:/Users/maasa/.codex
+github:
+  mode: local_only
+  api_enabled: false
+  repository: maasa/research_x
+  default_branch: main
+outputs:
+  dashboard_dir: docs/control/codex/dashboard
+  generated_dir: .codex-project/generated
+  mermaid_dir: docs/control/codex/dashboard/mermaid
+workflow:
+  phase: local_first_phase_1
+  cd_execution_enabled: false
+  rollback_execution_enabled: false
+  github_pages_enabled_by_codex: false

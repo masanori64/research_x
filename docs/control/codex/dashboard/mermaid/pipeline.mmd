@@ -1,0 +1,20 @@
+flowchart LR
+  intake["Intake"]
+  plan["Plan"]
+  implement["Implement"]
+  verify["Verify"]
+  review["Review"]
+  release_ready["Release Ready"]
+  done["Done"]
+  gated["Gated"]
+  intake --> plan
+  plan --> implement
+  implement --> verify
+  verify --> review
+  review --> release_ready
+  release_ready --> done
+  plan --> gated
+  implement --> gated
+  verify --> gated
+  note["control artifact / not evidence / not citation"]
+  note -.-> intake

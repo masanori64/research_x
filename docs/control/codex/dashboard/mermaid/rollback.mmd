@@ -1,0 +1,9 @@
+flowchart LR
+  current["current static artifact"]
+  manifest["rollback manifest\ndry_run=true"]
+  previous["previous successful static artifact"]
+  blocked["execution blocked in Phase 1"]
+  current --> manifest --> previous
+  manifest -.-> blocked
+  notice["control artifact / not evidence / not citation"]
+  notice -.-> manifest

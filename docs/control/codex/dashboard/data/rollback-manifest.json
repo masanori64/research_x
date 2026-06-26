@@ -1,0 +1,29 @@
+{
+  "blocked_execution_gates": [
+    "production_external_side_effect",
+    "secrets_credentials",
+    "destructive_action",
+    "irreversible_db_migration"
+  ],
+  "control_artifact": true,
+  "dry_run": true,
+  "environment": "dashboard",
+  "generated_at": "2026-06-26T09:45:09.862256+00:00",
+  "not_citation": true,
+  "not_evidence": true,
+  "project_id": "research_x",
+  "rollback_executed": false,
+  "schema_version": 1,
+  "side_effects": {
+    "db_migration": false,
+    "destructive_action": false,
+    "production_deploy": false,
+    "provider_api_calls": false,
+    "secrets_changed": false
+  },
+  "target": {
+    "reason": "Phase 1 creates a rollback plan only; no rollback is executed.",
+    "resolved": false,
+    "strategy": "previous_successful_static_artifact"
+  }
+}

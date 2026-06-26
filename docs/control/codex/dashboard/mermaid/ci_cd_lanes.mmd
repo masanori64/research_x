@@ -1,0 +1,14 @@
+flowchart TD
+  local_validation["Local Validation\nautomatic=true"]
+  dashboard["Dashboard Generation\nautomatic=true"]
+  local_validation --> dashboard
+  preview["Preview Plan\nautomatic=false"]
+  dashboard --> preview
+  staging["Staging Plan\nautomatic=false"]
+  preview --> staging
+  production["Production Plan\nautomatic=false"]
+  staging --> production
+  rollback["Rollback Plan\nautomatic=false"]
+  production --> rollback
+  provider_gate["provider/API/quota gate"]
+  production -. blocked without gate .-> provider_gate

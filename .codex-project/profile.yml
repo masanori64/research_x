@@ -1,0 +1,35 @@
+schema_version: 1
+project:
+  id: research_x
+  name: research_x
+  root: C:/Users/maasa/research_x
+  domain: ai_callable_x_memory_search
+commands:
+  sync: uv sync
+  test: uv run pytest
+  lint: uv run ruff check src\research_x tests scripts
+constraints:
+  use_uv: true
+  no_quota_provider_freeze: true
+  forbid_control_artifacts_as_evidence: true
+  evidence_boundary: raw source != searchable document != search result != source bundle != context chunk != citation != answer
+  forbidden_external_actions:
+    - provider_api_quota
+    - secrets_credentials
+    - install_dependency_model_download
+    - mcp_plugin_hook_enablement
+    - destructive_action
+    - irreversible_db_migration
+control_artifacts:
+  output_root: docs/control/codex
+  generated_root: .codex-project/generated
+  not_evidence: true
+  not_citation: true
+subagents:
+  owner: C:/Users/maasa/.codex
+  raw_log_in_project: false
+  allowed_roles:
+    - impact_mapper
+    - pr_reviewer
+    - ci_log_auditor
+    - release_auditor

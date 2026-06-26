@@ -1,0 +1,37 @@
+{
+  "control_artifact": true,
+  "deploy_executed": false,
+  "environment": "dashboard",
+  "generated_at": "2026-06-26T09:45:09.862256+00:00",
+  "health": {
+    "checks": [
+      {
+        "name": "html_generation",
+        "status": "planned"
+      },
+      {
+        "name": "state_json_generation",
+        "status": "planned"
+      },
+      {
+        "name": "not_evidence_marker",
+        "status": "planned"
+      }
+    ],
+    "status": "planned"
+  },
+  "not_citation": true,
+  "not_evidence": true,
+  "phase": "phase_1_local_plan_only",
+  "project_id": "research_x",
+  "schema_version": 1,
+  "side_effects": {
+    "db_migration": false,
+    "destructive_action": false,
+    "github_api_calls": false,
+    "production_deploy": false,
+    "provider_api_calls": false,
+    "secrets_changed": false
+  },
+  "target_type": "local_static_artifact"
+}
