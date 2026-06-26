@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5
+# foundation_manifest_sha256=f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11
 name: Codex Control Artifact CI
 
 on:
@@ -40,15 +40,23 @@ jobs:
               Path(".codex-project/generated/effective-dashboard-state.json"),
               Path(".codex-project/generated/effective-control-artifact-audit.json"),
               Path(".codex-project/generated/effective-github-collection.json"),
+              Path(".codex-project/generated/effective-github-read-state.json"),
+              Path(".codex-project/generated/effective-cost-guard.json"),
+              Path(".codex-project/generated/effective-workflow-artifact-audit.json"),
+              Path(".codex-project/generated/effective-subagent-runtime-dry-run.json"),
               Path("docs/control/codex/dashboard/data/control-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/cost-guard.json"),
               Path("docs/control/codex/dashboard/data/dashboard-state.json"),
               Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
               Path("docs/control/codex/dashboard/data/github-collection.json"),
+              Path("docs/control/codex/dashboard/data/github-read-state.json"),
               Path("docs/control/codex/dashboard/data/preview-manifest.json"),
               Path("docs/control/codex/dashboard/data/production-manifest.json"),
               Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
               Path("docs/control/codex/dashboard/data/staging-manifest.json"),
               Path("docs/control/codex/dashboard/data/subagent-policy.json"),
+              Path("docs/control/codex/dashboard/data/subagent-runtime-dry-run.json"),
+              Path("docs/control/codex/dashboard/data/workflow-artifact-audit.json"),
               Path(".codex-project/generated/effective-preview-manifest.json"),
               Path(".codex-project/generated/effective-production-manifest.json"),
               Path(".codex-project/generated/effective-staging-manifest.json"),
@@ -102,6 +110,57 @@ jobs:
                   failures.append(f"{path}: write_operations_available must be false")
               if payload.get("mutation_methods_available") != []:
                   failures.append(f"{path}: mutation_methods_available must be []")
+          github_read_paths = [
+              Path(".codex-project/generated/effective-github-read-state.json"),
+              Path("docs/control/codex/dashboard/data/github-read-state.json"),
+          ]
+          for path in github_read_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("authentication") != "none":
+                  failures.append(f"{path}: authentication must be none")
+              if payload.get("token_used") is not False:
+                  failures.append(f"{path}: token_used must be false")
+              if payload.get("write_operations_available") is not False:
+                  failures.append(f"{path}: write_operations_available must be false")
+              if payload.get("mutation_methods_available") != []:
+                  failures.append(f"{path}: mutation_methods_available must be []")
+              if payload.get("paid_usage_detected") is not False:
+                  failures.append(f"{path}: paid_usage_detected must be false")
+              for method in payload.get("request_methods_used", []):
+                  if method != "GET":
+                      failures.append(f"{path}: only GET methods are allowed")
+          cost_guard_paths = [
+              Path(".codex-project/generated/effective-cost-guard.json"),
+              Path("docs/control/codex/dashboard/data/cost-guard.json"),
+          ]
+          for path in cost_guard_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              policy = payload.get("cost_policy", {})
+              if policy.get("paid_usage_detected") is not False:
+                  failures.append(f"{path}: paid_usage_detected must be false")
+              if policy.get("pipeline_contains_paid_execution") is not False:
+                  failures.append(f"{path}: pipeline_contains_paid_execution must be false")
+              if payload.get("answer", {}).get("has_paid_execution_in_current_pipeline") is not False:
+                  failures.append(f"{path}: current pipeline must not have paid execution")
+          workflow_audit_paths = [
+              Path(".codex-project/generated/effective-workflow-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/workflow-artifact-audit.json"),
+          ]
+          for path in workflow_audit_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              for key in (
+                  "workflow_dispatch_executed",
+                  "github_actions_minutes_consumed_by_this_smoke",
+                  "github_actions_artifact_storage_created_by_this_smoke",
+                  "github_api_write_executed",
+                  "deploy_executed",
+                  "pages_enabled",
+                  "repository_settings_changed",
+                  "secrets_used",
+                  "paid_usage_detected",
+              ):
+                  if payload.get(key) is not False:
+                      failures.append(f"{path}: {key} must be false")
           preview = json.loads(
               Path("docs/control/codex/dashboard/data/preview-manifest.json").read_text(
                   encoding="utf-8"
@@ -236,6 +295,20 @@ jobs:
           ):
               if item not in subagents.get("forbidden_actions", []):
                   failures.append(f"subagent-policy must forbid {item}")
+          subagent_dry_run_paths = [
+              Path(".codex-project/generated/effective-subagent-runtime-dry-run.json"),
+              Path("docs/control/codex/dashboard/data/subagent-runtime-dry-run.json"),
+          ]
+          for path in subagent_dry_run_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("subagents_spawned") is not False:
+                  failures.append(f"{path}: subagents_spawned must be false")
+              if payload.get("model_runner_started") is not False:
+                  failures.append(f"{path}: model_runner_started must be false")
+              if payload.get("provider_api_calls") is not False:
+                  failures.append(f"{path}: provider_api_calls must be false")
+              if payload.get("paid_usage_detected") is not False:
+                  failures.append(f"{path}: paid_usage_detected must be false")
           html = Path("docs/control/codex/dashboard/index.html")
           if not html.exists():
               failures.append(f"{html}: missing")

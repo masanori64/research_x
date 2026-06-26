@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5
+  sha256: f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11
   exists: true
 artifact_kind: effective_profile
 project:
@@ -76,7 +76,7 @@ subagents:
       id: codex-hotl-implementation-pipeline
       version: 0.1.0
       path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-      sha256: c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5
+      sha256: f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11
       exists: true
     artifact_kind: subagent_policy
     owner: Codex foundation
@@ -119,7 +119,7 @@ bridge:
   github:
     mode: local_only
     api_enabled: false
-    repository: maasa/research_x
+    repository: masanori64/research_x
     default_branch: main
 project_boundary:
   generic_pipeline_owner: Codex foundation

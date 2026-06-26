@@ -1,0 +1,70 @@
+{
+  "artifact_kind": "workflow_artifact_audit",
+  "artifact_only_static_smoke": true,
+  "control_artifact": true,
+  "deploy_executed": false,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T13:16:53.102940+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "github_actions_artifact_storage_created_by_this_smoke": false,
+  "github_actions_minutes_consumed_by_this_smoke": false,
+  "github_api_write_executed": false,
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "pages_enabled": false,
+  "paid_usage_detected": false,
+  "reason": "This smoke validates artifact-only workflow wrappers locally and reads existing remote artifact metadata when available. It does not dispatch a workflow.",
+  "remote_artifacts": {
+    "items": [],
+    "sample_count": 0,
+    "status": "passed",
+    "total_count": 0
+  },
+  "repository_settings_changed": false,
+  "schema_version": 1,
+  "secrets_used": false,
+  "status": "passed",
+  "validation_errors": [],
+  "workflow_dispatch_executed": false,
+  "workflow_files": [
+    {
+      "artifact_upload": false,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-ci.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": false,
+      "workflow_dispatch_declared": true
+    },
+    {
+      "artifact_upload": true,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": false,
+      "workflow_dispatch_declared": true
+    },
+    {
+      "artifact_upload": true,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": false,
+      "workflow_dispatch_declared": true
+    }
+  ]
+}

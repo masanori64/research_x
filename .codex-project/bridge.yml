@@ -4,7 +4,7 @@ codex_foundation: C:/Users/maasa/.codex
 github:
   mode: local_only
   api_enabled: false
-  repository: maasa/research_x
+  repository: masanori64/research_x
   default_branch: main
 outputs:
   dashboard_dir: docs/control/codex/dashboard

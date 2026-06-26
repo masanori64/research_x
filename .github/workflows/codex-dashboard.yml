@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-dashboard.template.yml
-# foundation_manifest_sha256=c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5
+# foundation_manifest_sha256=f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11
 name: Codex Dashboard Artifact
 
 on:
@@ -38,7 +38,11 @@ jobs:
           test -f docs/control/codex/dashboard/data/production-manifest.json
           test -f docs/control/codex/dashboard/data/staging-manifest.json
           test -f docs/control/codex/dashboard/data/subagent-policy.json
+          test -f docs/control/codex/dashboard/data/subagent-runtime-dry-run.json
           test -f docs/control/codex/dashboard/data/control-artifact-audit.json
+          test -f docs/control/codex/dashboard/data/github-read-state.json
+          test -f docs/control/codex/dashboard/data/cost-guard.json
+          test -f docs/control/codex/dashboard/data/workflow-artifact-audit.json
           grep -q "control artifact / not evidence / not citation" docs/control/codex/dashboard/index.html
 
       - name: Upload dashboard artifact
@@ -52,6 +56,10 @@ jobs:
             docs/control/codex/dashboard/data/production-manifest.json
             docs/control/codex/dashboard/data/staging-manifest.json
             docs/control/codex/dashboard/data/subagent-policy.json
+            docs/control/codex/dashboard/data/subagent-runtime-dry-run.json
             docs/control/codex/dashboard/data/control-artifact-audit.json
+            docs/control/codex/dashboard/data/github-read-state.json
+            docs/control/codex/dashboard/data/cost-guard.json
+            docs/control/codex/dashboard/data/workflow-artifact-audit.json
           if-no-files-found: error
           retention-days: 14

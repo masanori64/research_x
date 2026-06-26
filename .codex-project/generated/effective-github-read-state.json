@@ -1,0 +1,156 @@
+{
+  "api_calls_executed": true,
+  "artifact_kind": "github_read_state",
+  "artifacts": {
+    "items": [],
+    "sample_count": 0,
+    "total_count": 0
+  },
+  "authentication": "none",
+  "collection_mode": "unauthenticated_read_only",
+  "control_artifact": true,
+  "deploy_executed": false,
+  "endpoints": [
+    {
+      "error": "",
+      "method": "GET",
+      "name": "repo",
+      "ok": true,
+      "rate_limit": {
+        "x-ratelimit-limit": "60",
+        "x-ratelimit-remaining": "55",
+        "x-ratelimit-reset": "1782483226",
+        "x-ratelimit-resource": "core",
+        "x-ratelimit-used": "5"
+      },
+      "status_code": 200,
+      "url": "https://api.github.com/repos/masanori64/research_x"
+    },
+    {
+      "error": "",
+      "method": "GET",
+      "name": "pull_requests",
+      "ok": true,
+      "rate_limit": {
+        "x-ratelimit-limit": "60",
+        "x-ratelimit-remaining": "54",
+        "x-ratelimit-reset": "1782483226",
+        "x-ratelimit-resource": "core",
+        "x-ratelimit-used": "6"
+      },
+      "status_code": 200,
+      "url": "https://api.github.com/repos/masanori64/research_x/pulls"
+    },
+    {
+      "error": "",
+      "method": "GET",
+      "name": "workflow_runs",
+      "ok": true,
+      "rate_limit": {
+        "x-ratelimit-limit": "60",
+        "x-ratelimit-remaining": "53",
+        "x-ratelimit-reset": "1782483226",
+        "x-ratelimit-resource": "core",
+        "x-ratelimit-used": "7"
+      },
+      "status_code": 200,
+      "url": "https://api.github.com/repos/masanori64/research_x/actions/runs"
+    },
+    {
+      "error": "",
+      "method": "GET",
+      "name": "artifacts",
+      "ok": true,
+      "rate_limit": {
+        "x-ratelimit-limit": "60",
+        "x-ratelimit-remaining": "52",
+        "x-ratelimit-reset": "1782483226",
+        "x-ratelimit-resource": "core",
+        "x-ratelimit-used": "8"
+      },
+      "status_code": 200,
+      "url": "https://api.github.com/repos/masanori64/research_x/actions/artifacts"
+    },
+    {
+      "error": "",
+      "method": "GET",
+      "name": "rate_limit",
+      "ok": true,
+      "rate_limit": {
+        "x-ratelimit-limit": "60",
+        "x-ratelimit-remaining": "52",
+        "x-ratelimit-reset": "1782483226",
+        "x-ratelimit-resource": "core",
+        "x-ratelimit-used": "8"
+      },
+      "status_code": 200,
+      "url": "https://api.github.com/rate_limit"
+    }
+  ],
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T13:16:19.978560+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "mutation_methods_available": [],
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "paid_usage_detected": false,
+  "provider_api_calls": false,
+  "pull_requests": {
+    "items": [],
+    "sample_count": 0
+  },
+  "rate_limit": {
+    "core": {
+      "limit": 60,
+      "remaining": 52,
+      "reset": 1782483226,
+      "resource": "core",
+      "used": 8
+    },
+    "rate": {
+      "limit": 60,
+      "remaining": 52,
+      "reset": 1782483226,
+      "resource": "core",
+      "used": 8
+    }
+  },
+  "reason": "All unauthenticated GitHub REST read endpoints returned successfully.",
+  "repo": {
+    "default_branch": "main",
+    "full_name": "masanori64/research_x",
+    "html_url": "https://github.com/masanori64/research_x",
+    "private": false,
+    "visibility": "public"
+  },
+  "repository": {
+    "bridge": "masanori64/research_x",
+    "git_remote": "masanori64/research_x",
+    "mismatch": false,
+    "selected": "masanori64/research_x",
+    "source": "git_remote"
+  },
+  "request_methods_used": [
+    "GET"
+  ],
+  "rollback_executed": false,
+  "schema_version": 1,
+  "secrets_used": false,
+  "status": "passed",
+  "token_used": false,
+  "workflow_runs": {
+    "items": [],
+    "sample_count": 0,
+    "total_count": 0
+  },
+  "write_operations_available": false
+}

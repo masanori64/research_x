@@ -1,0 +1,77 @@
+{
+  "artifact_kind": "subagent_runtime_dry_run",
+  "checked_roles": [
+    {
+      "contract": "sanitized_summary_only",
+      "raw_logs_allowed": false,
+      "role": "impact_mapper",
+      "spawned": false
+    },
+    {
+      "contract": "sanitized_summary_only",
+      "raw_logs_allowed": false,
+      "role": "pr_reviewer",
+      "spawned": false
+    },
+    {
+      "contract": "sanitized_summary_only",
+      "raw_logs_allowed": false,
+      "role": "ci_log_auditor",
+      "spawned": false
+    },
+    {
+      "contract": "sanitized_summary_only",
+      "raw_logs_allowed": false,
+      "role": "release_auditor",
+      "spawned": false
+    }
+  ],
+  "checks": [
+    {
+      "name": "policy_is_read_only",
+      "status": "passed"
+    },
+    {
+      "name": "raw_logs_forbidden",
+      "status": "passed"
+    },
+    {
+      "name": "provider_quota_forbidden",
+      "status": "passed"
+    },
+    {
+      "name": "github_mutation_forbidden",
+      "status": "passed"
+    },
+    {
+      "name": "deploy_forbidden",
+      "status": "passed"
+    }
+  ],
+  "commit_or_push_allowed_for_subagent": false,
+  "control_artifact": true,
+  "dry_run_executed": true,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T13:16:53.125560+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "github_api_write_executed": false,
+  "model_runner_started": false,
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "paid_usage_detected": false,
+  "provider_api_calls": false,
+  "raw_log_in_project": false,
+  "reason": "Dry-run verifies the subagent contract and report boundary without spawning workers, starting model runners, or storing raw logs in the project.",
+  "schema_version": 1,
+  "status": "passed",
+  "subagents_spawned": false
+}
