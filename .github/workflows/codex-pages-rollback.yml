@@ -6,7 +6,7 @@ name: Codex Pages Rollback
 # not_citation=true
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
-# foundation_manifest_sha256=ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601
+# foundation_manifest_sha256=6f772b4dbc8c88252e4af737e487177f12199d9e130b7435834daaa1b0745fc6
 # source_template=templates/github-workflows/codex-pages-rollback.template.yml
 # provider_api_calls=false
 # paid_usage_detected=false
@@ -54,12 +54,17 @@ jobs:
         run: |
           set -euo pipefail
           SITE="_codex_pages_site"
+          PREVIEW_REF="${GITHUB_REF_NAME//\//-}"
+          PREVIEW_PATH="previews/${PREVIEW_REF}/latest"
+          PREVIEW_COMMIT_PATH="previews/${PREVIEW_REF}/${GITHUB_SHA}"
           rm -rf "$SITE"
-          mkdir -p "$SITE/dashboard" "$SITE/production/latest" "$SITE/staging/latest" "$SITE/rollback/latest"
+          mkdir -p "$SITE/dashboard" "$SITE/production/latest" "$SITE/staging/latest" "$SITE/rollback/latest" "$SITE/$PREVIEW_PATH" "$SITE/$PREVIEW_COMMIT_PATH"
           cp -R docs/control/codex/dashboard/. "$SITE/dashboard/"
           cp -R docs/control/codex/dashboard/. "$SITE/production/latest/"
           cp -R docs/control/codex/dashboard/. "$SITE/staging/latest/"
           cp -R docs/control/codex/dashboard/. "$SITE/rollback/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/$PREVIEW_PATH/"
+          cp -R docs/control/codex/dashboard/. "$SITE/$PREVIEW_COMMIT_PATH/"
           cat > "$SITE/index.html" <<'HTML'
           <!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=production/latest/"><a href="production/latest/">Codex production dashboard</a>
           HTML
@@ -71,6 +76,8 @@ jobs:
             "not_answer_support": true,
             "lane": "rollback",
             "target_ref": "${TARGET_REF}",
+            "preview_path": "${PREVIEW_PATH}",
+            "preview_commit_path": "${PREVIEW_COMMIT_PATH}",
             "provider_api_calls": false,
             "paid_usage_detected": false,
             "rollback_class": "safe_static_pages"

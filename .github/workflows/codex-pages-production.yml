@@ -6,7 +6,7 @@ name: Codex Pages Production CD
 # not_citation=true
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
-# foundation_manifest_sha256=ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601
+# foundation_manifest_sha256=6f772b4dbc8c88252e4af737e487177f12199d9e130b7435834daaa1b0745fc6
 # source_template=templates/github-workflows/codex-pages-production.template.yml
 # provider_api_calls=false
 # paid_usage_detected=false
@@ -49,11 +49,12 @@ jobs:
           PREVIEW_PATH="previews/${PREVIEW_REF}/latest"
           PREVIEW_COMMIT_PATH="previews/${PREVIEW_REF}/${GITHUB_SHA}"
           rm -rf "$SITE"
-          mkdir -p "$SITE/dashboard" "$SITE/production/latest" "$SITE/production/${GITHUB_SHA}" "$SITE/staging/latest" "$SITE/$PREVIEW_PATH" "$SITE/$PREVIEW_COMMIT_PATH"
+          mkdir -p "$SITE/dashboard" "$SITE/production/latest" "$SITE/production/${GITHUB_SHA}" "$SITE/staging/latest" "$SITE/rollback/latest" "$SITE/$PREVIEW_PATH" "$SITE/$PREVIEW_COMMIT_PATH"
           cp -R docs/control/codex/dashboard/. "$SITE/dashboard/"
           cp -R docs/control/codex/dashboard/. "$SITE/production/latest/"
           cp -R docs/control/codex/dashboard/. "$SITE/production/${GITHUB_SHA}/"
           cp -R docs/control/codex/dashboard/. "$SITE/staging/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/rollback/latest/"
           cp -R docs/control/codex/dashboard/. "$SITE/$PREVIEW_PATH/"
           cp -R docs/control/codex/dashboard/. "$SITE/$PREVIEW_COMMIT_PATH/"
           cat > "$SITE/index.html" <<'HTML'

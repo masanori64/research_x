@@ -7,7 +7,7 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601",
+    "sha256": "6f772b4dbc8c88252e4af737e487177f12199d9e130b7435834daaa1b0745fc6",
     "version": "0.1.0"
   },
   "free_static_cd": {
@@ -17,7 +17,7 @@
     "pat_or_secret_required_for_pipeline": false,
     "public_repo_standard_runner_free": true
   },
-  "generated_at": "2026-06-26T15:22:39.568892+00:00",
+  "generated_at": "2026-06-26T15:25:28.770914+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "not_answer_support": true,
   "not_citation": true,
