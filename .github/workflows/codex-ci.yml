@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=244e63986ceffe7937cdad47979fccfaed5d2f22008b824ea1726375f888d9fd
+# foundation_manifest_sha256=faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73
 name: Codex Control Artifact CI
 
 on:
@@ -44,7 +44,9 @@ jobs:
               Path("docs/control/codex/dashboard/data/github-collection.json"),
               Path("docs/control/codex/dashboard/data/preview-manifest.json"),
               Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
+              Path("docs/control/codex/dashboard/data/staging-manifest.json"),
               Path(".codex-project/generated/effective-preview-manifest.json"),
+              Path(".codex-project/generated/effective-staging-manifest.json"),
           ]
           markers = [
               "control_artifact",
@@ -97,6 +99,33 @@ jobs:
           ):
               if side_effects.get(key) is not False:
                   failures.append(f"preview-manifest side_effects.{key} must be false")
+          staging = json.loads(
+              Path("docs/control/codex/dashboard/data/staging-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if staging.get("target_type") != "safe_static_plan":
+              failures.append("staging-manifest target_type must be safe_static_plan")
+          if staging.get("dry_run") is not True:
+              failures.append("staging-manifest dry_run must be true")
+          if staging.get("staging_deploy_executed") is not False:
+              failures.append("staging-manifest staging_deploy_executed must be false")
+          if staging.get("live_url") is not None:
+              failures.append("staging-manifest live_url must be null")
+          side_effects = staging.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_used",
+              "github_api_calls",
+              "pages_enabled",
+              "repository_settings_changed",
+              "environment_created",
+              "staging_live_deploy",
+              "production_deploy",
+              "rollback_executed",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"staging-manifest side_effects.{key} must be false")
           html = Path("docs/control/codex/dashboard/index.html")
           if not html.exists():
               failures.append(f"{html}: missing")

@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-dashboard.template.yml
-# foundation_manifest_sha256=244e63986ceffe7937cdad47979fccfaed5d2f22008b824ea1726375f888d9fd
+# foundation_manifest_sha256=faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73
 name: Codex Dashboard Artifact
 
 on:
@@ -35,6 +35,7 @@ jobs:
           test -f docs/control/codex/dashboard/index.html
           test -f docs/control/codex/dashboard/data/dashboard-state.json
           test -f docs/control/codex/dashboard/data/preview-manifest.json
+          test -f docs/control/codex/dashboard/data/staging-manifest.json
           grep -q "control artifact / not evidence / not citation" docs/control/codex/dashboard/index.html
 
       - name: Upload dashboard artifact
@@ -45,5 +46,6 @@ jobs:
             docs/control/codex/dashboard/
             .codex-project/generated/
             docs/control/codex/dashboard/data/preview-manifest.json
+            docs/control/codex/dashboard/data/staging-manifest.json
           if-no-files-found: error
           retention-days: 14

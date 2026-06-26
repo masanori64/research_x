@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: 244e63986ceffe7937cdad47979fccfaed5d2f22008b824ea1726375f888d9fd
+  sha256: faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73
   exists: true
 artifact_kind: effective_profile
 project:
@@ -40,7 +40,7 @@ capabilities:
   github_actions_wrappers: artifact_only
   dashboard_artifact_cd: artifact_only
   preview_cd: artifact_only
-  staging_cd: disabled
+  staging_cd: gated_plan
   production_cd: disabled
   rollback_execution: disabled
   github_pages: disabled
