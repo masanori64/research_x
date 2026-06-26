@@ -7,8 +7,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.context import CitationAnnotation
 from research_x.memory.document_hashes import memory_document_source_hash
 from research_x.memory.embeddings import PRODUCTION_PROVIDERS
+from research_x.memory.evidence_invariants import citation_block_reasons
 from research_x.memory.retrieval_strategy import DEFAULT_RETRIEVAL_STRATEGIES
 from research_x.memory.schema import ensure_memory_schema
 
@@ -612,9 +614,11 @@ def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
         citations = conn.execute(
             """
             SELECT
-                ca.citation_id, ca.chunk_id, ca.support_type, ca.evidence_status,
+                ca.citation_id, ca.chunk_id, ca.source_kind, ca.source_id,
+                ca.source_url, ca.title, ca.field_path, ca.support_type,
+                ca.evidence_status, ca.confidence, ca.created_at,
                 ca.answer_start_index, ca.answer_end_index, ca.metadata_json,
-                c.source_id, c.metadata_json AS chunk_metadata_json
+                c.source_id AS chunk_source_id, c.metadata_json AS chunk_metadata_json
             FROM memory_citation_annotations ca
             LEFT JOIN memory_context_chunks c ON c.chunk_id = ca.chunk_id
             WHERE answer_id = ?
@@ -683,6 +687,23 @@ def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
         ]
         if status == "ok" and non_fact:
             _increment(issues, "ok_answer_cites_non_fact_evidence", len(non_fact))
+        non_ready = [row for row in citations if _citation_block_reasons_for_row(row)]
+        if status == "ok" and non_ready:
+            _increment(issues, "ok_answer_cites_non_ready_evidence", len(non_ready))
+        not_evidence = [
+            row
+            for row in citations
+            if "not_evidence" in _citation_block_reasons_for_row(row)
+        ]
+        if status == "ok" and not_evidence:
+            _increment(issues, "ok_answer_cites_not_evidence", len(not_evidence))
+        stale = [
+            row
+            for row in citations
+            if "stale_evidence" in _citation_block_reasons_for_row(row)
+        ]
+        if status == "ok" and stale:
+            _increment(issues, "ok_answer_cites_stale_evidence", len(stale))
         source_drift = [
             row for row in citations if _citation_source_hash_drift(conn, row)
         ]
@@ -692,6 +713,27 @@ def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
         if status == "ok" and uncited_claims:
             _increment(issues, "ok_answer_with_uncited_claim_lines", len(uncited_claims))
     return issues
+
+
+def _citation_block_reasons_for_row(row: sqlite3.Row) -> tuple[str, ...]:
+    metadata = _loads_json(row["metadata_json"], default={})
+    return citation_block_reasons(
+        CitationAnnotation(
+            citation_id=str(row["citation_id"] or ""),
+            answer_id=None,
+            chunk_id=str(row["chunk_id"] or ""),
+            source_kind=str(row["source_kind"] or ""),
+            source_id=str(row["source_id"] or ""),
+            source_url=row["source_url"],
+            title=str(row["title"] or ""),
+            field_path=str(row["field_path"] or ""),
+            support_type=str(row["support_type"] or ""),
+            evidence_status=str(row["evidence_status"] or ""),
+            confidence=float(row["confidence"] or 0.0),
+            created_at=str(row["created_at"] or ""),
+            metadata=metadata,
+        )
+    )
 
 
 def _freshness_lineage_issues(conn: sqlite3.Connection) -> dict[str, int]:

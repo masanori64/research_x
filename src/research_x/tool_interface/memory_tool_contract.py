@@ -6,6 +6,13 @@ from typing import Any
 
 from research_x.memory.answer import MemoryAnswer
 from research_x.memory.context import CitationAnnotation
+from research_x.memory.evidence_invariants import (
+    citation_block_reasons,
+    citation_is_citation_ready,
+    citation_is_not_evidence,
+    citation_is_stale,
+    citation_marks_conflict,
+)
 from research_x.memory.workflow import MemoryWorkflow
 from research_x.tool_interface.codex_bridge import bridge_trace_contract
 
@@ -193,11 +200,38 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
         eval_warnings.append("searched_after_sufficient_evidence")
     if isinstance(answerability, dict) and answerability.get("status") == "conflicting":
         eval_warnings.append("conflicting_evidence")
+    raw_citations = _raw_citations(workflow)
+    stale_count = sum(1 for citation in raw_citations if citation_is_stale(citation))
+    conflict_count = sum(1 for citation in raw_citations if citation_marks_conflict(citation))
+    not_evidence_count = sum(
+        1 for citation in raw_citations if citation_is_not_evidence(citation)
+    )
+    if stale_count:
+        eval_warnings.append("stale_evidence")
+    if not_evidence_count:
+        eval_warnings.append("not_evidence_citation")
     return {
         "route": workflow.route,
         "workflow_id": workflow.workflow_id,
         "stop_reason": workflow.stop_reason,
         "skip_reason": None if workflow.stop_reason == "enough_evidence" else workflow.stop_reason,
+        "answerability_status": (
+            answerability.get("status") if isinstance(answerability, dict) else None
+        ),
+        "citation_quality": {
+            "citation_count": len(raw_citations),
+            "citation_ready_count": sum(
+                1 for citation in raw_citations if _citation_ready(citation)
+            ),
+            "stale_evidence_count": stale_count,
+            "conflict_evidence_count": conflict_count,
+            "not_evidence_count": not_evidence_count,
+            "blockers": {
+                citation.citation_id: list(citation_block_reasons(citation))
+                for citation in raw_citations
+                if citation_block_reasons(citation)
+            },
+        },
         "provider_gate": {
             "required": status == "provider_gated",
             "no_quota_default": True,
@@ -215,19 +249,26 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
 
 
 def _tool_citations(workflow: MemoryWorkflow) -> tuple[ToolCitation, ...]:
-    if workflow.answer is not None:
-        raw_citations = workflow.answer.citation_annotations
-        context_run_id = workflow.answer.context_run_id
-    elif workflow.context_bundle is not None:
-        raw_citations = workflow.context_bundle.citation_annotations
-        context_run_id = workflow.context_bundle.run_id
-    else:
-        raw_citations = ()
-        context_run_id = None
+    raw_citations, context_run_id = _raw_citations_with_context_run_id(workflow)
     return tuple(
         _tool_citation(citation, context_run_id=context_run_id)
         for citation in raw_citations
     )
+
+
+def _raw_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:
+    raw_citations, _context_run_id = _raw_citations_with_context_run_id(workflow)
+    return raw_citations
+
+
+def _raw_citations_with_context_run_id(
+    workflow: MemoryWorkflow,
+) -> tuple[tuple[CitationAnnotation, ...], str | None]:
+    if workflow.answer is not None:
+        return workflow.answer.citation_annotations, workflow.answer.context_run_id
+    if workflow.context_bundle is not None:
+        return workflow.context_bundle.citation_annotations, workflow.context_bundle.run_id
+    return (), None
 
 
 def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) -> ToolCitation:
@@ -255,13 +296,7 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
 
 
 def _citation_ready(citation: CitationAnnotation) -> bool:
-    marker_ok = citation.metadata.get("marker_found", True) is not False
-    return bool(
-        marker_ok
-        and citation.source_id
-        and citation.evidence_status == "fact"
-        and citation.support_type != "uncited_context"
-    )
+    return citation_is_citation_ready(citation)
 
 
 def _provider_gate_required(workflow: MemoryWorkflow) -> bool:

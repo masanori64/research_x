@@ -8,6 +8,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.context import CitationAnnotation
+from research_x.memory.evidence_invariants import (
+    citation_is_citation_ready,
+    citation_is_not_evidence,
+    citation_is_stale,
+    citation_preserves_duplicate_provenance,
+    duplicate_evidence_count,
+    unique_evidence_count,
+)
 from research_x.memory.question_types import known_question_type_ids
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
@@ -27,6 +36,7 @@ class EvalCase:
     query: str
     required_any_terms: tuple[str, ...]
     question_type: str = "single_fact_conditioned"
+    fixture_family: str | None = None
     preferred_doc_types: tuple[str, ...] = ()
     required_feature: str | None = None
     expected_route: str | None = None
@@ -34,8 +44,17 @@ class EvalCase:
     expected_answerability_status: str | None = None
     min_answer_citations: int | None = None
     required_source_kinds: tuple[str, ...] = ()
+    require_citation_ready: bool = False
     allow_search_after_sufficient_evidence: bool = True
     max_redundant_search_count: int | None = None
+    expected_unique_evidence_count: int | None = None
+    max_duplicate_support_count: int | None = None
+    require_provenance_preserved: bool = False
+    forbid_duplicate_citation_support: bool = False
+    forbid_stale_evidence_support: bool = False
+    forbid_not_evidence_support: bool = True
+    provider_free_fixture: bool = False
+    quality_scope: str | None = None
     min_hit_score: float = 1.0
 
 
@@ -250,6 +269,7 @@ def load_eval_cases(path: str | Path) -> tuple[EvalCase, ...]:
 class MemoryEvalResult:
     query: str
     question_type: str
+    fixture_family: str | None
     status: str
     route: str
     expected_route: str | None
@@ -266,6 +286,13 @@ class MemoryEvalResult:
     answer_citations: int
     searched_after_sufficient_evidence: bool
     redundant_search_count: int
+    unique_evidence_count: int
+    duplicate_support_count: int
+    stale_support_count: int
+    not_evidence_support_count: int
+    non_ready_citation_count: int
+    provider_free_fixture: bool
+    quality_scope: str | None
     notes: tuple[str, ...]
 
     @property
@@ -528,6 +555,8 @@ def format_eval_run(payload: dict[str, Any]) -> str:
             f"type={result.get('question_type') or '-'} "
             f"answerability={result.get('answerability_status') or '-'} "
             f"redundant_search={result.get('redundant_search_count', 0)} "
+            f"unique_evidence={result.get('unique_evidence_count', 0)} "
+            f"duplicate_support={result.get('duplicate_support_count', 0)} "
             f"stop={result['stop_reason']} best={result['best_score']:.2f} "
             f"first={result.get('first_doc_id') or '-'} notes={notes}"
         )
@@ -547,6 +576,10 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
             f"answerability={result.answerability_status or '-'} "
             f"citations={result.answer_citations} "
             f"redundant_search={result.redundant_search_count} "
+            f"unique_evidence={result.unique_evidence_count} "
+            f"duplicate_support={result.duplicate_support_count} "
+            f"stale_support={result.stale_support_count} "
+            f"not_evidence={result.not_evidence_support_count} "
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
@@ -565,6 +598,7 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
         query=query,
         required_any_terms=_tuple_field(record, "required_any_terms"),
         question_type=question_type,
+        fixture_family=_optional_string(record.get("fixture_family")),
         preferred_doc_types=_tuple_field(record, "preferred_doc_types"),
         required_feature=_optional_string(record.get("required_feature")),
         expected_route=_optional_string(record.get("expected_route")),
@@ -572,6 +606,11 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
         expected_answerability_status=_expected_answerability_status(record),
         min_answer_citations=_optional_non_negative_int(record, "min_answer_citations"),
         required_source_kinds=_tuple_field(record, "required_source_kinds"),
+        require_citation_ready=_optional_bool(
+            record,
+            "require_citation_ready",
+            default=False,
+        ),
         allow_search_after_sufficient_evidence=_optional_bool(
             record,
             "allow_search_after_sufficient_evidence",
@@ -581,6 +620,40 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
             record,
             "max_redundant_search_count",
         ),
+        expected_unique_evidence_count=_optional_non_negative_int(
+            record,
+            "expected_unique_evidence_count",
+        ),
+        max_duplicate_support_count=_optional_non_negative_int(
+            record,
+            "max_duplicate_support_count",
+        ),
+        require_provenance_preserved=_optional_bool(
+            record,
+            "require_provenance_preserved",
+            default=False,
+        ),
+        forbid_duplicate_citation_support=_optional_bool(
+            record,
+            "forbid_duplicate_citation_support",
+            default=False,
+        ),
+        forbid_stale_evidence_support=_optional_bool(
+            record,
+            "forbid_stale_evidence_support",
+            default=False,
+        ),
+        forbid_not_evidence_support=_optional_bool(
+            record,
+            "forbid_not_evidence_support",
+            default=True,
+        ),
+        provider_free_fixture=_optional_bool(
+            record,
+            "provider_free_fixture",
+            default=False,
+        ),
+        quality_scope=_optional_string(record.get("quality_scope")),
         min_hit_score=float(record.get("min_hit_score", 1.0)),
     )
 
@@ -601,13 +674,15 @@ def _eval_run_row(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
+    metadata = _loads_json(row["metadata_json"])
     return {
         "case_index": int(row["case_index"]),
         "query": row["query"],
-        "question_type": _loads_json(row["metadata_json"]).get(
+        "question_type": metadata.get(
             "question_type",
             "single_fact_conditioned",
         ),
+        "fixture_family": metadata.get("fixture_family"),
         "status": row["status"],
         "route": row["route"],
         "expected_route": row["expected_route"],
@@ -620,16 +695,25 @@ def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
         "retrieval_engines": _loads_json_array(row["retrieval_engines_json"]),
         "source_kinds": _loads_json_array(row["source_kinds_json"]),
         "answer_status": row["answer_status"],
-        "answerability_status": _loads_json(row["metadata_json"]).get("answerability_status"),
+        "answerability_status": metadata.get("answerability_status"),
         "answer_citations": int(row["answer_citations"]),
         "searched_after_sufficient_evidence": bool(
-            _loads_json(row["metadata_json"]).get("searched_after_sufficient_evidence")
+            metadata.get("searched_after_sufficient_evidence")
         ),
         "redundant_search_count": int(
-            _loads_json(row["metadata_json"]).get("redundant_search_count") or 0
+            metadata.get("redundant_search_count") or 0
         ),
+        "unique_evidence_count": int(metadata.get("unique_evidence_count") or 0),
+        "duplicate_support_count": int(metadata.get("duplicate_support_count") or 0),
+        "stale_support_count": int(metadata.get("stale_support_count") or 0),
+        "not_evidence_support_count": int(
+            metadata.get("not_evidence_support_count") or 0
+        ),
+        "non_ready_citation_count": int(metadata.get("non_ready_citation_count") or 0),
+        "provider_free_fixture": bool(metadata.get("provider_free_fixture")),
+        "quality_scope": metadata.get("quality_scope"),
         "notes": _loads_json_array(row["notes_json"]),
-        "metadata": _loads_json(row["metadata_json"]),
+        "metadata": metadata,
         "created_at": row["created_at"],
     }
 
@@ -713,6 +797,18 @@ def _optional_bool(record: dict[str, Any], key: str, *, default: bool) -> bool:
     raise ValueError(f"{key} must be a boolean")
 
 
+@dataclass(frozen=True)
+class _QualityGateMetrics:
+    unique_evidence_count: int
+    duplicate_support_count: int
+    stale_support_count: int
+    not_evidence_support_count: int
+    non_ready_citation_count: int
+    duplicate_provenance_preserved: bool
+    provider_free_fixture: bool
+    quality_scope: str | None
+
+
 def _contract_notes(
     case: EvalCase,
     *,
@@ -722,6 +818,7 @@ def _contract_notes(
     citation_restoration_notes: tuple[str, ...],
     searched_after_sufficient_evidence: bool,
     redundant_search_count: int,
+    quality_metrics: _QualityGateMetrics,
 ) -> list[str]:
     notes: list[str] = []
     notes.extend(citation_restoration_notes)
@@ -764,6 +861,58 @@ def _contract_notes(
             "redundant search count above threshold "
             f"{case.max_redundant_search_count}: got {redundant_search_count}"
         )
+    if (
+        case.expected_unique_evidence_count is not None
+        and quality_metrics.unique_evidence_count != case.expected_unique_evidence_count
+    ):
+        notes.append(
+            "unique evidence count mismatch: expected "
+            f"{case.expected_unique_evidence_count}, got "
+            f"{quality_metrics.unique_evidence_count}"
+        )
+    if (
+        case.max_duplicate_support_count is not None
+        and quality_metrics.duplicate_support_count > case.max_duplicate_support_count
+    ):
+        notes.append(
+            "duplicate support count above threshold "
+            f"{case.max_duplicate_support_count}: got "
+            f"{quality_metrics.duplicate_support_count}"
+        )
+    if case.forbid_duplicate_citation_support and quality_metrics.duplicate_support_count:
+        notes.append(
+            "duplicate citation support forbidden: "
+            f"got {quality_metrics.duplicate_support_count}"
+        )
+    if (
+        case.require_provenance_preserved
+        and quality_metrics.duplicate_support_count
+        and not quality_metrics.duplicate_provenance_preserved
+    ):
+        notes.append("duplicate provenance not preserved")
+    if case.forbid_stale_evidence_support and quality_metrics.stale_support_count:
+        notes.append(
+            "stale evidence support forbidden: "
+            f"got {quality_metrics.stale_support_count}"
+        )
+    if case.forbid_not_evidence_support and quality_metrics.not_evidence_support_count:
+        notes.append(
+            "not-evidence support forbidden: "
+            f"got {quality_metrics.not_evidence_support_count}"
+        )
+    if case.require_citation_ready and quality_metrics.non_ready_citation_count:
+        notes.append(
+            "citation support not ready: "
+            f"got {quality_metrics.non_ready_citation_count}"
+        )
+    if (
+        quality_metrics.provider_free_fixture
+        and quality_metrics.quality_scope != "boundary_wiring_not_model_quality"
+    ):
+        notes.append(
+            "provider-free fixture missing boundary-only quality scope: "
+            f"{quality_metrics.quality_scope or '-'}"
+        )
     return notes
 
 
@@ -781,6 +930,7 @@ def _evaluate_case(
     citation_restoration_notes = _citation_restoration_notes(workflow)
     searched_after_sufficient_evidence = _searched_after_sufficient_evidence(workflow)
     redundant_search_count = _redundant_search_count(workflow)
+    quality_metrics = _quality_gate_metrics(case, workflow)
     if case.expected_route and workflow.route != case.expected_route:
         notes.append(f"route mismatch: expected {case.expected_route}, got {workflow.route}")
     if case.expected_stop_reasons and workflow.stop_reason not in case.expected_stop_reasons:
@@ -797,6 +947,7 @@ def _evaluate_case(
             citation_restoration_notes=citation_restoration_notes,
             searched_after_sufficient_evidence=searched_after_sufficient_evidence,
             redundant_search_count=redundant_search_count,
+            quality_metrics=quality_metrics,
         )
     )
     if not hits:
@@ -820,6 +971,7 @@ def _evaluate_case(
         return MemoryEvalResult(
             query=case.query,
             question_type=case.question_type,
+            fixture_family=case.fixture_family,
             status=status,
             route=workflow.route,
             expected_route=case.expected_route,
@@ -836,6 +988,13 @@ def _evaluate_case(
             answer_citations=answer_citations,
             searched_after_sufficient_evidence=searched_after_sufficient_evidence,
             redundant_search_count=redundant_search_count,
+            unique_evidence_count=quality_metrics.unique_evidence_count,
+            duplicate_support_count=quality_metrics.duplicate_support_count,
+            stale_support_count=quality_metrics.stale_support_count,
+            not_evidence_support_count=quality_metrics.not_evidence_support_count,
+            non_ready_citation_count=quality_metrics.non_ready_citation_count,
+            provider_free_fixture=quality_metrics.provider_free_fixture,
+            quality_scope=quality_metrics.quality_scope,
             notes=tuple(notes),
         )
 
@@ -880,6 +1039,7 @@ def _evaluate_case(
     return MemoryEvalResult(
         query=case.query,
         question_type=case.question_type,
+        fixture_family=case.fixture_family,
         status=status,
         route=workflow.route,
         expected_route=case.expected_route,
@@ -896,6 +1056,13 @@ def _evaluate_case(
         answer_citations=answer_citations,
         searched_after_sufficient_evidence=searched_after_sufficient_evidence,
         redundant_search_count=redundant_search_count,
+        unique_evidence_count=quality_metrics.unique_evidence_count,
+        duplicate_support_count=quality_metrics.duplicate_support_count,
+        stale_support_count=quality_metrics.stale_support_count,
+        not_evidence_support_count=quality_metrics.not_evidence_support_count,
+        non_ready_citation_count=quality_metrics.non_ready_citation_count,
+        provider_free_fixture=quality_metrics.provider_free_fixture,
+        quality_scope=quality_metrics.quality_scope,
         notes=tuple(notes),
     )
 
@@ -920,6 +1087,14 @@ def _is_contract_failure_note(note: str) -> bool:
         or note.startswith("citation source missing")
         or note == "searched after sufficient evidence"
         or note.startswith("redundant search count above threshold")
+        or note.startswith("unique evidence count mismatch")
+        or note.startswith("duplicate support count above threshold")
+        or note.startswith("duplicate citation support forbidden")
+        or note.startswith("duplicate provenance not preserved")
+        or note.startswith("stale evidence support forbidden")
+        or note.startswith("not-evidence support forbidden")
+        or note.startswith("citation support not ready")
+        or note.startswith("provider-free fixture missing boundary-only quality scope")
     )
 
 
@@ -936,6 +1111,44 @@ def _redundant_search_count(workflow: MemoryWorkflow) -> int:
 def _stop_condition_audit(workflow: MemoryWorkflow) -> dict[str, Any]:
     audit = workflow.metadata.get("stop_condition_audit")
     return audit if isinstance(audit, dict) else {}
+
+
+def _quality_gate_metrics(case: EvalCase, workflow: MemoryWorkflow) -> _QualityGateMetrics:
+    citations = _eval_citations(workflow)
+    duplicate_count = duplicate_evidence_count(citations)
+    duplicate_provenance_preserved = (
+        duplicate_count == 0
+        or any(citation_preserves_duplicate_provenance(citation) for citation in citations)
+    )
+    provider_free_fixture = case.provider_free_fixture or bool(
+        workflow.metadata.get("provider_free_fixture")
+    )
+    quality_scope = case.quality_scope
+    if quality_scope is None:
+        metadata_scope = workflow.metadata.get("quality_scope")
+        quality_scope = str(metadata_scope).strip() if metadata_scope else None
+    return _QualityGateMetrics(
+        unique_evidence_count=unique_evidence_count(citations),
+        duplicate_support_count=duplicate_count,
+        stale_support_count=sum(1 for citation in citations if citation_is_stale(citation)),
+        not_evidence_support_count=sum(
+            1 for citation in citations if citation_is_not_evidence(citation)
+        ),
+        non_ready_citation_count=sum(
+            1 for citation in citations if not citation_is_citation_ready(citation)
+        ),
+        duplicate_provenance_preserved=duplicate_provenance_preserved,
+        provider_free_fixture=provider_free_fixture,
+        quality_scope=quality_scope,
+    )
+
+
+def _eval_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:
+    if workflow.answer is not None:
+        return workflow.answer.citation_annotations
+    if workflow.context_bundle is not None:
+        return workflow.context_bundle.citation_annotations
+    return ()
 
 
 def _valid_hit(hit: dict) -> bool:

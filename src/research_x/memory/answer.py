@@ -21,6 +21,14 @@ from research_x.memory.context import (
     build_context_bundle,
 )
 from research_x.memory.context_budget import ContextBudgetPolicy, budgeted_json
+from research_x.memory.evidence_invariants import (
+    chunk_is_not_evidence,
+    chunk_is_stale,
+    chunk_marks_conflict,
+    citation_is_not_evidence,
+    citation_is_stale,
+    citation_marks_conflict,
+)
 from research_x.memory.schema import ensure_memory_schema
 
 ANSWER_ENGINE_ROLE = "answer_engine"
@@ -516,13 +524,46 @@ def assess_answerability(
             missing=(),
         )
 
-    if _all_evidence_is_stale(chunks=chunks, citations=citations):
+    not_evidence_chunk_ids = _not_evidence_chunk_ids(chunks=chunks, citations=citations)
+    if not_evidence_chunk_ids:
+        if len(not_evidence_chunk_ids) == len(chunks):
+            return AnswerabilityAssessment(
+                status=ANSWERABILITY_CITATION_MISSING,
+                reason="no_citation_ready_evidence",
+                answerable_chunk_ids=(),
+                conflicting_chunk_ids=(),
+                missing=("citation_ready_evidence",),
+            )
         return AnswerabilityAssessment(
-            status=ANSWERABILITY_STALE_ONLY,
-            reason="only_stale_evidence",
-            answerable_chunk_ids=tuple(chunk.chunk_id for chunk in chunks),
+            status=ANSWERABILITY_PARTIALLY_SUPPORTED,
+            reason="selected_context_contains_non_evidence",
+            answerable_chunk_ids=tuple(
+                chunk.chunk_id
+                for chunk in chunks
+                if chunk.chunk_id not in not_evidence_chunk_ids
+            ),
             conflicting_chunk_ids=(),
-            missing=("current_evidence",),
+            missing=tuple(f"citation_ready:{chunk_id}" for chunk_id in not_evidence_chunk_ids),
+        )
+
+    stale_chunk_ids = _stale_chunk_ids(chunks=chunks, citations=citations)
+    if stale_chunk_ids:
+        if len(stale_chunk_ids) == len(chunks):
+            return AnswerabilityAssessment(
+                status=ANSWERABILITY_STALE_ONLY,
+                reason="only_stale_evidence",
+                answerable_chunk_ids=tuple(chunk.chunk_id for chunk in chunks),
+                conflicting_chunk_ids=(),
+                missing=("current_evidence",),
+            )
+        return AnswerabilityAssessment(
+            status=ANSWERABILITY_PARTIALLY_SUPPORTED,
+            reason="selected_context_contains_stale_evidence",
+            answerable_chunk_ids=tuple(
+                chunk.chunk_id for chunk in chunks if chunk.chunk_id not in stale_chunk_ids
+            ),
+            conflicting_chunk_ids=(),
+            missing=tuple(f"current_evidence:{chunk_id}" for chunk_id in stale_chunk_ids),
         )
 
     return AnswerabilityAssessment(
@@ -568,75 +609,55 @@ def _conflicting_chunk_ids(
 
 
 def _chunk_marks_conflict(chunk: ContextChunk) -> bool:
-    metadata = chunk.metadata
-    values = (
-        metadata.get("answerability"),
-        metadata.get("answerability_status"),
-        metadata.get("answerability_fixture"),
-        metadata.get("evidence_relation"),
-        metadata.get("relation"),
-        metadata.get("relation_type"),
-    )
-    return any(_is_conflict_marker(value) for value in values)
+    return chunk_marks_conflict(chunk)
 
 
 def _citation_marks_conflict(citation: CitationAnnotation) -> bool:
-    values = (
-        citation.support_type,
-        citation.evidence_status,
-        citation.metadata.get("answerability"),
-        citation.metadata.get("answerability_status"),
-        citation.metadata.get("answerability_fixture"),
-        citation.metadata.get("evidence_relation"),
-        citation.metadata.get("relation"),
-        citation.metadata.get("relation_type"),
-    )
-    return any(_is_conflict_marker(value) for value in values)
+    return citation_marks_conflict(citation)
 
 
-def _all_evidence_is_stale(
+def _stale_chunk_ids(
     *,
     chunks: tuple[ContextChunk, ...],
     citations: tuple[CitationAnnotation, ...],
-) -> bool:
+) -> tuple[str, ...]:
     if not chunks or not citations:
-        return False
+        return ()
     citation_by_chunk_id = {citation.chunk_id: citation for citation in citations}
+    result: list[str] = []
     for chunk in chunks:
         citation = citation_by_chunk_id.get(chunk.chunk_id)
-        if not _chunk_marks_stale(chunk) and not (
+        if _chunk_marks_stale(chunk) or (
             citation is not None and _citation_marks_stale(citation)
         ):
-            return False
-    return True
+            result.append(chunk.chunk_id)
+    return tuple(result)
+
+
+def _not_evidence_chunk_ids(
+    *,
+    chunks: tuple[ContextChunk, ...],
+    citations: tuple[CitationAnnotation, ...],
+) -> tuple[str, ...]:
+    if not chunks or not citations:
+        return ()
+    citation_by_chunk_id = {citation.chunk_id: citation for citation in citations}
+    result: list[str] = []
+    for chunk in chunks:
+        citation = citation_by_chunk_id.get(chunk.chunk_id)
+        if chunk_is_not_evidence(chunk) or (
+            citation is not None and citation_is_not_evidence(citation)
+        ):
+            result.append(chunk.chunk_id)
+    return tuple(result)
 
 
 def _chunk_marks_stale(chunk: ContextChunk) -> bool:
-    metadata = chunk.metadata
-    values = (
-        metadata.get("answerability"),
-        metadata.get("answerability_status"),
-        metadata.get("evidence_status"),
-        metadata.get("freshness"),
-        metadata.get("freshness_status"),
-        metadata.get("stale"),
-        metadata.get("stale_only"),
-    )
-    return any(_is_stale_marker(value) for value in values)
+    return chunk_is_stale(chunk)
 
 
 def _citation_marks_stale(citation: CitationAnnotation) -> bool:
-    values = (
-        citation.evidence_status,
-        citation.metadata.get("answerability"),
-        citation.metadata.get("answerability_status"),
-        citation.metadata.get("evidence_status"),
-        citation.metadata.get("freshness"),
-        citation.metadata.get("freshness_status"),
-        citation.metadata.get("stale"),
-        citation.metadata.get("stale_only"),
-    )
-    return any(_is_stale_marker(value) for value in values)
+    return citation_is_stale(citation)
 
 
 def _is_conflict_marker(value: Any) -> bool:
