@@ -6,7 +6,7 @@ name: Codex Pages Dashboard CD
 # not_citation=true
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
-# foundation_manifest_sha256=6f772b4dbc8c88252e4af737e487177f12199d9e130b7435834daaa1b0745fc6
+# foundation_manifest_sha256=fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143
 # source_template=templates/github-workflows/codex-pages-dashboard.template.yml
 # provider_api_calls=false
 # paid_usage_detected=false
