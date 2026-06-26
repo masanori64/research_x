@@ -109,7 +109,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -235,7 +235,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -275,10 +275,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:31:51.559812+00:00",
+    "generated_at": "2026-06-26T11:36:30.826873+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -346,14 +346,14 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+    "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
     "version": "0.1.0"
   },
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+    "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
     "version": "0.1.0"
   },
   "gates": [
@@ -421,11 +421,11 @@
       "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T11:31:51.587386+00:00",
+  "generated_at": "2026-06-26T11:36:30.850105+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "0d13403366269808d826624a8310e0321489fdde",
+    "commit": "d3d300524a8dd34f87696e9820e45263713aa002",
     "dirty": true
   },
   "github_collection": {
@@ -448,7 +448,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -487,7 +487,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -617,10 +617,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:31:51.561814+00:00",
+    "generated_at": "2026-06-26T11:36:30.828870+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "live_url": null,
     "not_answer_support": true,
@@ -670,10 +670,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:31:51.563811+00:00",
+    "generated_at": "2026-06-26T11:36:30.831873+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -804,10 +804,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:31:51.564812+00:00",
+    "generated_at": "2026-06-26T11:36:30.833872+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
@@ -853,10 +853,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:31:51.566812+00:00",
+    "generated_at": "2026-06-26T11:36:30.835873+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -937,7 +937,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+      "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -998,7 +998,7 @@
         "exists": true,
         "id": "codex-hotl-implementation-pipeline",
         "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-        "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+        "sha256": "c35ea101922f66005ec29d7b291852e5d97de5b9c361dfaf36f1402a8ac51fc5",
         "version": "0.1.0"
       },
       "generated_by": "codex-hotl-implementation-pipeline",
