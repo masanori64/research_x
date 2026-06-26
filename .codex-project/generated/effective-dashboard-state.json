@@ -90,9 +90,51 @@
     }
   ],
   "collection": {
+    "api_calls_executed": false,
+    "artifact_kind": "github_state",
+    "collection_mode": "disabled",
+    "control_artifact": true,
+    "default_branch": "main",
+    "forbidden_mutation_methods": [
+      "create_issue",
+      "create_pull_request",
+      "update_repository_settings",
+      "enable_pages",
+      "create_deployment",
+      "rerun_workflow",
+      "cancel_workflow",
+      "delete_artifact"
+    ],
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
+      "version": "0.1.0"
+    },
+    "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_enabled": false,
+    "items": [],
     "mode": "local_only",
-    "reason": "Phase 1 forbids GitHub API/CD execution."
+    "mutation_methods_available": [],
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "read_methods_available": [
+      "list_workflow_runs",
+      "list_workflow_jobs",
+      "list_workflow_artifacts",
+      "get_pull_request_metadata",
+      "get_commit_status"
+    ],
+    "reason": "GitHub API collection is disabled by default.",
+    "repository": "maasa/research_x",
+    "schema_version": 1,
+    "status": "disabled",
+    "token_used": false,
+    "write_operations_available": false
   },
   "control_artifact": true,
   "dashboard": {
@@ -113,10 +155,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "a6f53e7c7829188909222c6ffb44a00a968f18b8437c462e1a33812adb9f5acc",
+      "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T10:41:50.596125+00:00",
+    "generated_at": "2026-06-26T10:47:24.519378+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -176,14 +218,14 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "a6f53e7c7829188909222c6ffb44a00a968f18b8437c462e1a33812adb9f5acc",
+    "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
     "version": "0.1.0"
   },
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "a6f53e7c7829188909222c6ffb44a00a968f18b8437c462e1a33812adb9f5acc",
+    "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
     "version": "0.1.0"
   },
   "gates": [
@@ -251,12 +293,59 @@
       "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T10:41:50.598130+00:00",
+  "generated_at": "2026-06-26T10:47:24.523378+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "c27a414ceb067341aeeb71db362c9e2f79116a9a",
+    "commit": "9ba34db6166096c2e49665f1df898d0e9766b9ed",
     "dirty": true
+  },
+  "github_collection": {
+    "api_calls_executed": false,
+    "artifact_kind": "github_state",
+    "collection_mode": "disabled",
+    "control_artifact": true,
+    "default_branch": "main",
+    "forbidden_mutation_methods": [
+      "create_issue",
+      "create_pull_request",
+      "update_repository_settings",
+      "enable_pages",
+      "create_deployment",
+      "rerun_workflow",
+      "cancel_workflow",
+      "delete_artifact"
+    ],
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
+      "version": "0.1.0"
+    },
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "github_api_enabled": false,
+    "items": [],
+    "mode": "local_only",
+    "mutation_methods_available": [],
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "read_methods_available": [
+      "list_workflow_runs",
+      "list_workflow_jobs",
+      "list_workflow_artifacts",
+      "get_pull_request_metadata",
+      "get_commit_status"
+    ],
+    "reason": "GitHub API collection is disabled by default.",
+    "repository": "maasa/research_x",
+    "schema_version": 1,
+    "status": "disabled",
+    "token_used": false,
+    "write_operations_available": false
   },
   "not_answer_support": true,
   "not_citation": true,
@@ -270,7 +359,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "a6f53e7c7829188909222c6ffb44a00a968f18b8437c462e1a33812adb9f5acc",
+      "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -435,10 +524,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "a6f53e7c7829188909222c6ffb44a00a968f18b8437c462e1a33812adb9f5acc",
+      "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T10:41:50.597128+00:00",
+    "generated_at": "2026-06-26T10:47:24.520378+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
