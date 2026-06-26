@@ -22,6 +22,11 @@ class EvalCase:
     required_feature: str | None = None
     expected_route: str | None = None
     expected_stop_reasons: tuple[str, ...] = ()
+    expected_answerability_status: str | None = None
+    min_answer_citations: int | None = None
+    required_source_kinds: tuple[str, ...] = ()
+    allow_search_after_sufficient_evidence: bool = True
+    max_redundant_search_count: int | None = None
     min_hit_score: float = 1.0
 
 
@@ -80,6 +85,8 @@ DEFAULT_EVAL_CASES = (
         preferred_doc_types=("quote_tree_doc", "bookmark_doc", "tweet_doc"),
         required_feature="quote_context",
         expected_route="quote_context",
+        expected_answerability_status="answerable",
+        min_answer_citations=1,
         min_hit_score=0.5,
     ),
     EvalCase(
@@ -206,6 +213,8 @@ DEFAULT_EVAL_CASES = (
         question_type="abstention_false_premise",
         expected_route="local_memory_search",
         expected_stop_reasons=("no_local_evidence",),
+        expected_answerability_status="unanswerable",
+        min_answer_citations=0,
         min_hit_score=0.0,
     ),
 )
@@ -551,6 +560,18 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
         required_feature=_optional_string(record.get("required_feature")),
         expected_route=_optional_string(record.get("expected_route")),
         expected_stop_reasons=_tuple_field(record, "expected_stop_reasons"),
+        expected_answerability_status=_expected_answerability_status(record),
+        min_answer_citations=_optional_non_negative_int(record, "min_answer_citations"),
+        required_source_kinds=_tuple_field(record, "required_source_kinds"),
+        allow_search_after_sufficient_evidence=_optional_bool(
+            record,
+            "allow_search_after_sufficient_evidence",
+            default=True,
+        ),
+        max_redundant_search_count=_optional_non_negative_int(
+            record,
+            "max_redundant_search_count",
+        ),
         min_hit_score=float(record.get("min_hit_score", 1.0)),
     )
 
@@ -642,6 +663,97 @@ def _optional_string(value: Any) -> str | None:
     return text or None
 
 
+def _expected_answerability_status(record: dict[str, Any]) -> str | None:
+    status = _optional_string(record.get("expected_answerability_status"))
+    if status is None:
+        return None
+    normalized = status.casefold()
+    allowed = {"answerable", "unanswerable", "conflicting"}
+    if normalized not in allowed:
+        raise ValueError(
+            "expected_answerability_status must be one of: "
+            f"{', '.join(sorted(allowed))}"
+        )
+    return normalized
+
+
+def _optional_non_negative_int(record: dict[str, Any], key: str) -> int | None:
+    value = record.get(key)
+    if value is None:
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{key} must be a non-negative integer") from exc
+    if number < 0:
+        raise ValueError(f"{key} must be a non-negative integer")
+    return number
+
+
+def _optional_bool(record: dict[str, Any], key: str, *, default: bool) -> bool:
+    value = record.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        normalized = value.strip().casefold()
+        if normalized in {"true", "1", "yes"}:
+            return True
+        if normalized in {"false", "0", "no"}:
+            return False
+    raise ValueError(f"{key} must be a boolean")
+
+
+def _contract_notes(
+    case: EvalCase,
+    *,
+    answerability_status: str | None,
+    answer_citations: int,
+    source_kinds: tuple[str, ...],
+    searched_after_sufficient_evidence: bool,
+    redundant_search_count: int,
+) -> list[str]:
+    notes: list[str] = []
+    if (
+        case.expected_answerability_status is not None
+        and answerability_status != case.expected_answerability_status
+    ):
+        notes.append(
+            "answerability mismatch: expected "
+            f"{case.expected_answerability_status}, got {answerability_status or '-'}"
+        )
+    if (
+        case.min_answer_citations is not None
+        and answer_citations < case.min_answer_citations
+    ):
+        notes.append(
+            "answer citations below threshold "
+            f"{case.min_answer_citations}: got {answer_citations}"
+        )
+    missing_source_kinds = tuple(
+        source_kind
+        for source_kind in case.required_source_kinds
+        if source_kind not in source_kinds
+    )
+    if missing_source_kinds:
+        notes.append(f"required source kind missing: {', '.join(missing_source_kinds)}")
+    if (
+        not case.allow_search_after_sufficient_evidence
+        and searched_after_sufficient_evidence
+    ):
+        notes.append("searched after sufficient evidence")
+    if (
+        case.max_redundant_search_count is not None
+        and redundant_search_count > case.max_redundant_search_count
+    ):
+        notes.append(
+            "redundant search count above threshold "
+            f"{case.max_redundant_search_count}: got {redundant_search_count}"
+        )
+    return notes
+
+
 def _evaluate_case(
     case: EvalCase,
     workflow: MemoryWorkflow,
@@ -650,6 +762,10 @@ def _evaluate_case(
     notes: list[str] = []
     source_kinds = _source_kinds(workflow)
     context_chunks = len(workflow.context_bundle.context_chunks) if workflow.context_bundle else 0
+    answerability_status = _answerability_status(workflow)
+    answer_citations = len(workflow.answer.citation_annotations) if workflow.answer else 0
+    searched_after_sufficient_evidence = _searched_after_sufficient_evidence(workflow)
+    redundant_search_count = _redundant_search_count(workflow)
     if case.expected_route and workflow.route != case.expected_route:
         notes.append(f"route mismatch: expected {case.expected_route}, got {workflow.route}")
     if case.expected_stop_reasons and workflow.stop_reason not in case.expected_stop_reasons:
@@ -657,6 +773,16 @@ def _evaluate_case(
             "stop reason mismatch: expected "
             f"{', '.join(case.expected_stop_reasons)}, got {workflow.stop_reason}"
         )
+    notes.extend(
+        _contract_notes(
+            case,
+            answerability_status=answerability_status,
+            answer_citations=answer_citations,
+            source_kinds=source_kinds,
+            searched_after_sufficient_evidence=searched_after_sufficient_evidence,
+            redundant_search_count=redundant_search_count,
+        )
+    )
     if not hits:
         expected_no_evidence = (
             workflow.stop_reason == "no_local_evidence"
@@ -666,7 +792,9 @@ def _evaluate_case(
             notes.append("expected no local evidence")
             status = "ok"
             if any(
-                note.startswith("route mismatch") or note.startswith("stop reason mismatch")
+                note.startswith("route mismatch")
+                or note.startswith("stop reason mismatch")
+                or _is_contract_failure_note(note)
                 for note in notes
             ):
                 status = "fail"
@@ -688,12 +816,10 @@ def _evaluate_case(
             retrieval_engines=(),
             source_kinds=source_kinds,
             answer_status=workflow.answer.status if workflow.answer else None,
-            answerability_status=_answerability_status(workflow),
-            answer_citations=(
-                len(workflow.answer.citation_annotations) if workflow.answer else 0
-            ),
-            searched_after_sufficient_evidence=_searched_after_sufficient_evidence(workflow),
-            redundant_search_count=_redundant_search_count(workflow),
+            answerability_status=answerability_status,
+            answer_citations=answer_citations,
+            searched_after_sufficient_evidence=searched_after_sufficient_evidence,
+            redundant_search_count=redundant_search_count,
             notes=tuple(notes),
         )
 
@@ -731,6 +857,7 @@ def _evaluate_case(
         "first hit is missing compact evidence" in notes
         or "required term family missing" in notes
         or any(note.startswith("route mismatch") for note in notes)
+        or any(_is_contract_failure_note(note) for note in notes)
     ):
         status = "fail"
 
@@ -749,10 +876,10 @@ def _evaluate_case(
         retrieval_engines=_retrieval_engines(hits),
         source_kinds=source_kinds,
         answer_status=workflow.answer.status if workflow.answer else None,
-        answerability_status=_answerability_status(workflow),
-        answer_citations=len(workflow.answer.citation_annotations) if workflow.answer else 0,
-        searched_after_sufficient_evidence=_searched_after_sufficient_evidence(workflow),
-        redundant_search_count=_redundant_search_count(workflow),
+        answerability_status=answerability_status,
+        answer_citations=answer_citations,
+        searched_after_sufficient_evidence=searched_after_sufficient_evidence,
+        redundant_search_count=redundant_search_count,
         notes=tuple(notes),
     )
 
@@ -765,6 +892,16 @@ def _answerability_status(workflow: MemoryWorkflow) -> str | None:
         return None
     status = answerability.get("status")
     return str(status) if status else None
+
+
+def _is_contract_failure_note(note: str) -> bool:
+    return (
+        note.startswith("answerability mismatch")
+        or note.startswith("answer citations below threshold")
+        or note.startswith("required source kind missing")
+        or note == "searched after sufficient evidence"
+        or note.startswith("redundant search count above threshold")
+    )
 
 
 def _searched_after_sufficient_evidence(workflow: MemoryWorkflow) -> bool:

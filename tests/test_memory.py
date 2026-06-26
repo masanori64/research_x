@@ -10,6 +10,7 @@ import pytest
 from research_x.cli import main
 from research_x.memory import api_lane_estimate as memory_api_lane_estimate
 from research_x.memory import embeddings, media_embeddings
+from research_x.memory import evals as memory_evals
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import answer_json, assess_answerability, build_memory_answer
@@ -143,6 +144,7 @@ from research_x.memory.vector_projection import (
     vector_projection_coverage,
 )
 from research_x.memory.workflow import (
+    MemoryWorkflow,
     format_workflow,
     plan_workflow_route,
     run_memory_workflow,
@@ -4654,6 +4656,185 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     assert loaded_run["results"][0]["question_type"] == "multi_hop_evidence"
 
 
+def test_memory_eval_loads_source_adoption_contract_fields(tmp_path: Path) -> None:
+    cases_path = tmp_path / "cases.jsonl"
+    cases_path.write_text(
+        json.dumps(
+            {
+                "query": "根拠tweetと引用元を明示して説明して",
+                "question_type": "citation_required",
+                "required_any_terms": ["根拠", "tweet"],
+                "expected_answerability_status": "answerable",
+                "min_answer_citations": 1,
+                "required_source_kinds": ["local_x_db"],
+                "allow_search_after_sufficient_evidence": False,
+                "max_redundant_search_count": 0,
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    case = load_eval_cases(cases_path)[0]
+
+    assert case.expected_answerability_status == "answerable"
+    assert case.min_answer_citations == 1
+    assert case.required_source_kinds == ("local_x_db",)
+    assert case.allow_search_after_sufficient_evidence is False
+    assert case.max_redundant_search_count == 0
+
+    bad_path = tmp_path / "bad-cases.jsonl"
+    bad_path.write_text(
+        json.dumps(
+            {
+                "query": "bad",
+                "required_any_terms": [],
+                "expected_answerability_status": "maybe",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="expected_answerability_status"):
+        load_eval_cases(bad_path)
+
+
+def test_memory_eval_enforces_answerability_fixture_contracts(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    answerable_bundle = _answerability_fixture_bundle("answerable")
+    unanswerable_bundle = _answerability_fixture_bundle("unanswerable")
+    conflicting_bundle = _answerability_fixture_bundle("conflicting")
+    answerable = build_memory_answer(
+        db_path,
+        "ロボットについて説明して",
+        context_bundle=answerable_bundle,
+        store=False,
+    )
+    unanswerable = build_memory_answer(
+        db_path,
+        "存在しない保存情報について説明して",
+        context_bundle=unanswerable_bundle,
+        store=False,
+    )
+    conflicting = build_memory_answer(
+        db_path,
+        "同じ話の矛盾を確認して",
+        context_bundle=conflicting_bundle,
+        store=False,
+    )
+    answerable_case = EvalCase(
+        query="ロボットについて説明して",
+        required_any_terms=("ロボット",),
+        question_type="citation_required",
+        expected_answerability_status="answerable",
+        min_answer_citations=1,
+        required_source_kinds=("local_x_db",),
+        allow_search_after_sufficient_evidence=False,
+        max_redundant_search_count=0,
+        min_hit_score=0.5,
+    )
+    unanswerable_case = EvalCase(
+        query="存在しない保存情報について説明して",
+        required_any_terms=(),
+        question_type="abstention_false_premise",
+        expected_stop_reasons=("no_local_evidence",),
+        expected_answerability_status="unanswerable",
+        min_answer_citations=0,
+        min_hit_score=0.0,
+    )
+    conflicting_case = EvalCase(
+        query="同じ話の矛盾を確認して",
+        required_any_terms=("ロボット",),
+        question_type="contradiction_support",
+        expected_answerability_status="conflicting",
+        min_answer_citations=2,
+        required_source_kinds=("local_x_db",),
+        min_hit_score=0.5,
+    )
+
+    answerable_result = memory_evals._evaluate_case(  # noqa: SLF001
+        answerable_case,
+        _fixture_workflow(answerable_case.query, answerable_bundle, answerable),
+        _valid_fixture_hits(answerable_bundle),
+    )
+    unanswerable_result = memory_evals._evaluate_case(  # noqa: SLF001
+        unanswerable_case,
+        _fixture_workflow(
+            unanswerable_case.query,
+            unanswerable_bundle,
+            unanswerable,
+            stop_reason="no_local_evidence",
+        ),
+        [],
+    )
+    conflicting_result = memory_evals._evaluate_case(  # noqa: SLF001
+        conflicting_case,
+        _fixture_workflow(conflicting_case.query, conflicting_bundle, conflicting),
+        _valid_fixture_hits(conflicting_bundle),
+    )
+
+    assert answerable_result.status == "ok"
+    assert answerable_result.answerability_status == "answerable"
+    assert answerable_result.answer_citations == 1
+
+    assert unanswerable_result.status == "ok"
+    assert unanswerable_result.answerability_status == "unanswerable"
+    assert unanswerable_result.answer_citations == 0
+
+    assert conflicting_result.status == "needs_review"
+    assert conflicting_result.answerability_status == "conflicting"
+    assert conflicting_result.answer_citations == 2
+    assert not any(
+        note.startswith("answerability mismatch") for note in conflicting_result.notes
+    )
+
+
+def test_memory_eval_fails_source_adoption_contract_mismatches(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    answerable_bundle = _answerability_fixture_bundle("answerable")
+    answerable = build_memory_answer(
+        db_path,
+        "ロボットについて説明して",
+        context_bundle=answerable_bundle,
+        store=False,
+    )
+    case = EvalCase(
+        query="ロボットについて説明して",
+        required_any_terms=("ロボット",),
+        question_type="citation_required",
+        expected_answerability_status="unanswerable",
+        min_answer_citations=9,
+        required_source_kinds=("external_reader",),
+        allow_search_after_sufficient_evidence=False,
+        max_redundant_search_count=0,
+        min_hit_score=0.5,
+    )
+
+    result = memory_evals._evaluate_case(  # noqa: SLF001
+        case,
+        _fixture_workflow(
+            case.query,
+            answerable_bundle,
+            answerable,
+            metadata={
+                "stop_condition_audit": {
+                    "searched_after_sufficient_evidence": True,
+                    "redundant_search_count": 1,
+                }
+            },
+        ),
+        _valid_fixture_hits(answerable_bundle),
+    )
+
+    assert result.status == "fail"
+    assert any(note.startswith("answerability mismatch") for note in result.notes)
+    assert any(note.startswith("answer citations below threshold") for note in result.notes)
+    assert any(note.startswith("required source kind missing") for note in result.notes)
+    assert "searched after sufficient evidence" in result.notes
+    assert any(note.startswith("redundant search count above threshold") for note in result.notes)
+
+
 def test_memory_question_type_catalog_is_machine_readable() -> None:
     ids = known_question_type_ids()
     rows = question_types_as_dicts()
@@ -5950,6 +6131,49 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
         context_chunks=tuple(chunks),
         citation_annotations=citations,
     )
+
+
+def _fixture_workflow(
+    query: str,
+    bundle: ContextBundle,
+    answer,
+    *,
+    stop_reason: str = "enough_evidence",
+    metadata: dict[str, object] | None = None,
+) -> MemoryWorkflow:
+    created_at = "2026-06-22T00:00:00+00:00"
+    return MemoryWorkflow(
+        workflow_id=f"{bundle.run_id}:workflow",
+        query=query,
+        route="local_memory_search",
+        status="ok" if stop_reason == "enough_evidence" else "needs_review",
+        stop_reason=stop_reason,
+        started_at=created_at,
+        finished_at=created_at,
+        metadata=metadata or {},
+        steps=(),
+        context_bundle=bundle,
+        answer=answer,
+    )
+
+
+def _valid_fixture_hits(bundle: ContextBundle) -> list[dict[str, object]]:
+    hits: list[dict[str, object]] = []
+    for chunk in bundle.context_chunks:
+        hits.append(
+            {
+                "doc_id": chunk.source_id,
+                "tweet_id": chunk.source_id.removeprefix("tweet:"),
+                "doc_type": "tweet_doc",
+                "title": chunk.source_id,
+                "compact_text": chunk.chunk_text,
+                "score": chunk.relevance_score,
+                "matched_terms": ["ロボット"],
+                "evidence": {"url": chunk.source_url},
+                "metadata": {},
+            }
+        )
+    return hits
 
 
 def _write_cases(tmp_path: Path, cases: list[dict]) -> Path:
