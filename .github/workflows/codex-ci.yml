@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409
+# foundation_manifest_sha256=67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09
 name: Codex Control Artifact CI
 
 on:
@@ -38,7 +38,9 @@ jobs:
 
           required_json = [
               Path(".codex-project/generated/effective-dashboard-state.json"),
+              Path(".codex-project/generated/effective-control-artifact-audit.json"),
               Path(".codex-project/generated/effective-github-collection.json"),
+              Path("docs/control/codex/dashboard/data/control-artifact-audit.json"),
               Path("docs/control/codex/dashboard/data/dashboard-state.json"),
               Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
               Path("docs/control/codex/dashboard/data/github-collection.json"),
@@ -68,6 +70,26 @@ jobs:
               for marker in markers:
                   if payload.get(marker) is not True:
                       failures.append(f"{path}: {marker} must be true")
+          audit_paths = [
+              Path(".codex-project/generated/effective-control-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/control-artifact-audit.json"),
+          ]
+          for path in audit_paths:
+              audit = json.loads(path.read_text(encoding="utf-8"))
+              if audit.get("status") != "passed":
+                  failures.append(f"{path}: status must be passed")
+              if audit.get("errors") != []:
+                  failures.append(f"{path}: errors must be []")
+              blocked = set(audit.get("blocked_control_sources", []))
+              for source in (
+                  "chatgpt_output",
+                  "dashboard",
+                  "mermaid",
+                  "subagent_summary",
+                  "wbs",
+              ):
+                  if source not in blocked:
+                      failures.append(f"{path}: must block {source}")
           collection_paths = [
               Path(".codex-project/generated/effective-github-collection.json"),
               Path("docs/control/codex/dashboard/data/github-collection.json"),

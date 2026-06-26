@@ -1,0 +1,120 @@
+{
+  "artifact_kind": "control_artifact_audit",
+  "blocked_control_sources": [
+    "chatgpt_output",
+    "control_artifact_audit",
+    "dashboard",
+    "deploy_manifest",
+    "effective_gates",
+    "effective_pipeline",
+    "effective_profile",
+    "github_state",
+    "mermaid",
+    "preview_manifest",
+    "production_manifest",
+    "rollback_manifest",
+    "staging_manifest",
+    "subagent_policy",
+    "subagent_summary",
+    "wbs"
+  ],
+  "checks": [
+    {
+      "errors": [],
+      "name": "control_paths_do_not_overlap_evidence_paths",
+      "status": "passed"
+    },
+    {
+      "name": "generated_control_artifact_markers",
+      "required_markers": [
+        "control_artifact=true",
+        "not_evidence=true",
+        "not_research_evidence=true",
+        "not_citation=true",
+        "not_answer_support=true",
+        "generated_by=codex-hotl-implementation-pipeline",
+        "foundation_manifest.sha256"
+      ],
+      "status": "validated_by_codex_pipeline_validate"
+    },
+    {
+      "name": "subagent_summaries_are_control_only",
+      "raw_logs_allowed_in_project": false,
+      "status": "passed"
+    },
+    {
+      "blocked_sources": [
+        "chatgpt_output",
+        "wbs",
+        "mermaid"
+      ],
+      "name": "chatgpt_wbs_mermaid_outputs_are_control_only",
+      "status": "passed"
+    }
+  ],
+  "control_artifact": true,
+  "control_artifact_paths": [
+    ".codex-project/generated/effective-control-artifact-audit.json",
+    ".codex-project/generated/effective-dashboard-state.json",
+    ".codex-project/generated/effective-gates.yml",
+    ".codex-project/generated/effective-github-collection.json",
+    ".codex-project/generated/effective-pipeline.yml",
+    ".codex-project/generated/effective-preview-manifest.json",
+    ".codex-project/generated/effective-production-manifest.json",
+    ".codex-project/generated/effective-profile.yml",
+    ".codex-project/generated/effective-staging-manifest.json",
+    ".codex-project/generated/effective-subagent-policy.json",
+    "docs/control/codex/dashboard/data/control-artifact-audit.json",
+    "docs/control/codex/dashboard/data/dashboard-state.json",
+    "docs/control/codex/dashboard/data/deploy-manifest.json",
+    "docs/control/codex/dashboard/data/github-collection.json",
+    "docs/control/codex/dashboard/data/preview-manifest.json",
+    "docs/control/codex/dashboard/data/production-manifest.json",
+    "docs/control/codex/dashboard/data/rollback-manifest.json",
+    "docs/control/codex/dashboard/data/staging-manifest.json",
+    "docs/control/codex/dashboard/data/subagent-policy.json",
+    "docs/control/codex/dashboard/index.html",
+    "docs/control/codex/dashboard/mermaid/ci_cd_lanes.mmd",
+    "docs/control/codex/dashboard/mermaid/pipeline.mmd",
+    "docs/control/codex/dashboard/mermaid/rollback.mmd"
+  ],
+  "errors": [],
+  "evidence_path_prefixes": [
+    "citations",
+    "context_chunks",
+    "docs/citations",
+    "docs/evidence",
+    "docs/source-bundles",
+    "docs/source_bundles",
+    "evidence",
+    "outputs/evidence",
+    "reports/evidence",
+    "source-bundles",
+    "source_bundles"
+  ],
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "67d1f3dfbc8bef4f496c45fcf2d3941d2a780b6c9fdd4eef62a21e9da3a8ca09",
+    "version": "0.1.0"
+  },
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "marker_requirements": [
+    "control_artifact=true",
+    "not_evidence=true",
+    "not_research_evidence=true",
+    "not_citation=true",
+    "not_answer_support=true",
+    "generated_by=codex-hotl-implementation-pipeline",
+    "foundation_manifest.sha256"
+  ],
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "project_id": "research_x",
+  "schema_version": 1,
+  "status": "passed"
+}
