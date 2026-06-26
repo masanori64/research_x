@@ -1,5 +1,5 @@
 {
-  "allowed_no_cost_smokes": [
+  "allowed_no_cost_actions": [
     {
       "action_id": "local_static_validation",
       "cost_class": "local_only",
@@ -25,64 +25,50 @@
       "status": "allowed_public_standard_runner_artifact_only"
     },
     {
+      "action_id": "github_actions_workflow_dispatch_public_repo",
+      "cost_class": "public_repo_standard_runner",
+      "reason": "GitHub documents public-repository standard runner usage as no direct charge, but dispatching a workflow is still a GitHub write and creates Actions usage.",
+      "status": "not_executed_public_standard_runner_is_no_direct_charge_but_dispatch_is_write"
+    },
+    {
+      "action_id": "github_pages_public_repo_static_cd",
+      "cost_class": "github_free_public_repo_pages",
+      "reason": "GitHub Pages is available for public repositories on GitHub Free, and standard GitHub-hosted runner usage for public repositories is free.",
+      "status": "allowed_public_repo_github_pages_static_cd"
+    },
+    {
+      "action_id": "pages_static_preview_staging_production_lanes",
+      "cost_class": "github_free_public_repo_pages",
+      "reason": "Path-based preview/staging/production lanes use the same public GitHub Pages project site.",
+      "status": "allowed_public_repo_github_pages_static_cd"
+    },
+    {
+      "action_id": "safe_static_pages_rollback",
+      "cost_class": "github_free_public_repo_pages",
+      "reason": "Rollback redeploys a previous static Pages snapshot and does not touch providers, DBs, or secrets.",
+      "status": "allowed_public_repo_github_pages_static_cd"
+    },
+    {
       "action_id": "subagent_runtime_dry_run",
       "cost_class": "local_only",
       "reason": "Checks the subagent contract without spawning workers or model runners.",
       "status": "allowed"
     }
   ],
+  "allowed_no_cost_smokes": [
+    "local_static_validation",
+    "github_rest_public_read_unauthenticated",
+    "github_actions_artifact_static_audit",
+    "github_actions_artifact_push_smoke_public_repo",
+    "subagent_runtime_dry_run"
+  ],
   "answer": {
-    "has_billing_sensitive_plan_lanes": true,
+    "has_billing_sensitive_plan_lanes": false,
     "has_paid_execution_in_current_pipeline": false,
-    "plain_language": "The pipeline has plans and gates for actions that could cost money, but the executable path generated here is local/read-only/artifact-only."
+    "plain_language": "The pipeline may use free public GitHub Actions and GitHub Pages for static CD, but it still forbids paid provider quota, secrets, external cloud deploys, model runners, and DB migrations."
   },
   "artifact_kind": "cost_guard",
-  "billing_sensitive_lanes_present": [
-    "github_actions_workflow_dispatch",
-    "github_actions_artifact_storage",
-    "github_pages_enablement",
-    "live_preview_deploy",
-    "staging_deploy",
-    "production_deploy",
-    "rollback_execution",
-    "provider_api_quota",
-    "secrets_or_pat",
-    "install_or_external_tool",
-    "mcp_plugin_hook_enablement",
-    "db_migration",
-    "model_runner"
-  ],
   "blocked_or_gated_actions": [
-    {
-      "action_id": "github_actions_workflow_dispatch",
-      "cost_class": "billing_sensitive",
-      "reason": "GitHub documents public-repository standard runner usage as no direct charge, but dispatching a workflow is still a GitHub write and creates Actions usage.",
-      "status": "not_executed_public_standard_runner_is_no_direct_charge_but_dispatch_is_write"
-    },
-    {
-      "action_id": "github_api_write",
-      "cost_class": "state_mutation",
-      "reason": "Write operations are outside the no-cost read-only smoke.",
-      "status": "blocked"
-    },
-    {
-      "action_id": "github_pages_enablement",
-      "cost_class": "settings_change_and_deploy",
-      "reason": "Pages enablement changes repository settings and is not part of artifact-only CD.",
-      "status": "blocked"
-    },
-    {
-      "action_id": "live_preview_staging_production_deploy",
-      "cost_class": "deploy",
-      "reason": "Live deploy remains outside the artifact-only pipeline.",
-      "status": "blocked"
-    },
-    {
-      "action_id": "real_rollback_execution",
-      "cost_class": "irreversible_or_destructive",
-      "reason": "Rollback execution is dry-run only in this pipeline.",
-      "status": "blocked"
-    },
     {
       "action_id": "provider_api_cloud_model_runner",
       "cost_class": "paid_or_quota_provider",
@@ -98,38 +84,46 @@
     {
       "action_id": "install_external_tool_mcp_plugin_hook_db_migration",
       "cost_class": "external_or_stateful_setup",
-      "reason": "No install, hook, plugin, MCP, or DB migration is needed for this smoke.",
-      "status": "blocked"
+      "reason": "Free installs are not a cost blocker for this user request, but MCP, plugin, hook, model runner, or DB migration changes are outside this static Pages CD plan.",
+      "status": "blocked_only_if_paid_quota_hook_mcp_or_db_migration"
     }
   ],
   "control_artifact": true,
   "cost_policy": {
     "db_migration_allowed": false,
     "free_tier_quota_consumption_allowed": false,
-    "install_allowed": false,
-    "live_deploy_allowed": false,
+    "install_allowed_when_no_paid_quota": true,
     "mcp_plugin_hook_allowed": false,
     "paid_usage_detected": false,
     "pipeline_contains_paid_execution": false,
     "provider_api_quota_allowed": false,
-    "repository_settings_change_allowed": false,
-    "rollback_execution_allowed": false,
-    "secrets_or_pat_allowed": false
+    "repository_settings_change_allowed": true,
+    "repository_settings_change_scope": "free_pages_source_setup_only",
+    "safe_static_rollback_allowed": true,
+    "secrets_or_pat_allowed": false,
+    "static_pages_deploy_allowed": true
   },
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:53:17.158402+00:00",
+  "generated_at": "2026-06-26T15:16:01.196392+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "not_answer_support": true,
   "not_citation": true,
   "not_evidence": true,
   "not_project_evidence": true,
   "not_research_evidence": true,
+  "paid_or_quota_lanes_present": [
+    "provider_api_quota",
+    "secrets_or_pat",
+    "external_cloud_deploy",
+    "db_migration",
+    "model_runner"
+  ],
   "project_id": "research_x",
   "repository": {
     "bridge_repository": "masanori64/research_x",

@@ -1,0 +1,77 @@
+{
+  "artifact_kind": "pages_health",
+  "authentication": "none",
+  "checks": {
+    "base": {
+      "error": "",
+      "ok": false,
+      "status_code": 0,
+      "url": "https://masanori64.github.io/research_x/"
+    },
+    "dashboard": {
+      "error": "",
+      "ok": false,
+      "status_code": 0,
+      "url": "https://masanori64.github.io/research_x/dashboard/"
+    },
+    "preview": {
+      "error": "",
+      "ok": false,
+      "status_code": 0,
+      "url": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/"
+    },
+    "production": {
+      "error": "",
+      "ok": false,
+      "status_code": 0,
+      "url": "https://masanori64.github.io/research_x/production/latest/"
+    },
+    "staging": {
+      "error": "",
+      "ok": false,
+      "status_code": 0,
+      "url": "https://masanori64.github.io/research_x/staging/latest/"
+    }
+  },
+  "control_artifact": true,
+  "dashboard_pages_cd_passed": false,
+  "execute": false,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "24d22faa3de0e825b00b51a0a8bfc492e9836c00af87faa3ed41a0fe69d7b38d",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T15:04:53.480556+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "overall_status": "not_checked",
+  "pages_enabled": false,
+  "pages_health_check_passed": false,
+  "pages_url_observed": true,
+  "paid_usage_detected": false,
+  "preview_static_cd_passed": false,
+  "production_static_cd_passed": false,
+  "project_id": "research_x",
+  "provider_api_calls": false,
+  "request_methods_used": [],
+  "rollback": {},
+  "safe_static_rollback_execution_passed": false,
+  "schema_version": 1,
+  "staging_static_cd_passed": false,
+  "status": "not_checked",
+  "token_used": false,
+  "url_map": {
+    "base": "https://masanori64.github.io/research_x/",
+    "dashboard": "https://masanori64.github.io/research_x/dashboard/",
+    "preview": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/",
+    "production": "https://masanori64.github.io/research_x/production/latest/",
+    "rollback": "https://masanori64.github.io/research_x/rollback/latest/",
+    "staging": "https://masanori64.github.io/research_x/staging/latest/"
+  }
+}

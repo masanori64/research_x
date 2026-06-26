@@ -2,15 +2,15 @@
   "artifact_kind": "production_manifest",
   "control_artifact": true,
   "environment_name": "production",
-  "execution_enabled": false,
+  "execution_enabled": true,
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:53:17.139161+00:00",
+  "generated_at": "2026-06-26T15:16:01.169111+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [
@@ -27,18 +27,18 @@
         "status": "planned"
       },
       {
-        "name": "manual_production_gate_recorded",
-        "status": "planned"
+        "name": "production_url_http_200",
+        "status": "pending"
       }
     ],
-    "status": "planned"
+    "status": "pending_pages_deploy"
   },
   "kill_switch": {
     "capability": "production_cd",
-    "execution_default": "disabled",
-    "status": "gated_plan"
+    "execution_default": "enabled_for_free_static_pages",
+    "status": "static_pages_enabled"
   },
-  "live_url": null,
+  "live_url": "https://masanori64.github.io/research_x/production/latest/",
   "not_answer_support": true,
   "not_citation": true,
   "not_evidence": true,
@@ -47,8 +47,6 @@
   "production_deploy_executed": false,
   "project_id": "research_x",
   "required_gates_before_execution": [
-    "repository_settings_change",
-    "github_pages_enablement",
     "secrets_credentials",
     "production_external_side_effect"
   ],
@@ -64,5 +62,5 @@
     "secrets_used": false,
     "staging_deploy": false
   },
-  "target_type": "production_plan"
+  "target_type": "static_pages_production"
 }

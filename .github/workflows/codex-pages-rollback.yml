@@ -1,0 +1,77 @@
+name: Codex Pages Rollback
+
+# control_artifact=true
+# not_project_evidence=true
+# not_research_evidence=true
+# not_citation=true
+# not_answer_support=true
+# generated_by=codex-hotl-implementation-pipeline
+# foundation_manifest_sha256=7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
+# source_template=templates/github-workflows/codex-pages-rollback.template.yml
+# provider_api_calls=false
+# paid_usage_detected=false
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Previous known-good commit, branch, or tag to redeploy as safe static Pages
+        required: true
+        default: main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: codex-pages-rollback
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
+      - uses: actions/configure-pages@v5
+      - name: Build rollback Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="_codex_pages_site"
+          rm -rf "$SITE"
+          mkdir -p "$SITE/dashboard" "$SITE/production/latest" "$SITE/staging/latest" "$SITE/rollback/latest"
+          cp -R docs/control/codex/dashboard/. "$SITE/dashboard/"
+          cp -R docs/control/codex/dashboard/. "$SITE/production/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/staging/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/rollback/latest/"
+          cat > "$SITE/index.html" <<'HTML'
+          <!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=production/latest/"><a href="production/latest/">Codex production dashboard</a>
+          HTML
+          cat > "$SITE/codex-pages-manifest.json" <<JSON
+          {
+            "control_artifact": true,
+            "not_research_evidence": true,
+            "not_citation": true,
+            "not_answer_support": true,
+            "lane": "rollback",
+            "target_ref": "${{ inputs.target_ref }}",
+            "provider_api_calls": false,
+            "paid_usage_detected": false,
+            "rollback_class": "safe_static_pages"
+          }
+          JSON
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _codex_pages_site
+      - id: deployment
+        uses: actions/deploy-pages@v4

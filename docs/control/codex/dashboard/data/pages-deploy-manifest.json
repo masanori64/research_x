@@ -1,0 +1,44 @@
+{
+  "artifact_kind": "pages_deploy_manifest",
+  "control_artifact": true,
+  "deploy_executed": false,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T15:16:01.047064+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "pages_enabled": false,
+  "pages_health_check_passed": false,
+  "pages_url_observed": true,
+  "project_id": "research_x",
+  "schema_version": 1,
+  "side_effects": {
+    "db_migration_executed": false,
+    "deploy_key_used": false,
+    "external_cloud_used": false,
+    "github_pages_static_deploy": false,
+    "paid_usage_detected": false,
+    "pat_used": false,
+    "provider_api_calls": false,
+    "research_evidence_written": false,
+    "secrets_used": false
+  },
+  "target_type": "github_pages_static_site",
+  "url_map": {
+    "base": "https://masanori64.github.io/research_x/",
+    "dashboard": "https://masanori64.github.io/research_x/dashboard/",
+    "preview": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/",
+    "production": "https://masanori64.github.io/research_x/production/latest/",
+    "rollback": "https://masanori64.github.io/research_x/rollback/latest/",
+    "staging": "https://masanori64.github.io/research_x/staging/latest/"
+  }
+}

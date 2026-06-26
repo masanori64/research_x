@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-artifact-smoke.template.yml
-# foundation_manifest_sha256=aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
+# foundation_manifest_sha256=7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
 name: Codex Artifact Smoke
 
 on:

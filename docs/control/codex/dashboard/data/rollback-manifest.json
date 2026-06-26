@@ -17,32 +17,32 @@
         },
         {
           "name": "not_evidence_notice",
-          "status": "planned"
+          "status": "passed"
         },
         {
           "name": "no_database_restore",
-          "status": "planned"
+          "status": "passed"
         }
       ],
-      "status": "planned"
+      "status": "pending"
     },
     "restore_executed": false,
-    "status": "simulated",
+    "status": "pending_execution",
     "would_restore_paths": [
       "docs/control/codex/dashboard/",
       ".codex-project/generated/"
     ]
   },
-  "dry_run": true,
-  "environment": "dashboard",
+  "dry_run": false,
+  "environment": "production",
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:53:17.140166+00:00",
+  "generated_at": "2026-06-26T15:16:01.171128+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "not_answer_support": true,
   "not_citation": true,
@@ -55,7 +55,8 @@
     "db_restore",
     "provider_api_quota",
     "secrets_credentials",
-    "repository_settings_change"
+    "external_cloud_deploy",
+    "research_evidence_write"
   ],
   "rollback_executed": false,
   "schema_version": 1,
@@ -71,10 +72,10 @@
     "secrets_changed": false
   },
   "target": {
-    "artifact_pointer": "docs/control/codex/dashboard/index.html",
-    "reason": "Dry-run selects a static dashboard artifact candidate only; no restore or production mutation is executed.",
-    "resolved": true,
-    "selection_mode": "simulated_static_artifact",
-    "strategy": "previous_successful_static_artifact"
+    "artifact_pointer": "https://masanori64.github.io/research_x/production/latest/",
+    "reason": "Rollback is restricted to static Pages control artifacts and refuses provider, secret, DB, destructive, and evidence paths.",
+    "resolved": false,
+    "selection_mode": "safe_static_pages",
+    "strategy": "previous_known_good_static_pages_snapshot"
   }
 }

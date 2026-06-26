@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
+  sha256: 7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
   exists: true
 artifact_kind: pipeline
 project_id: research_x
@@ -57,15 +57,18 @@ lanes:
   - id: dashboard
     name: Dashboard Generation
     automatic: true
+  - id: pages_dashboard
+    name: Pages Dashboard CD
+    automatic: true
   - id: preview
-    name: Preview Plan
-    automatic: false
+    name: Preview Static CD
+    automatic: true
   - id: staging
-    name: Staging Plan
-    automatic: false
+    name: Staging Static CD
+    automatic: true
   - id: production
-    name: Production Plan
-    automatic: false
+    name: Production Static CD
+    automatic: true
   - id: rollback
-    name: Rollback Plan
+    name: Safe Static Rollback
     automatic: false

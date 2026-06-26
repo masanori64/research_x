@@ -1,16 +1,16 @@
 {
   "artifact_kind": "staging_manifest",
   "control_artifact": true,
-  "dry_run": true,
+  "dry_run": false,
   "environment_name": "staging",
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:53:17.142164+00:00",
+  "generated_at": "2026-06-26T15:16:01.173338+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [
@@ -29,11 +29,15 @@
       {
         "name": "not_evidence_notice",
         "status": "planned"
+      },
+      {
+        "name": "staging_url_http_200",
+        "status": "pending"
       }
     ],
-    "status": "planned"
+    "status": "pending_pages_deploy"
   },
-  "live_url": null,
+  "live_url": "https://masanori64.github.io/research_x/staging/latest/",
   "not_answer_support": true,
   "not_citation": true,
   "not_evidence": true,
@@ -42,12 +46,10 @@
   "previous_known_good": {
     "pointer": null,
     "resolved": false,
-    "strategy": "latest_successful_preview_artifact"
+    "strategy": "latest_successful_staging_pages_snapshot"
   },
   "project_id": "research_x",
   "required_gates_before_execution": [
-    "repository_settings_change",
-    "github_pages_enablement",
     "secrets_credentials",
     "production_external_side_effect"
   ],
@@ -64,5 +66,5 @@
     "staging_live_deploy": false
   },
   "staging_deploy_executed": false,
-  "target_type": "safe_static_plan"
+  "target_type": "static_pages_lane"
 }

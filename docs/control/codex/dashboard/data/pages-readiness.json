@@ -1,0 +1,65 @@
+{
+  "artifact_kind": "pages_readiness",
+  "authentication": "gh_cli_local_verification",
+  "control_artifact": true,
+  "execute": true,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
+    "version": "0.1.0"
+  },
+  "free_static_cd": {
+    "github_pages_public_repo_free": true,
+    "pages_source_setup_cost_class": "free_repository_setting",
+    "pages_source_setup_required": false,
+    "pat_or_secret_required_for_pipeline": false,
+    "public_repo_standard_runner_free": true
+  },
+  "generated_at": "2026-06-26T15:15:50.534511+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "pages": {
+    "build_type": "workflow",
+    "configured": true,
+    "html_url": "https://masanori64.github.io/research_x/",
+    "missing": false,
+    "source": {
+      "branch": "main",
+      "path": "/"
+    },
+    "status_code": 200
+  },
+  "paid_usage_detected": false,
+  "pipeline_authentication_required": "none",
+  "pipeline_token_required": false,
+  "project_id": "research_x",
+  "provider_api_calls": false,
+  "repo": {
+    "default_branch": "main",
+    "html_url": "https://github.com/masanori64/research_x",
+    "private": false,
+    "visibility": "public"
+  },
+  "repository": "masanori64/research_x",
+  "request_methods_used": [
+    "GET",
+    "GH_API_GET"
+  ],
+  "schema_version": 1,
+  "status": "passed",
+  "token_used": true,
+  "url_map": {
+    "base": "https://masanori64.github.io/research_x/",
+    "dashboard": "https://masanori64.github.io/research_x/dashboard/",
+    "preview": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/latest/",
+    "production": "https://masanori64.github.io/research_x/production/latest/",
+    "rollback": "https://masanori64.github.io/research_x/rollback/latest/",
+    "staging": "https://masanori64.github.io/research_x/staging/latest/"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "artifact_kind": "pages_rollback_manifest",
+  "control_artifact": true,
+  "environment": "production",
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "24d22faa3de0e825b00b51a0a8bfc492e9836c00af87faa3ed41a0fe69d7b38d",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T15:04:53.628073+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "health": {
+    "checks": [
+      {
+        "name": "safe_static_pages_only",
+        "status": "passed"
+      },
+      {
+        "name": "provider_api_calls_false",
+        "status": "passed"
+      },
+      {
+        "name": "db_migration_false",
+        "status": "passed"
+      },
+      {
+        "name": "not_research_evidence",
+        "status": "passed"
+      }
+    ],
+    "status": "pending"
+  },
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "project_id": "research_x",
+  "refused_rollback_classes": [
+    "destructive_action",
+    "db_restore",
+    "provider_api_quota",
+    "secrets_credentials",
+    "external_cloud_deploy",
+    "research_evidence_write"
+  ],
+  "rollback_class": "safe_static_pages",
+  "rollback_executed": false,
+  "schema_version": 1,
+  "side_effects": {
+    "db_migration_executed": false,
+    "deploy_key_used": false,
+    "destructive_action": false,
+    "external_cloud_used": false,
+    "paid_usage_detected": false,
+    "pat_used": false,
+    "provider_api_calls": false,
+    "research_evidence_written": false,
+    "safe_static_pages_deploy": false,
+    "secrets_used": false
+  },
+  "target": {
+    "resolved": false,
+    "strategy": "previous_known_good_static_pages_snapshot",
+    "url": "https://masanori64.github.io/research_x/production/latest/"
+  },
+  "target_ref": ""
+}

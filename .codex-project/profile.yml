@@ -16,21 +16,20 @@ constraints:
   forbidden_external_actions:
     - provider_api_quota
     - secrets_credentials
-    - install_dependency_model_download
     - mcp_plugin_hook_enablement
     - destructive_action
     - irreversible_db_migration
 capabilities:
-  github_api_read: disabled
-  github_api_write: disabled
-  github_actions_wrappers: artifact_only
-  dashboard_artifact_cd: artifact_only
-  preview_cd: artifact_only
-  staging_cd: gated_plan
-  production_cd: gated_plan
-  rollback_execution: dry_run_only
-  github_pages: disabled
-  repository_settings_change: disabled
+  github_api_read: public_read_enabled
+  github_api_write: pages_static_cd_only
+  github_actions_wrappers: enabled
+  dashboard_artifact_cd: enabled
+  preview_cd: static_pages_lane_enabled
+  staging_cd: static_pages_lane_enabled
+  production_cd: static_pages_enabled
+  rollback_execution: safe_static_pages_enabled
+  github_pages: enabled_public_static
+  repository_settings_change: free_pages_source_setup_only
   provider_api_calls: disabled
   mcp_plugin_hook_enablement: disabled
 control_artifacts:

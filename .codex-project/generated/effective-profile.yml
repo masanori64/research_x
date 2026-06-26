@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
+  sha256: 7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
   exists: true
 artifact_kind: effective_profile
 project:
@@ -30,21 +30,20 @@ constraints:
   forbidden_external_actions:
     - provider_api_quota
     - secrets_credentials
-    - install_dependency_model_download
     - mcp_plugin_hook_enablement
     - destructive_action
     - irreversible_db_migration
 capabilities:
-  github_api_read: disabled
-  github_api_write: disabled
-  github_actions_wrappers: artifact_only
-  dashboard_artifact_cd: artifact_only
-  preview_cd: artifact_only
-  staging_cd: gated_plan
-  production_cd: gated_plan
-  rollback_execution: dry_run_only
-  github_pages: disabled
-  repository_settings_change: disabled
+  github_api_read: public_read_enabled
+  github_api_write: pages_static_cd_only
+  github_actions_wrappers: enabled
+  dashboard_artifact_cd: enabled
+  preview_cd: static_pages_lane_enabled
+  staging_cd: static_pages_lane_enabled
+  production_cd: static_pages_enabled
+  rollback_execution: safe_static_pages_enabled
+  github_pages: enabled_public_static
+  repository_settings_change: free_pages_source_setup_only
   provider_api_calls: disabled
   mcp_plugin_hook_enablement: disabled
 control_artifacts:
@@ -76,7 +75,7 @@ subagents:
       id: codex-hotl-implementation-pipeline
       version: 0.1.0
       path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-      sha256: aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
+      sha256: 7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
       exists: true
     artifact_kind: subagent_policy
     owner: Codex foundation
@@ -117,8 +116,8 @@ bridge:
     generated_dir: .codex-project/generated
     mermaid_dir: docs/control/codex/dashboard/mermaid
   github:
-    mode: local_only
-    api_enabled: false
+    mode: public_repo_pages_static_cd
+    api_enabled: public_read
     repository: masanori64/research_x
     default_branch: main
 project_boundary:

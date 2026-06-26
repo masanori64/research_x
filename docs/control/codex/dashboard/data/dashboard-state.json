@@ -3,9 +3,9 @@
   "artifact_kind": "dashboard",
   "bridge": {
     "github": {
-      "api_enabled": false,
+      "api_enabled": "public_read",
       "default_branch": "main",
-      "mode": "local_only",
+      "mode": "public_repo_pages_static_cd",
       "repository": "masanori64/research_x"
     },
     "outputs": {
@@ -17,64 +17,64 @@
   },
   "capabilities": [
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "github_api_read",
-      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
-      "status": "disabled"
+      "reason": "Capability github_api_read is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "public_read_enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "github_api_write",
-      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
-      "status": "disabled"
+      "reason": "Capability github_api_write is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "pages_static_cd_only"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "github_actions_wrappers",
-      "reason": "Capability github_actions_wrappers is artifact_only; verify gate policy before use.",
-      "status": "artifact_only"
+      "reason": "Capability github_actions_wrappers is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "dashboard_artifact_cd",
-      "reason": "Capability dashboard_artifact_cd is artifact_only; verify gate policy before use.",
-      "status": "artifact_only"
+      "reason": "Capability dashboard_artifact_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "preview_cd",
-      "reason": "Capability preview_cd is artifact_only; verify gate policy before use.",
-      "status": "artifact_only"
+      "reason": "Capability preview_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "static_pages_lane_enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "staging_cd",
-      "reason": "Capability staging_cd is gated_plan; verify gate policy before use.",
-      "status": "gated_plan"
+      "reason": "Capability staging_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "static_pages_lane_enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "production_cd",
-      "reason": "Capability production_cd is gated_plan; verify gate policy before use.",
-      "status": "gated_plan"
+      "reason": "Capability production_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "static_pages_enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "rollback_execution",
-      "reason": "Capability rollback_execution is dry_run_only; verify gate policy before use.",
-      "status": "dry_run_only"
+      "reason": "Capability rollback_execution is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "safe_static_pages_enabled"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "github_pages",
-      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
-      "status": "disabled"
+      "reason": "Capability github_pages is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "enabled_public_static"
     },
     {
-      "allowed_without_gate": false,
+      "allowed_without_gate": true,
       "capability_id": "repository_settings_change",
-      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
-      "status": "disabled"
+      "reason": "Capability repository_settings_change is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.",
+      "status": "free_pages_source_setup_only"
     },
     {
       "allowed_without_gate": false,
@@ -109,13 +109,13 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_enabled": false,
     "items": [],
-    "mode": "local_only",
+    "mode": "public_repo_pages_static_cd",
     "mutation_methods_available": [],
     "not_answer_support": true,
     "not_citation": true,
@@ -235,7 +235,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -258,7 +258,7 @@
     "status": "passed"
   },
   "cost_guard": {
-    "allowed_no_cost_smokes": [
+    "allowed_no_cost_actions": [
       {
         "action_id": "local_static_validation",
         "cost_class": "local_only",
@@ -284,64 +284,50 @@
         "status": "allowed_public_standard_runner_artifact_only"
       },
       {
+        "action_id": "github_actions_workflow_dispatch_public_repo",
+        "cost_class": "public_repo_standard_runner",
+        "reason": "GitHub documents public-repository standard runner usage as no direct charge, but dispatching a workflow is still a GitHub write and creates Actions usage.",
+        "status": "not_executed_public_standard_runner_is_no_direct_charge_but_dispatch_is_write"
+      },
+      {
+        "action_id": "github_pages_public_repo_static_cd",
+        "cost_class": "github_free_public_repo_pages",
+        "reason": "GitHub Pages is available for public repositories on GitHub Free, and standard GitHub-hosted runner usage for public repositories is free.",
+        "status": "allowed_public_repo_github_pages_static_cd"
+      },
+      {
+        "action_id": "pages_static_preview_staging_production_lanes",
+        "cost_class": "github_free_public_repo_pages",
+        "reason": "Path-based preview/staging/production lanes use the same public GitHub Pages project site.",
+        "status": "allowed_public_repo_github_pages_static_cd"
+      },
+      {
+        "action_id": "safe_static_pages_rollback",
+        "cost_class": "github_free_public_repo_pages",
+        "reason": "Rollback redeploys a previous static Pages snapshot and does not touch providers, DBs, or secrets.",
+        "status": "allowed_public_repo_github_pages_static_cd"
+      },
+      {
         "action_id": "subagent_runtime_dry_run",
         "cost_class": "local_only",
         "reason": "Checks the subagent contract without spawning workers or model runners.",
         "status": "allowed"
       }
     ],
+    "allowed_no_cost_smokes": [
+      "local_static_validation",
+      "github_rest_public_read_unauthenticated",
+      "github_actions_artifact_static_audit",
+      "github_actions_artifact_push_smoke_public_repo",
+      "subagent_runtime_dry_run"
+    ],
     "answer": {
-      "has_billing_sensitive_plan_lanes": true,
+      "has_billing_sensitive_plan_lanes": false,
       "has_paid_execution_in_current_pipeline": false,
-      "plain_language": "The pipeline has plans and gates for actions that could cost money, but the executable path generated here is local/read-only/artifact-only."
+      "plain_language": "The pipeline may use free public GitHub Actions and GitHub Pages for static CD, but it still forbids paid provider quota, secrets, external cloud deploys, model runners, and DB migrations."
     },
     "artifact_kind": "cost_guard",
-    "billing_sensitive_lanes_present": [
-      "github_actions_workflow_dispatch",
-      "github_actions_artifact_storage",
-      "github_pages_enablement",
-      "live_preview_deploy",
-      "staging_deploy",
-      "production_deploy",
-      "rollback_execution",
-      "provider_api_quota",
-      "secrets_or_pat",
-      "install_or_external_tool",
-      "mcp_plugin_hook_enablement",
-      "db_migration",
-      "model_runner"
-    ],
     "blocked_or_gated_actions": [
-      {
-        "action_id": "github_actions_workflow_dispatch",
-        "cost_class": "billing_sensitive",
-        "reason": "GitHub documents public-repository standard runner usage as no direct charge, but dispatching a workflow is still a GitHub write and creates Actions usage.",
-        "status": "not_executed_public_standard_runner_is_no_direct_charge_but_dispatch_is_write"
-      },
-      {
-        "action_id": "github_api_write",
-        "cost_class": "state_mutation",
-        "reason": "Write operations are outside the no-cost read-only smoke.",
-        "status": "blocked"
-      },
-      {
-        "action_id": "github_pages_enablement",
-        "cost_class": "settings_change_and_deploy",
-        "reason": "Pages enablement changes repository settings and is not part of artifact-only CD.",
-        "status": "blocked"
-      },
-      {
-        "action_id": "live_preview_staging_production_deploy",
-        "cost_class": "deploy",
-        "reason": "Live deploy remains outside the artifact-only pipeline.",
-        "status": "blocked"
-      },
-      {
-        "action_id": "real_rollback_execution",
-        "cost_class": "irreversible_or_destructive",
-        "reason": "Rollback execution is dry-run only in this pipeline.",
-        "status": "blocked"
-      },
       {
         "action_id": "provider_api_cloud_model_runner",
         "cost_class": "paid_or_quota_provider",
@@ -357,38 +343,46 @@
       {
         "action_id": "install_external_tool_mcp_plugin_hook_db_migration",
         "cost_class": "external_or_stateful_setup",
-        "reason": "No install, hook, plugin, MCP, or DB migration is needed for this smoke.",
-        "status": "blocked"
+        "reason": "Free installs are not a cost blocker for this user request, but MCP, plugin, hook, model runner, or DB migration changes are outside this static Pages CD plan.",
+        "status": "blocked_only_if_paid_quota_hook_mcp_or_db_migration"
       }
     ],
     "control_artifact": true,
     "cost_policy": {
       "db_migration_allowed": false,
       "free_tier_quota_consumption_allowed": false,
-      "install_allowed": false,
-      "live_deploy_allowed": false,
+      "install_allowed_when_no_paid_quota": true,
       "mcp_plugin_hook_allowed": false,
       "paid_usage_detected": false,
       "pipeline_contains_paid_execution": false,
       "provider_api_quota_allowed": false,
-      "repository_settings_change_allowed": false,
-      "rollback_execution_allowed": false,
-      "secrets_or_pat_allowed": false
+      "repository_settings_change_allowed": true,
+      "repository_settings_change_scope": "free_pages_source_setup_only",
+      "safe_static_rollback_allowed": true,
+      "secrets_or_pat_allowed": false,
+      "static_pages_deploy_allowed": true
     },
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.158402+00:00",
+    "generated_at": "2026-06-26T15:16:01.196392+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
     "not_project_evidence": true,
     "not_research_evidence": true,
+    "paid_or_quota_lanes_present": [
+      "provider_api_quota",
+      "secrets_or_pat",
+      "external_cloud_deploy",
+      "db_migration",
+      "model_runner"
+    ],
     "project_id": "research_x",
     "repository": {
       "bridge_repository": "masanori64/research_x",
@@ -399,9 +393,9 @@
   },
   "dashboard": {
     "mermaid": {
-      "ci_cd_lanes": "flowchart TD\n  local_validation[\"Local Validation\\nautomatic=true\"]\n  dashboard[\"Dashboard Generation\\nautomatic=true\"]\n  local_validation --> dashboard\n  preview[\"Preview Plan\\nautomatic=false\"]\n  dashboard --> preview\n  staging[\"Staging Plan\\nautomatic=false\"]\n  preview --> staging\n  production[\"Production Plan\\nautomatic=false\"]\n  staging --> production\n  rollback[\"Rollback Plan\\nautomatic=false\"]\n  production --> rollback\n  provider_gate[\"provider/API/quota gate\"]\n  production -. blocked without gate .-> provider_gate\n",
+      "ci_cd_lanes": "flowchart TD\n  local_validation[\"Local Validation\\nautomatic=true\"]\n  dashboard[\"Dashboard Generation\\nautomatic=true\"]\n  local_validation --> dashboard\n  pages_dashboard[\"Pages Dashboard CD\\nautomatic=true\"]\n  dashboard --> pages_dashboard\n  preview[\"Preview Static CD\\nautomatic=true\"]\n  pages_dashboard --> preview\n  staging[\"Staging Static CD\\nautomatic=true\"]\n  preview --> staging\n  production[\"Production Static CD\\nautomatic=true\"]\n  staging --> production\n  rollback[\"Safe Static Rollback\\nautomatic=false\"]\n  production --> rollback\n  paid_gate[\"paid provider/API/quota gate\"]\n  production -. paid/provider paths blocked .-> paid_gate\n",
       "pipeline": "flowchart LR\n  intake[\"Intake\"]\n  plan[\"Plan\"]\n  implement[\"Implement\"]\n  verify[\"Verify\"]\n  review[\"Review\"]\n  release_ready[\"Release Ready\"]\n  done[\"Done\"]\n  gated[\"Gated\"]\n  intake --> plan\n  plan --> implement\n  implement --> verify\n  verify --> review\n  review --> release_ready\n  release_ready --> done\n  plan --> gated\n  implement --> gated\n  verify --> gated\n  note[\"control artifact / not evidence / not citation\"]\n  note -.-> intake\n",
-      "rollback": "flowchart LR\n  current[\"current static artifact\"]\n  manifest[\"rollback manifest\\ndry_run=true\"]\n  previous[\"previous successful static artifact\"]\n  blocked[\"execution blocked in Phase 1\"]\n  current --> manifest --> previous\n  manifest -.-> blocked\n  notice[\"control artifact / not evidence / not citation\"]\n  notice -.-> manifest\n"
+      "rollback": "flowchart LR\n  current[\"current Pages static site\"]\n  manifest[\"rollback manifest\\nsafe_static_pages\"]\n  previous[\"previous known-good Pages snapshot\"]\n  deploy[\"deploy previous static snapshot\"]\n  current --> manifest --> previous\n  previous --> deploy\n  notice[\"control artifact / not evidence / not citation\"]\n  notice -.-> manifest\n"
     },
     "notice": "control artifact / not evidence / not citation",
     "title": "research_x Codex HOTL Control Dashboard"
@@ -415,10 +409,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.136159+00:00",
+    "generated_at": "2026-06-26T15:16:01.164615+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -457,37 +451,53 @@
   },
   "e2e_completion_manifest": {
     "artifact_kind": "e2e_completion_manifest",
+    "artifact_only_smoke_completion_status": "complete_artifact_only_no_cost",
     "control_artifact": true,
     "cost_guard_paid_execution": false,
     "dashboard_refreshed_after_read_back": true,
+    "db_migration_executed": false,
     "deploy_executed": false,
-    "final_automatic_pipeline_status": "complete_artifact_only_no_cost",
+    "deploy_key_used": false,
+    "external_cloud_used": false,
+    "final_automatic_pipeline_status": "pending_static_pages_cd",
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.168642+00:00",
+    "generated_at": "2026-06-26T15:16:01.210758+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
+    "github_pages_enabled": false,
     "local_control_plane_complete": true,
     "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
     "not_project_evidence": true,
     "not_research_evidence": true,
+    "pages_deploy_executed": false,
     "pages_enabled": false,
+    "pages_health_check_passed": false,
+    "pages_readiness_status": "passed",
+    "pages_url_observed": true,
     "paid_usage_detected": false,
+    "pat_used": false,
+    "preview_static_cd_passed": false,
+    "production_static_cd_passed": false,
     "project_id": "research_x",
     "provider_quota_used": false,
     "remote_artifact_created": true,
     "remote_artifact_read_back": true,
     "remote_artifact_workflow_executed": true,
     "repository_settings_changed": false,
+    "research_evidence_written": false,
     "rollback_executed": false,
+    "safe_static_rollback_drill_passed": true,
+    "safe_static_rollback_execution_passed": false,
     "schema_version": 1,
     "secrets_used": false,
+    "staging_static_cd_passed": false,
     "subagent_runtime_dry_run_status": "passed",
     "workflow_artifact_audit_status": "passed",
     "workflow_smoke_status": "passed"
@@ -523,14 +533,14 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
     "version": "0.1.0"
   },
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
     "version": "0.1.0"
   },
   "gates": [
@@ -545,13 +555,6 @@
       "allowed_without_gate": false,
       "gate_id": "secrets_credentials",
       "reason": "Secrets, credentials, PATs, deploy keys, environment secrets, or account login.",
-      "severity": "blocking",
-      "status": "requires_explicit_user_gate"
-    },
-    {
-      "allowed_without_gate": false,
-      "gate_id": "install_dependency_model_download",
-      "reason": "New dependency install, native tool install, browser install, or model download.",
       "severity": "blocking",
       "status": "requires_explicit_user_gate"
     },
@@ -582,27 +585,13 @@
       "reason": "Production action with external side effects beyond safe static deploy.",
       "severity": "blocking",
       "status": "requires_explicit_user_gate"
-    },
-    {
-      "allowed_without_gate": false,
-      "gate_id": "github_pages_enablement",
-      "reason": "GitHub Pages enablement or settings change.",
-      "severity": "blocking",
-      "status": "requires_explicit_user_gate"
-    },
-    {
-      "allowed_without_gate": false,
-      "gate_id": "repository_settings_change",
-      "reason": "Repository settings, branch protection, or environment protection change.",
-      "severity": "blocking",
-      "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T13:53:17.169640+00:00",
+  "generated_at": "2026-06-26T15:16:01.213084+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+    "commit": "447912873ca35925417b364ef76b223f80d8a8d2",
     "dirty": true
   },
   "github_collection": {
@@ -625,13 +614,13 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_enabled": false,
     "items": [],
-    "mode": "local_only",
+    "mode": "public_repo_pages_static_cd",
     "mutation_methods_available": [],
     "not_answer_support": true,
     "not_citation": true,
@@ -843,6 +832,262 @@
   "not_evidence": true,
   "not_project_evidence": true,
   "not_research_evidence": true,
+  "pages_deploy_manifest": {
+    "artifact_kind": "pages_deploy_manifest",
+    "control_artifact": true,
+    "deploy_executed": false,
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-26T15:16:01.047064+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "pages_enabled": false,
+    "pages_health_check_passed": false,
+    "pages_url_observed": true,
+    "project_id": "research_x",
+    "schema_version": 1,
+    "side_effects": {
+      "db_migration_executed": false,
+      "deploy_key_used": false,
+      "external_cloud_used": false,
+      "github_pages_static_deploy": false,
+      "paid_usage_detected": false,
+      "pat_used": false,
+      "provider_api_calls": false,
+      "research_evidence_written": false,
+      "secrets_used": false
+    },
+    "target_type": "github_pages_static_site",
+    "url_map": {
+      "base": "https://masanori64.github.io/research_x/",
+      "dashboard": "https://masanori64.github.io/research_x/dashboard/",
+      "preview": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/",
+      "production": "https://masanori64.github.io/research_x/production/latest/",
+      "rollback": "https://masanori64.github.io/research_x/rollback/latest/",
+      "staging": "https://masanori64.github.io/research_x/staging/latest/"
+    }
+  },
+  "pages_health": {
+    "artifact_kind": "pages_health",
+    "authentication": "none",
+    "checks": {
+      "base": {
+        "error": "",
+        "ok": false,
+        "status_code": 0,
+        "url": "https://masanori64.github.io/research_x/"
+      },
+      "dashboard": {
+        "error": "",
+        "ok": false,
+        "status_code": 0,
+        "url": "https://masanori64.github.io/research_x/dashboard/"
+      },
+      "preview": {
+        "error": "",
+        "ok": false,
+        "status_code": 0,
+        "url": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/"
+      },
+      "production": {
+        "error": "",
+        "ok": false,
+        "status_code": 0,
+        "url": "https://masanori64.github.io/research_x/production/latest/"
+      },
+      "staging": {
+        "error": "",
+        "ok": false,
+        "status_code": 0,
+        "url": "https://masanori64.github.io/research_x/staging/latest/"
+      }
+    },
+    "control_artifact": true,
+    "dashboard_pages_cd_passed": false,
+    "execute": false,
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "24d22faa3de0e825b00b51a0a8bfc492e9836c00af87faa3ed41a0fe69d7b38d",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-26T15:04:53.480556+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "overall_status": "not_checked",
+    "pages_enabled": false,
+    "pages_health_check_passed": false,
+    "pages_url_observed": true,
+    "paid_usage_detected": false,
+    "preview_static_cd_passed": false,
+    "production_static_cd_passed": false,
+    "project_id": "research_x",
+    "provider_api_calls": false,
+    "request_methods_used": [],
+    "rollback": {},
+    "safe_static_rollback_execution_passed": false,
+    "schema_version": 1,
+    "staging_static_cd_passed": false,
+    "status": "not_checked",
+    "token_used": false,
+    "url_map": {
+      "base": "https://masanori64.github.io/research_x/",
+      "dashboard": "https://masanori64.github.io/research_x/dashboard/",
+      "preview": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/",
+      "production": "https://masanori64.github.io/research_x/production/latest/",
+      "rollback": "https://masanori64.github.io/research_x/rollback/latest/",
+      "staging": "https://masanori64.github.io/research_x/staging/latest/"
+    }
+  },
+  "pages_readiness": {
+    "artifact_kind": "pages_readiness",
+    "authentication": "gh_cli_local_verification",
+    "control_artifact": true,
+    "execute": true,
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
+      "version": "0.1.0"
+    },
+    "free_static_cd": {
+      "github_pages_public_repo_free": true,
+      "pages_source_setup_cost_class": "free_repository_setting",
+      "pages_source_setup_required": false,
+      "pat_or_secret_required_for_pipeline": false,
+      "public_repo_standard_runner_free": true
+    },
+    "generated_at": "2026-06-26T15:15:50.534511+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "pages": {
+      "build_type": "workflow",
+      "configured": true,
+      "html_url": "https://masanori64.github.io/research_x/",
+      "missing": false,
+      "source": {
+        "branch": "main",
+        "path": "/"
+      },
+      "status_code": 200
+    },
+    "paid_usage_detected": false,
+    "pipeline_authentication_required": "none",
+    "pipeline_token_required": false,
+    "project_id": "research_x",
+    "provider_api_calls": false,
+    "repo": {
+      "default_branch": "main",
+      "html_url": "https://github.com/masanori64/research_x",
+      "private": false,
+      "visibility": "public"
+    },
+    "repository": "masanori64/research_x",
+    "request_methods_used": [
+      "GET",
+      "GH_API_GET"
+    ],
+    "schema_version": 1,
+    "status": "passed",
+    "token_used": true,
+    "url_map": {
+      "base": "https://masanori64.github.io/research_x/",
+      "dashboard": "https://masanori64.github.io/research_x/dashboard/",
+      "preview": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/latest/",
+      "production": "https://masanori64.github.io/research_x/production/latest/",
+      "rollback": "https://masanori64.github.io/research_x/rollback/latest/",
+      "staging": "https://masanori64.github.io/research_x/staging/latest/"
+    }
+  },
+  "pages_rollback_manifest": {
+    "artifact_kind": "pages_rollback_manifest",
+    "control_artifact": true,
+    "environment": "production",
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "24d22faa3de0e825b00b51a0a8bfc492e9836c00af87faa3ed41a0fe69d7b38d",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-26T15:04:53.628073+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "health": {
+      "checks": [
+        {
+          "name": "safe_static_pages_only",
+          "status": "passed"
+        },
+        {
+          "name": "provider_api_calls_false",
+          "status": "passed"
+        },
+        {
+          "name": "db_migration_false",
+          "status": "passed"
+        },
+        {
+          "name": "not_research_evidence",
+          "status": "passed"
+        }
+      ],
+      "status": "pending"
+    },
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "project_id": "research_x",
+    "refused_rollback_classes": [
+      "destructive_action",
+      "db_restore",
+      "provider_api_quota",
+      "secrets_credentials",
+      "external_cloud_deploy",
+      "research_evidence_write"
+    ],
+    "rollback_class": "safe_static_pages",
+    "rollback_executed": false,
+    "schema_version": 1,
+    "side_effects": {
+      "db_migration_executed": false,
+      "deploy_key_used": false,
+      "destructive_action": false,
+      "external_cloud_used": false,
+      "paid_usage_detected": false,
+      "pat_used": false,
+      "provider_api_calls": false,
+      "research_evidence_written": false,
+      "safe_static_pages_deploy": false,
+      "secrets_used": false
+    },
+    "target": {
+      "resolved": false,
+      "strategy": "previous_known_good_static_pages_snapshot",
+      "url": "https://masanori64.github.io/research_x/production/latest/"
+    },
+    "target_ref": ""
+  },
   "pipeline": {
     "artifact_kind": "pipeline",
     "control_artifact": true,
@@ -850,7 +1095,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -866,24 +1111,29 @@
         "name": "Dashboard Generation"
       },
       {
-        "automatic": false,
+        "automatic": true,
+        "id": "pages_dashboard",
+        "name": "Pages Dashboard CD"
+      },
+      {
+        "automatic": true,
         "id": "preview",
-        "name": "Preview Plan"
+        "name": "Preview Static CD"
       },
       {
-        "automatic": false,
+        "automatic": true,
         "id": "staging",
-        "name": "Staging Plan"
+        "name": "Staging Static CD"
       },
       {
-        "automatic": false,
+        "automatic": true,
         "id": "production",
-        "name": "Production Plan"
+        "name": "Production Static CD"
       },
       {
         "automatic": false,
         "id": "rollback",
-        "name": "Rollback Plan"
+        "name": "Safe Static Rollback"
       }
     ],
     "not_answer_support": true,
@@ -970,22 +1220,24 @@
     "artifact_kind": "preview_manifest",
     "artifact_name": "codex-preview-artifact",
     "blocked_execution_gates": [
-      "github_pages_enablement",
-      "repository_settings_change",
       "secrets_credentials",
       "production_external_side_effect"
     ],
     "control_artifact": true,
+    "fallback_policy": {
+      "fork_pull_request": "artifact_only",
+      "same_repo_branch": "static_pages_lane"
+    },
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.137157+00:00",
+    "generated_at": "2026-06-26T15:16:01.166971+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
-    "live_url": null,
+    "live_url": "https://masanori64.github.io/research_x/previews/codex-context-and-design-import-20260609/447912873ca35925417b364ef76b223f80d8a8d2/",
     "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
@@ -1018,25 +1270,29 @@
         {
           "name": "not_evidence_notice",
           "status": "planned"
+        },
+        {
+          "name": "preview_url_http_200",
+          "status": "pending"
         }
       ],
-      "status": "planned"
+      "status": "pending_pages_deploy"
     },
-    "target_type": "artifact_only"
+    "target_type": "static_pages_lane"
   },
   "production_manifest": {
     "artifact_kind": "production_manifest",
     "control_artifact": true,
     "environment_name": "production",
-    "execution_enabled": false,
+    "execution_enabled": true,
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.139161+00:00",
+    "generated_at": "2026-06-26T15:16:01.169111+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -1053,18 +1309,18 @@
           "status": "planned"
         },
         {
-          "name": "manual_production_gate_recorded",
-          "status": "planned"
+          "name": "production_url_http_200",
+          "status": "pending"
         }
       ],
-      "status": "planned"
+      "status": "pending_pages_deploy"
     },
     "kill_switch": {
       "capability": "production_cd",
-      "execution_default": "disabled",
-      "status": "gated_plan"
+      "execution_default": "enabled_for_free_static_pages",
+      "status": "static_pages_enabled"
     },
-    "live_url": null,
+    "live_url": "https://masanori64.github.io/research_x/production/latest/",
     "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
@@ -1073,8 +1329,6 @@
     "production_deploy_executed": false,
     "project_id": "research_x",
     "required_gates_before_execution": [
-      "repository_settings_change",
-      "github_pages_enablement",
       "secrets_credentials",
       "production_external_side_effect"
     ],
@@ -1090,7 +1344,7 @@
       "secrets_used": false,
       "staging_deploy": false
     },
-    "target_type": "production_plan"
+    "target_type": "static_pages_production"
   },
   "profile": {
     "constraints": {
@@ -1099,7 +1353,6 @@
       "forbidden_external_actions": [
         "provider_api_quota",
         "secrets_credentials",
-        "install_dependency_model_download",
         "mcp_plugin_hook_enablement",
         "destructive_action",
         "irreversible_db_migration"
@@ -1145,32 +1398,32 @@
           },
           {
             "name": "not_evidence_notice",
-            "status": "planned"
+            "status": "passed"
           },
           {
             "name": "no_database_restore",
-            "status": "planned"
+            "status": "passed"
           }
         ],
-        "status": "planned"
+        "status": "pending"
       },
       "restore_executed": false,
-      "status": "simulated",
+      "status": "pending_execution",
       "would_restore_paths": [
         "docs/control/codex/dashboard/",
         ".codex-project/generated/"
       ]
     },
-    "dry_run": true,
-    "environment": "dashboard",
+    "dry_run": false,
+    "environment": "production",
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.140166+00:00",
+    "generated_at": "2026-06-26T15:16:01.171128+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
@@ -1183,7 +1436,8 @@
       "db_restore",
       "provider_api_quota",
       "secrets_credentials",
-      "repository_settings_change"
+      "external_cloud_deploy",
+      "research_evidence_write"
     ],
     "rollback_executed": false,
     "schema_version": 1,
@@ -1199,27 +1453,27 @@
       "secrets_changed": false
     },
     "target": {
-      "artifact_pointer": "docs/control/codex/dashboard/index.html",
-      "reason": "Dry-run selects a static dashboard artifact candidate only; no restore or production mutation is executed.",
-      "resolved": true,
-      "selection_mode": "simulated_static_artifact",
-      "strategy": "previous_successful_static_artifact"
+      "artifact_pointer": "https://masanori64.github.io/research_x/production/latest/",
+      "reason": "Rollback is restricted to static Pages control artifacts and refuses provider, secret, DB, destructive, and evidence paths.",
+      "resolved": false,
+      "selection_mode": "safe_static_pages",
+      "strategy": "previous_known_good_static_pages_snapshot"
     }
   },
   "schema_version": 1,
   "staging_manifest": {
     "artifact_kind": "staging_manifest",
     "control_artifact": true,
-    "dry_run": true,
+    "dry_run": false,
     "environment_name": "staging",
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.142164+00:00",
+    "generated_at": "2026-06-26T15:16:01.173338+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -1238,11 +1492,15 @@
         {
           "name": "not_evidence_notice",
           "status": "planned"
+        },
+        {
+          "name": "staging_url_http_200",
+          "status": "pending"
         }
       ],
-      "status": "planned"
+      "status": "pending_pages_deploy"
     },
-    "live_url": null,
+    "live_url": "https://masanori64.github.io/research_x/staging/latest/",
     "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
@@ -1251,12 +1509,10 @@
     "previous_known_good": {
       "pointer": null,
       "resolved": false,
-      "strategy": "latest_successful_preview_artifact"
+      "strategy": "latest_successful_staging_pages_snapshot"
     },
     "project_id": "research_x",
     "required_gates_before_execution": [
-      "repository_settings_change",
-      "github_pages_enablement",
       "secrets_credentials",
       "production_external_side_effect"
     ],
@@ -1273,7 +1529,7 @@
       "staging_live_deploy": false
     },
     "staging_deploy_executed": false,
-    "target_type": "safe_static_plan"
+    "target_type": "static_pages_lane"
   },
   "subagent_policy": {
     "allowed_roles": [
@@ -1300,7 +1556,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -1385,10 +1641,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.166411+00:00",
+    "generated_at": "2026-06-26T15:16:01.208432+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_write_executed": false,
     "model_runner_started": false,
@@ -1438,7 +1694,7 @@
         "exists": true,
         "id": "codex-hotl-implementation-pipeline",
         "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-        "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+        "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
         "version": "0.1.0"
       },
       "generated_by": "codex-hotl-implementation-pipeline",
@@ -1478,10 +1734,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.163412+00:00",
+    "generated_at": "2026-06-26T15:16:01.203576+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_actions_artifact_storage_created_by_this_smoke": false,
     "github_actions_minutes_consumed_by_this_smoke": false,
@@ -1574,10 +1830,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+      "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:53:17.165410+00:00",
+    "generated_at": "2026-06-26T15:16:01.206230+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_write_executed": false,
     "not_answer_support": true,

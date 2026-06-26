@@ -2,8 +2,8 @@ schema_version: 1
 project_id: research_x
 codex_foundation: C:/Users/maasa/.codex
 github:
-  mode: local_only
-  api_enabled: false
+  mode: public_repo_pages_static_cd
+  api_enabled: public_read
   repository: masanori64/research_x
   default_branch: main
 outputs:
@@ -11,20 +11,20 @@ outputs:
   generated_dir: .codex-project/generated
   mermaid_dir: docs/control/codex/dashboard/mermaid
 workflow:
-  phase: local_first_phase_1
-  cd_execution_enabled: false
-  rollback_execution_enabled: false
-  github_pages_enabled_by_codex: false
+  phase: static_pages_cd_final
+  cd_execution_enabled: true
+  rollback_execution_enabled: safe_static_only
+  github_pages_enabled_by_codex: pending_free_setup_or_verification
 capabilities:
-  github_api_read: disabled
-  github_api_write: disabled
-  github_actions_wrappers: artifact_only
-  dashboard_artifact_cd: artifact_only
-  preview_cd: artifact_only
-  staging_cd: gated_plan
-  production_cd: gated_plan
-  rollback_execution: dry_run_only
-  github_pages: disabled
-  repository_settings_change: disabled
+  github_api_read: public_read_enabled
+  github_api_write: pages_static_cd_only
+  github_actions_wrappers: enabled
+  dashboard_artifact_cd: enabled
+  preview_cd: static_pages_lane_enabled
+  staging_cd: static_pages_lane_enabled
+  production_cd: static_pages_enabled
+  rollback_execution: safe_static_pages_enabled
+  github_pages: enabled_public_static
+  repository_settings_change: free_pages_source_setup_only
   provider_api_calls: disabled
   mcp_plugin_hook_enablement: disabled
