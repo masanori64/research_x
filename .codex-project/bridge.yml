@@ -26,5 +26,5 @@ capabilities:
   rollback_execution: safe_static_pages_enabled
   github_pages: enabled_public_static
   repository_settings_change: free_pages_source_setup_only
-  provider_api_calls: disabled
-  mcp_plugin_hook_enablement: disabled
+  provider_api_calls: hard_blocked_paid
+  mcp_plugin_hook_enablement: outside_free_static_pages_cd

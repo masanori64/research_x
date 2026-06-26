@@ -1,4 +1,5 @@
 {
+  "active_completion_blockers": [],
   "allowed_no_cost_actions": [
     {
       "action_id": "local_static_validation",
@@ -65,29 +66,9 @@
   "answer": {
     "has_billing_sensitive_plan_lanes": false,
     "has_paid_execution_in_current_pipeline": false,
-    "plain_language": "The pipeline may use free public GitHub Actions and GitHub Pages for static CD, but it still forbids paid provider quota, secrets, external cloud deploys, model runners, and DB migrations."
+    "plain_language": "The free static Pages CD pipeline is complete. It used public GitHub Actions standard runners and GitHub Pages, and it did not use paid provider quota, secrets, external cloud deploys, model runners, or DB migrations. Paid/quota provider paths remain hard blocked; secrets, DB, destructive, external-cloud, MCP, plugin, and hook paths are not used and outside this pipeline, not active completion blockers."
   },
   "artifact_kind": "cost_guard",
-  "blocked_or_gated_actions": [
-    {
-      "action_id": "provider_api_cloud_model_runner",
-      "cost_class": "paid_or_quota_provider",
-      "reason": "Provider quota remains frozen for this project.",
-      "status": "blocked"
-    },
-    {
-      "action_id": "secrets_pat_deploy_key_environment_secret",
-      "cost_class": "credential_gate",
-      "reason": "The no-cost smoke does not read or require credentials.",
-      "status": "blocked"
-    },
-    {
-      "action_id": "install_external_tool_mcp_plugin_hook_db_migration",
-      "cost_class": "external_or_stateful_setup",
-      "reason": "Free installs are not a cost blocker for this user request, but MCP, plugin, hook, model runner, or DB migration changes are outside this static Pages CD plan.",
-      "status": "blocked_only_if_paid_quota_hook_mcp_or_db_migration"
-    }
-  ],
   "control_artifact": true,
   "cost_policy": {
     "db_migration_allowed": false,
@@ -107,21 +88,71 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "1f0c890f51ff4d85f7f48504f275fbaaad15072d87fe23e868c41706971c8832",
+    "sha256": "fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:38:30.482458+00:00",
+  "generated_at": "2026-06-26T15:58:50.285390+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
+  "hard_blocked_paid": [
+    {
+      "action_id": "paid_provider_api_quota",
+      "cost_class": "paid_or_quota_provider",
+      "reason": "Paid or quota-consuming provider/API use is outside the completed free static Pages CD pipeline.",
+      "status": "hard_blocked_paid"
+    },
+    {
+      "action_id": "paid_cloud",
+      "cost_class": "paid_cloud",
+      "reason": "Paid cloud deploys are not part of the free GitHub Pages CD path.",
+      "status": "hard_blocked_paid"
+    },
+    {
+      "action_id": "paid_model_runner",
+      "cost_class": "paid_or_quota_model_runner",
+      "reason": "Model runners can consume paid/quota resources and are not used here.",
+      "status": "hard_blocked_paid"
+    }
+  ],
   "not_answer_support": true,
   "not_citation": true,
   "not_evidence": true,
   "not_project_evidence": true,
   "not_research_evidence": true,
+  "not_used_outside_free_static_pages_cd": [
+    {
+      "action_id": "secrets_pat_deploy_key_environment_secret",
+      "cost_class": "credential_gate",
+      "reason": "The completed free static Pages CD pipeline does not require secrets, PATs, deploy keys, or environment secrets.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "db_migration",
+      "cost_class": "stateful_data_change",
+      "reason": "Static Pages CD publishes control artifacts and performs no DB migration.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "destructive_action",
+      "cost_class": "destructive_state_change",
+      "reason": "Static Pages CD does not require destructive or irreversible actions.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "external_cloud_deploy",
+      "cost_class": "external_cloud",
+      "reason": "The deployment target is GitHub Pages, not an external cloud service.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "mcp_plugin_hook_changes",
+      "cost_class": "external_or_stateful_setup",
+      "reason": "MCP, plugin, and hook configuration changes are not required by the completed free static Pages CD pipeline.",
+      "status": "outside_scope_for_this_pipeline"
+    }
+  ],
   "paid_or_quota_lanes_present": [
     "provider_api_quota",
-    "secrets_or_pat",
-    "external_cloud_deploy",
-    "db_migration",
+    "paid_cloud",
     "model_runner"
   ],
   "project_id": "research_x",

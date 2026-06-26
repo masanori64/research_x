@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: 1f0c890f51ff4d85f7f48504f275fbaaad15072d87fe23e868c41706971c8832
+  sha256: fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143
   exists: true
 artifact_kind: effective_gates
 gates:
@@ -86,10 +86,10 @@ capabilities:
     allowed_without_gate: true
     reason: Capability repository_settings_change is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
   - capability_id: provider_api_calls
-    status: disabled
+    status: hard_blocked_paid
     allowed_without_gate: false
-    reason: Disabled by default for Phase 2 hardening; explicit gate required before enablement.
+    reason: Capability provider_api_calls is a paid/quota boundary and is not part of the completed free static Pages CD pipeline.
   - capability_id: mcp_plugin_hook_enablement
-    status: disabled
+    status: outside_free_static_pages_cd
     allowed_without_gate: false
-    reason: Disabled by default for Phase 2 hardening; explicit gate required before enablement.
+    reason: Capability mcp_plugin_hook_enablement is not used by the completed free static Pages CD pipeline and is not an active completion blocker.
