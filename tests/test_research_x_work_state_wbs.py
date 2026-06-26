@@ -6,7 +6,10 @@ from typing import Any
 
 import pytest
 
+from research_x.adoption_registry import adoption_candidates
+
 WBS_PATH = Path("tools/wbs_viewer/projects/research-x-work-state.json")
+ADOPTION_REGISTRY = Path("control/adoption_registry.toml")
 CODEX_WORK_STATE = Path("C:/Users/maasa/.codex/foundation/work_state")
 CODEX_FOUNDATION_WORK_STATE = (
     CODEX_WORK_STATE / "research-x-codex-foundation-adjuncts.json"
@@ -102,6 +105,63 @@ def test_wbs_leaf_tasks_have_current_research_x_metadata_without_history() -> No
         assert meta["stop_condition"]
         assert meta["next_action"]
         assert len(leaf.get("note", "")) <= 240
+
+
+def test_wbs_leaf_text_fields_stay_bounded_control_state() -> None:
+    leaves = _leaf_tasks(_project()["tasks"])
+    banned_fragments = (
+        "http://",
+        "https://",
+        "project_reviews",
+        "positive_triggers",
+        "known_failed_routes",
+        "pointer-map.json",
+        "raw visible ChatGPT",
+        "source_candidate_url",
+    )
+
+    for leaf in leaves:
+        meta = leaf["_research_x"]
+        assert leaf["id"]
+        assert leaf["name"]
+        assert len(meta["next_action"]) <= 180
+        assert len(meta["stop_condition"]) <= 180
+        for field in ("next_action", "stop_condition"):
+            text = str(meta[field])
+            assert "\n" not in text
+            assert all(fragment not in text for fragment in banned_fragments)
+
+
+def test_wbs_and_adoption_registry_gate_states_stay_aligned() -> None:
+    candidates = adoption_candidates(ADOPTION_REGISTRY)
+    leaves = _leaf_tasks(_project()["tasks"])
+    by_artifact_layer = {leaf["_research_x"]["artifact_layer"]: leaf for leaf in leaves}
+
+    provider_candidates = [item for item in candidates if item.provider_or_quota]
+    staging_candidates = [item for item in candidates if item.adoption_shape == "staging"]
+    historical = next(item for item in candidates if item.name == "pdgkit")
+    codex_bridge = next(
+        item for item in candidates if item.name == "codex_foundation_registry_bridge"
+    )
+
+    assert provider_candidates
+    assert staging_candidates
+    external_provider = by_artifact_layer["external_source_candidate"]["_research_x"]
+    media_preparation = by_artifact_layer["ocr_media_preparation"]["_research_x"]
+    provider_retrieval = by_artifact_layer["provider_retrieval_rerank_llm"]["_research_x"]
+    assert external_provider["status"] == "provider_gated"
+    assert provider_retrieval["status"] == "provider_gated"
+    assert media_preparation["status"] in {"staging", "provider_gated"}
+    assert "provider" in (
+        media_preparation["gate"] + " " + media_preparation["stop_condition"]
+    )
+    assert all(item.enabled is False for item in provider_candidates)
+    assert all(item.status == "staged" and item.enabled is False for item in staging_candidates)
+    assert historical.owner_surface == "historical"
+    assert historical.enabled is False
+    assert codex_bridge.owner_surface == "codex_foundation"
+    assert codex_bridge.adoption_shape == "bridge"
+    assert codex_bridge.enabled is False
 
 
 def test_active_status_is_reserved_for_concrete_local_next_tasks() -> None:

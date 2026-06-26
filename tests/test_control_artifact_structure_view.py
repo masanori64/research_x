@@ -66,6 +66,22 @@ def test_control_artifact_rejects_wbs_or_pdg_as_citation_source() -> None:
     )
 
 
+def test_control_artifact_rejects_source_answer_support() -> None:
+    payload = _fixture()
+    source = payload["source_artifacts"][0]
+    assert isinstance(source, dict)
+    source["answer_support_allowed"] = True
+
+    errors = validate_control_artifact_payload(payload)
+
+    assert (
+        "structure-view-unit: source_artifacts[1]: "
+        "answer_support_allowed must be false"
+    ) in errors
+    with pytest.raises(ValueError, match="answer_support_allowed must be false"):
+        render_control_artifact_html(payload)
+
+
 def test_control_artifact_rejects_top_level_citation_fields() -> None:
     payload = _fixture()
     payload["citation"] = "not allowed"

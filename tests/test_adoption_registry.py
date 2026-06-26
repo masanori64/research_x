@@ -131,6 +131,27 @@ def test_provider_candidates_are_disabled_and_provider_gated() -> None:
     )
 
 
+def test_provider_stop_condition_tokens_are_validation_errors(tmp_path: Path) -> None:
+    registry = tmp_path / "adoption_registry.toml"
+    shutil.copy2(REGISTRY, registry)
+    text = registry.read_text(encoding="utf-8")
+    registry.write_text(text.replace("zero-dollar, or ", "", 1), encoding="utf-8")
+
+    errors = validate_adoption_registry(registry, source_lock_path=None)
+
+    assert any("provider stop_condition missing: zero-dollar" in error for error in errors)
+
+
+def test_staging_candidates_stay_disabled_and_unimplemented() -> None:
+    candidates = adoption_candidates(REGISTRY)
+    staging = [item for item in candidates if item.adoption_shape == "staging"]
+
+    assert staging
+    assert all(item.status == "staged" for item in staging)
+    assert all(item.enabled is False for item in staging)
+    assert all("evidence promotion" in item.stop_condition for item in staging)
+
+
 def test_adopted_research_x_artifacts_exist_and_pdgkit_is_historical() -> None:
     candidates = adoption_candidates(REGISTRY)
     adopted = [
