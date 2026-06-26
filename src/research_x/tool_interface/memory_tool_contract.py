@@ -74,7 +74,11 @@ def workflow_tool_output(workflow: MemoryWorkflow) -> ToolOutput:
     status = _workflow_status(workflow)
     citations = _tool_citations(workflow)
     evidence_level = _workflow_evidence_level(workflow, status=status, citations=citations)
-    answer_text = workflow.answer.answer_text if workflow.answer is not None else None
+    answer_text = (
+        workflow.answer.answer_text
+        if workflow.answer is not None and status != "provider_gated"
+        else None
+    )
     return ToolOutput(
         contract_version=CONTRACT_VERSION,
         tool_kind="research_x.memory.workflow",
@@ -117,6 +121,16 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
             errors.append(f"{prefix}: answer status requires answer_text")
         if not citations:
             errors.append(f"{prefix}: answer status requires citations")
+        not_restored = _payload_citations_with_restore_issues(citations)
+        if not_restored:
+            errors.append(
+                f"{prefix}: answer status requires restored citations: "
+                + ", ".join(not_restored)
+            )
+    if data.get("status") == "provider_gated" and str(data.get("answer_text") or "").strip():
+        errors.append(f"{prefix}: provider_gated status must not include completed answer_text")
+    if data.get("status") != "answer" and data.get("evidence_level") == "citation_ready":
+        errors.append(f"{prefix}: citation_ready evidence_level is only valid for answer status")
     if data.get("evidence_level") == "citation_ready":
         not_ready = [
             str(item.get("citation_id") or "<unknown>")
@@ -133,6 +147,19 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
         errors.append(f"{prefix}: trace must be an object")
     elif "codex_transcript_included" in trace:
         errors.append(f"{prefix}: trace must not include Codex transcript material")
+    elif missing_trace_fields := sorted(
+        {
+            "answerability_status",
+            "stop_reason",
+            "provider_gate",
+            "citation_quality",
+            "citation_restoration",
+            "pointer_offload_verification",
+            "fixture_limitations",
+        }
+        - set(trace)
+    ):
+        errors.append(f"{prefix}: trace missing fields: " + ", ".join(missing_trace_fields))
     return errors
 
 
@@ -210,6 +237,12 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
         eval_warnings.append("stale_evidence")
     if not_evidence_count:
         eval_warnings.append("not_evidence_citation")
+    citation_restoration = _citation_restoration_trace(
+        workflow,
+        raw_citations=raw_citations,
+    )
+    pointer_offload = _pointer_offload_verification(raw_citations)
+    fixture_limitations = _fixture_limitations(parameters, workflow=workflow)
     return {
         "route": workflow.route,
         "workflow_id": workflow.workflow_id,
@@ -232,11 +265,14 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
                 if citation_block_reasons(citation)
             },
         },
+        "citation_restoration": citation_restoration,
+        "pointer_offload_verification": pointer_offload,
         "provider_gate": {
             "required": status == "provider_gated",
             "no_quota_default": True,
             "provider_like_parameters": _provider_like_parameters(parameters),
         },
+        "fixture_limitations": fixture_limitations,
         "budget": {
             "max_steps": parameters.get("max_steps"),
             "step_count": len(workflow.steps),
@@ -254,6 +290,92 @@ def _tool_citations(workflow: MemoryWorkflow) -> tuple[ToolCitation, ...]:
         _tool_citation(citation, context_run_id=context_run_id)
         for citation in raw_citations
     )
+
+
+def _citation_restoration_trace(
+    workflow: MemoryWorkflow,
+    *,
+    raw_citations: tuple[CitationAnnotation, ...],
+) -> dict[str, Any]:
+    _raw, context_run_id = _raw_citations_with_context_run_id(workflow)
+    rows = []
+    for citation in raw_citations:
+        context_chunk_restored = bool(context_run_id and citation.chunk_id)
+        source_restored = bool(citation.source_kind and citation.source_id)
+        rows.append(
+            {
+                "citation_id": citation.citation_id,
+                "context_run_id": context_run_id,
+                "chunk_id": citation.chunk_id,
+                "source_kind": citation.source_kind,
+                "source_id": citation.source_id,
+                "context_chunk_restored": context_chunk_restored,
+                "source_restored": source_restored,
+                "citation_ready": _citation_ready(citation),
+                "block_reasons": list(citation_block_reasons(citation)),
+            }
+        )
+    restored_count = sum(
+        1
+        for row in rows
+        if row["context_chunk_restored"] and row["source_restored"] and row["citation_ready"]
+    )
+    return {
+        "status": (
+            "restored" if rows and restored_count == len(rows) else "not_restored"
+        )
+        if rows
+        else "no_citations",
+        "citation_count": len(rows),
+        "restored_count": restored_count,
+        "results": rows,
+    }
+
+
+def _pointer_offload_verification(
+    raw_citations: tuple[CitationAnnotation, ...],
+) -> dict[str, Any]:
+    results = []
+    for citation in raw_citations:
+        metadata = citation.metadata
+        pointer_status = metadata.get("pointer_status")
+        restore_hint_status = metadata.get("restore_hint_status")
+        preview_kind = metadata.get("preview_kind")
+        artifact_kind = metadata.get("artifact_kind")
+        has_pointer = bool(
+            metadata.get("offload_pointer")
+            or pointer_status
+            or restore_hint_status
+            or preview_kind
+            or artifact_kind in {"context_offload", "context_offload_preview", "pointer_map"}
+        )
+        if not has_pointer:
+            continue
+        status = str(pointer_status or restore_hint_status or "not_verified")
+        blocked = status not in {"usable_pointer", "verified", "current"}
+        if metadata.get("not_evidence") is True or metadata.get("answer_support_allowed") is False:
+            blocked = True
+        results.append(
+            {
+                "citation_id": citation.citation_id,
+                "status": status,
+                "blocked": blocked,
+                "preview_kind": preview_kind,
+                "artifact_kind": artifact_kind,
+                "not_evidence": metadata.get("not_evidence"),
+            }
+        )
+    blocked_count = sum(1 for result in results if result["blocked"])
+    return {
+        "status": (
+            "blocked" if blocked_count else "verified"
+        )
+        if results
+        else "no_pointer_artifacts",
+        "pointer_count": len(results),
+        "blocked_count": blocked_count,
+        "results": results,
+    }
 
 
 def _raw_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:
@@ -288,6 +410,12 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "source_id": citation.source_id,
             "source_url": citation.source_url,
             "field_path": citation.field_path,
+            "context_chunk_restored": bool(context_run_id and citation.chunk_id),
+            "source_restored": bool(citation.source_kind and citation.source_id),
+            "citation_ready": _citation_ready(citation),
+            "block_reasons": list(citation_block_reasons(citation)),
+            "source_doc_hash": citation.metadata.get("source_doc_hash"),
+            "source_bundle_id": citation.metadata.get("source_bundle_id"),
             "source_anchor": citation.metadata.get("tweet_id")
             or citation.metadata.get("source_context_citation_id")
             or citation.source_id,
@@ -307,6 +435,39 @@ def _provider_gate_required(workflow: MemoryWorkflow) -> bool:
         return False
     provider_like = _provider_like_parameters(parameters)
     return any(item["provider_gated"] and item["enabled"] for item in provider_like)
+
+
+def _fixture_limitations(
+    parameters: dict[str, Any],
+    *,
+    workflow: MemoryWorkflow,
+) -> dict[str, Any]:
+    providers: list[dict[str, Any]] = []
+    specs = (
+        ("semantic_provider", {"local_hash"}),
+        ("llm_context_provider", {"fake"}),
+        ("answer_provider", {"fake"}),
+        ("external_reader_provider", {"fake"}),
+    )
+    for key, fixture_values in specs:
+        value = parameters.get(key)
+        normalized = str(value).strip().lower() if value is not None else ""
+        if normalized in fixture_values:
+            providers.append({"parameter": key, "value": value})
+    if workflow.answer is not None:
+        structured = workflow.answer.structured
+        if isinstance(structured, dict) and structured.get("mode") == "deterministic_fake":
+            providers.append({"parameter": "answer.structured.mode", "value": "deterministic_fake"})
+    provider_free_fixture = bool(providers)
+    return {
+        "provider_free_fixture": provider_free_fixture,
+        "providers": providers,
+        "quality_scope": (
+            "boundary_wiring_not_model_quality"
+            if provider_free_fixture
+            else "runtime_provider_quality_not_asserted"
+        ),
+    }
 
 
 def _provider_like_parameters(parameters: dict[str, Any]) -> list[dict[str, Any]]:
@@ -332,6 +493,26 @@ def _provider_like_parameters(parameters: dict[str, Any]) -> list[dict[str, Any]
             }
         )
     return rows
+
+
+def _payload_citations_with_restore_issues(citations: list[Any]) -> list[str]:
+    broken: list[str] = []
+    for item in citations:
+        if not isinstance(item, dict):
+            broken.append("<unknown>")
+            continue
+        citation_id = str(item.get("citation_id") or "<unknown>")
+        restore = item.get("restore")
+        if not isinstance(restore, dict):
+            broken.append(citation_id)
+            continue
+        if (
+            restore.get("context_chunk_restored") is not True
+            or restore.get("source_restored") is not True
+            or restore.get("citation_ready") is not True
+        ):
+            broken.append(citation_id)
+    return broken
 
 
 def _answerability_status(answer: MemoryAnswer) -> str | None:

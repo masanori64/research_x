@@ -25,6 +25,28 @@ status_codes:
   source_bundle_missing: 424
   provider_gate_blocked: 451
   write_intent_blocked: 460
+runtime_statuses:
+  - answer
+  - abstain
+  - needs_review
+  - source_not_restored
+  - citation_missing
+  - provider_gated
+  - blocked
+runtime_evidence_levels:
+  - raw
+  - candidate
+  - source_bundle
+  - context_chunk
+  - citation_ready
+tool_trace_required_fields:
+  - answerability_status
+  - stop_reason
+  - provider_gate
+  - citation_quality
+  - citation_restoration
+  - pointer_offload_verification
+  - fixture_limitations
 required_guards:
   - source_bundle_restoration
   - citation_required_before_answer

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from research_x.memory.prompt_contracts import (
     READ_ONLY_MEMORY_PROMPT_CONTRACT,
@@ -9,6 +10,12 @@ from research_x.memory.prompt_contracts import (
     prompt_contract_json,
     validate_read_only_mnp_manifest,
 )
+from research_x.tool_interface.memory_tool_contract import (
+    EVIDENCE_LEVELS,
+    TOOL_OUTPUT_STATUSES,
+)
+
+MEMORY_SEARCH_PROMPT_CONTRACT = Path("prompt_contracts/research_x_memory_search_v1.yaml")
 
 
 def test_read_only_mnp_manifest_has_no_policy_errors() -> None:
@@ -158,3 +165,22 @@ def test_prompt_contract_json_and_mnp_manifest_are_stable() -> None:
         for endpoint in manifest
         if endpoint["side_effect"] == "read_only"
     } == set(READ_ONLY_MEMORY_PROMPT_CONTRACT.allowed_tools)
+
+
+def test_memory_search_prompt_contract_matches_runtime_tool_statuses() -> None:
+    text = MEMORY_SEARCH_PROMPT_CONTRACT.read_text(encoding="utf-8")
+
+    for status in sorted(TOOL_OUTPUT_STATUSES):
+        assert f"  - {status}" in text
+    for evidence_level in sorted(EVIDENCE_LEVELS):
+        assert f"  - {evidence_level}" in text
+    for required_field in (
+        "answerability_status",
+        "stop_reason",
+        "provider_gate",
+        "citation_quality",
+        "citation_restoration",
+        "pointer_offload_verification",
+        "fixture_limitations",
+    ):
+        assert f"  - {required_field}" in text
