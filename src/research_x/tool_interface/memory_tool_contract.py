@@ -419,6 +419,20 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "source_anchor": citation.metadata.get("tweet_id")
             or citation.metadata.get("source_context_citation_id")
             or citation.source_id,
+            "primary_evidence_identity": citation.metadata.get("primary_evidence_identity"),
+            "primary_evidence_key": citation.metadata.get("primary_evidence_key"),
+            "primary_evidence_source_id": citation.metadata.get(
+                "primary_evidence_source_id"
+            ),
+            "primary_evidence_hash": citation.metadata.get("primary_evidence_hash"),
+            "duplicate_sources": citation.metadata.get("duplicate_sources") or [],
+            "provenance_sources": citation.metadata.get("provenance_sources") or [],
+            "bookmark_accounts": citation.metadata.get("bookmark_accounts") or [],
+            "source_accounts": citation.metadata.get("source_accounts") or [],
+            "duplicate_support_suppressed_count": citation.metadata.get(
+                "duplicate_support_suppressed_count"
+            )
+            or 0,
         },
     )
 

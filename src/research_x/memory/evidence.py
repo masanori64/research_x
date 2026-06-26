@@ -140,6 +140,7 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
             "relations": _relations(conn, result.doc_id),
             "derived": derived,
             "source_lineage": source_lineage,
+            **_provenance_metadata(result.metadata),
         },
     }
 
@@ -365,6 +366,52 @@ def _public_result_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "bookmark_account_count",
         "observed_at",
         "created_at",
+        "primary_evidence_identity",
+        "primary_evidence_key",
+        "primary_evidence_source_kind",
+        "primary_evidence_identity_kind",
+        "primary_evidence_source_id",
+        "primary_evidence_hash",
+        "source_doc_ids",
+        "source_tweet_ids",
+        "source_doc_hashes",
+        "source_accounts",
+        "source_doc_types",
+        "source_urls",
+        "provenance_sources",
+        "duplicate_sources",
+        "bookmark_accounts",
+        "bookmark_provenance",
+        "duplicate_support_suppressed_count",
+        "duplicate_evidence_count",
+        "unique_evidence_count",
+        "dedup_reason",
+    )
+    return {key: metadata[key] for key in keys if key in metadata}
+
+
+def _provenance_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "primary_evidence_identity",
+        "primary_evidence_key",
+        "primary_evidence_source_kind",
+        "primary_evidence_identity_kind",
+        "primary_evidence_source_id",
+        "primary_evidence_hash",
+        "source_doc_ids",
+        "source_tweet_ids",
+        "source_doc_hashes",
+        "source_accounts",
+        "source_doc_types",
+        "source_urls",
+        "provenance_sources",
+        "duplicate_sources",
+        "bookmark_accounts",
+        "bookmark_provenance",
+        "duplicate_support_suppressed_count",
+        "duplicate_evidence_count",
+        "unique_evidence_count",
+        "dedup_reason",
     )
     return {key: metadata[key] for key in keys if key in metadata}
 

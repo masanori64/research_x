@@ -286,6 +286,7 @@ def _chunk(
         "tweet_id": hit.get("tweet_id"),
         "source_lineage": source_lineage,
         **source_lineage,
+        **_provenance_metadata(hit=hit, evidence=evidence),
         "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
         "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         "matched_terms": hit.get("matched_terms") or [],
@@ -362,6 +363,7 @@ def _citation(
             "derived": (hit.get("evidence") or {}).get("derived"),
             "source_lineage": source_lineage,
             **source_lineage,
+            **_provenance_metadata(hit=hit, evidence=hit.get("evidence") or {}),
             "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
             "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         },
@@ -645,6 +647,7 @@ def _store_search_result(
         "freshness": hit.get("freshness"),
         "bookmark_account_count": hit.get("bookmark_account_count"),
         "evidence": evidence,
+        **_provenance_metadata(hit=hit, evidence=evidence),
     }
     conn.execute(
         """
@@ -735,7 +738,41 @@ def _source_lineage_metadata(
         "document_created_at": _string_or_none(lineage.get("document_created_at")),
         "document_observed_at": _string_or_none(lineage.get("document_observed_at")),
         "document_updated_at": document_updated_at,
+        **_provenance_metadata(hit=hit, evidence=evidence),
     }
+
+
+def _provenance_metadata(*, hit: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
+    metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    keys = (
+        "primary_evidence_identity",
+        "primary_evidence_key",
+        "primary_evidence_source_kind",
+        "primary_evidence_identity_kind",
+        "primary_evidence_source_id",
+        "primary_evidence_hash",
+        "source_doc_ids",
+        "source_tweet_ids",
+        "source_doc_hashes",
+        "source_accounts",
+        "source_doc_types",
+        "source_urls",
+        "provenance_sources",
+        "duplicate_sources",
+        "bookmark_accounts",
+        "bookmark_provenance",
+        "duplicate_support_suppressed_count",
+        "duplicate_evidence_count",
+        "unique_evidence_count",
+        "dedup_reason",
+    )
+    result = {}
+    for key in keys:
+        if key in evidence:
+            result[key] = evidence[key]
+        elif isinstance(metadata, dict) and key in metadata:
+            result[key] = metadata[key]
+    return result
 
 
 def _run_id(

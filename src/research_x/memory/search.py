@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.document_hashes import text_hash
 from research_x.memory.embeddings import (
     SemanticHit,
     SemanticScore,
@@ -18,6 +19,10 @@ from research_x.memory.governance import active_tombstone_ids
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.relations import relation_summary_for_docs
 from research_x.memory.schema import ensure_memory_schema, memory_document_count
+
+SOURCE_EVIDENCE_DOC_TYPES = frozenset(
+    {"tweet_doc", "bookmark_doc", "quote_tree_doc", "media_doc"}
+)
 
 
 @dataclass(frozen=True)
@@ -162,6 +167,7 @@ def search_memory(
             conn,
             _filter_anchor_candidates(_merge_candidates(raw_rows), plan),
         )
+        candidates = _dedupe_candidates_for_evidence_identity(conn, candidates, plan=plan)
         doc_ids = tuple(candidate["doc_id"] for candidate in candidates)
         tweet_ids = tuple(
             str(candidate["source_tweet_id"])
@@ -251,6 +257,7 @@ def search_memory_fts_only(
                 plan,
             ),
         )
+        candidates = _dedupe_candidates_for_evidence_identity(conn, candidates, plan=plan)
         latest_observed_at = _latest_observed_at(conn)
     results = [
         _result_from_candidate(
@@ -307,6 +314,7 @@ def search_memory_retrieval_text_only(
                 plan,
             ),
         )
+        candidates = _dedupe_candidates_for_evidence_identity(conn, candidates, plan=plan)
         latest_observed_at = _latest_observed_at(conn)
     results = [
         _result_from_candidate(
@@ -536,6 +544,7 @@ def _fts_search(
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
             d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.source_doc_hash,
             d.created_at, d.observed_at, d.updated_at,
             bm25(memory_document_fts) AS raw_score,
             'fts' AS match_method
@@ -584,6 +593,7 @@ def _like_search(
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
             d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.source_doc_hash,
             d.created_at, d.observed_at, d.updated_at,
             0.0 AS raw_score,
             'like' AS match_method
@@ -640,6 +650,7 @@ def _metadata_search(
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
             d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.source_doc_hash,
             d.created_at, d.observed_at, d.updated_at,
             0.0 AS raw_score,
             'metadata' AS match_method
@@ -679,6 +690,7 @@ def _retrieval_text_search(
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
             d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.source_doc_hash,
             d.created_at, d.observed_at, d.updated_at,
             bm25(memory_retrieval_text_fts) AS raw_score,
             'retrieval_text' AS match_method
@@ -712,6 +724,7 @@ def _rows_by_doc_ids(
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
             d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.source_doc_hash,
             d.created_at, d.observed_at, d.updated_at,
             0.0 AS raw_score,
             'semantic' AS match_method
@@ -752,6 +765,7 @@ def _relation_expansion_search(
         SELECT
             d.doc_id, d.doc_type, d.source_tweet_id, d.account_id,
             d.author_screen_name, d.title, d.body, d.compact_text, d.metadata_json,
+            d.source_doc_hash,
             d.created_at, d.observed_at, d.updated_at,
             related.relation_strength AS raw_score,
             'relation_expansion' AS match_method
@@ -788,6 +802,189 @@ def _merge_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row["_engine_contributions"] = existing.get("_engine_contributions", [])
             merged[doc_id] = row
     return list(merged.values())
+
+
+def _dedupe_candidates_for_evidence_identity(
+    conn: sqlite3.Connection,
+    candidates: list[dict[str, Any]],
+    *,
+    plan: QueryPlan,
+) -> list[dict[str, Any]]:
+    if not candidates:
+        return []
+    tweet_ids = tuple(
+        dict.fromkeys(
+            str(candidate["source_tweet_id"])
+            for candidate in candidates
+            if candidate.get("source_tweet_id")
+        )
+    )
+    bookmark_accounts = _bookmark_accounts_by_tweet(conn, tweet_ids)
+    groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for candidate in candidates:
+        groups.setdefault(_candidate_evidence_identity(candidate), []).append(candidate)
+    return [
+        _merge_evidence_identity_group(
+            identity,
+            group,
+            plan=plan,
+            bookmark_accounts=bookmark_accounts,
+        )
+        for identity, group in groups.items()
+    ]
+
+
+def _candidate_evidence_identity(candidate: dict[str, Any]) -> tuple[str, str, str]:
+    doc_type = str(candidate.get("doc_type") or "")
+    tweet_id = str(candidate.get("source_tweet_id") or "").strip()
+    if tweet_id and doc_type in SOURCE_EVIDENCE_DOC_TYPES:
+        return ("local_x_db", "tweet", tweet_id)
+    return ("local_x_db", "document", str(candidate.get("doc_id") or ""))
+
+
+def _merge_evidence_identity_group(
+    identity: tuple[str, str, str],
+    group: list[dict[str, Any]],
+    *,
+    plan: QueryPlan,
+    bookmark_accounts: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    representative = dict(
+        max(group, key=lambda candidate: _representative_priority(candidate, plan))
+    )
+    methods: set[str] = set()
+    contributions: list[dict[str, Any]] = []
+    for candidate in group:
+        candidate_methods = candidate.get("_match_methods") or (candidate.get("match_method"),)
+        methods.update(str(method) for method in candidate_methods if method)
+        contributions.extend(candidate.get("_engine_contributions") or [])
+    representative["_match_methods"] = methods or {str(representative.get("match_method") or "")}
+    representative["_engine_contributions"] = _dedupe_engine_contributions(contributions)
+
+    metadata = _loads_json(representative.get("metadata_json"))
+    identity_metadata = _evidence_identity_metadata(
+        identity,
+        group,
+        representative_doc_id=str(representative.get("doc_id") or ""),
+        bookmark_accounts=bookmark_accounts,
+    )
+    _preserve_existing_source_metadata(metadata, identity_metadata)
+    metadata.update(identity_metadata)
+    representative["metadata_json"] = json.dumps(
+        metadata,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return representative
+
+
+def _preserve_existing_source_metadata(
+    metadata: dict[str, Any],
+    identity_metadata: dict[str, Any],
+) -> None:
+    for key in ("source_doc_ids", "source_tweet_ids", "source_urls"):
+        existing = metadata.get(key)
+        if not existing:
+            continue
+        replacement = identity_metadata.pop(key, None)
+        if replacement:
+            identity_metadata[f"evidence_identity_{key}"] = replacement
+
+
+def _representative_priority(candidate: dict[str, Any], plan: QueryPlan) -> tuple[int, int, str]:
+    doc_type = str(candidate.get("doc_type") or "")
+    method = str(candidate.get("match_method") or "")
+    observed_at = str(candidate.get("observed_at") or candidate.get("created_at") or "")
+    return (
+        _representative_doc_type_priority(doc_type, plan),
+        _method_priority(method),
+        observed_at,
+    )
+
+
+def _representative_doc_type_priority(doc_type: str, plan: QueryPlan) -> int:
+    if plan.requires_media_context:
+        priority = {"media_doc": 6, "quote_tree_doc": 4, "bookmark_doc": 3, "tweet_doc": 2}
+    elif plan.requires_quote_context:
+        priority = {"quote_tree_doc": 6, "bookmark_doc": 4, "tweet_doc": 3, "media_doc": 2}
+    elif plan.requires_bookmark_context or plan.wants_cross_account:
+        priority = {"bookmark_doc": 6, "tweet_doc": 4, "quote_tree_doc": 3, "media_doc": 2}
+    else:
+        priority = {"bookmark_doc": 5, "tweet_doc": 4, "quote_tree_doc": 3, "media_doc": 2}
+    return priority.get(doc_type, 1)
+
+
+def _evidence_identity_metadata(
+    identity: tuple[str, str, str],
+    group: list[dict[str, Any]],
+    *,
+    representative_doc_id: str,
+    bookmark_accounts: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    source_kind, identity_kind, identity_source_id = identity
+    identity_key = "|".join(identity)
+    identity_hash = text_hash(identity_key)
+    source_tweet_ids = _unique_strings(candidate.get("source_tweet_id") for candidate in group)
+    source_doc_ids = _unique_strings(candidate.get("doc_id") for candidate in group)
+    source_doc_hashes = _unique_strings(candidate.get("source_doc_hash") for candidate in group)
+    source_accounts = _unique_strings(candidate.get("account_id") for candidate in group)
+    doc_types = _unique_strings(candidate.get("doc_type") for candidate in group)
+    urls = _unique_strings(
+        _loads_json(candidate.get("metadata_json")).get("url") for candidate in group
+    )
+    bookmark_rows: list[dict[str, Any]] = []
+    for tweet_id in source_tweet_ids:
+        bookmark_rows.extend(bookmark_accounts.get(tweet_id, ()))
+    bookmark_account_ids = _unique_strings(row.get("account_id") for row in bookmark_rows)
+    if bookmark_account_ids:
+        source_accounts = _unique_strings((*source_accounts, *bookmark_account_ids))
+    duplicate_sources = [doc_id for doc_id in source_doc_ids if doc_id != representative_doc_id]
+    duplicate_count = len(duplicate_sources)
+    provenance_sources = [
+        {
+            "doc_id": str(candidate.get("doc_id") or ""),
+            "doc_type": str(candidate.get("doc_type") or ""),
+            "source_tweet_id": _string_or_none(candidate.get("source_tweet_id")),
+            "account_id": _string_or_none(candidate.get("account_id")),
+            "source_doc_hash": _string_or_none(candidate.get("source_doc_hash")),
+            "url": _string_or_none(_loads_json(candidate.get("metadata_json")).get("url")),
+        }
+        for candidate in group
+    ]
+    metadata: dict[str, Any] = {
+        "primary_evidence_identity": {
+            "source_kind": source_kind,
+            "identity_kind": identity_kind,
+            "source_id": identity_source_id,
+            "identity_key": identity_key,
+            "identity_hash": identity_hash,
+        },
+        "primary_evidence_key": identity_key,
+        "primary_evidence_source_kind": source_kind,
+        "primary_evidence_identity_kind": identity_kind,
+        "primary_evidence_source_id": identity_source_id,
+        "primary_evidence_hash": identity_hash,
+        "source_doc_ids": source_doc_ids,
+        "source_tweet_ids": source_tweet_ids,
+        "source_doc_hashes": source_doc_hashes,
+        "source_accounts": source_accounts,
+        "source_doc_types": doc_types,
+        "source_urls": urls,
+        "provenance_sources": provenance_sources,
+        "duplicate_sources": duplicate_sources,
+        "duplicate_support_suppressed_count": duplicate_count,
+        "duplicate_evidence_count": duplicate_count,
+        "unique_evidence_count": 1,
+        "dedup_reason": (
+            "same_source_identity_preserve_provenance"
+            if duplicate_count
+            else "unique_source_identity"
+        ),
+    }
+    if bookmark_account_ids:
+        metadata["bookmark_accounts"] = bookmark_account_ids
+        metadata["bookmark_provenance"] = bookmark_rows
+    return metadata
 
 
 def _filter_anchor_candidates(
@@ -1351,6 +1548,36 @@ def _bookmark_account_counts(
     return {str(row["tweet_id"]): int(row["account_count"]) for row in rows}
 
 
+def _bookmark_accounts_by_tweet(
+    conn: sqlite3.Connection,
+    tweet_ids: tuple[str, ...],
+) -> dict[str, list[dict[str, Any]]]:
+    if not tweet_ids:
+        return {}
+    placeholders = ",".join("?" for _ in tweet_ids)
+    rows = conn.execute(
+        f"""
+        SELECT tweet_id, account_id, bookmark_index, observed_at, run_id
+        FROM account_bookmarks
+        WHERE tweet_id IN ({placeholders})
+        ORDER BY tweet_id, account_id, bookmark_index
+        """,
+        tweet_ids,
+    ).fetchall()
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["tweet_id"]), []).append(
+            {
+                "tweet_id": str(row["tweet_id"]),
+                "account_id": str(row["account_id"]),
+                "bookmark_index": row["bookmark_index"],
+                "observed_at": row["observed_at"],
+                "run_id": row["run_id"],
+            }
+        )
+    return grouped
+
+
 def _latest_observed_at(conn: sqlite3.Connection) -> datetime | None:
     row = conn.execute("SELECT MAX(observed_at) FROM memory_documents").fetchone()
     if not row or not row[0]:
@@ -1401,6 +1628,22 @@ def _parse_datetime(value: str) -> datetime | None:
 
 def _date_sort_value(metadata: dict[str, Any]) -> str:
     return str(metadata.get("observed_at") or metadata.get("created_at") or "")
+
+
+def _unique_strings(values: Any) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        text = _string_or_none(value)
+        if text is not None and text not in result:
+            result.append(text)
+    return result
+
+
+def _string_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _components_text(components: dict[str, float]) -> str:

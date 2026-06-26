@@ -215,6 +215,33 @@ def chunk_is_not_evidence(chunk: ContextChunk) -> bool:
 
 def citation_evidence_key(citation: CitationAnnotation) -> tuple[str, str, str]:
     metadata = citation.metadata
+    identity = metadata.get("primary_evidence_identity")
+    if isinstance(identity, dict):
+        source_kind = str(identity.get("source_kind") or citation.source_kind or "")
+        source_id = str(
+            identity.get("source_id")
+            or metadata.get("primary_evidence_source_id")
+            or citation.source_id
+            or ""
+        )
+        identity_hash = str(
+            identity.get("identity_hash")
+            or identity.get("identity_key")
+            or metadata.get("primary_evidence_hash")
+            or metadata.get("primary_evidence_key")
+            or ""
+        )
+        if source_id and identity_hash:
+            return (source_kind, source_id, identity_hash)
+    primary_key = metadata.get("primary_evidence_key")
+    primary_source_id = metadata.get("primary_evidence_source_id")
+    primary_hash = metadata.get("primary_evidence_hash")
+    if primary_key and primary_source_id:
+        return (
+            str(metadata.get("primary_evidence_source_kind") or citation.source_kind or ""),
+            str(primary_source_id),
+            str(primary_hash or primary_key),
+        )
     source_hash = (
         metadata.get("source_doc_hash")
         or metadata.get("source_hash")
