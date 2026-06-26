@@ -7,10 +7,10 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "31683ee72625cd9c1d698df0635503623ac3448740972d08b8ca2d0769506b3d",
+    "sha256": "38b3997ba64eaf3e219148140737b7741e2e09e3c5912545d7c3e39a82806a0d",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T10:47:24.519378+00:00",
+  "generated_at": "2026-06-26T10:58:30.407897+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [

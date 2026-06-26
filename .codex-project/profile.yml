@@ -23,8 +23,8 @@ constraints:
 capabilities:
   github_api_read: disabled
   github_api_write: disabled
-  github_actions_wrappers: disabled
-  dashboard_artifact_cd: disabled
+  github_actions_wrappers: artifact_only
+  dashboard_artifact_cd: artifact_only
   preview_cd: disabled
   staging_cd: disabled
   production_cd: disabled

@@ -1,0 +1,93 @@
+# artifact_kind=github_workflow_wrapper
+# control_artifact=true
+# not_project_evidence=true
+# not_research_evidence=true
+# not_citation=true
+# not_answer_support=true
+# generated_by=codex-hotl-implementation-pipeline
+# source_template=templates/github-workflows/codex-ci.template.yml
+# foundation_manifest_sha256=38b3997ba64eaf3e219148140737b7741e2e09e3c5912545d7c3e39a82806a0d
+name: Codex Control Artifact CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-control-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-control-artifacts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate committed Codex control artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          required_json = [
+              Path(".codex-project/generated/effective-dashboard-state.json"),
+              Path(".codex-project/generated/effective-github-collection.json"),
+              Path("docs/control/codex/dashboard/data/dashboard-state.json"),
+              Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
+              Path("docs/control/codex/dashboard/data/github-collection.json"),
+              Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
+          ]
+          markers = [
+              "control_artifact",
+              "not_project_evidence",
+              "not_research_evidence",
+              "not_citation",
+              "not_answer_support",
+          ]
+          failures = []
+          for path in required_json:
+              if not path.exists():
+                  failures.append(f"{path}: missing")
+                  continue
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              for marker in markers:
+                  if payload.get(marker) is not True:
+                      failures.append(f"{path}: {marker} must be true")
+          collection_paths = [
+              Path(".codex-project/generated/effective-github-collection.json"),
+              Path("docs/control/codex/dashboard/data/github-collection.json"),
+          ]
+          for path in collection_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("api_calls_executed") is not False:
+                  failures.append(f"{path}: api_calls_executed must be false")
+              if payload.get("write_operations_available") is not False:
+                  failures.append(f"{path}: write_operations_available must be false")
+              if payload.get("mutation_methods_available") != []:
+                  failures.append(f"{path}: mutation_methods_available must be []")
+          html = Path("docs/control/codex/dashboard/index.html")
+          if not html.exists():
+              failures.append(f"{html}: missing")
+          elif "control artifact / not evidence / not citation" not in html.read_text(encoding="utf-8"):
+              failures.append(f"{html}: missing control-artifact notice")
+          for path in Path("docs/control/codex/dashboard/mermaid").glob("*.mmd"):
+              text = path.read_text(encoding="utf-8")
+              for marker in (
+                  "%% control_artifact=true",
+                  "%% not_research_evidence=true",
+                  "%% not_citation=true",
+                  "%% not_answer_support=true",
+              ):
+                  if marker not in text:
+                      failures.append(f"{path}: missing {marker}")
+          if failures:
+              raise SystemExit("\n".join(failures))
+          print("Codex control artifacts validated")
+          PY
