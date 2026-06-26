@@ -3908,6 +3908,12 @@ def test_context_budget_offloads_large_chunk_text_with_restore_pointer(
     assert payload["context_budget"]["non_destructive"] is True
     assert "context text offloaded" in payload["context_chunks"][0]["chunk_text"]
     assert pointer["sha256"] == artifact["pointer"]["sha256"]
+    assert pointer["artifact_kind"] == "context_offload"
+    assert pointer["owner_plane"] == "research_x_runtime"
+    assert pointer["not_evidence"] is True
+    assert payload["context_chunks"][0]["metadata"]["not_evidence"] is True
+    assert payload["context_chunks"][0]["metadata"]["evidence_status"] == "preview_only"
+    assert artifact["not_evidence"] is True
     assert artifact["content"] == long_text
     assert artifact["source_anchor"]["chunk_id"] == long_chunk.chunk_id
     assert artifact["source_anchor"]["citation_refs"][0]["citation_id"]
@@ -3968,6 +3974,8 @@ def test_context_budget_can_budget_nested_workflow_like_payload(tmp_path: Path) 
     ]
 
     assert budgeted.payload["context_budget"]["payload_kind"] == "memory_workflow"
+    assert pointer["artifact_kind"] == "context_offload"
+    assert pointer["not_evidence"] is True
     assert pointer["citation_refs"][0]["citation_id"] == "citation-test"
     assert Path(pointer["artifact_path"]).exists()
 
@@ -4007,6 +4015,8 @@ def test_memory_context_cli_writes_budgeted_output(
 
     assert exit_code == 0
     assert payload["context_budget"]["offloaded_item_count"] >= 1
+    assert pointer["artifact_kind"] == "context_offload"
+    assert pointer["not_evidence"] is True
     assert Path(pointer["artifact_path"]).exists()
 
 

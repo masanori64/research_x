@@ -175,16 +175,16 @@ review/presentation assets. Route, state-machine, and implementation-boundary
 truth should remain in code, tests, or the narrow owning Markdown section unless a
 presentation artifact is explicitly being built.
 
-Restore pointers belong in:
-
-```text
-C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json
-```
+Restore pointers belong in
+`C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`.
 
 Pointer entries must keep `pointer_id`, `artifact_path`, `sha256`, `char_count`,
 `byte_count`, `restore_hint`, `artifact_kind`, `owner_plane`, and
-`not_evidence: true`. Hash and size must match the current file before the pointer
-is trusted for context restoration.
+`not_evidence: true`; runtime context offload pointers also keep `field_path`,
+`chunk_id`, `preview_chars`, source anchors, and citation references. Hash and
+size must match before restoration, and inline previews, restore hints, pointer
+maps, and compressed context-budget output cannot serve as citations or answer
+support.
 
 Operation route memory belongs in:
 

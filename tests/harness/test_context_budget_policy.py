@@ -48,7 +48,11 @@ def test_context_budget_offload_preserves_restore_pointer_and_citation_refs(
     assert budgeted.payload["context_budget"]["non_destructive"] is True
     assert budgeted.payload["context_budget"]["offloaded_item_count"] == 1
     assert pointer["source_id"] == "tweet-1"
+    assert pointer["artifact_kind"] == "context_offload"
+    assert pointer["owner_plane"] == "research_x_runtime"
+    assert pointer["not_evidence"] is True
     assert pointer["citation_refs"][0]["citation_id"] == "citation-1"
+    assert artifact["not_evidence"] is True
     assert artifact["content"] == original_text
     assert payload["context_chunks"][0]["chunk_text"] == original_text
 
