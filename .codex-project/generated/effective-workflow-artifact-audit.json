@@ -7,10 +7,10 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11",
+    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:16:53.102940+00:00",
+  "generated_at": "2026-06-26T13:48:44.178761+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "github_actions_artifact_storage_created_by_this_smoke": false,
   "github_actions_minutes_consumed_by_this_smoke": false,
@@ -24,6 +24,7 @@
   "paid_usage_detected": false,
   "reason": "This smoke validates artifact-only workflow wrappers locally and reads existing remote artifact metadata when available. It does not dispatch a workflow.",
   "remote_artifacts": {
+    "artifact_only_smoke_present": false,
     "items": [],
     "sample_count": 0,
     "status": "passed",
@@ -65,6 +66,16 @@
       "pull_request_declared": true,
       "push_declared": false,
       "workflow_dispatch_declared": true
+    },
+    {
+      "artifact_upload": true,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": true,
+      "workflow_dispatch_declared": false
     }
   ]
 }

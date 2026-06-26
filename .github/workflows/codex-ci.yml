@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11
+# foundation_manifest_sha256=aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
 name: Codex Control Artifact CI
 
 on:
@@ -43,9 +43,12 @@ jobs:
               Path(".codex-project/generated/effective-github-read-state.json"),
               Path(".codex-project/generated/effective-cost-guard.json"),
               Path(".codex-project/generated/effective-workflow-artifact-audit.json"),
+              Path(".codex-project/generated/effective-workflow-smoke.json"),
+              Path(".codex-project/generated/effective-e2e-completion-manifest.json"),
               Path(".codex-project/generated/effective-subagent-runtime-dry-run.json"),
               Path("docs/control/codex/dashboard/data/control-artifact-audit.json"),
               Path("docs/control/codex/dashboard/data/cost-guard.json"),
+              Path("docs/control/codex/dashboard/data/e2e-completion-manifest.json"),
               Path("docs/control/codex/dashboard/data/dashboard-state.json"),
               Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
               Path("docs/control/codex/dashboard/data/github-collection.json"),
@@ -57,6 +60,7 @@ jobs:
               Path("docs/control/codex/dashboard/data/subagent-policy.json"),
               Path("docs/control/codex/dashboard/data/subagent-runtime-dry-run.json"),
               Path("docs/control/codex/dashboard/data/workflow-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/workflow-smoke.json"),
               Path(".codex-project/generated/effective-preview-manifest.json"),
               Path(".codex-project/generated/effective-production-manifest.json"),
               Path(".codex-project/generated/effective-staging-manifest.json"),
@@ -145,6 +149,10 @@ jobs:
           workflow_audit_paths = [
               Path(".codex-project/generated/effective-workflow-artifact-audit.json"),
               Path("docs/control/codex/dashboard/data/workflow-artifact-audit.json"),
+              Path(".codex-project/generated/effective-workflow-smoke.json"),
+              Path("docs/control/codex/dashboard/data/workflow-smoke.json"),
+              Path(".codex-project/generated/effective-e2e-completion-manifest.json"),
+              Path("docs/control/codex/dashboard/data/e2e-completion-manifest.json"),
           ]
           for path in workflow_audit_paths:
               payload = json.loads(path.read_text(encoding="utf-8"))
@@ -158,9 +166,17 @@ jobs:
                   "repository_settings_changed",
                   "secrets_used",
                   "paid_usage_detected",
+                  "provider_api_calls",
+                  "provider_quota_used",
               ):
-                  if payload.get(key) is not False:
+                  if key in payload and payload.get(key) is not False:
                       failures.append(f"{path}: {key} must be false")
+              if path.name in {
+                  "workflow-smoke.json",
+                  "effective-workflow-smoke.json",
+              }:
+                  if payload.get("trigger_policy", {}).get("workflow_dispatch_enabled") is not False:
+                      failures.append(f"{path}: workflow_dispatch_enabled must be false")
           preview = json.loads(
               Path("docs/control/codex/dashboard/data/preview-manifest.json").read_text(
                   encoding="utf-8"

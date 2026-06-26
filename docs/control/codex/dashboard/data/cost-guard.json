@@ -19,6 +19,12 @@
       "status": "allowed"
     },
     {
+      "action_id": "github_actions_artifact_push_smoke_public_repo",
+      "cost_class": "public_repo_standard_runner",
+      "reason": "The repository is public and the workflow is restricted to standard artifact-only GitHub-hosted runner usage.",
+      "status": "allowed_public_standard_runner_artifact_only"
+    },
+    {
       "action_id": "subagent_runtime_dry_run",
       "cost_class": "local_only",
       "reason": "Checks the subagent contract without spawning workers or model runners.",
@@ -114,10 +120,10 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11",
+    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:16:52.664747+00:00",
+  "generated_at": "2026-06-26T13:48:43.851207+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "not_answer_support": true,
   "not_citation": true,

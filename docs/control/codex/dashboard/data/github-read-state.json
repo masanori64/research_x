@@ -18,10 +18,10 @@
       "ok": true,
       "rate_limit": {
         "x-ratelimit-limit": "60",
-        "x-ratelimit-remaining": "55",
+        "x-ratelimit-remaining": "51",
         "x-ratelimit-reset": "1782483226",
         "x-ratelimit-resource": "core",
-        "x-ratelimit-used": "5"
+        "x-ratelimit-used": "9"
       },
       "status_code": 200,
       "url": "https://api.github.com/repos/masanori64/research_x"
@@ -33,10 +33,10 @@
       "ok": true,
       "rate_limit": {
         "x-ratelimit-limit": "60",
-        "x-ratelimit-remaining": "54",
+        "x-ratelimit-remaining": "50",
         "x-ratelimit-reset": "1782483226",
         "x-ratelimit-resource": "core",
-        "x-ratelimit-used": "6"
+        "x-ratelimit-used": "10"
       },
       "status_code": 200,
       "url": "https://api.github.com/repos/masanori64/research_x/pulls"
@@ -48,10 +48,10 @@
       "ok": true,
       "rate_limit": {
         "x-ratelimit-limit": "60",
-        "x-ratelimit-remaining": "53",
+        "x-ratelimit-remaining": "49",
         "x-ratelimit-reset": "1782483226",
         "x-ratelimit-resource": "core",
-        "x-ratelimit-used": "7"
+        "x-ratelimit-used": "11"
       },
       "status_code": 200,
       "url": "https://api.github.com/repos/masanori64/research_x/actions/runs"
@@ -63,10 +63,10 @@
       "ok": true,
       "rate_limit": {
         "x-ratelimit-limit": "60",
-        "x-ratelimit-remaining": "52",
+        "x-ratelimit-remaining": "48",
         "x-ratelimit-reset": "1782483226",
         "x-ratelimit-resource": "core",
-        "x-ratelimit-used": "8"
+        "x-ratelimit-used": "12"
       },
       "status_code": 200,
       "url": "https://api.github.com/repos/masanori64/research_x/actions/artifacts"
@@ -78,10 +78,10 @@
       "ok": true,
       "rate_limit": {
         "x-ratelimit-limit": "60",
-        "x-ratelimit-remaining": "52",
+        "x-ratelimit-remaining": "48",
         "x-ratelimit-reset": "1782483226",
         "x-ratelimit-resource": "core",
-        "x-ratelimit-used": "8"
+        "x-ratelimit-used": "12"
       },
       "status_code": 200,
       "url": "https://api.github.com/rate_limit"
@@ -91,10 +91,10 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11",
+    "sha256": "5ecebaee440ca10947596087854d097d05ecedc5d11e058643b8bc383e4114e0",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:16:19.978560+00:00",
+  "generated_at": "2026-06-26T13:46:15.240590+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "mutation_methods_available": [],
   "not_answer_support": true,
@@ -111,17 +111,17 @@
   "rate_limit": {
     "core": {
       "limit": 60,
-      "remaining": 52,
+      "remaining": 48,
       "reset": 1782483226,
       "resource": "core",
-      "used": 8
+      "used": 12
     },
     "rate": {
       "limit": 60,
-      "remaining": 52,
+      "remaining": 48,
       "reset": 1782483226,
       "resource": "core",
-      "used": 8
+      "used": 12
     }
   },
   "reason": "All unauthenticated GitHub REST read endpoints returned successfully.",

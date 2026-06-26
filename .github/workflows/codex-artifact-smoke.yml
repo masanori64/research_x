@@ -1,0 +1,96 @@
+# artifact_kind=github_workflow_wrapper
+# control_artifact=true
+# not_project_evidence=true
+# not_research_evidence=true
+# not_citation=true
+# not_answer_support=true
+# generated_by=codex-hotl-implementation-pipeline
+# source_template=templates/github-workflows/codex-artifact-smoke.template.yml
+# foundation_manifest_sha256=aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
+name: Codex Artifact Smoke
+
+on:
+  push:
+    branches:
+      - "codex/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-artifact-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  artifact-only-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify control artifact inputs
+        shell: bash
+        run: |
+          test -f docs/control/codex/dashboard/index.html
+          test -f docs/control/codex/dashboard/data/dashboard-state.json
+          test -f docs/control/codex/dashboard/data/cost-guard.json
+          test -f docs/control/codex/dashboard/data/github-read-state.json
+          test -f docs/control/codex/dashboard/data/workflow-artifact-audit.json
+          test -f docs/control/codex/dashboard/data/subagent-runtime-dry-run.json
+          grep -q "control artifact / not evidence / not citation" docs/control/codex/dashboard/index.html
+
+      - name: Write workflow smoke manifest
+        shell: bash
+        run: |
+          mkdir -p .codex-artifact-smoke
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": 1,
+              "artifact_kind": "workflow_smoke_runtime_manifest",
+              "control_artifact": True,
+              "not_project_evidence": True,
+              "not_research_evidence": True,
+              "not_citation": True,
+              "not_answer_support": True,
+              "workflow_name": "Codex Artifact Smoke",
+              "artifact_name": "codex-artifact-smoke",
+              "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+              "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+              "github_ref": os.environ.get("GITHUB_REF", ""),
+              "github_sha": os.environ.get("GITHUB_SHA", ""),
+              "github_event_name": os.environ.get("GITHUB_EVENT_NAME", ""),
+              "remote_workflow_run_executed": True,
+              "remote_artifact_created": True,
+              "deploy_executed": False,
+              "rollback_executed": False,
+              "pages_enabled": False,
+              "repository_settings_changed": False,
+              "secrets_used": False,
+              "provider_api_calls": False,
+              "paid_usage_detected": False,
+          }
+          Path(".codex-artifact-smoke/workflow-smoke.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload artifact-only smoke bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-artifact-smoke
+          path: |
+            docs/control/codex/dashboard/
+            .codex-project/generated/
+            .codex-artifact-smoke/workflow-smoke.json
+          if-no-files-found: error
+          retention-days: 7

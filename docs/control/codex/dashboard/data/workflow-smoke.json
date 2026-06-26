@@ -1,0 +1,111 @@
+{
+  "artifact_kind": "workflow_smoke",
+  "artifact_name": "codex-artifact-smoke",
+  "control_artifact": true,
+  "deploy_executed": false,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-26T13:48:44.194314+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "github_api_write_executed": false,
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "pages_enabled": false,
+  "paid_usage_detected": false,
+  "provider_api_calls": false,
+  "reason": "The artifact-only workflow is locally valid but no remote artifact run is observed yet.",
+  "remote": {
+    "artifact_count_in_sample": 0,
+    "artifact_observed": false,
+    "artifact_read_back": false,
+    "github_read_status": "passed",
+    "latest_artifact": {},
+    "latest_run": {},
+    "workflow_run_count_in_sample": 0,
+    "workflow_run_observed": false
+  },
+  "repository_settings_changed": false,
+  "rollback_executed": false,
+  "schema_version": 1,
+  "secrets_used": false,
+  "static_checks": [
+    {
+      "name": "workflow_file_exists",
+      "status": "passed"
+    },
+    {
+      "name": "control_marker_present",
+      "status": "passed"
+    },
+    {
+      "name": "top_level_contents_read",
+      "status": "passed"
+    },
+    {
+      "name": "job_contents_read",
+      "status": "passed"
+    },
+    {
+      "name": "push_trigger_present",
+      "status": "passed"
+    },
+    {
+      "name": "pull_request_trigger_present",
+      "status": "passed"
+    },
+    {
+      "name": "workflow_dispatch_absent",
+      "status": "passed"
+    },
+    {
+      "name": "artifact_upload_present",
+      "status": "passed"
+    },
+    {
+      "name": "no_pages_write",
+      "status": "passed"
+    },
+    {
+      "name": "no_id_token_write",
+      "status": "passed"
+    },
+    {
+      "name": "no_deployments_write",
+      "status": "passed"
+    },
+    {
+      "name": "no_secrets_context",
+      "status": "passed"
+    },
+    {
+      "name": "no_environment",
+      "status": "passed"
+    },
+    {
+      "name": "no_github_api_write",
+      "status": "passed"
+    },
+    {
+      "name": "no_api_curl",
+      "status": "passed"
+    }
+  ],
+  "status": "pending_remote_artifact_e2e",
+  "trigger_policy": {
+    "pull_request_enabled": true,
+    "push_enabled": true,
+    "workflow_dispatch_enabled": false,
+    "workflow_dispatch_executed_by_codex": false
+  },
+  "workflow_dispatch_executed": false,
+  "workflow_file": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml",
+  "workflow_name": "Codex Artifact Smoke"
+}

@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-preview.template.yml
-# foundation_manifest_sha256=f87b7ddf13087a613a376ea2fb1423a52677314e45bc338ad42e549a4542fb11
+# foundation_manifest_sha256=aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1
 name: Codex Preview Artifact
 
 on:
@@ -43,6 +43,8 @@ jobs:
           test -f docs/control/codex/dashboard/data/github-read-state.json
           test -f docs/control/codex/dashboard/data/cost-guard.json
           test -f docs/control/codex/dashboard/data/workflow-artifact-audit.json
+          test -f docs/control/codex/dashboard/data/workflow-smoke.json
+          test -f docs/control/codex/dashboard/data/e2e-completion-manifest.json
           grep -q "control artifact / not evidence / not citation" docs/control/codex/dashboard/index.html
           mkdir -p .codex-preview
           python - <<'PY'
