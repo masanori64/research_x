@@ -14,7 +14,7 @@ workflow:
   phase: static_pages_cd_final
   cd_execution_enabled: true
   rollback_execution_enabled: safe_static_only
-  github_pages_enabled_by_codex: pending_free_setup_or_verification
+  github_pages_enabled_by_codex: enabled_workflow_static_pages
 capabilities:
   github_api_read: public_read_enabled
   github_api_write: pages_static_cd_only

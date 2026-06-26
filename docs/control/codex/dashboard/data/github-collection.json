@@ -1,7 +1,7 @@
 {
   "api_calls_executed": false,
   "artifact_kind": "github_state",
-  "collection_mode": "disabled",
+  "collection_mode": "public_read_state_available",
   "control_artifact": true,
   "default_branch": "main",
   "forbidden_mutation_methods": [
@@ -18,11 +18,12 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "6f772b4dbc8c88252e4af737e487177f12199d9e130b7435834daaa1b0745fc6",
+    "sha256": "1f0c890f51ff4d85f7f48504f275fbaaad15072d87fe23e868c41706971c8832",
     "version": "0.1.0"
   },
   "generated_by": "codex-hotl-implementation-pipeline",
-  "github_api_enabled": false,
+  "github_api_enabled": true,
+  "github_api_mode": "public_read",
   "items": [],
   "mode": "public_repo_pages_static_cd",
   "mutation_methods_available": [],
@@ -38,10 +39,10 @@
     "get_pull_request_metadata",
     "get_commit_status"
   ],
-  "reason": "GitHub API collection is disabled by default.",
+  "reason": "Public read-only GitHub collection is represented by github_read_state; mutation methods remain unavailable.",
   "repository": "masanori64/research_x",
   "schema_version": 1,
-  "status": "disabled",
+  "status": "public_read_enabled",
   "token_used": false,
   "write_operations_available": false
 }
