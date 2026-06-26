@@ -109,7 +109,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -155,10 +155,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:18:58.774328+00:00",
+    "generated_at": "2026-06-26T11:23:57.035626+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -218,14 +218,14 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+    "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
     "version": "0.1.0"
   },
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+    "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
     "version": "0.1.0"
   },
   "gates": [
@@ -293,11 +293,11 @@
       "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T11:18:58.782329+00:00",
+  "generated_at": "2026-06-26T11:23:57.046626+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "3ac87edc8f84e7edfad070240142325b2ef9ea64",
+    "commit": "9de939c9f53146bcb476d3bc9f027ea53443dd64",
     "dirty": true
   },
   "github_collection": {
@@ -320,7 +320,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -359,7 +359,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -489,10 +489,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:18:58.775329+00:00",
+    "generated_at": "2026-06-26T11:23:57.037625+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "live_url": null,
     "not_answer_support": true,
@@ -542,10 +542,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:18:58.776328+00:00",
+    "generated_at": "2026-06-26T11:23:57.038624+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -676,10 +676,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:18:58.778328+00:00",
+    "generated_at": "2026-06-26T11:23:57.040625+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
@@ -725,10 +725,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:18:58.779328+00:00",
+    "generated_at": "2026-06-26T11:23:57.041628+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -784,6 +784,59 @@
     "staging_deploy_executed": false,
     "target_type": "safe_static_plan"
   },
+  "subagent_policy": {
+    "allowed_roles": [
+      "impact_mapper",
+      "pr_reviewer",
+      "ci_log_auditor",
+      "release_auditor"
+    ],
+    "artifact_kind": "subagent_policy",
+    "control_artifact": true,
+    "forbidden_actions": [
+      "commit",
+      "push",
+      "deploy",
+      "rollback_execution",
+      "github_api_mutation",
+      "provider_api_quota",
+      "secret_access",
+      "mcp_plugin_hook_enablement",
+      "destructive_action",
+      "create_project_evidence"
+    ],
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
+      "version": "0.1.0"
+    },
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "lifecycle": {
+      "mode": "read_only",
+      "parent_integrates_outputs": true,
+      "short_lived": true,
+      "spawned_by_default": false
+    },
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "owner": "Codex foundation",
+    "raw_log_in_project": false,
+    "schema_version": 1,
+    "summaries": [],
+    "summary_contract": {
+      "control_artifact": true,
+      "not_citation": true,
+      "not_evidence": true,
+      "raw_logs_allowed": false,
+      "sanitized_summary_required": true,
+      "schema": "schema/subagent-report.schema.json"
+    }
+  },
   "subagents": {
     "allowed_roles": [
       "impact_mapper",
@@ -792,6 +845,59 @@
       "release_auditor"
     ],
     "owner": "Codex foundation",
+    "policy": {
+      "allowed_roles": [
+        "impact_mapper",
+        "pr_reviewer",
+        "ci_log_auditor",
+        "release_auditor"
+      ],
+      "artifact_kind": "subagent_policy",
+      "control_artifact": true,
+      "forbidden_actions": [
+        "commit",
+        "push",
+        "deploy",
+        "rollback_execution",
+        "github_api_mutation",
+        "provider_api_quota",
+        "secret_access",
+        "mcp_plugin_hook_enablement",
+        "destructive_action",
+        "create_project_evidence"
+      ],
+      "foundation_manifest": {
+        "exists": true,
+        "id": "codex-hotl-implementation-pipeline",
+        "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+        "sha256": "e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409",
+        "version": "0.1.0"
+      },
+      "generated_by": "codex-hotl-implementation-pipeline",
+      "lifecycle": {
+        "mode": "read_only",
+        "parent_integrates_outputs": true,
+        "short_lived": true,
+        "spawned_by_default": false
+      },
+      "not_answer_support": true,
+      "not_citation": true,
+      "not_evidence": true,
+      "not_project_evidence": true,
+      "not_research_evidence": true,
+      "owner": "Codex foundation",
+      "raw_log_in_project": false,
+      "schema_version": 1,
+      "summaries": [],
+      "summary_contract": {
+        "control_artifact": true,
+        "not_citation": true,
+        "not_evidence": true,
+        "raw_logs_allowed": false,
+        "sanitized_summary_required": true,
+        "schema": "schema/subagent-report.schema.json"
+      }
+    },
     "raw_log_in_project": false,
     "summaries": []
   }

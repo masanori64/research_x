@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959
+# foundation_manifest_sha256=e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409
 name: Codex Control Artifact CI
 
 on:
@@ -46,9 +46,11 @@ jobs:
               Path("docs/control/codex/dashboard/data/production-manifest.json"),
               Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
               Path("docs/control/codex/dashboard/data/staging-manifest.json"),
+              Path("docs/control/codex/dashboard/data/subagent-policy.json"),
               Path(".codex-project/generated/effective-preview-manifest.json"),
               Path(".codex-project/generated/effective-production-manifest.json"),
               Path(".codex-project/generated/effective-staging-manifest.json"),
+              Path(".codex-project/generated/effective-subagent-policy.json"),
           ]
           markers = [
               "control_artifact",
@@ -190,6 +192,28 @@ jobs:
           ):
               if side_effects.get(key) is not False:
                   failures.append(f"rollback-manifest side_effects.{key} must be false")
+          subagents = json.loads(
+              Path("docs/control/codex/dashboard/data/subagent-policy.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if subagents.get("raw_log_in_project") is not False:
+              failures.append("subagent-policy raw_log_in_project must be false")
+          if subagents.get("lifecycle", {}).get("mode") != "read_only":
+              failures.append("subagent-policy lifecycle.mode must be read_only")
+          if subagents.get("lifecycle", {}).get("spawned_by_default") is not False:
+              failures.append("subagent-policy spawned_by_default must be false")
+          for item in (
+              "commit",
+              "push",
+              "deploy",
+              "github_api_mutation",
+              "provider_api_quota",
+              "secret_access",
+              "create_project_evidence",
+          ):
+              if item not in subagents.get("forbidden_actions", []):
+                  failures.append(f"subagent-policy must forbid {item}")
           html = Path("docs/control/codex/dashboard/index.html")
           if not html.exists():
               failures.append(f"{html}: missing")

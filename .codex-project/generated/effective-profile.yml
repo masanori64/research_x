@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959
+  sha256: e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409
   exists: true
 artifact_kind: effective_profile
 project:
@@ -63,6 +63,53 @@ subagents:
     - ci_log_auditor
     - release_auditor
   summaries:
+  policy:
+    schema_version: 1
+    control_artifact: true
+    not_evidence: true
+    not_project_evidence: true
+    not_research_evidence: true
+    not_citation: true
+    not_answer_support: true
+    generated_by: codex-hotl-implementation-pipeline
+    foundation_manifest:
+      id: codex-hotl-implementation-pipeline
+      version: 0.1.0
+      path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
+      sha256: e52ae0de73911461297a3346c8e69b67c43845e65a453d183667f0763c872409
+      exists: true
+    artifact_kind: subagent_policy
+    owner: Codex foundation
+    raw_log_in_project: false
+    allowed_roles:
+      - impact_mapper
+      - pr_reviewer
+      - ci_log_auditor
+      - release_auditor
+    lifecycle:
+      mode: read_only
+      spawned_by_default: false
+      short_lived: true
+      parent_integrates_outputs: true
+    summary_contract:
+      schema: schema/subagent-report.schema.json
+      raw_logs_allowed: false
+      sanitized_summary_required: true
+      control_artifact: true
+      not_evidence: true
+      not_citation: true
+    forbidden_actions:
+      - commit
+      - push
+      - deploy
+      - rollback_execution
+      - github_api_mutation
+      - provider_api_quota
+      - secret_access
+      - mcp_plugin_hook_enablement
+      - destructive_action
+      - create_project_evidence
+    summaries:
 bridge:
   path: "C:\\Users\\maasa\\research_x\\.codex-project\\bridge.yml"
   outputs:
