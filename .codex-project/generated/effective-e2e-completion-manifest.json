@@ -2,9 +2,9 @@
   "artifact_kind": "e2e_completion_manifest",
   "control_artifact": true,
   "cost_guard_paid_execution": false,
-  "dashboard_refreshed_after_read_back": false,
+  "dashboard_refreshed_after_read_back": true,
   "deploy_executed": false,
-  "final_automatic_pipeline_status": "pending_remote_artifact_e2e",
+  "final_automatic_pipeline_status": "complete_artifact_only_no_cost",
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
@@ -12,7 +12,7 @@
     "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:48:43.861205+00:00",
+  "generated_at": "2026-06-26T13:53:17.168642+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "local_control_plane_complete": true,
   "not_answer_support": true,
@@ -24,14 +24,14 @@
   "paid_usage_detected": false,
   "project_id": "research_x",
   "provider_quota_used": false,
-  "remote_artifact_created": false,
-  "remote_artifact_read_back": false,
-  "remote_artifact_workflow_executed": false,
+  "remote_artifact_created": true,
+  "remote_artifact_read_back": true,
+  "remote_artifact_workflow_executed": true,
   "repository_settings_changed": false,
   "rollback_executed": false,
   "schema_version": 1,
   "secrets_used": false,
   "subagent_runtime_dry_run_status": "passed",
   "workflow_artifact_audit_status": "passed",
-  "workflow_smoke_status": "pending_remote_artifact_e2e"
+  "workflow_smoke_status": "passed"
 }

@@ -10,7 +10,7 @@
     "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:48:44.178761+00:00",
+  "generated_at": "2026-06-26T13:53:17.495560+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "github_actions_artifact_storage_created_by_this_smoke": false,
   "github_actions_minutes_consumed_by_this_smoke": false,
@@ -24,11 +24,26 @@
   "paid_usage_detected": false,
   "reason": "This smoke validates artifact-only workflow wrappers locally and reads existing remote artifact metadata when available. It does not dispatch a workflow.",
   "remote_artifacts": {
-    "artifact_only_smoke_present": false,
-    "items": [],
-    "sample_count": 0,
+    "artifact_only_smoke_present": true,
+    "items": [
+      {
+        "created_at": "2026-06-26T13:51:11Z",
+        "expired": false,
+        "expires_at": "2026-07-03T13:51:10Z",
+        "id": 7907160432,
+        "name": "codex-artifact-smoke",
+        "size_in_bytes": 56737,
+        "workflow_run": {
+          "head_branch": "codex/context-and-design-import-20260609",
+          "head_sha": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+          "id": 28242394275,
+          "repository_id": 1248952319
+        }
+      }
+    ],
+    "sample_count": 1,
     "status": "passed",
-    "total_count": 0
+    "total_count": 1
   },
   "repository_settings_changed": false,
   "schema_version": 1,

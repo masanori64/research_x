@@ -382,7 +382,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.851207+00:00",
+    "generated_at": "2026-06-26T13:53:17.158402+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
@@ -418,7 +418,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.830206+00:00",
+    "generated_at": "2026-06-26T13:53:17.136159+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -459,9 +459,9 @@
     "artifact_kind": "e2e_completion_manifest",
     "control_artifact": true,
     "cost_guard_paid_execution": false,
-    "dashboard_refreshed_after_read_back": false,
+    "dashboard_refreshed_after_read_back": true,
     "deploy_executed": false,
-    "final_automatic_pipeline_status": "pending_remote_artifact_e2e",
+    "final_automatic_pipeline_status": "complete_artifact_only_no_cost",
     "foundation_manifest": {
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
@@ -469,7 +469,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.861205+00:00",
+    "generated_at": "2026-06-26T13:53:17.168642+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "local_control_plane_complete": true,
     "not_answer_support": true,
@@ -481,16 +481,16 @@
     "paid_usage_detected": false,
     "project_id": "research_x",
     "provider_quota_used": false,
-    "remote_artifact_created": false,
-    "remote_artifact_read_back": false,
-    "remote_artifact_workflow_executed": false,
+    "remote_artifact_created": true,
+    "remote_artifact_read_back": true,
+    "remote_artifact_workflow_executed": true,
     "repository_settings_changed": false,
     "rollback_executed": false,
     "schema_version": 1,
     "secrets_used": false,
     "subagent_runtime_dry_run_status": "passed",
     "workflow_artifact_audit_status": "passed",
-    "workflow_smoke_status": "pending_remote_artifact_e2e"
+    "workflow_smoke_status": "passed"
   },
   "evidence_boundary": {
     "control_artifacts_are_citations": false,
@@ -598,11 +598,11 @@
       "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T13:48:43.862206+00:00",
+  "generated_at": "2026-06-26T13:53:17.169640+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "aa9ca1d572256e8607301ff0f2083b73b699908e",
+    "commit": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
     "dirty": true
   },
   "github_collection": {
@@ -656,9 +656,24 @@
     "api_calls_executed": true,
     "artifact_kind": "github_read_state",
     "artifacts": {
-      "items": [],
-      "sample_count": 0,
-      "total_count": 0
+      "items": [
+        {
+          "created_at": "2026-06-26T13:51:11Z",
+          "expired": false,
+          "expires_at": "2026-07-03T13:51:10Z",
+          "id": 7907160432,
+          "name": "codex-artifact-smoke",
+          "size_in_bytes": 56737,
+          "workflow_run": {
+            "head_branch": "codex/context-and-design-import-20260609",
+            "head_sha": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+            "id": 28242394275,
+            "repository_id": 1248952319
+          }
+        }
+      ],
+      "sample_count": 1,
+      "total_count": 1
     },
     "authentication": "none",
     "collection_mode": "unauthenticated_read_only",
@@ -672,10 +687,10 @@
         "ok": true,
         "rate_limit": {
           "x-ratelimit-limit": "60",
-          "x-ratelimit-remaining": "51",
+          "x-ratelimit-remaining": "39",
           "x-ratelimit-reset": "1782483226",
           "x-ratelimit-resource": "core",
-          "x-ratelimit-used": "9"
+          "x-ratelimit-used": "21"
         },
         "status_code": 200,
         "url": "https://api.github.com/repos/masanori64/research_x"
@@ -687,10 +702,10 @@
         "ok": true,
         "rate_limit": {
           "x-ratelimit-limit": "60",
-          "x-ratelimit-remaining": "50",
+          "x-ratelimit-remaining": "38",
           "x-ratelimit-reset": "1782483226",
           "x-ratelimit-resource": "core",
-          "x-ratelimit-used": "10"
+          "x-ratelimit-used": "22"
         },
         "status_code": 200,
         "url": "https://api.github.com/repos/masanori64/research_x/pulls"
@@ -702,10 +717,10 @@
         "ok": true,
         "rate_limit": {
           "x-ratelimit-limit": "60",
-          "x-ratelimit-remaining": "49",
+          "x-ratelimit-remaining": "37",
           "x-ratelimit-reset": "1782483226",
           "x-ratelimit-resource": "core",
-          "x-ratelimit-used": "11"
+          "x-ratelimit-used": "23"
         },
         "status_code": 200,
         "url": "https://api.github.com/repos/masanori64/research_x/actions/runs"
@@ -717,10 +732,10 @@
         "ok": true,
         "rate_limit": {
           "x-ratelimit-limit": "60",
-          "x-ratelimit-remaining": "48",
+          "x-ratelimit-remaining": "36",
           "x-ratelimit-reset": "1782483226",
           "x-ratelimit-resource": "core",
-          "x-ratelimit-used": "12"
+          "x-ratelimit-used": "24"
         },
         "status_code": 200,
         "url": "https://api.github.com/repos/masanori64/research_x/actions/artifacts"
@@ -732,10 +747,10 @@
         "ok": true,
         "rate_limit": {
           "x-ratelimit-limit": "60",
-          "x-ratelimit-remaining": "48",
+          "x-ratelimit-remaining": "36",
           "x-ratelimit-reset": "1782483226",
           "x-ratelimit-resource": "core",
-          "x-ratelimit-used": "12"
+          "x-ratelimit-used": "24"
         },
         "status_code": 200,
         "url": "https://api.github.com/rate_limit"
@@ -745,10 +760,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "5ecebaee440ca10947596087854d097d05ecedc5d11e058643b8bc383e4114e0",
+      "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:46:15.240590+00:00",
+    "generated_at": "2026-06-26T13:52:25.619383+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "mutation_methods_available": [],
     "not_answer_support": true,
@@ -765,17 +780,17 @@
     "rate_limit": {
       "core": {
         "limit": 60,
-        "remaining": 48,
+        "remaining": 36,
         "reset": 1782483226,
         "resource": "core",
-        "used": 12
+        "used": 24
       },
       "rate": {
         "limit": 60,
-        "remaining": 48,
+        "remaining": 36,
         "reset": 1782483226,
         "resource": "core",
-        "used": 12
+        "used": 24
       }
     },
     "reason": "All unauthenticated GitHub REST read endpoints returned successfully.",
@@ -802,9 +817,24 @@
     "status": "passed",
     "token_used": false,
     "workflow_runs": {
-      "items": [],
-      "sample_count": 0,
-      "total_count": 0
+      "items": [
+        {
+          "conclusion": "success",
+          "created_at": "2026-06-26T13:51:04Z",
+          "event": "push",
+          "head_branch": "codex/context-and-design-import-20260609",
+          "html_url": "https://github.com/masanori64/research_x/actions/runs/28242394275",
+          "id": 28242394275,
+          "name": "Codex Artifact Smoke",
+          "path": ".github/workflows/codex-artifact-smoke.yml",
+          "run_attempt": 1,
+          "run_number": 1,
+          "status": "completed",
+          "updated_at": "2026-06-26T13:51:13Z"
+        }
+      ],
+      "sample_count": 1,
+      "total_count": 1
     },
     "write_operations_available": false
   },
@@ -953,7 +983,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.831209+00:00",
+    "generated_at": "2026-06-26T13:53:17.137157+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "live_url": null,
     "not_answer_support": true,
@@ -1006,7 +1036,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.832201+00:00",
+    "generated_at": "2026-06-26T13:53:17.139161+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -1140,7 +1170,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.834204+00:00",
+    "generated_at": "2026-06-26T13:53:17.140166+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
@@ -1189,7 +1219,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.835211+00:00",
+    "generated_at": "2026-06-26T13:53:17.142164+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -1358,7 +1388,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.860205+00:00",
+    "generated_at": "2026-06-26T13:53:17.166411+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_write_executed": false,
     "model_runner_started": false,
@@ -1451,7 +1481,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.856205+00:00",
+    "generated_at": "2026-06-26T13:53:17.163412+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_actions_artifact_storage_created_by_this_smoke": false,
     "github_actions_minutes_consumed_by_this_smoke": false,
@@ -1465,11 +1495,26 @@
     "paid_usage_detected": false,
     "reason": "This smoke validates artifact-only workflow wrappers locally and reads existing remote artifact metadata when available. It does not dispatch a workflow.",
     "remote_artifacts": {
-      "artifact_only_smoke_present": false,
-      "items": [],
-      "sample_count": 0,
+      "artifact_only_smoke_present": true,
+      "items": [
+        {
+          "created_at": "2026-06-26T13:51:11Z",
+          "expired": false,
+          "expires_at": "2026-07-03T13:51:10Z",
+          "id": 7907160432,
+          "name": "codex-artifact-smoke",
+          "size_in_bytes": 56737,
+          "workflow_run": {
+            "head_branch": "codex/context-and-design-import-20260609",
+            "head_sha": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+            "id": 28242394275,
+            "repository_id": 1248952319
+          }
+        }
+      ],
+      "sample_count": 1,
       "status": "passed",
-      "total_count": 0
+      "total_count": 1
     },
     "repository_settings_changed": false,
     "schema_version": 1,
@@ -1532,7 +1577,7 @@
       "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T13:48:43.858206+00:00",
+    "generated_at": "2026-06-26T13:53:17.165410+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "github_api_write_executed": false,
     "not_answer_support": true,
@@ -1543,16 +1588,42 @@
     "pages_enabled": false,
     "paid_usage_detected": false,
     "provider_api_calls": false,
-    "reason": "The artifact-only workflow is locally valid but no remote artifact run is observed yet.",
+    "reason": "Artifact-only workflow has run remotely and the artifact metadata was read back.",
     "remote": {
-      "artifact_count_in_sample": 0,
-      "artifact_observed": false,
-      "artifact_read_back": false,
+      "artifact_count_in_sample": 1,
+      "artifact_observed": true,
+      "artifact_read_back": true,
       "github_read_status": "passed",
-      "latest_artifact": {},
-      "latest_run": {},
-      "workflow_run_count_in_sample": 0,
-      "workflow_run_observed": false
+      "latest_artifact": {
+        "created_at": "2026-06-26T13:51:11Z",
+        "expired": false,
+        "expires_at": "2026-07-03T13:51:10Z",
+        "id": 7907160432,
+        "name": "codex-artifact-smoke",
+        "size_in_bytes": 56737,
+        "workflow_run": {
+          "head_branch": "codex/context-and-design-import-20260609",
+          "head_sha": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+          "id": 28242394275,
+          "repository_id": 1248952319
+        }
+      },
+      "latest_run": {
+        "conclusion": "success",
+        "created_at": "2026-06-26T13:51:04Z",
+        "event": "push",
+        "head_branch": "codex/context-and-design-import-20260609",
+        "html_url": "https://github.com/masanori64/research_x/actions/runs/28242394275",
+        "id": 28242394275,
+        "name": "Codex Artifact Smoke",
+        "path": ".github/workflows/codex-artifact-smoke.yml",
+        "run_attempt": 1,
+        "run_number": 1,
+        "status": "completed",
+        "updated_at": "2026-06-26T13:51:13Z"
+      },
+      "workflow_run_count_in_sample": 1,
+      "workflow_run_observed": true
     },
     "repository_settings_changed": false,
     "rollback_executed": false,
@@ -1620,7 +1691,7 @@
         "status": "passed"
       }
     ],
-    "status": "pending_remote_artifact_e2e",
+    "status": "passed",
     "trigger_policy": {
       "pull_request_enabled": true,
       "push_enabled": true,

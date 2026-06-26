@@ -10,7 +10,7 @@
     "sha256": "aec47839699a4afc87a6b09ce43ac242c3ad6618d53cbda571e808a90585f7f1",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T13:48:44.194314+00:00",
+  "generated_at": "2026-06-26T13:53:17.510817+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "github_api_write_executed": false,
   "not_answer_support": true,
@@ -21,16 +21,42 @@
   "pages_enabled": false,
   "paid_usage_detected": false,
   "provider_api_calls": false,
-  "reason": "The artifact-only workflow is locally valid but no remote artifact run is observed yet.",
+  "reason": "Artifact-only workflow has run remotely and the artifact metadata was read back.",
   "remote": {
-    "artifact_count_in_sample": 0,
-    "artifact_observed": false,
-    "artifact_read_back": false,
+    "artifact_count_in_sample": 1,
+    "artifact_observed": true,
+    "artifact_read_back": true,
     "github_read_status": "passed",
-    "latest_artifact": {},
-    "latest_run": {},
-    "workflow_run_count_in_sample": 0,
-    "workflow_run_observed": false
+    "latest_artifact": {
+      "created_at": "2026-06-26T13:51:11Z",
+      "expired": false,
+      "expires_at": "2026-07-03T13:51:10Z",
+      "id": 7907160432,
+      "name": "codex-artifact-smoke",
+      "size_in_bytes": 56737,
+      "workflow_run": {
+        "head_branch": "codex/context-and-design-import-20260609",
+        "head_sha": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+        "id": 28242394275,
+        "repository_id": 1248952319
+      }
+    },
+    "latest_run": {
+      "conclusion": "success",
+      "created_at": "2026-06-26T13:51:04Z",
+      "event": "push",
+      "head_branch": "codex/context-and-design-import-20260609",
+      "html_url": "https://github.com/masanori64/research_x/actions/runs/28242394275",
+      "id": 28242394275,
+      "name": "Codex Artifact Smoke",
+      "path": ".github/workflows/codex-artifact-smoke.yml",
+      "run_attempt": 1,
+      "run_number": 1,
+      "status": "completed",
+      "updated_at": "2026-06-26T13:51:13Z"
+    },
+    "workflow_run_count_in_sample": 1,
+    "workflow_run_observed": true
   },
   "repository_settings_changed": false,
   "rollback_executed": false,
@@ -98,7 +124,7 @@
       "status": "passed"
     }
   ],
-  "status": "pending_remote_artifact_e2e",
+  "status": "passed",
   "trigger_policy": {
     "pull_request_enabled": true,
     "push_enabled": true,
