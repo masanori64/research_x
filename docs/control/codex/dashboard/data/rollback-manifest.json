@@ -4,19 +4,45 @@
     "production_external_side_effect",
     "secrets_credentials",
     "destructive_action",
-    "irreversible_db_migration"
+    "irreversible_db_migration",
+    "repository_settings_change"
   ],
   "control_artifact": true,
+  "drill": {
+    "health": {
+      "checks": [
+        {
+          "name": "static_artifact_exists",
+          "status": "planned"
+        },
+        {
+          "name": "not_evidence_notice",
+          "status": "planned"
+        },
+        {
+          "name": "no_database_restore",
+          "status": "planned"
+        }
+      ],
+      "status": "planned"
+    },
+    "restore_executed": false,
+    "status": "simulated",
+    "would_restore_paths": [
+      "docs/control/codex/dashboard/",
+      ".codex-project/generated/"
+    ]
+  },
   "dry_run": true,
   "environment": "dashboard",
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
+    "sha256": "fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T11:14:34.308477+00:00",
+  "generated_at": "2026-06-26T11:18:58.778328+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "not_answer_support": true,
   "not_citation": true,
@@ -24,18 +50,31 @@
   "not_project_evidence": true,
   "not_research_evidence": true,
   "project_id": "research_x",
+  "refused_rollback_classes": [
+    "destructive_action",
+    "db_restore",
+    "provider_api_quota",
+    "secrets_credentials",
+    "repository_settings_change"
+  ],
   "rollback_executed": false,
   "schema_version": 1,
+  "scope": "safe_static_artifacts_only",
   "side_effects": {
     "db_migration": false,
+    "db_restore": false,
     "destructive_action": false,
+    "files_mutated": false,
     "production_deploy": false,
     "provider_api_calls": false,
+    "rollback_execution": false,
     "secrets_changed": false
   },
   "target": {
-    "reason": "Phase 1 creates a rollback plan only; no rollback is executed.",
-    "resolved": false,
+    "artifact_pointer": "docs/control/codex/dashboard/index.html",
+    "reason": "Dry-run selects a static dashboard artifact candidate only; no restore or production mutation is executed.",
+    "resolved": true,
+    "selection_mode": "simulated_static_artifact",
     "strategy": "previous_successful_static_artifact"
   }
 }

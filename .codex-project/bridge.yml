@@ -23,7 +23,7 @@ capabilities:
   preview_cd: artifact_only
   staging_cd: gated_plan
   production_cd: gated_plan
-  rollback_execution: disabled
+  rollback_execution: dry_run_only
   github_pages: disabled
   repository_settings_change: disabled
   provider_api_calls: disabled

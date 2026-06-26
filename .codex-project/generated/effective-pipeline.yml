@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: 6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42
+  sha256: fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959
   exists: true
 artifact_kind: pipeline
 project_id: research_x

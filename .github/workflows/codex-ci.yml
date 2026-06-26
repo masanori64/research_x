@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42
+# foundation_manifest_sha256=fd95082269319833df738cc297c6f0caf93082cc8ac81ab3cac42ae31b894959
 name: Codex Control Artifact CI
 
 on:
@@ -155,6 +155,41 @@ jobs:
           ):
               if side_effects.get(key) is not False:
                   failures.append(f"production-manifest side_effects.{key} must be false")
+          rollback = json.loads(
+              Path("docs/control/codex/dashboard/data/rollback-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if rollback.get("dry_run") is not True:
+              failures.append("rollback-manifest dry_run must be true")
+          if rollback.get("rollback_executed") is not False:
+              failures.append("rollback-manifest rollback_executed must be false")
+          if rollback.get("scope") != "safe_static_artifacts_only":
+              failures.append("rollback-manifest scope must be safe_static_artifacts_only")
+          if rollback.get("drill", {}).get("restore_executed") is not False:
+              failures.append("rollback-manifest drill.restore_executed must be false")
+          refused = set(rollback.get("refused_rollback_classes", []))
+          for item in (
+              "destructive_action",
+              "db_restore",
+              "provider_api_quota",
+              "secrets_credentials",
+          ):
+              if item not in refused:
+                  failures.append(f"rollback-manifest must refuse {item}")
+          side_effects = rollback.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_changed",
+              "db_migration",
+              "db_restore",
+              "destructive_action",
+              "files_mutated",
+              "production_deploy",
+              "rollback_execution",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"rollback-manifest side_effects.{key} must be false")
           html = Path("docs/control/codex/dashboard/index.html")
           if not html.exists():
               failures.append(f"{html}: missing")
