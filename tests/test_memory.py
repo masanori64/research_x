@@ -3828,6 +3828,16 @@ def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
     assert citation.chunk_id == chunk.chunk_id
     assert citation.source_url == "https://x.com/a/status/tweet-1"
     assert citation.evidence_status == "fact"
+    assert chunk.metadata["document_id"] == chunk.source_id
+    assert chunk.metadata["source_id"] == chunk.source_id
+    assert chunk.metadata["source_kind"] == "local_x_db"
+    assert chunk.metadata["source_url"] == chunk.source_url
+    assert chunk.metadata["source_doc_hash"]
+    assert chunk.metadata["source_bundle_id"]
+    assert chunk.metadata["freshness_status"] in {"active", "recent", "possibly_stale"}
+    assert citation.metadata["document_id"] == chunk.metadata["document_id"]
+    assert citation.metadata["source_doc_hash"] == chunk.metadata["source_doc_hash"]
+    assert citation.metadata["source_bundle_id"] == chunk.metadata["source_bundle_id"]
 
     with sqlite3.connect(db_path) as conn:
         search_runs = conn.execute("SELECT COUNT(*) FROM memory_search_runs").fetchone()[0]
@@ -4127,6 +4137,9 @@ def test_memory_answer_stores_answer_artifact_and_citations(tmp_path: Path) -> N
     assert citation.answer_id == answer.answer_id
     assert citation.answer_start_index is not None
     assert citation.support_type == "supports_answer"
+    assert citation.metadata["document_id"]
+    assert citation.metadata["source_doc_hash"]
+    assert citation.metadata["source_bundle_id"]
     assert answer.structured["context_selection"]["truncated_chunk_ids"]
     assert answer.selected_context_chunks[0].metadata["truncated_for_answer"] is True
 

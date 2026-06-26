@@ -234,7 +234,7 @@ class FakeAnswerProvider:
         for index, chunk in enumerate(chunks, start=1):
             citation = citations[index - 1] if index <= len(citations) else None
             title = citation.title if citation else chunk.source_id
-            excerpt = _best_excerpt(chunk.chunk_text)
+            excerpt = _answer_safe_excerpt(chunk.chunk_text)
             lines.append(f"- {title}: {excerpt} [{index}]")
             used_chunk_ids.append(chunk.chunk_id)
         conflict_chunk_ids = _conflicting_chunk_ids(chunks=chunks, citations=citations)
@@ -1126,6 +1126,10 @@ def _best_excerpt(text: str) -> str:
         if match and match.group(1).strip():
             return _truncate(_compact_whitespace(match.group(1)), 240)
     return _truncate(_compact_whitespace(text), 240)
+
+
+def _answer_safe_excerpt(text: str) -> str:
+    return re.sub(r"\[(\d{1,4})\]", r"(source marker \1)", _best_excerpt(text))
 
 
 def _marker_span(text: str, marker: str) -> tuple[int | None, int | None]:

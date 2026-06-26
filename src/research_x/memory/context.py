@@ -273,9 +273,18 @@ def _chunk(
     source_url = _string_or_none(evidence.get("url"))
     source_id = str(hit["doc_id"])
     text = _chunk_text(query=query, hit=hit, evidence=evidence)
+    source_lineage = _source_lineage_metadata(
+        hit=hit,
+        evidence=evidence,
+        source_kind=LOCAL_X_DB,
+        source_id=source_id,
+        source_url=source_url,
+    )
     metadata = {
         "doc_type": hit.get("doc_type"),
         "tweet_id": hit.get("tweet_id"),
+        "source_lineage": source_lineage,
+        **source_lineage,
         "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
         "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         "matched_terms": hit.get("matched_terms") or [],
@@ -324,6 +333,13 @@ def _citation(
     evidence_status = "fact" if source_url or hit.get("tweet_id") else "unconfirmed"
     title = str(hit.get("title") or chunk.source_id)
     citation_id = _hash_id("citation", chunk.run_id, chunk.chunk_id, str(index), source_url or "")
+    source_lineage = _source_lineage_metadata(
+        hit=hit,
+        evidence=hit.get("evidence") or {},
+        source_kind=chunk.source_kind,
+        source_id=chunk.source_id,
+        source_url=source_url,
+    )
     return CitationAnnotation(
         citation_id=citation_id,
         answer_id=None,
@@ -342,6 +358,8 @@ def _citation(
             "tweet_id": hit.get("tweet_id"),
             "author": (hit.get("evidence") or {}).get("author"),
             "derived": (hit.get("evidence") or {}).get("derived"),
+            "source_lineage": source_lineage,
+            **source_lineage,
             "source_quality_class": source_quality_class(source_url, source_kind=LOCAL_X_DB),
             "source_risk_flags": source_risk_flags(source_url, source_kind=LOCAL_X_DB),
         },
@@ -661,6 +679,55 @@ def _store_search_result(
             created_at,
         ),
     )
+
+
+def _source_lineage_metadata(
+    *,
+    hit: dict[str, Any],
+    evidence: dict[str, Any],
+    source_kind: str,
+    source_id: str,
+    source_url: str | None,
+) -> dict[str, Any]:
+    lineage = evidence.get("source_lineage")
+    if not isinstance(lineage, dict):
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        lineage = metadata.get("source_lineage") if isinstance(metadata, dict) else {}
+    if not isinstance(lineage, dict):
+        lineage = {}
+    source_doc_hash = _string_or_none(lineage.get("source_doc_hash")) or _string_or_none(
+        evidence.get("source_doc_hash")
+    )
+    source_bundle_id = _string_or_none(lineage.get("source_bundle_id")) or _hash_id(
+        "source-bundle",
+        source_id,
+        source_doc_hash or "",
+    )[:24]
+    freshness_status = _string_or_none(hit.get("freshness")) or _string_or_none(
+        lineage.get("freshness_status")
+    )
+    lineage_status = _string_or_none(lineage.get("lineage_status"))
+    if lineage_status is None:
+        lineage_status = "metadata_only" if source_doc_hash else "unrestored"
+    return {
+        "document_id": _string_or_none(lineage.get("document_id")) or source_id,
+        "tweet_id": _string_or_none(hit.get("tweet_id"))
+        or _string_or_none(lineage.get("tweet_id")),
+        "source_id": source_id,
+        "source_kind": source_kind,
+        "source_url": source_url,
+        "source_doc_hash": source_doc_hash,
+        "embedding_text_hash": _string_or_none(lineage.get("embedding_text_hash")),
+        "retrieval_text_hash": _string_or_none(lineage.get("retrieval_text_hash")),
+        "retrieval_text_profile": _string_or_none(lineage.get("retrieval_text_profile")),
+        "retrieval_text_profile_id": _string_or_none(lineage.get("retrieval_text_profile_id")),
+        "source_bundle_id": source_bundle_id,
+        "freshness_status": freshness_status or "active",
+        "lineage_status": lineage_status,
+        "document_created_at": _string_or_none(lineage.get("document_created_at")),
+        "document_observed_at": _string_or_none(lineage.get("document_observed_at")),
+        "document_updated_at": _string_or_none(lineage.get("document_updated_at")),
+    }
 
 
 def _run_id(

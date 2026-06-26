@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.document_hashes import text_hash
 from research_x.memory.query import build_query_plan
 from research_x.memory.search import MemorySearchResult, search_memory
 
@@ -113,6 +114,7 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
     tweet_id = result.source_tweet_id
     tweet = _tweet(conn, tweet_id) if tweet_id else {}
     derived = _derived_evidence(result.metadata)
+    source_lineage = _source_lineage(conn, result.doc_id)
     return {
         "doc_id": result.doc_id,
         "doc_type": result.doc_type,
@@ -124,7 +126,10 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
         "freshness": result.metadata.get("freshness", "active"),
         "matched_terms": list(result.matched_terms),
         "score_components": result.score_components,
-        "metadata": _public_result_metadata(result.metadata),
+        "metadata": {
+            **_public_result_metadata(result.metadata),
+            "source_lineage": source_lineage,
+        },
         "bookmark_account_count": result.metadata.get("bookmark_account_count"),
         "evidence": {
             "url": result.metadata.get("url") or tweet.get("url"),
@@ -134,6 +139,7 @@ def _hit(conn: sqlite3.Connection, *, query: str, result: MemorySearchResult) ->
             "media": _media(conn, tweet_id) if tweet_id else [],
             "relations": _relations(conn, result.doc_id),
             "derived": derived,
+            "source_lineage": source_lineage,
         },
     }
 
@@ -268,6 +274,71 @@ def _relations(conn: sqlite3.Connection, doc_id: str) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def _source_lineage(conn: sqlite3.Connection, doc_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT
+            doc_id, source_tweet_id, source_doc_hash, embedding_text_hash,
+            created_at, observed_at, updated_at
+        FROM memory_documents
+        WHERE doc_id = ?
+        """,
+        (doc_id,),
+    ).fetchone()
+    if row is None:
+        return {
+            "document_id": doc_id,
+            "source_bundle_id": _source_bundle_id(doc_id, ""),
+            "lineage_status": "document_missing",
+        }
+    source_doc_hash = str(row["source_doc_hash"] or "")
+    retrieval_profile = _retrieval_text_lineage(conn, doc_id, source_doc_hash)
+    return {
+        "document_id": str(row["doc_id"]),
+        "tweet_id": row["source_tweet_id"],
+        "source_doc_hash": source_doc_hash,
+        "embedding_text_hash": row["embedding_text_hash"],
+        "retrieval_text_profile_id": retrieval_profile.get("profile_id"),
+        "retrieval_text_profile": retrieval_profile.get("profile"),
+        "retrieval_text_hash": retrieval_profile.get("hash"),
+        "source_bundle_id": _source_bundle_id(str(row["doc_id"]), source_doc_hash),
+        "document_created_at": row["created_at"],
+        "document_observed_at": row["observed_at"],
+        "document_updated_at": row["updated_at"],
+        "lineage_status": "restored",
+    }
+
+
+def _retrieval_text_lineage(
+    conn: sqlite3.Connection,
+    doc_id: str,
+    source_doc_hash: str,
+) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT profile_id, retrieval_text_profile, retrieval_text, source_doc_hash
+        FROM memory_retrieval_text_profiles
+        WHERE doc_id = ?
+          AND (source_doc_hash = ? OR ? = '')
+        ORDER BY retrieval_text_profile, profile_id
+        LIMIT 1
+        """,
+        (doc_id, source_doc_hash, source_doc_hash),
+    ).fetchone()
+    if row is None:
+        return {}
+    return {
+        "profile_id": row["profile_id"],
+        "profile": row["retrieval_text_profile"],
+        "hash": text_hash(str(row["retrieval_text"] or "")),
+        "source_doc_hash": row["source_doc_hash"],
+    }
+
+
+def _source_bundle_id(doc_id: str, source_doc_hash: str) -> str:
+    return text_hash("|".join(("source-bundle", doc_id, source_doc_hash)))[:24]
 
 
 def _derived_evidence(metadata: dict[str, Any]) -> dict[str, Any] | None:
