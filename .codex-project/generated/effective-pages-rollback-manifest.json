@@ -6,10 +6,10 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "24d22faa3de0e825b00b51a0a8bfc492e9836c00af87faa3ed41a0fe69d7b38d",
+    "sha256": "6f772b4dbc8c88252e4af737e487177f12199d9e130b7435834daaa1b0745fc6",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:04:53.628073+00:00",
+  "generated_at": "2026-06-26T15:27:54.243890+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [
@@ -30,7 +30,7 @@
         "status": "passed"
       }
     ],
-    "status": "pending"
+    "status": "passed"
   },
   "not_answer_support": true,
   "not_citation": true,
@@ -47,7 +47,7 @@
     "research_evidence_write"
   ],
   "rollback_class": "safe_static_pages",
-  "rollback_executed": false,
+  "rollback_executed": true,
   "schema_version": 1,
   "side_effects": {
     "db_migration_executed": false,
@@ -58,13 +58,13 @@
     "pat_used": false,
     "provider_api_calls": false,
     "research_evidence_written": false,
-    "safe_static_pages_deploy": false,
+    "safe_static_pages_deploy": true,
     "secrets_used": false
   },
   "target": {
-    "resolved": false,
+    "resolved": true,
     "strategy": "previous_known_good_static_pages_snapshot",
     "url": "https://masanori64.github.io/research_x/production/latest/"
   },
-  "target_ref": ""
+  "target_ref": "5646a32b9acc0fd8e1f2e139f321db92a0d76d52"
 }
