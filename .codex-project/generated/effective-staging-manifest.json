@@ -7,35 +7,35 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
+    "sha256": "ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:16:01.173338+00:00",
+  "generated_at": "2026-06-26T15:22:38.478858+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [
       {
         "name": "dashboard_html_exists",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "dashboard_state_exists",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "preview_manifest_exists",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "not_evidence_notice",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "staging_url_http_200",
-        "status": "pending"
+        "status": "passed"
       }
     ],
-    "status": "pending_pages_deploy"
+    "status": "passed"
   },
   "live_url": "https://masanori64.github.io/research_x/staging/latest/",
   "not_answer_support": true,
@@ -44,8 +44,8 @@
   "not_project_evidence": true,
   "not_research_evidence": true,
   "previous_known_good": {
-    "pointer": null,
-    "resolved": false,
+    "pointer": "https://masanori64.github.io/research_x/staging/latest/",
+    "resolved": true,
     "strategy": "latest_successful_staging_pages_snapshot"
   },
   "project_id": "research_x",
@@ -57,14 +57,14 @@
   "side_effects": {
     "environment_created": false,
     "github_api_calls": false,
-    "pages_enabled": false,
+    "pages_enabled": true,
     "production_deploy": false,
     "provider_api_calls": false,
     "repository_settings_changed": false,
     "rollback_executed": false,
     "secrets_used": false,
-    "staging_live_deploy": false
+    "staging_live_deploy": true
   },
-  "staging_deploy_executed": false,
+  "staging_deploy_executed": true,
   "target_type": "static_pages_lane"
 }

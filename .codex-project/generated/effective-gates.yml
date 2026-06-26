@@ -10,7 +10,7 @@ foundation_manifest:
   id: codex-hotl-implementation-pipeline
   version: 0.1.0
   path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
-  sha256: 7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
+  sha256: ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601
   exists: true
 artifact_kind: effective_gates
 gates:

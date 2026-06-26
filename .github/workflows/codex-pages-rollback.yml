@@ -6,12 +6,15 @@ name: Codex Pages Rollback
 # not_citation=true
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
-# foundation_manifest_sha256=7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983
+# foundation_manifest_sha256=ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601
 # source_template=templates/github-workflows/codex-pages-rollback.template.yml
 # provider_api_calls=false
 # paid_usage_detected=false
 
 on:
+  push:
+    branches:
+      - 'codex/**'
   workflow_dispatch:
     inputs:
       target_ref:
@@ -30,6 +33,7 @@ concurrency:
 
 jobs:
   rollback:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[codex-rollback-drill]')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -38,10 +42,12 @@ jobs:
       contents: read
       pages: write
       id-token: write
+    env:
+      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.before }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_ref }}
+          ref: ${{ env.TARGET_REF }}
       - uses: actions/configure-pages@v5
       - name: Build rollback Pages site
         shell: bash
@@ -64,7 +70,7 @@ jobs:
             "not_citation": true,
             "not_answer_support": true,
             "lane": "rollback",
-            "target_ref": "${{ inputs.target_ref }}",
+            "target_ref": "${TARGET_REF}",
             "provider_api_calls": false,
             "paid_usage_detected": false,
             "rollback_class": "safe_static_pages"

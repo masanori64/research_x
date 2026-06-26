@@ -7,31 +7,31 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "7cc5dc62c698c980af141cad9b4e2969014032413c11b7a8b97f0317fff3e983",
+    "sha256": "ca397480019de5e5ddbe9793bf77b2aaf18513d5fa896f8caff4fc6fa19ad601",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:16:01.169111+00:00",
+  "generated_at": "2026-06-26T15:22:38.474717+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [
       {
         "name": "staging_manifest_exists",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "previous_known_good_available",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "not_evidence_notice",
-        "status": "planned"
+        "status": "passed"
       },
       {
         "name": "production_url_http_200",
-        "status": "pending"
+        "status": "passed"
       }
     ],
-    "status": "pending_pages_deploy"
+    "status": "passed"
   },
   "kill_switch": {
     "capability": "production_cd",
@@ -44,7 +44,7 @@
   "not_evidence": true,
   "not_project_evidence": true,
   "not_research_evidence": true,
-  "production_deploy_executed": false,
+  "production_deploy_executed": true,
   "project_id": "research_x",
   "required_gates_before_execution": [
     "secrets_credentials",
@@ -54,13 +54,13 @@
   "side_effects": {
     "environment_created": false,
     "github_api_calls": false,
-    "pages_enabled": false,
-    "production_live_deploy": false,
+    "pages_enabled": true,
+    "production_live_deploy": true,
     "provider_api_calls": false,
     "repository_settings_changed": false,
     "rollback_executed": false,
     "secrets_used": false,
-    "staging_deploy": false
+    "staging_deploy": true
   },
   "target_type": "static_pages_production"
 }
