@@ -4684,6 +4684,21 @@ def test_memory_eval_loads_source_adoption_contract_fields(tmp_path: Path) -> No
     assert case.allow_search_after_sufficient_evidence is False
     assert case.max_redundant_search_count == 0
 
+    for status in ("partially_supported", "stale_only", "citation_missing"):
+        status_path = tmp_path / f"{status}.jsonl"
+        status_path.write_text(
+            json.dumps(
+                {
+                    "query": status,
+                    "required_any_terms": [],
+                    "expected_answerability_status": status,
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        assert load_eval_cases(status_path)[0].expected_answerability_status == status
+
     bad_path = tmp_path / "bad-cases.jsonl"
     bad_path.write_text(
         json.dumps(
@@ -4833,6 +4848,88 @@ def test_memory_eval_fails_source_adoption_contract_mismatches(tmp_path: Path) -
     assert any(note.startswith("required source kind missing") for note in result.notes)
     assert "searched after sufficient evidence" in result.notes
     assert any(note.startswith("redundant search count above threshold") for note in result.notes)
+
+
+def test_memory_eval_requires_answer_citations_to_restore_to_chunks(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    answerable_bundle = _answerability_fixture_bundle("answerable")
+    answerable = build_memory_answer(
+        db_path,
+        "ロボットについて説明して",
+        context_bundle=answerable_bundle,
+        store=False,
+    )
+    broken_citation = replace(
+        answerable.citation_annotations[0],
+        chunk_id="missing:chunk",
+        source_kind="external_reader",
+    )
+    answer = replace(answerable, citation_annotations=(broken_citation,))
+    case = EvalCase(
+        query="ロボットについて説明して",
+        required_any_terms=("ロボット",),
+        question_type="citation_required",
+        expected_answerability_status="answerable",
+        min_answer_citations=1,
+        required_source_kinds=("local_x_db",),
+        min_hit_score=0.5,
+    )
+
+    result = memory_evals._evaluate_case(  # noqa: SLF001
+        case,
+        _fixture_workflow(case.query, answerable_bundle, answer),
+        _valid_fixture_hits(answerable_bundle),
+    )
+
+    assert result.status == "fail"
+    assert any(note.startswith("citation source not restored") for note in result.notes)
+    assert any(note.startswith("required source kind missing") for note in result.notes)
+
+
+def test_memory_eval_has_real_partial_stale_and_citation_missing_fixtures(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    fixture_specs = (
+        ("partially_supported", "needs_review", 1),
+        ("stale_only", "needs_review", 1),
+        ("citation_missing", "needs_review", 0),
+    )
+
+    for expected_status, expected_answer_status, min_citations in fixture_specs:
+        bundle = _answerability_fixture_bundle(expected_status)
+        assessment = assess_answerability(
+            question=f"fixture {expected_status}",
+            chunks=bundle.context_chunks,
+            citations=bundle.citation_annotations,
+        )
+        answer = build_memory_answer(
+            db_path,
+            f"fixture {expected_status}",
+            context_bundle=bundle,
+            store=False,
+        )
+        case = EvalCase(
+            query=f"fixture {expected_status}",
+            required_any_terms=("ロボット",),
+            question_type="citation_required",
+            expected_answerability_status=expected_status,
+            min_answer_citations=min_citations,
+            required_source_kinds=("local_x_db",) if min_citations else (),
+            min_hit_score=0.5,
+        )
+
+        result = memory_evals._evaluate_case(  # noqa: SLF001
+            case,
+            _fixture_workflow(case.query, bundle, answer),
+            _valid_fixture_hits(bundle),
+        )
+
+        assert assessment.status == expected_status
+        assert answer.structured["answerability"]["status"] == expected_status
+        assert answer.status == expected_answer_status
+        assert result.answerability_status == expected_status
+        assert result.answer_citations == min_citations
 
 
 def test_memory_question_type_catalog_is_machine_readable() -> None:
@@ -6059,6 +6156,12 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
             citation_annotations=(),
         )
 
+    first_chunk_metadata = {"answerability_fixture": "answerable"}
+    if kind == "stale_only":
+        first_chunk_metadata = {
+            "answerability_fixture": "stale_only",
+            "freshness_status": "stale",
+        }
     chunks = [
         ContextChunk(
             chunk_id=f"{run_id}:chunk:1",
@@ -6074,10 +6177,11 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
             relevance_score=1.0,
             extractor_version="answerability-fixture-v1",
             created_at=created_at,
-            metadata={"answerability_fixture": "answerable"},
+            metadata=first_chunk_metadata,
         )
     ]
-    if kind == "conflicting":
+    if kind in {"conflicting", "partially_supported"}:
+        second_fixture = "conflicting" if kind == "conflicting" else "partially_supported"
         chunks.append(
             ContextChunk(
                 chunk_id=f"{run_id}:chunk:2",
@@ -6093,7 +6197,7 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
                 relevance_score=0.9,
                 extractor_version="answerability-fixture-v1",
                 created_at=created_at,
-                metadata={"answerability_fixture": "conflicting"},
+                metadata={"answerability_fixture": second_fixture},
             )
         )
 
@@ -6112,12 +6216,19 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
                 if chunk.metadata["answerability_fixture"] == "conflicting"
                 else "background"
             ),
-            evidence_status="fact",
+            evidence_status=(
+                "stale" if chunk.metadata["answerability_fixture"] == "stale_only" else "fact"
+            ),
             confidence=1.0,
             created_at=created_at,
             metadata={"answerability_fixture": chunk.metadata["answerability_fixture"]},
         )
         for index, chunk in enumerate(chunks)
+        if kind not in {"citation_missing"}
+        and not (
+            kind == "partially_supported"
+            and chunk.metadata["answerability_fixture"] == "partially_supported"
+        )
     )
     return ContextBundle(
         run_id=run_id,

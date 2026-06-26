@@ -12,6 +12,15 @@ from research_x.memory.question_types import known_question_type_ids
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
 
+ALLOWED_ANSWERABILITY_STATUSES = {
+    "answerable",
+    "citation_missing",
+    "conflicting",
+    "partially_supported",
+    "stale_only",
+    "unanswerable",
+}
+
 
 @dataclass(frozen=True)
 class EvalCase:
@@ -668,11 +677,10 @@ def _expected_answerability_status(record: dict[str, Any]) -> str | None:
     if status is None:
         return None
     normalized = status.casefold()
-    allowed = {"answerable", "unanswerable", "conflicting"}
-    if normalized not in allowed:
+    if normalized not in ALLOWED_ANSWERABILITY_STATUSES:
         raise ValueError(
             "expected_answerability_status must be one of: "
-            f"{', '.join(sorted(allowed))}"
+            f"{', '.join(sorted(ALLOWED_ANSWERABILITY_STATUSES))}"
         )
     return normalized
 
@@ -710,11 +718,13 @@ def _contract_notes(
     *,
     answerability_status: str | None,
     answer_citations: int,
-    source_kinds: tuple[str, ...],
+    cited_source_kinds: tuple[str, ...],
+    citation_restoration_notes: tuple[str, ...],
     searched_after_sufficient_evidence: bool,
     redundant_search_count: int,
 ) -> list[str]:
     notes: list[str] = []
+    notes.extend(citation_restoration_notes)
     if (
         case.expected_answerability_status is not None
         and answerability_status != case.expected_answerability_status
@@ -734,10 +744,13 @@ def _contract_notes(
     missing_source_kinds = tuple(
         source_kind
         for source_kind in case.required_source_kinds
-        if source_kind not in source_kinds
+        if source_kind not in cited_source_kinds
     )
     if missing_source_kinds:
-        notes.append(f"required source kind missing: {', '.join(missing_source_kinds)}")
+        notes.append(
+            "required source kind missing from answer citations: "
+            f"{', '.join(missing_source_kinds)}"
+        )
     if (
         not case.allow_search_after_sufficient_evidence
         and searched_after_sufficient_evidence
@@ -764,6 +777,8 @@ def _evaluate_case(
     context_chunks = len(workflow.context_bundle.context_chunks) if workflow.context_bundle else 0
     answerability_status = _answerability_status(workflow)
     answer_citations = len(workflow.answer.citation_annotations) if workflow.answer else 0
+    cited_source_kinds = _cited_source_kinds(workflow)
+    citation_restoration_notes = _citation_restoration_notes(workflow)
     searched_after_sufficient_evidence = _searched_after_sufficient_evidence(workflow)
     redundant_search_count = _redundant_search_count(workflow)
     if case.expected_route and workflow.route != case.expected_route:
@@ -778,7 +793,8 @@ def _evaluate_case(
             case,
             answerability_status=answerability_status,
             answer_citations=answer_citations,
-            source_kinds=source_kinds,
+            cited_source_kinds=cited_source_kinds,
+            citation_restoration_notes=citation_restoration_notes,
             searched_after_sufficient_evidence=searched_after_sufficient_evidence,
             redundant_search_count=redundant_search_count,
         )
@@ -899,6 +915,9 @@ def _is_contract_failure_note(note: str) -> bool:
         note.startswith("answerability mismatch")
         or note.startswith("answer citations below threshold")
         or note.startswith("required source kind missing")
+        or note.startswith("citation source not restored")
+        or note.startswith("citation source mismatch")
+        or note.startswith("citation source missing")
         or note == "searched after sufficient evidence"
         or note.startswith("redundant search count above threshold")
     )
@@ -1032,6 +1051,46 @@ def _source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
         }
     )
     return tuple(kinds)
+
+
+def _cited_source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
+    if workflow.answer is None:
+        return ()
+    return tuple(
+        sorted(
+            {
+                str(citation.source_kind)
+                for citation in workflow.answer.citation_annotations
+                if str(citation.source_kind).strip()
+            }
+        )
+    )
+
+
+def _citation_restoration_notes(workflow: MemoryWorkflow) -> tuple[str, ...]:
+    if workflow.answer is None:
+        return ()
+    chunk_by_id = {
+        chunk.chunk_id: chunk
+        for chunk in (
+            workflow.context_bundle.context_chunks if workflow.context_bundle else ()
+        )
+    }
+    notes: list[str] = []
+    for citation in workflow.answer.citation_annotations:
+        if not str(citation.source_kind).strip() or not str(citation.source_id).strip():
+            notes.append(f"citation source missing: {citation.citation_id}")
+            continue
+        chunk = chunk_by_id.get(citation.chunk_id)
+        if chunk is None:
+            notes.append(f"citation source not restored: {citation.citation_id}")
+            continue
+        if (
+            str(citation.source_kind) != str(chunk.source_kind)
+            or str(citation.source_id) != str(chunk.source_id)
+        ):
+            notes.append(f"citation source mismatch: {citation.citation_id}")
+    return tuple(notes)
 
 
 def _eval_run_id(

@@ -30,6 +30,15 @@ ALLOWED_STATUSES = {
     "historical",
     "external_owned",
 }
+PROVIDER_STOP_CONDITION_TOKENS = {
+    "provider",
+    "quota",
+    "paid/free-tier",
+    "trial-credit",
+    "zero-dollar",
+    "keyless",
+    "external-network",
+}
 
 
 @dataclass(frozen=True)
@@ -249,6 +258,23 @@ def _validate_candidate(
         errors.append(f"{candidate.name}: stop_condition is required")
     if candidate.provider_or_quota and candidate.adoption_shape != "provider_gated":
         errors.append(f"{candidate.name}: provider/quota candidate must be provider_gated")
+    if candidate.provider_or_quota:
+        normalized_stop = candidate.stop_condition.casefold()
+        missing_tokens = sorted(
+            token
+            for token in PROVIDER_STOP_CONDITION_TOKENS
+            if token not in normalized_stop
+        )
+        if missing_tokens:
+            errors.append(
+                f"{candidate.name}: provider stop_condition missing: "
+                + ", ".join(missing_tokens)
+            )
+        notes_normalized = candidate.notes.casefold()
+        if "not evidence" not in notes_normalized and "candidate" not in notes_normalized:
+            errors.append(
+                f"{candidate.name}: provider candidate notes must say output is candidate-only"
+            )
     if candidate.adoption_shape == "provider_gated" and candidate.enabled:
         errors.append(f"{candidate.name}: provider_gated candidate cannot be enabled")
     if candidate.owner_surface == "codex_foundation":

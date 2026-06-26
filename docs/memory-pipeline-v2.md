@@ -126,6 +126,9 @@ consultation captures are not citations.
 Answer behavior is `answer`, `abstain`, `needs_review`, `citation_missing`,
 `source_not_restored`, `provider_gated`, or `blocked` when support is incomplete.
 Correct-looking text without citation-ready support is not a completed answer.
+Eval answerability distinguishes `answerable`, `unanswerable`, `conflicting`,
+`partially_supported`, `stale_only`, and `citation_missing`; required source
+kinds are checked against answer citations, not merely present context chunks.
 
 ### Workflow Traces
 

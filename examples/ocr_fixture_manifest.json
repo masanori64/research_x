@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "owner": "research_x",
+  "artifact_kind": "ocr_fixture_manifest",
+  "not_evidence": true,
+  "provider_execution": false,
+  "model_download": false,
+  "fixtures": [
+    {
+      "fixture_id": "fake_ocr_local_media_contract",
+      "source": "tests/test_memory.py",
+      "implementation": "src/research_x/memory/ocr.py",
+      "provider": "fake",
+      "expected_profiles": [
+        "raw_ocr",
+        "corrected_text",
+        "caption",
+        "vlm_observation"
+      ],
+      "restoration_contract": "media_id -> tweet_id -> source bundle -> context chunk -> citation",
+      "metrics": [
+        "cer",
+        "layout_preservation",
+        "region_attribution",
+        "raw_corrected_caption_vlm_separation"
+      ]
+    }
+  ],
+  "promotion_blockers": [
+    "PaddleOCR, PaddleOCR-VL, manga-ocr, and hosted OCR require separate source/dependency/model review.",
+    "Real OCR provider calls, free-tier calls, zero-dollar quota calls, and model downloads remain blocked without explicit approval."
+  ]
+}

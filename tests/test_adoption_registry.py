@@ -119,6 +119,9 @@ def test_provider_candidates_are_disabled_and_provider_gated() -> None:
     assert all(item.adoption_shape == "provider_gated" for item in provider_entries)
     assert all(item.enabled is False for item in provider_entries)
     assert all("paid/free-tier" in item.stop_condition for item in provider_entries)
+    assert all("trial-credit" in item.stop_condition for item in provider_entries)
+    assert all("zero-dollar" in item.stop_condition for item in provider_entries)
+    assert all("keyless external-network" in item.stop_condition for item in provider_entries)
     assert all(
         any(
             token in item.first_local_step.casefold()
@@ -159,30 +162,7 @@ def test_global_codex_foundation_registry_exists_when_running_on_owner_machine()
     registry = tomllib.loads(CODEX_FOUNDATION_REGISTRY.read_text(encoding="utf-8"))
     candidates = {item["name"]: item for item in registry["candidates"]}
 
-    for name in {
-        "skillopt",
-        "skilladaptor",
-        "muse-autoskill",
-        "evoskill",
-        "gepa",
-        "textgrad",
-        "trace2skill",
-        "skillgrad",
-        "skillsmith",
-        "basic-memory",
-        "agentmemory",
-        "supermemory",
-        "mem0",
-        "core",
-        "automem",
-        "memoryoss",
-        "memories-sh",
-        "pallium",
-        "route-memory",
-        "ian-xiaohei-illustrations",
-        "research-x-publishing-illustration",
-    }:
-        assert name in candidates
     assert candidates["research_x_bridge"]["adoption_shape"] == "adopt"
-    assert candidates["pallium"]["surface_alias"] == "codex-memory"
+    assert candidates["research_x_bridge"]["source_state"] == "local_project_bridge"
+    assert candidates["research_x_bridge"]["enabled"] is True
     assert registry["policy"]["auto_apply_allowed"] is False

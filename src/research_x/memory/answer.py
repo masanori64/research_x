@@ -31,6 +31,9 @@ DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 ANSWERABILITY_ANSWERABLE = "answerable"
 ANSWERABILITY_UNANSWERABLE = "unanswerable"
 ANSWERABILITY_CONFLICTING = "conflicting"
+ANSWERABILITY_PARTIALLY_SUPPORTED = "partially_supported"
+ANSWERABILITY_STALE_ONLY = "stale_only"
+ANSWERABILITY_CITATION_MISSING = "citation_missing"
 
 OPENAI_COMPATIBLE_PRESETS = {
     "openai_chat": {
@@ -481,7 +484,7 @@ def assess_answerability(
         )
     if not citations:
         return AnswerabilityAssessment(
-            status=ANSWERABILITY_UNANSWERABLE,
+            status=ANSWERABILITY_CITATION_MISSING,
             reason="no_citations_for_selected_context",
             answerable_chunk_ids=(),
             conflicting_chunk_ids=(),
@@ -494,7 +497,7 @@ def assess_answerability(
     )
     if uncited_chunk_ids:
         return AnswerabilityAssessment(
-            status=ANSWERABILITY_UNANSWERABLE,
+            status=ANSWERABILITY_PARTIALLY_SUPPORTED,
             reason="selected_context_without_citation",
             answerable_chunk_ids=tuple(
                 chunk.chunk_id for chunk in chunks if chunk.chunk_id in cited_chunk_ids
@@ -511,6 +514,15 @@ def assess_answerability(
             answerable_chunk_ids=tuple(chunk.chunk_id for chunk in chunks),
             conflicting_chunk_ids=conflicting_chunk_ids,
             missing=(),
+        )
+
+    if _all_evidence_is_stale(chunks=chunks, citations=citations):
+        return AnswerabilityAssessment(
+            status=ANSWERABILITY_STALE_ONLY,
+            reason="only_stale_evidence",
+            answerable_chunk_ids=tuple(chunk.chunk_id for chunk in chunks),
+            conflicting_chunk_ids=(),
+            missing=("current_evidence",),
         )
 
     return AnswerabilityAssessment(
@@ -582,6 +594,51 @@ def _citation_marks_conflict(citation: CitationAnnotation) -> bool:
     return any(_is_conflict_marker(value) for value in values)
 
 
+def _all_evidence_is_stale(
+    *,
+    chunks: tuple[ContextChunk, ...],
+    citations: tuple[CitationAnnotation, ...],
+) -> bool:
+    if not chunks or not citations:
+        return False
+    citation_by_chunk_id = {citation.chunk_id: citation for citation in citations}
+    for chunk in chunks:
+        citation = citation_by_chunk_id.get(chunk.chunk_id)
+        if not _chunk_marks_stale(chunk) and not (
+            citation is not None and _citation_marks_stale(citation)
+        ):
+            return False
+    return True
+
+
+def _chunk_marks_stale(chunk: ContextChunk) -> bool:
+    metadata = chunk.metadata
+    values = (
+        metadata.get("answerability"),
+        metadata.get("answerability_status"),
+        metadata.get("evidence_status"),
+        metadata.get("freshness"),
+        metadata.get("freshness_status"),
+        metadata.get("stale"),
+        metadata.get("stale_only"),
+    )
+    return any(_is_stale_marker(value) for value in values)
+
+
+def _citation_marks_stale(citation: CitationAnnotation) -> bool:
+    values = (
+        citation.evidence_status,
+        citation.metadata.get("answerability"),
+        citation.metadata.get("answerability_status"),
+        citation.metadata.get("evidence_status"),
+        citation.metadata.get("freshness"),
+        citation.metadata.get("freshness_status"),
+        citation.metadata.get("stale"),
+        citation.metadata.get("stale_only"),
+    )
+    return any(_is_stale_marker(value) for value in values)
+
+
 def _is_conflict_marker(value: Any) -> bool:
     if value is None:
         return False
@@ -594,6 +651,22 @@ def _is_conflict_marker(value: Any) -> bool:
         "contradicts",
         "contradiction",
         "opposes",
+    }
+
+
+def _is_stale_marker(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().casefold()
+    return normalized in {
+        "old",
+        "obsolete",
+        "outdated",
+        "stale",
+        "stale_only",
+        "stale-only",
     }
 
 
