@@ -22,7 +22,7 @@ capabilities:
   dashboard_artifact_cd: artifact_only
   preview_cd: artifact_only
   staging_cd: gated_plan
-  production_cd: disabled
+  production_cd: gated_plan
   rollback_execution: disabled
   github_pages: disabled
   repository_settings_change: disabled

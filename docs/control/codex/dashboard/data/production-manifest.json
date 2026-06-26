@@ -1,8 +1,8 @@
 {
-  "artifact_kind": "staging_manifest",
+  "artifact_kind": "production_manifest",
   "control_artifact": true,
-  "dry_run": true,
-  "environment_name": "staging",
+  "environment_name": "production",
+  "execution_enabled": false,
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
@@ -10,28 +10,33 @@
     "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T11:14:34.310478+00:00",
+  "generated_at": "2026-06-26T11:14:34.306479+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "health": {
     "checks": [
       {
-        "name": "dashboard_html_exists",
+        "name": "staging_manifest_exists",
         "status": "planned"
       },
       {
-        "name": "dashboard_state_exists",
-        "status": "planned"
-      },
-      {
-        "name": "preview_manifest_exists",
+        "name": "previous_known_good_available",
         "status": "planned"
       },
       {
         "name": "not_evidence_notice",
         "status": "planned"
+      },
+      {
+        "name": "manual_production_gate_recorded",
+        "status": "planned"
       }
     ],
     "status": "planned"
+  },
+  "kill_switch": {
+    "capability": "production_cd",
+    "execution_default": "disabled",
+    "status": "gated_plan"
   },
   "live_url": null,
   "not_answer_support": true,
@@ -39,11 +44,7 @@
   "not_evidence": true,
   "not_project_evidence": true,
   "not_research_evidence": true,
-  "previous_known_good": {
-    "pointer": null,
-    "resolved": false,
-    "strategy": "latest_successful_preview_artifact"
-  },
+  "production_deploy_executed": false,
   "project_id": "research_x",
   "required_gates_before_execution": [
     "repository_settings_change",
@@ -56,13 +57,12 @@
     "environment_created": false,
     "github_api_calls": false,
     "pages_enabled": false,
-    "production_deploy": false,
+    "production_live_deploy": false,
     "provider_api_calls": false,
     "repository_settings_changed": false,
     "rollback_executed": false,
     "secrets_used": false,
-    "staging_live_deploy": false
+    "staging_deploy": false
   },
-  "staging_deploy_executed": false,
-  "target_type": "safe_static_plan"
+  "target_type": "production_plan"
 }

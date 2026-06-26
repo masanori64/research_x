@@ -6,7 +6,7 @@
 # not_answer_support=true
 # generated_by=codex-hotl-implementation-pipeline
 # source_template=templates/github-workflows/codex-ci.template.yml
-# foundation_manifest_sha256=faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73
+# foundation_manifest_sha256=6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42
 name: Codex Control Artifact CI
 
 on:
@@ -43,9 +43,11 @@ jobs:
               Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
               Path("docs/control/codex/dashboard/data/github-collection.json"),
               Path("docs/control/codex/dashboard/data/preview-manifest.json"),
+              Path("docs/control/codex/dashboard/data/production-manifest.json"),
               Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
               Path("docs/control/codex/dashboard/data/staging-manifest.json"),
               Path(".codex-project/generated/effective-preview-manifest.json"),
+              Path(".codex-project/generated/effective-production-manifest.json"),
               Path(".codex-project/generated/effective-staging-manifest.json"),
           ]
           markers = [
@@ -126,6 +128,33 @@ jobs:
           ):
               if side_effects.get(key) is not False:
                   failures.append(f"staging-manifest side_effects.{key} must be false")
+          production = json.loads(
+              Path("docs/control/codex/dashboard/data/production-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if production.get("target_type") != "production_plan":
+              failures.append("production-manifest target_type must be production_plan")
+          if production.get("execution_enabled") is not False:
+              failures.append("production-manifest execution_enabled must be false")
+          if production.get("production_deploy_executed") is not False:
+              failures.append("production-manifest production_deploy_executed must be false")
+          if production.get("live_url") is not None:
+              failures.append("production-manifest live_url must be null")
+          side_effects = production.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_used",
+              "github_api_calls",
+              "pages_enabled",
+              "repository_settings_changed",
+              "environment_created",
+              "staging_deploy",
+              "production_live_deploy",
+              "rollback_executed",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"production-manifest side_effects.{key} must be false")
           html = Path("docs/control/codex/dashboard/index.html")
           if not html.exists():
               failures.append(f"{html}: missing")

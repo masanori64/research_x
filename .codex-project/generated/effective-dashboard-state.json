@@ -55,8 +55,8 @@
     {
       "allowed_without_gate": false,
       "capability_id": "production_cd",
-      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
-      "status": "disabled"
+      "reason": "Capability production_cd is gated_plan; verify gate policy before use.",
+      "status": "gated_plan"
     },
     {
       "allowed_without_gate": false,
@@ -109,7 +109,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -155,10 +155,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:08:16.924508+00:00",
+    "generated_at": "2026-06-26T11:14:34.303251+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
@@ -218,14 +218,14 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+    "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
     "version": "0.1.0"
   },
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+    "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
     "version": "0.1.0"
   },
   "gates": [
@@ -293,11 +293,11 @@
       "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T11:08:16.934507+00:00",
+  "generated_at": "2026-06-26T11:14:34.313475+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "6edb6a89eef2565719f9e266b493e53887e8340a",
+    "commit": "96248fce9864371756d9eb2b60f0bdc97caf6e37",
     "dirty": true
   },
   "github_collection": {
@@ -320,7 +320,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -359,7 +359,7 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
     "generated_by": "codex-hotl-implementation-pipeline",
@@ -489,10 +489,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:08:16.926508+00:00",
+    "generated_at": "2026-06-26T11:14:34.305257+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "live_url": null,
     "not_answer_support": true,
@@ -532,6 +532,74 @@
       "status": "planned"
     },
     "target_type": "artifact_only"
+  },
+  "production_manifest": {
+    "artifact_kind": "production_manifest",
+    "control_artifact": true,
+    "environment_name": "production",
+    "execution_enabled": false,
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-26T11:14:34.306479+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "health": {
+      "checks": [
+        {
+          "name": "staging_manifest_exists",
+          "status": "planned"
+        },
+        {
+          "name": "previous_known_good_available",
+          "status": "planned"
+        },
+        {
+          "name": "not_evidence_notice",
+          "status": "planned"
+        },
+        {
+          "name": "manual_production_gate_recorded",
+          "status": "planned"
+        }
+      ],
+      "status": "planned"
+    },
+    "kill_switch": {
+      "capability": "production_cd",
+      "execution_default": "disabled",
+      "status": "gated_plan"
+    },
+    "live_url": null,
+    "not_answer_support": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
+    "production_deploy_executed": false,
+    "project_id": "research_x",
+    "required_gates_before_execution": [
+      "repository_settings_change",
+      "github_pages_enablement",
+      "secrets_credentials",
+      "production_external_side_effect"
+    ],
+    "schema_version": 1,
+    "side_effects": {
+      "environment_created": false,
+      "github_api_calls": false,
+      "pages_enabled": false,
+      "production_live_deploy": false,
+      "provider_api_calls": false,
+      "repository_settings_changed": false,
+      "rollback_executed": false,
+      "secrets_used": false,
+      "staging_deploy": false
+    },
+    "target_type": "production_plan"
   },
   "profile": {
     "constraints": {
@@ -582,10 +650,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:08:16.928507+00:00",
+    "generated_at": "2026-06-26T11:14:34.308477+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "not_answer_support": true,
     "not_citation": true,
@@ -618,10 +686,10 @@
       "exists": true,
       "id": "codex-hotl-implementation-pipeline",
       "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-      "sha256": "faf6cb9c7d7a22fa2eef9714f07a2d675aca9f5897558c4d8f4a1d96d1a7fb73",
+      "sha256": "6fef4d7e8c3056f487148a88e8c4ef20e63cdeab6ca8ce1727e4aa24209fae42",
       "version": "0.1.0"
     },
-    "generated_at": "2026-06-26T11:08:16.930508+00:00",
+    "generated_at": "2026-06-26T11:14:34.310478+00:00",
     "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
