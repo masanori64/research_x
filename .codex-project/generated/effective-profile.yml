@@ -1,0 +1,85 @@
+schema_version: 1
+control_artifact: true
+not_evidence: true
+not_project_evidence: true
+not_research_evidence: true
+not_citation: true
+not_answer_support: true
+generated_by: codex-hotl-implementation-pipeline
+foundation_manifest:
+  id: codex-hotl-implementation-pipeline
+  version: 0.1.0
+  path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
+  sha256: a6f53e7c7829188909222c6ffb44a00a968f18b8437c462e1a33812adb9f5acc
+  exists: true
+artifact_kind: effective_profile
+project:
+  id: research_x
+  name: research_x
+  root: "C:\\Users\\maasa\\research_x"
+  domain: ai_callable_x_memory_search
+commands:
+  sync: uv sync
+  test: uv run pytest
+  lint: uv run ruff check src\research_x tests scripts
+constraints:
+  use_uv: true
+  no_quota_provider_freeze: true
+  forbid_control_artifacts_as_evidence: true
+  evidence_boundary: raw source != searchable document != search result != source bundle != context chunk != citation != answer
+  forbidden_external_actions:
+    - provider_api_quota
+    - secrets_credentials
+    - install_dependency_model_download
+    - mcp_plugin_hook_enablement
+    - destructive_action
+    - irreversible_db_migration
+capabilities:
+  github_api_read: disabled
+  github_api_write: disabled
+  github_actions_wrappers: disabled
+  dashboard_artifact_cd: disabled
+  preview_cd: disabled
+  staging_cd: disabled
+  production_cd: disabled
+  rollback_execution: disabled
+  github_pages: disabled
+  repository_settings_change: disabled
+  provider_api_calls: disabled
+  mcp_plugin_hook_enablement: disabled
+control_artifacts:
+  output_root: docs/control/codex
+  generated_root: .codex-project/generated
+  not_evidence: true
+  not_research_evidence: true
+  not_citation: true
+  not_answer_support: true
+subagents:
+  owner: Codex foundation
+  raw_log_in_project: false
+  allowed_roles:
+    - impact_mapper
+    - pr_reviewer
+    - ci_log_auditor
+    - release_auditor
+  summaries:
+bridge:
+  path: "C:\\Users\\maasa\\research_x\\.codex-project\\bridge.yml"
+  outputs:
+    dashboard_dir: docs/control/codex/dashboard
+    generated_dir: .codex-project/generated
+    mermaid_dir: docs/control/codex/dashboard/mermaid
+  github:
+    mode: local_only
+    api_enabled: false
+    repository: maasa/research_x
+    default_branch: main
+project_boundary:
+  generic_pipeline_owner: Codex foundation
+  project_may_own_generic_engine: false
+  allowed_project_surfaces:
+    - .codex-project/profile.yml
+    - .codex-project/bridge.yml
+    - .codex-project/generated
+    - docs/control/codex
+    - thin wrappers after explicit gate
