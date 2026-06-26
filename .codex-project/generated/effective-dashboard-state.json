@@ -15,6 +15,80 @@
     },
     "path": "C:\\Users\\maasa\\research_x\\.codex-project\\bridge.yml"
   },
+  "capabilities": [
+    {
+      "allowed_without_gate": false,
+      "capability_id": "github_api_read",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "github_api_write",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "github_actions_wrappers",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "dashboard_artifact_cd",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "preview_cd",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "staging_cd",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "production_cd",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "rollback_execution",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "github_pages",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "repository_settings_change",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "provider_api_calls",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    },
+    {
+      "allowed_without_gate": false,
+      "capability_id": "mcp_plugin_hook_enablement",
+      "reason": "Disabled by default for Phase 2 hardening; explicit gate required before enablement.",
+      "status": "disabled"
+    }
+  ],
   "collection": {
     "github_api_enabled": false,
     "mode": "local_only",
@@ -31,10 +105,19 @@
     "title": "research_x Codex HOTL Control Dashboard"
   },
   "deploy_manifest": {
+    "artifact_kind": "deploy_manifest",
     "control_artifact": true,
     "deploy_executed": false,
     "environment": "dashboard",
-    "generated_at": "2026-06-26T09:45:09.862256+00:00",
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "9ec00597771b19ade759c1182950cc6007d9d6805d0da02ca08e48f4a0f7d9ef",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-26T10:35:53.482302+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
     "health": {
       "checks": [
         {
@@ -52,8 +135,11 @@
       ],
       "status": "planned"
     },
+    "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
     "phase": "phase_1_local_plan_only",
     "project_id": "research_x",
     "schema_version": 1,
@@ -81,8 +167,24 @@
       "wbs"
     ],
     "invariant": "raw source != searchable document != search result != source bundle != context chunk != citation != answer",
+    "not_answer_support": true,
     "not_citation": true,
-    "not_evidence": true
+    "not_evidence": true,
+    "not_research_evidence": true
+  },
+  "foundation": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "9ec00597771b19ade759c1182950cc6007d9d6805d0da02ca08e48f4a0f7d9ef",
+    "version": "0.1.0"
+  },
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "9ec00597771b19ade759c1182950cc6007d9d6805d0da02ca08e48f4a0f7d9ef",
+    "version": "0.1.0"
   },
   "gates": [
     {
@@ -149,16 +251,29 @@
       "status": "requires_explicit_user_gate"
     }
   ],
-  "generated_at": "2026-06-26T09:45:09.862256+00:00",
+  "generated_at": "2026-06-26T10:35:53.486432+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
   "git": {
     "branch": "codex/context-and-design-import-20260609",
-    "commit": "0e73c8a4929f91d9de06c7075e745b3313dafd04",
+    "commit": "a1b569691401a8e549c4bc643dc9e4296fbf9cb3",
     "dirty": true
   },
+  "not_answer_support": true,
   "not_citation": true,
   "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
   "pipeline": {
+    "artifact_kind": "pipeline",
     "control_artifact": true,
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "9ec00597771b19ade759c1182950cc6007d9d6805d0da02ca08e48f4a0f7d9ef",
+      "version": "0.1.0"
+    },
+    "generated_by": "codex-hotl-implementation-pipeline",
     "lanes": [
       {
         "automatic": true,
@@ -191,8 +306,11 @@
         "name": "Rollback Plan"
       }
     ],
+    "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
     "project_id": "research_x",
     "schema_version": 1,
     "stages": [
@@ -292,6 +410,7 @@
     "root": "C:\\Users\\maasa\\research_x"
   },
   "rollback_manifest": {
+    "artifact_kind": "rollback_manifest",
     "blocked_execution_gates": [
       "production_external_side_effect",
       "secrets_credentials",
@@ -301,9 +420,20 @@
     "control_artifact": true,
     "dry_run": true,
     "environment": "dashboard",
-    "generated_at": "2026-06-26T09:45:09.862256+00:00",
+    "foundation_manifest": {
+      "exists": true,
+      "id": "codex-hotl-implementation-pipeline",
+      "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+      "sha256": "9ec00597771b19ade759c1182950cc6007d9d6805d0da02ca08e48f4a0f7d9ef",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-26T10:35:53.484338+00:00",
+    "generated_by": "codex-hotl-implementation-pipeline",
+    "not_answer_support": true,
     "not_citation": true,
     "not_evidence": true,
+    "not_project_evidence": true,
+    "not_research_evidence": true,
     "project_id": "research_x",
     "rollback_executed": false,
     "schema_version": 1,

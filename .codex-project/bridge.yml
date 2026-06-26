@@ -15,3 +15,16 @@ workflow:
   cd_execution_enabled: false
   rollback_execution_enabled: false
   github_pages_enabled_by_codex: false
+capabilities:
+  github_api_read: disabled
+  github_api_write: disabled
+  github_actions_wrappers: disabled
+  dashboard_artifact_cd: disabled
+  preview_cd: disabled
+  staging_cd: disabled
+  production_cd: disabled
+  rollback_execution: disabled
+  github_pages: disabled
+  repository_settings_change: disabled
+  provider_api_calls: disabled
+  mcp_plugin_hook_enablement: disabled

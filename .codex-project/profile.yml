@@ -20,11 +20,26 @@ constraints:
     - mcp_plugin_hook_enablement
     - destructive_action
     - irreversible_db_migration
+capabilities:
+  github_api_read: disabled
+  github_api_write: disabled
+  github_actions_wrappers: disabled
+  dashboard_artifact_cd: disabled
+  preview_cd: disabled
+  staging_cd: disabled
+  production_cd: disabled
+  rollback_execution: disabled
+  github_pages: disabled
+  repository_settings_change: disabled
+  provider_api_calls: disabled
+  mcp_plugin_hook_enablement: disabled
 control_artifacts:
   output_root: docs/control/codex
   generated_root: .codex-project/generated
   not_evidence: true
+  not_research_evidence: true
   not_citation: true
+  not_answer_support: true
 subagents:
   owner: C:/Users/maasa/.codex
   raw_log_in_project: false
