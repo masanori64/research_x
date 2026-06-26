@@ -697,6 +697,15 @@ def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
         ]
         if status == "ok" and not_evidence:
             _increment(issues, "ok_answer_cites_not_evidence", len(not_evidence))
+        missing_lineage = [
+            row for row in citations if _citation_source_lineage_missing(row)
+        ]
+        if status == "ok" and missing_lineage:
+            _increment(
+                issues,
+                "ok_answer_citation_missing_source_lineage",
+                len(missing_lineage),
+            )
         stale = [
             row
             for row in citations
@@ -1002,7 +1011,7 @@ def _citation_source_hash_drift(conn: sqlite3.Connection, row: sqlite3.Row) -> b
         (source_id,),
     ).fetchone()
     if doc is None:
-        return False
+        return True
     current_hash = memory_document_source_hash(doc)
     if str(doc["source_doc_hash"] or "") != current_hash:
         return True
@@ -1011,6 +1020,23 @@ def _citation_source_hash_drift(conn: sqlite3.Connection, row: sqlite3.Row) -> b
         return False
     chunk_hash = chunk_metadata.get("source_doc_hash")
     return bool(chunk_hash and str(chunk_hash) != current_hash)
+
+
+def _citation_source_lineage_missing(row: sqlite3.Row) -> bool:
+    if not str(row["chunk_id"] or "").strip():
+        return True
+    if row["chunk_source_id"] is None:
+        return True
+    citation_metadata = _loads_json(row["metadata_json"], default={})
+    chunk_metadata = _loads_json(row["chunk_metadata_json"], default={})
+    if not isinstance(citation_metadata, dict) or not isinstance(chunk_metadata, dict):
+        return True
+    required = ("source_doc_hash", "source_bundle_id")
+    return any(
+        not str(citation_metadata.get(key) or "").strip()
+        or not str(chunk_metadata.get(key) or "").strip()
+        for key in required
+    )
 
 
 def _is_nonclaim_answer_line(line: str) -> bool:

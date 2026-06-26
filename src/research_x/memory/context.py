@@ -279,6 +279,7 @@ def _chunk(
         source_kind=LOCAL_X_DB,
         source_id=source_id,
         source_url=source_url,
+        restored_at=created_at,
     )
     metadata = {
         "doc_type": hit.get("doc_type"),
@@ -339,6 +340,7 @@ def _citation(
         source_kind=chunk.source_kind,
         source_id=chunk.source_id,
         source_url=source_url,
+        restored_at=created_at,
     )
     return CitationAnnotation(
         citation_id=citation_id,
@@ -688,6 +690,7 @@ def _source_lineage_metadata(
     source_kind: str,
     source_id: str,
     source_url: str | None,
+    restored_at: str,
 ) -> dict[str, Any]:
     lineage = evidence.get("source_lineage")
     if not isinstance(lineage, dict):
@@ -706,6 +709,8 @@ def _source_lineage_metadata(
     freshness_status = _string_or_none(hit.get("freshness")) or _string_or_none(
         lineage.get("freshness_status")
     )
+    retrieval_profile = _string_or_none(lineage.get("retrieval_text_profile"))
+    document_updated_at = _string_or_none(lineage.get("document_updated_at"))
     lineage_status = _string_or_none(lineage.get("lineage_status"))
     if lineage_status is None:
         lineage_status = "metadata_only" if source_doc_hash else "unrestored"
@@ -719,14 +724,17 @@ def _source_lineage_metadata(
         "source_doc_hash": source_doc_hash,
         "embedding_text_hash": _string_or_none(lineage.get("embedding_text_hash")),
         "retrieval_text_hash": _string_or_none(lineage.get("retrieval_text_hash")),
-        "retrieval_text_profile": _string_or_none(lineage.get("retrieval_text_profile")),
+        "retrieval_text_profile": retrieval_profile,
+        "retrieval_profile_kind": retrieval_profile,
         "retrieval_text_profile_id": _string_or_none(lineage.get("retrieval_text_profile_id")),
         "source_bundle_id": source_bundle_id,
         "freshness_status": freshness_status or "active",
         "lineage_status": lineage_status,
+        "source_updated_at": document_updated_at,
+        "restored_at": restored_at,
         "document_created_at": _string_or_none(lineage.get("document_created_at")),
         "document_observed_at": _string_or_none(lineage.get("document_observed_at")),
-        "document_updated_at": _string_or_none(lineage.get("document_updated_at")),
+        "document_updated_at": document_updated_at,
     }
 
 
