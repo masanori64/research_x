@@ -13,6 +13,8 @@ from typing import Any
 
 REVIEW_ZIP_SCHEMA_VERSION = 1
 REVIEW_ZIP_ARTIFACT_KIND = "research_x_gpt_review_context_zip"
+COMMAND_MANIFEST_SCHEMA_VERSION = 1
+COMMAND_MANIFEST_ARTIFACT_KIND = "research_x_review_command_manifest"
 
 REQUIRED_PROJECT_CONTEXT_FILES = (
     "README.codex.md",
@@ -43,6 +45,7 @@ REQUIRED_REVIEW_ARTIFACTS = {
     "git_diff_check_log": "attachments/logs/git_diff_check.log",
     "git_status_log": "attachments/logs/git_status_short.log",
     "review_zip_verify_log": "attachments/logs/review_zip_verify.log",
+    "command_manifest": "attachments/logs/command_manifest.json",
     "memory_audit": "attachments/audits/memory_audit.json",
     "adoption_audit": "attachments/audits/adoption_audit.json",
     "pointer_map_audit": "attachments/audits/pointer_map_audit.json",
@@ -234,11 +237,15 @@ def verify_review_zip(zip_path: str | Path) -> tuple[str, ...]:
     missing_review_artifacts = sorted(required_review_artifacts - seen_required_review_artifacts)
     for zip_path in missing_review_artifacts:
         errors.append(f"required review artifact missing from manifest: {zip_path}")
-    errors.extend(_validate_required_review_artifacts(required_artifact_payloads))
+    errors.extend(_validate_required_review_artifacts(required_artifact_payloads, zip_names=names))
     return tuple(errors)
 
 
-def _validate_required_review_artifacts(payloads: dict[str, bytes]) -> tuple[str, ...]:
+def _validate_required_review_artifacts(
+    payloads: dict[str, bytes],
+    *,
+    zip_names: set[str],
+) -> tuple[str, ...]:
     errors: list[str] = []
     for artifact_id, zip_path in REQUIRED_REVIEW_ARTIFACTS.items():
         raw = payloads.get(artifact_id)
@@ -255,6 +262,70 @@ def _validate_required_review_artifacts(payloads: dict[str, bytes]) -> tuple[str
     adoption_raw = payloads.get("adoption_audit")
     if adoption_raw is not None and adoption_raw.strip():
         errors.extend(_validate_adoption_audit(adoption_raw))
+    command_manifest_raw = payloads.get("command_manifest")
+    if command_manifest_raw is not None and command_manifest_raw.strip():
+        errors.extend(_validate_command_manifest(command_manifest_raw, zip_names=zip_names))
+    return tuple(errors)
+
+
+def _validate_command_manifest(raw: bytes, *, zip_names: set[str]) -> tuple[str, ...]:
+    zip_path = REQUIRED_REVIEW_ARTIFACTS["command_manifest"]
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return (f"command manifest artifact is not valid JSON: {zip_path}: {exc}",)
+    if not isinstance(payload, dict):
+        return (f"command manifest artifact must be a JSON object: {zip_path}",)
+    errors: list[str] = []
+    if payload.get("artifact_kind") != COMMAND_MANIFEST_ARTIFACT_KIND:
+        errors.append(
+            "command manifest artifact_kind must be "
+            f"{COMMAND_MANIFEST_ARTIFACT_KIND!r}"
+        )
+    if payload.get("schema_version") != COMMAND_MANIFEST_SCHEMA_VERSION:
+        errors.append(
+            "command manifest schema_version must be "
+            f"{COMMAND_MANIFEST_SCHEMA_VERSION}"
+        )
+    commands = payload.get("commands")
+    if not isinstance(commands, list) or not commands:
+        return tuple([*errors, "command manifest commands must be a non-empty list"])
+    for index, command in enumerate(commands):
+        errors.extend(_validate_command_manifest_entry(index, command, zip_names=zip_names))
+    return tuple(errors)
+
+
+def _validate_command_manifest_entry(
+    index: int,
+    command: Any,
+    *,
+    zip_names: set[str],
+) -> tuple[str, ...]:
+    label = f"command manifest commands[{index}]"
+    if not isinstance(command, dict):
+        return (f"{label} must be a JSON object",)
+    errors: list[str] = []
+    for key in ("phase", "name", "command", "log_path", "started_at", "finished_at"):
+        value = command.get(key)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{label}.{key} must be a non-empty string")
+    exit_code = command.get("exit_code")
+    if isinstance(exit_code, bool) or not isinstance(exit_code, int):
+        errors.append(f"{label}.exit_code must be an integer")
+    elif exit_code != 0:
+        errors.append(f"{label}.exit_code must be 0")
+    if command.get("provider_requests_expected_zero") is not True:
+        errors.append(f"{label}.provider_requests_expected_zero must be true")
+    log_path = str(command.get("log_path") or "").replace("\\", "/")
+    if log_path and log_path not in zip_names:
+        errors.append(f"{label}.log_path missing from ZIP: {log_path}")
+    for key in ("started_at", "finished_at"):
+        value = command.get(key)
+        if isinstance(value, str) and value.strip():
+            try:
+                datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                errors.append(f"{label}.{key} must be an ISO 8601 timestamp")
     return tuple(errors)
 
 
@@ -631,6 +702,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--git-diff-check-log", type=Path)
     parser.add_argument("--git-status-log", type=Path)
     parser.add_argument("--review-zip-verify-log", type=Path)
+    parser.add_argument("--command-manifest", type=Path)
     parser.add_argument("--memory-audit", type=Path)
     parser.add_argument("--adoption-audit", type=Path)
     parser.add_argument("--pointer-map-audit", type=Path)
@@ -644,6 +716,7 @@ def main(argv: list[str] | None = None) -> int:
         "git_diff_check_log": args.git_diff_check_log,
         "git_status_log": args.git_status_log,
         "review_zip_verify_log": args.review_zip_verify_log,
+        "command_manifest": args.command_manifest,
         "memory_audit": args.memory_audit,
         "adoption_audit": args.adoption_audit,
         "pointer_map_audit": args.pointer_map_audit,

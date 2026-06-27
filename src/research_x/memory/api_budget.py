@@ -22,8 +22,7 @@ DEFAULT_MAX_DAY_USD = 5.0
 DEFAULT_MAX_MONTH_USD = 25.0
 DEFAULT_UNKNOWN_PRICE_ACTION = "block"
 DEFAULT_WARNING_FRACTION = 0.8
-EXEMPT_PROVIDERS = {"fake", "local", "local_hash"}
-EXEMPT_PROVIDER_PREFIXES = ("fixture_",)
+EXEMPT_PROVIDERS = {"fake", "local", "local_hash", "fixture_media"}
 BUDGET_EXHAUSTED_STATUS = "budget_exhausted"
 PROVIDER_QUOTA_FREEZE_ACTIVE = True
 NO_QUOTA_FREEZE_BLOCK_STATUS = "provider_gated_by_no_quota_freeze"
@@ -38,6 +37,10 @@ NO_QUOTA_FREEZE_BLOCK_MESSAGE = (
 
 _ACTIVE_CONTEXT: ContextVar[ApiBudgetContext | None] = ContextVar(
     "research_x_api_budget_context",
+    default=None,
+)
+_PROVIDER_TRANSPORT_SEND_ALLOWED: ContextVar[ProviderTransportSend | None] = ContextVar(
+    "research_x_provider_transport_send_allowed",
     default=None,
 )
 
@@ -71,6 +74,14 @@ class ApiBudgetReservation:
     db_path: str
     event_id: str
     estimated_cost_usd: float
+
+
+@dataclass(frozen=True)
+class ProviderTransportSend:
+    provider: str
+    model: str
+    operation: str
+    provider_role: str
 
 
 @dataclass(frozen=True)
@@ -151,6 +162,20 @@ def require_provider_execution_allowed(
         raise RuntimeError(NO_QUOTA_FREEZE_BLOCK_MESSAGE)
 
 
+def active_provider_transport_send() -> ProviderTransportSend | None:
+    return _PROVIDER_TRANSPORT_SEND_ALLOWED.get()
+
+
+def require_provider_transport_send_allowed(url: str) -> None:
+    if _is_local_or_non_http_transport_url(url):
+        return
+    if active_provider_transport_send() is None:
+        raise RuntimeError(
+            "provider_transport_send_guard_required: provider HTTP sends must run inside "
+            "budgeted_api_call after the no-quota/provider budget gate passes"
+        )
+
+
 @contextlib.contextmanager
 def budgeted_api_call(
     *,
@@ -179,23 +204,34 @@ def budgeted_api_call(
         request_payload=request_payload,
         metadata=metadata,
     )
+    transport_token = _PROVIDER_TRANSPORT_SEND_ALLOWED.set(
+        ProviderTransportSend(
+            provider=_clean_id(provider),
+            model=_clean_model(model),
+            operation=_clean_id(operation),
+            provider_role=_clean_id(provider_role),
+        )
+    )
     try:
-        yield reservation
-    except Exception as exc:
-        finish_api_budget_event(
-            context.db_path,
-            reservation.event_id,
-            status="error",
-            error=f"{type(exc).__name__}: {exc}",
-        )
-        raise
-    else:
-        finish_api_budget_event(
-            context.db_path,
-            reservation.event_id,
-            status="ok",
-            actual_cost_usd=reservation.estimated_cost_usd,
-        )
+        try:
+            yield reservation
+        except Exception as exc:
+            finish_api_budget_event(
+                context.db_path,
+                reservation.event_id,
+                status="error",
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            raise
+        else:
+            finish_api_budget_event(
+                context.db_path,
+                reservation.event_id,
+                status="ok",
+                actual_cost_usd=reservation.estimated_cost_usd,
+            )
+    finally:
+        _PROVIDER_TRANSPORT_SEND_ALLOWED.reset(transport_token)
 
 
 def api_units(
@@ -1563,7 +1599,15 @@ def _clean_model(value: str) -> str:
 
 def _is_exempt_provider(provider: str) -> bool:
     provider_id = _clean_id(provider)
-    return provider_id in EXEMPT_PROVIDERS or provider_id.startswith(EXEMPT_PROVIDER_PREFIXES)
+    return provider_id in EXEMPT_PROVIDERS
+
+
+def _is_local_or_non_http_transport_url(url: str) -> bool:
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme not in {"http", "https"}:
+        return True
+    hostname = (parsed.hostname or "").strip().lower()
+    return hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".localhost")
 
 
 def _coalesce(value: Any, fallback: Any) -> Any:

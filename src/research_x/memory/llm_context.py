@@ -11,7 +11,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
+from research_x.memory.api_budget import (
+    api_units,
+    budgeted_api_call,
+    require_provider_transport_send_allowed,
+    rough_text_tokens,
+)
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.source_kinds import (
     EXTERNAL_WEB_MEDIUM,
@@ -679,6 +684,7 @@ def _post_json_unbudgeted(
     headers: dict[str, str],
     timeout_seconds: float,
 ) -> dict[str, Any]:
+    require_provider_transport_send_allowed(url)
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
         url,

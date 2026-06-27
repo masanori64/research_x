@@ -15,7 +15,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Protocol
 
-from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
+from research_x.memory.api_budget import (
+    api_units,
+    budgeted_api_call,
+    require_provider_transport_send_allowed,
+    rough_text_tokens,
+)
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.source_kinds import (
     EXTERNAL_WEB_MEDIUM,
@@ -211,6 +216,7 @@ class JinaReaderProvider:
             request_payload={"url": url, "query": query, "max_chars": max_chars},
             metadata={"endpoint": request["url"], "uses_api_key": bool(request["api_key_used"])},
         ):
+            require_provider_transport_send_allowed(request["url"])
             response = _read_url(
                 request["url"],
                 timeout_seconds=request["timeout_seconds"],

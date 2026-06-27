@@ -19,6 +19,7 @@ from research_x.memory.api_budget import (
     ApiBudgetExceededError,
     api_units,
     budgeted_api_call,
+    require_provider_transport_send_allowed,
     rough_text_tokens,
 )
 
@@ -699,6 +700,7 @@ def _post_json_unbudgeted(
     api_key: str,
     timeout_seconds: float,
 ) -> dict[str, Any]:
+    require_provider_transport_send_allowed(url)
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = Request(
         url,

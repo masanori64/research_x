@@ -88,6 +88,7 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     assert "attachments/logs/pytest.log" in names
     assert "attachments/logs/ruff.log" in names
     assert "attachments/logs/git_status_short.log" in names
+    assert "attachments/logs/command_manifest.json" in names
     assert "attachments/audits/memory_audit.json" in names
     assert "attachments/audits/adoption_audit.json" in names
     assert "attachments/audits/pointer_map_audit.json" in names
@@ -378,6 +379,68 @@ def test_verify_review_zip_rejects_failed_adoption_audit(
     )
 
 
+def test_verify_review_zip_rejects_failed_command_manifest(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["command_manifest"].write_text(
+        json.dumps(
+            {
+                "artifact_kind": module.COMMAND_MANIFEST_ARTIFACT_KIND,
+                "schema_version": module.COMMAND_MANIFEST_SCHEMA_VERSION,
+                "commands": [
+                    {
+                        "phase": "fixture",
+                        "name": "pytest",
+                        "command": "uv run pytest tests -q",
+                        "exit_code": 1,
+                        "log_path": "attachments/logs/missing.log",
+                        "started_at": "2026-06-27T00:00:00+00:00",
+                        "finished_at": "not-a-timestamp",
+                        "provider_requests_expected_zero": False,
+                    }
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "command manifest commands[0].exit_code must be 0" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "command manifest commands[0].provider_requests_expected_zero must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "command manifest commands[0].log_path missing from ZIP" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "command manifest commands[0].finished_at must be an ISO 8601 timestamp" in error
+        for error in result.verification_errors
+    )
+
+
 def _load_module():
     spec = importlib.util.spec_from_file_location("make_project_context_diff_zip", SCRIPT_PATH)
     assert spec is not None
@@ -453,6 +516,38 @@ def _review_artifact_fixture(artifact_id: str) -> str:
                     }
                 ],
                 "skipped_reason": None,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+    if artifact_id == "command_manifest":
+        return json.dumps(
+            {
+                "artifact_kind": "research_x_review_command_manifest",
+                "schema_version": 1,
+                "commands": [
+                    {
+                        "phase": "fixture",
+                        "name": "pytest",
+                        "command": "uv run pytest tests -q",
+                        "exit_code": 0,
+                        "log_path": "attachments/logs/pytest.log",
+                        "started_at": "2026-06-27T00:00:00+00:00",
+                        "finished_at": "2026-06-27T00:01:00+00:00",
+                        "provider_requests_expected_zero": True,
+                    },
+                    {
+                        "phase": "fixture",
+                        "name": "ruff",
+                        "command": "uv run ruff check src\\research_x tests",
+                        "exit_code": 0,
+                        "log_path": "attachments/logs/ruff.log",
+                        "started_at": "2026-06-27T00:01:00+00:00",
+                        "finished_at": "2026-06-27T00:01:10+00:00",
+                        "provider_requests_expected_zero": True,
+                    },
+                ],
             },
             ensure_ascii=False,
             indent=2,

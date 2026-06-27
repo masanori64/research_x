@@ -31,6 +31,7 @@ class MemoryAuditReport:
     invalid_enums_by_field: dict[str, int]
     fixture_artifacts: dict[str, int]
     answer_status_counts: dict[str, int]
+    needs_review_answer_triage: dict[str, Any]
     claim_citation_issues: dict[str, int]
     freshness_lineage_issues: dict[str, int]
     strategy_gap_counts: dict[str, int]
@@ -59,6 +60,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_enums = _invalid_enum_counts(conn)
         fixture_artifacts = _fixture_artifact_counts(conn)
         answer_status_counts = _answer_status_counts(conn)
+        needs_review_answer_triage = _needs_review_answer_triage(conn)
         claim_citation_issues = _claim_citation_issues(conn)
         freshness_lineage_issues = _freshness_lineage_issues(conn)
         strategy_gap_counts = _strategy_gap_counts()
@@ -97,6 +99,7 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         invalid_enums_by_field=invalid_enums,
         fixture_artifacts=fixture_artifacts,
         answer_status_counts=answer_status_counts,
+        needs_review_answer_triage=needs_review_answer_triage,
         claim_citation_issues=claim_citation_issues,
         freshness_lineage_issues=freshness_lineage_issues,
         strategy_gap_counts=strategy_gap_counts,
@@ -125,6 +128,7 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"invalid enum values by field: {report.invalid_enums_by_field or {}}",
         f"fixture artifacts: {report.fixture_artifacts or {}}",
         f"answer statuses: {report.answer_status_counts or {}}",
+        _format_needs_review_answer_triage(report.needs_review_answer_triage),
         f"claim/citation issues: {report.claim_citation_issues or {}}",
         f"freshness/lineage issues: {report.freshness_lineage_issues or {}}",
         f"strategy gap counts: {report.strategy_gap_counts or {}}",
@@ -166,6 +170,27 @@ def format_audit_report(report: MemoryAuditReport) -> str:
     else:
         lines.append("warnings: none")
     return "\n".join(lines)
+
+
+def _format_needs_review_answer_triage(triage: dict[str, Any]) -> str:
+    total = int(triage.get("total") or 0)
+    if not total:
+        return "needs_review answer triage: none"
+    reason_counts = triage.get("reason_counts")
+    samples = triage.get("samples")
+    sample_text = ""
+    if isinstance(samples, list) and samples:
+        sample = samples[0]
+        if isinstance(sample, dict):
+            sample_text = (
+                " first="
+                f"{sample.get('answer_id')} "
+                f"reasons={sample.get('reasons') or []}"
+            )
+    return (
+        "needs_review answer triage: "
+        f"total={total} reasons={reason_counts or {}}{sample_text}"
+    )
 
 
 def _count(conn: sqlite3.Connection, table: str) -> int:
@@ -624,6 +649,109 @@ def _answer_status_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return {str(row["status"]): int(row["count"]) for row in rows}
 
 
+def _needs_review_answer_triage(
+    conn: sqlite3.Connection,
+    *,
+    sample_limit: int = 20,
+) -> dict[str, Any]:
+    answers = conn.execute(
+        """
+        SELECT
+            answer_id, question, workflow_id, model, prompt_version,
+            answer_text, structured_json, created_at
+        FROM memory_answer_runs
+        WHERE status = 'needs_review'
+        ORDER BY created_at DESC, answer_id DESC
+        """
+    ).fetchall()
+    reason_counts: dict[str, int] = {}
+    samples: list[dict[str, Any]] = []
+    for answer in answers:
+        answer_id = str(answer["answer_id"])
+        structured = _loads_json(answer["structured_json"], default={})
+        citations = _answer_citation_rows(conn, answer_id)
+        reasons = _needs_review_answer_reasons(answer, structured, citations)
+        for reason in reasons:
+            _increment(reason_counts, reason)
+        if len(samples) < sample_limit:
+            samples.append(
+                {
+                    "answer_id": answer_id,
+                    "workflow_id": answer["workflow_id"],
+                    "question_preview": _compact_preview(answer["question"], max_chars=120),
+                    "created_at": answer["created_at"],
+                    "model": answer["model"],
+                    "prompt_version": answer["prompt_version"],
+                    "answerability_status": _answerability_status(structured),
+                    "citation_count": len(citations),
+                    "answer_text_present": bool(str(answer["answer_text"] or "").strip()),
+                    "reasons": reasons,
+                }
+            )
+    return {
+        "total": len(answers),
+        "reason_counts": dict(sorted(reason_counts.items())),
+        "sample_limit": sample_limit,
+        "samples": samples,
+    }
+
+
+def _needs_review_answer_reasons(
+    answer: sqlite3.Row,
+    structured: Any,
+    citations: list[sqlite3.Row],
+) -> list[str]:
+    reasons: list[str] = []
+    answerability_status = _answerability_status(structured)
+    if answerability_status:
+        reasons.append(f"answerability:{answerability_status}")
+    else:
+        reasons.append("answerability:unknown")
+    if not str(answer["answer_text"] or "").strip():
+        reasons.append("answer_text_missing")
+    if not citations:
+        reasons.append("citation_missing")
+    citation_block_reasons: set[str] = set()
+    for citation in citations:
+        citation_block_reasons.update(_citation_block_reasons_for_row(citation))
+    if citation_block_reasons:
+        reasons.append("citation_not_ready")
+    for reason in sorted(citation_block_reasons):
+        reasons.append(f"citation_block:{reason}")
+    if reasons == ["answerability:answerable"]:
+        reasons.append("needs_review_status_without_detected_blocker")
+    return _dedupe_preserve_order(reasons)
+
+
+def _answerability_status(structured: Any) -> str | None:
+    if not isinstance(structured, dict):
+        return None
+    answerability = structured.get("answerability")
+    if isinstance(answerability, dict):
+        status = answerability.get("status")
+        if status:
+            return str(status)
+    status = structured.get("answerability_status")
+    return str(status) if status else None
+
+
+def _answer_citation_rows(conn: sqlite3.Connection, answer_id: str) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT
+            ca.citation_id, ca.chunk_id, ca.source_kind, ca.source_id,
+            ca.source_url, ca.title, ca.field_path, ca.support_type,
+            ca.evidence_status, ca.confidence, ca.created_at,
+            ca.answer_start_index, ca.answer_end_index, ca.metadata_json,
+            c.source_id AS chunk_source_id, c.metadata_json AS chunk_metadata_json
+        FROM memory_citation_annotations ca
+        LEFT JOIN memory_context_chunks c ON c.chunk_id = ca.chunk_id
+        WHERE answer_id = ?
+        """,
+        (answer_id,),
+    ).fetchall()
+
+
 def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
     issues: dict[str, int] = {}
     answers = conn.execute(
@@ -639,20 +767,7 @@ def _claim_citation_issues(conn: sqlite3.Connection) -> dict[str, int]:
         status = str(answer["status"] or "")
         text = str(answer["answer_text"] or "")
         structured = _loads_json(answer["structured_json"], default={})
-        citations = conn.execute(
-            """
-            SELECT
-                ca.citation_id, ca.chunk_id, ca.source_kind, ca.source_id,
-                ca.source_url, ca.title, ca.field_path, ca.support_type,
-                ca.evidence_status, ca.confidence, ca.created_at,
-                ca.answer_start_index, ca.answer_end_index, ca.metadata_json,
-                c.source_id AS chunk_source_id, c.metadata_json AS chunk_metadata_json
-            FROM memory_citation_annotations ca
-            LEFT JOIN memory_context_chunks c ON c.chunk_id = ca.chunk_id
-            WHERE answer_id = ?
-            """,
-            (answer_id,),
-        ).fetchall()
+        citations = _answer_citation_rows(conn, answer_id)
         markers = _answer_markers(text)
         citation_markers = [marker for row in citations if (marker := _citation_marker(row))]
         extra_markers = set(markers) - set(citation_markers)
@@ -1111,6 +1226,24 @@ def _looks_like_claim_line(line: str) -> bool:
 
 def _increment(values: dict[str, int], key: str, amount: int = 1) -> None:
     values[key] = values.get(key, 0) + amount
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _compact_preview(value: Any, *, max_chars: int) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max(0, max_chars - 3)].rstrip() + "..."
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:

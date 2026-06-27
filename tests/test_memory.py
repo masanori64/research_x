@@ -5484,6 +5484,7 @@ def test_jina_embedding_request_sets_retrieval_task() -> None:
 def test_embedding_post_json_uses_retry_after(monkeypatch) -> None:
     calls = []
     sleeps = []
+    local_url = "http://127.0.0.1/v1/embeddings"
 
     class FakeResponse:
         def __enter__(self):
@@ -5499,7 +5500,7 @@ def test_embedding_post_json_uses_retry_after(monkeypatch) -> None:
         calls.append((request, timeout))
         if len(calls) == 1:
             raise urllib.error.HTTPError(
-                url="https://embeddings.example/v1/embeddings",
+                url=local_url,
                 code=429,
                 msg="Too Many Requests",
                 hdrs={"Retry-After": "0.25"},
@@ -5511,7 +5512,7 @@ def test_embedding_post_json_uses_retry_after(monkeypatch) -> None:
     monkeypatch.setattr(embeddings.time, "sleep", lambda seconds: sleeps.append(seconds))
 
     response = embeddings._post_json(  # noqa: SLF001
-        "https://embeddings.example/v1/embeddings",
+        local_url,
         {"input": ["hello"]},
         headers={"Authorization": "Bearer fake"},
         timeout_seconds=30,

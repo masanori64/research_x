@@ -1,8 +1,7 @@
 # AI-Callable Memory Search Pipeline V2
 
-This is the active evidence-architecture contract for `research_x`.
-It is not the work-state database, not the structural-flow database, and not a
-historical research log.
+This is the active evidence-architecture contract for `research_x`; it is not the
+work-state database, structural-flow database, or historical research log.
 
 ## Executive Decision
 
@@ -126,6 +125,7 @@ consultation captures are not citations.
 Answer behavior is `answer`, `abstain`, `needs_review`, `citation_missing`,
 `source_not_restored`, `provider_gated`, or `blocked` when support is incomplete.
 Correct-looking text without citation-ready support is not a completed answer.
+Stored `needs_review` answers must stay visible in memory audit triage by answerability status, citation count, citation block reasons, and representative answer IDs.
 Eval answerability distinguishes `answerable`, `unanswerable`, `conflicting`,
 `partially_supported`, `stale_only`, and `citation_missing`; required source
 kinds are checked against answer citations, not merely present context chunks.
@@ -225,7 +225,7 @@ fields: id, provider, model, operation, max calls, max USD, price source, scope,
 and approved time. `--allow-provider-quota` alone is insufficient; preflight is
 dry-run and must report zero provider requests while the freeze is active.
 
-Hard block is enforced at `budgeted_api_call`: contextless non-exempt routes are blocked, active-context freeze blocks are recorded, and only fake/local/local_hash plus explicit `fixture_*` providers are exempt. Request-shape tests inspect builders only; GPT review ZIPs must include logs, provider source, semantic memory/adoption readiness, and usable/not-evidence Pointer Map rows.
+Hard block is enforced at `budgeted_api_call`: contextless non-exempt routes are blocked, active-context freeze blocks are recorded, and only fake/local/local_hash plus registered local fixture providers such as `fixture_media` are exempt. Request-shape tests inspect builders only; GPT review ZIPs must include logs, provider source, semantic memory/adoption readiness, and usable/not-evidence Pointer Map rows.
 
 ## ContextBudgetPolicy Boundary
 
