@@ -1566,9 +1566,20 @@ def test_memory_media_embedding_schema_estimate_build_and_search(
     monkeypatch.setattr(media_embeddings, "_post_json", fake_post_json)
 
     estimate = estimate_media_embedding_build(db_path, dimensions=3)
-    summary = build_media_embeddings(db_path, dimensions=3, limit=1)
+    summary = build_media_embeddings(
+        db_path,
+        dimensions=3,
+        limit=1,
+        allow_provider_quota=True,
+    )
     coverage = media_embedding_coverage_report(db_path, dimensions=3)
-    hits = search_media_embeddings(db_path, "robot image", dimensions=3, limit=1)
+    hits = search_media_embeddings(
+        db_path,
+        "robot image",
+        dimensions=3,
+        limit=1,
+        allow_provider_quota=True,
+    )
 
     assert estimate.media == 1
     assert estimate.selected == 1

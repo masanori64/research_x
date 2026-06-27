@@ -25,8 +25,19 @@ def test_media_embedding_similarity_is_candidate_signal_not_citation(
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
     monkeypatch.setattr("research_x.memory.media_embeddings._post_json", fake_post_json)
 
-    build_media_embeddings(media_db_with_file, dimensions=3, limit=1)
-    hits = search_media_embeddings(media_db_with_file, "robot image", dimensions=3, limit=1)
+    build_media_embeddings(
+        media_db_with_file,
+        dimensions=3,
+        limit=1,
+        allow_provider_quota=True,
+    )
+    hits = search_media_embeddings(
+        media_db_with_file,
+        "robot image",
+        dimensions=3,
+        limit=1,
+        allow_provider_quota=True,
+    )
 
     hit = hits[0]
     assert hit.evidence_status == "unconfirmed_media_match"

@@ -81,6 +81,17 @@ def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_provider_quota_gate_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--allow-provider-quota",
+        action="store_true",
+        help=(
+            "allow provider/quota execution only after the no-quota freeze is explicitly "
+            "lifted for this command"
+        ),
+    )
+
+
 def _add_context_budget_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--context-budget-max-chars",
@@ -955,6 +966,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     memory_media_embedding_parser.add_argument("--mime-type", action="append", default=[])
     memory_media_embedding_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    _add_provider_quota_gate_option(memory_media_embedding_parser)
     _add_api_budget_options(memory_media_embedding_parser)
     memory_media_embedding_coverage_parser = memory_subparsers.add_parser(
         "media-embedding-coverage",
@@ -1001,6 +1013,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_media_search_parser.add_argument("--limit", type=int, default=10)
     memory_media_search_parser.add_argument("--timeout-seconds", type=float, default=60.0)
     memory_media_search_parser.add_argument("--json", action="store_true")
+    _add_provider_quota_gate_option(memory_media_search_parser)
     _add_api_budget_options(memory_media_search_parser)
     memory_ocr_estimate_parser = memory_subparsers.add_parser(
         "ocr-estimate",
@@ -3372,6 +3385,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             max_file_bytes=args.max_file_bytes,
             mime_types=tuple(args.mime_type),
             timeout_seconds=args.timeout_seconds,
+            allow_provider_quota=args.allow_provider_quota,
         )
         print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
         return 0
@@ -3417,6 +3431,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             base_url=args.base_url,
             limit=args.limit,
             timeout_seconds=args.timeout_seconds,
+            allow_provider_quota=args.allow_provider_quota,
         )
         print(media_search_json(hits) if args.json else format_media_search(hits))
         return 0

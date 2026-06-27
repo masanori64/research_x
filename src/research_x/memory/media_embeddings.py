@@ -34,6 +34,12 @@ SUPPORTED_MEDIA_MIME_TYPES = (
     "image/webp",
     "application/pdf",
 )
+MEDIA_PROVIDER_QUOTA_GATE_MESSAGE = (
+    "native media embedding provider API use is frozen, including paid/free-tier, "
+    "trial-credit, zero-dollar, and keyless quota calls. Do not build or search "
+    "provider media embeddings unless the no-quota freeze is explicitly lifted and "
+    "allow_provider_quota=True is passed with API Budget Guard preflight."
+)
 
 
 @dataclass(frozen=True)
@@ -237,6 +243,7 @@ def build_media_embeddings(
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     mime_types: tuple[str, ...] = (),
     timeout_seconds: float = 60.0,
+    allow_provider_quota: bool = False,
 ) -> MediaEmbeddingBuildSummary:
     path = Path(db_path)
     spec = resolve_media_embedding_spec(
@@ -249,6 +256,7 @@ def build_media_embeddings(
         base_url=base_url,
         timeout_seconds=timeout_seconds,
     )
+    _require_media_provider_quota_allowed(allow_provider_quota=allow_provider_quota)
     inputs = _selected_inputs(
         _media_inputs(
             path,
@@ -339,6 +347,7 @@ def search_media_embeddings(
     base_url: str | None = None,
     limit: int = 10,
     timeout_seconds: float = 60.0,
+    allow_provider_quota: bool = False,
 ) -> tuple[MediaSearchHit, ...]:
     path = Path(db_path)
     spec = resolve_media_embedding_spec(
@@ -351,6 +360,7 @@ def search_media_embeddings(
         base_url=base_url,
         timeout_seconds=timeout_seconds,
     )
+    _require_media_provider_quota_allowed(allow_provider_quota=allow_provider_quota)
     query_vector = GeminiMediaEmbedder(spec).embed_query(query)
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
@@ -502,6 +512,11 @@ def _media_signal_policy(signal_role: str) -> dict[str, Any]:
         "promotion_gate": "ocr_caption_vlm_context_chunk_citation_required",
         "quality_scope": "media_signal_boundary_not_model_quality",
     }
+
+
+def _require_media_provider_quota_allowed(*, allow_provider_quota: bool) -> None:
+    if not allow_provider_quota:
+        raise RuntimeError(MEDIA_PROVIDER_QUOTA_GATE_MESSAGE)
 
 
 class GeminiMediaEmbedder:
