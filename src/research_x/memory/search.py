@@ -1262,6 +1262,7 @@ def _with_semantic_contributions(
             "dimensions": hit.dimensions,
             "embedding_profile": hit.embedding_profile,
             "text_template_version": hit.text_template_version,
+            **_semantic_signal_policy(str(hit.provider)),
         }
         for rank, hit in enumerate(hits, start=1)
     }
@@ -1283,9 +1284,21 @@ def _with_semantic_contributions(
                 "dimensions": semantic["dimensions"],
                 "embedding_profile": semantic["embedding_profile"],
                 "text_template_version": semantic["text_template_version"],
+                **_semantic_signal_policy(str(semantic["provider"])),
             }
         ]
     return rows
+
+
+def _semantic_signal_policy(provider: str) -> dict[str, Any]:
+    diagnostic_only = provider == "local_hash"
+    return {
+        "evidence_role": "retrieval_candidate_signal",
+        "answer_support_allowed": False,
+        "diagnostic_only": diagnostic_only,
+        "production_eligible": not diagnostic_only,
+        "promotion_gate": "source_bundle_context_citation_required",
+    }
 
 
 def _dedupe_engine_contributions(values: list[Any]) -> list[dict[str, Any]]:
@@ -1414,6 +1427,7 @@ def _ensure_semantic_rerank_contribution(
             "dimensions": semantic_hit.dimensions,
             "embedding_profile": semantic_hit.embedding_profile,
             "text_template_version": semantic_hit.text_template_version,
+            **_semantic_signal_policy(semantic_hit.provider),
         },
     ]
 
@@ -1498,6 +1512,7 @@ def _result_from_candidate(
             "text_template_version": semantic_hit.text_template_version,
             "similarity": _safe_float(semantic_hit.similarity),
             "weight": semantic_weight,
+            **_semantic_signal_policy(semantic_hit.provider),
         }
     if metadata.get("stale_lineage_variant_present") is True:
         metadata["freshness"] = "stale"

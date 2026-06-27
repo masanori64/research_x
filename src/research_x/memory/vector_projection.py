@@ -443,6 +443,11 @@ def benchmark_vector_backends(
             "candidate_backends": list(BENCHMARK_VECTOR_BACKENDS),
             "dependency_gate": "zvec and other new backends require source/dependency review",
             "provider_policy": "local_hash query embeddings only under the no-quota freeze",
+            "evidence_role": "retrieval_candidate_signal",
+            "answer_support_allowed": False,
+            "diagnostic_only": provider == "local_hash",
+            "production_eligible": provider != "local_hash",
+            "promotion_gate": "source_bundle_context_citation_required",
         },
     )
 
