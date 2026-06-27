@@ -15,6 +15,7 @@ from research_x.tool_interface.memory_tool_contract import (
     validate_tool_output,
     validate_tool_output_against_db,
     workflow_tool_output,
+    workflow_tool_output_for_ai,
 )
 
 
@@ -81,6 +82,31 @@ def test_db_validator_rejects_missing_context_chunk_lineage(tmp_path: Path) -> N
 
     assert any("chunk missing source_doc_hash" in error for error in errors)
     assert any("chunk missing source_bundle_id" in error for error in errors)
+
+
+def test_ai_tool_output_downgrades_answer_when_db_restoration_fails(
+    tmp_path: Path,
+) -> None:
+    db_path = _seed_memory_db(tmp_path)
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="fake",
+        store=True,
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM memory_context_chunks")
+
+    output = workflow_tool_output_for_ai(workflow, db_path=db_path)
+
+    assert validate_tool_output(output) == []
+    assert output.status == "source_not_restored"
+    assert output.evidence_level == "context_chunk"
+    assert output.answer_text is None
+    assert output.trace["db_backed_restoration_validation"]["status"] == "failed"
+    assert output.trace["db_backed_restoration_validation"]["required_for_answer"] is True
 
 
 def test_db_validator_rejects_stale_source_doc_hash(tmp_path: Path) -> None:

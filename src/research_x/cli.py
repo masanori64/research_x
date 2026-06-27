@@ -3885,7 +3885,7 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
             store=store,
         )
         if args.tool_json:
-            print(workflow_tool_output_json(workflow))
+            print(workflow_tool_output_json(workflow, db_path=args.db))
         elif args.json:
             print(workflow_json(workflow, budget_policy=_context_budget_policy_for_args(args)))
         else:

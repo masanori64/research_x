@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -117,9 +117,29 @@ def workflow_tool_output(workflow: MemoryWorkflow) -> ToolOutput:
     )
 
 
-def workflow_tool_output_json(workflow: MemoryWorkflow) -> str:
+def workflow_tool_output_for_ai(
+    workflow: MemoryWorkflow,
+    *,
+    db_path: str | Path | None = None,
+) -> ToolOutput:
+    output = workflow_tool_output(workflow)
+    if db_path is None:
+        return output
+    errors = validate_tool_output_against_db(output, db_path)
+    if not errors:
+        return _with_db_backed_validation_trace(output, status="passed", errors=())
+    if output.status != "answer":
+        return _with_db_backed_validation_trace(output, status="failed", errors=errors)
+    return _downgrade_unrestored_answer(output, errors=errors)
+
+
+def workflow_tool_output_json(
+    workflow: MemoryWorkflow,
+    *,
+    db_path: str | Path | None = None,
+) -> str:
     return json.dumps(
-        workflow_tool_output(workflow).as_dict(),
+        workflow_tool_output_for_ai(workflow, db_path=db_path).as_dict(),
         ensure_ascii=False,
         indent=2,
         sort_keys=True,
@@ -216,6 +236,53 @@ def validate_tool_output_against_db(
         for item in citations:
             errors.extend(_validate_citation_against_db(conn, prefix=prefix, item=item))
     return errors
+
+
+def _with_db_backed_validation_trace(
+    output: ToolOutput,
+    *,
+    status: str,
+    errors: tuple[str, ...] | list[str],
+) -> ToolOutput:
+    trace = dict(output.trace)
+    trace["db_backed_restoration_validation"] = {
+        "status": status,
+        "required_for_answer": output.status == "answer",
+        "error_count": len(errors),
+        "errors": list(errors),
+    }
+    return replace(output, trace=trace)
+
+
+def _downgrade_unrestored_answer(output: ToolOutput, *, errors: list[str]) -> ToolOutput:
+    downgraded = _with_db_backed_validation_trace(output, status="failed", errors=errors)
+    return replace(
+        downgraded,
+        status=_db_validation_failure_status(errors),
+        evidence_level="context_chunk" if output.citations else "candidate",
+        answer_text=None,
+    )
+
+
+def _db_validation_failure_status(errors: list[str]) -> str:
+    joined = " ".join(errors)
+    if any(
+        marker in joined
+        for marker in (
+            "context chunk",
+            "chunk",
+            "source document",
+            "source_doc_hash",
+            "source_bundle_id",
+            "retrieval_text",
+            "lineage",
+            "restore",
+        )
+    ):
+        return "source_not_restored"
+    if "citation" in joined:
+        return "citation_missing"
+    return "needs_review"
 
 
 def _workflow_status(workflow: MemoryWorkflow) -> str:

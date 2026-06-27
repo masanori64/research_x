@@ -4481,10 +4481,13 @@ def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> No
     )
     output = workflow_tool_output(workflow)
     payload = json.loads(workflow_tool_output_json(workflow))
+    db_validated_payload = json.loads(workflow_tool_output_json(workflow, db_path=db_path))
 
     assert validate_tool_output(output) == []
     assert validate_tool_output(payload) == []
     assert validate_tool_output_against_db(output, db_path) == []
+    assert validate_tool_output(db_validated_payload) == []
+    assert validate_tool_output_against_db(db_validated_payload, db_path) == []
     assert payload["contract_version"] == "research-x-ai-tool-v1"
     assert payload["tool_kind"] == "research_x.memory.workflow"
     assert payload["status"] == "answer"
@@ -4496,6 +4499,12 @@ def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> No
     assert payload["trace"]["provider_gate"]["required"] is False
     assert payload["trace"]["codex_bridge"]["contract_version"] == "research-x-codex-bridge-v1"
     assert "codex_transcript_included" not in payload["trace"]
+    assert db_validated_payload["trace"]["db_backed_restoration_validation"] == {
+        "status": "passed",
+        "required_for_answer": True,
+        "error_count": 0,
+        "errors": [],
+    }
 
 
 def test_memory_workflow_tool_output_marks_provider_gap_without_citation_promotion(
@@ -4540,6 +4549,8 @@ def test_memory_workflow_cli_can_emit_tool_json(tmp_path: Path, capsys) -> None:
                 "強化学習 ロボット",
                 "--answer-provider",
                 "fake",
+                "--store",
+                "--allow-fixture-provider",
                 "--tool-json",
             ]
         )
@@ -4548,8 +4559,10 @@ def test_memory_workflow_cli_can_emit_tool_json(tmp_path: Path, capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert validate_tool_output(payload) == []
+    assert validate_tool_output_against_db(payload, db_path) == []
     assert payload["contract_version"] == "research-x-ai-tool-v1"
     assert payload["status"] == "answer"
+    assert payload["trace"]["db_backed_restoration_validation"]["status"] == "passed"
 
 
 def test_memory_workflow_route_does_not_treat_recent_as_fact_check() -> None:
