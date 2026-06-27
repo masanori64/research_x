@@ -95,7 +95,7 @@ class ToolOutput:
 
 
 def workflow_tool_output(workflow: MemoryWorkflow) -> ToolOutput:
-    """Build the stable AI-facing output contract for a memory workflow."""
+    """Build the raw stable tool output contract for a memory workflow."""
 
     status = _workflow_status(workflow)
     citations = _tool_citations(workflow)
@@ -122,9 +122,17 @@ def workflow_tool_output_for_ai(
     *,
     db_path: str | Path | None = None,
 ) -> ToolOutput:
+    """Build AI-facing output with DB-backed restoration required for answers."""
+
     output = workflow_tool_output(workflow)
     if db_path is None:
-        return output
+        if output.status == "answer":
+            return _downgrade_missing_db_backed_validation(output)
+        return _with_db_backed_validation_trace(
+            output,
+            status="not_required",
+            errors=(),
+        )
     errors = validate_tool_output_against_db(output, db_path)
     if not errors:
         return _with_db_backed_validation_trace(output, status="passed", errors=())
@@ -259,6 +267,26 @@ def _downgrade_unrestored_answer(output: ToolOutput, *, errors: list[str]) -> To
     return replace(
         downgraded,
         status=_db_validation_failure_status(errors),
+        evidence_level="context_chunk" if output.citations else "candidate",
+        answer_text=None,
+    )
+
+
+def _downgrade_missing_db_backed_validation(output: ToolOutput) -> ToolOutput:
+    errors = [
+        (
+            "research_x.memory.workflow: answer status requires DB-backed "
+            "restoration validation"
+        )
+    ]
+    downgraded = _with_db_backed_validation_trace(
+        output,
+        status="missing_db_path",
+        errors=errors,
+    )
+    return replace(
+        downgraded,
+        status="source_not_restored",
         evidence_level="context_chunk" if output.citations else "candidate",
         answer_text=None,
     )

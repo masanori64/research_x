@@ -109,6 +109,37 @@ def test_ai_tool_output_downgrades_answer_when_db_restoration_fails(
     assert output.trace["db_backed_restoration_validation"]["required_for_answer"] is True
 
 
+def test_ai_tool_output_without_db_path_does_not_emit_answer(
+    tmp_path: Path,
+) -> None:
+    db_path = _seed_memory_db(tmp_path)
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="fake",
+        store=True,
+    )
+
+    output = workflow_tool_output_for_ai(workflow)
+
+    assert validate_tool_output(output) == []
+    assert output.status == "source_not_restored"
+    assert output.evidence_level == "context_chunk"
+    assert output.answer_text is None
+    assert output.trace["db_backed_restoration_validation"] == {
+        "status": "missing_db_path",
+        "required_for_answer": True,
+        "error_count": 1,
+        "errors": [
+            (
+                "research_x.memory.workflow: answer status requires DB-backed "
+                "restoration validation"
+            )
+        ],
+    }
+
+
 def test_db_validator_rejects_stale_source_doc_hash(tmp_path: Path) -> None:
     db_path = _seed_memory_db(tmp_path)
     workflow = run_memory_workflow(

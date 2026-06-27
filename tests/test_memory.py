@@ -4500,25 +4500,34 @@ def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> No
         max_context_chars=240,
     )
     output = workflow_tool_output(workflow)
-    payload = json.loads(workflow_tool_output_json(workflow))
+    unvalidated_ai_payload = json.loads(workflow_tool_output_json(workflow))
     db_validated_payload = json.loads(workflow_tool_output_json(workflow, db_path=db_path))
 
     assert validate_tool_output(output) == []
-    assert validate_tool_output(payload) == []
+    assert validate_tool_output(unvalidated_ai_payload) == []
     assert validate_tool_output_against_db(output, db_path) == []
     assert validate_tool_output(db_validated_payload) == []
     assert validate_tool_output_against_db(db_validated_payload, db_path) == []
-    assert payload["contract_version"] == "research-x-ai-tool-v1"
-    assert payload["tool_kind"] == "research_x.memory.workflow"
-    assert payload["status"] == "answer"
-    assert payload["evidence_level"] == "citation_ready"
-    assert payload["answer_text"]
-    assert payload["citations"]
-    assert all(citation["citation_ready"] for citation in payload["citations"])
-    assert payload["trace"]["route"] == workflow.route
-    assert payload["trace"]["provider_gate"]["required"] is False
-    assert payload["trace"]["codex_bridge"]["contract_version"] == "research-x-codex-bridge-v1"
-    assert "codex_transcript_included" not in payload["trace"]
+    assert output.status == "answer"
+    assert unvalidated_ai_payload["contract_version"] == "research-x-ai-tool-v1"
+    assert unvalidated_ai_payload["tool_kind"] == "research_x.memory.workflow"
+    assert unvalidated_ai_payload["status"] == "source_not_restored"
+    assert unvalidated_ai_payload["evidence_level"] == "context_chunk"
+    assert unvalidated_ai_payload["answer_text"] is None
+    assert unvalidated_ai_payload["citations"]
+    assert unvalidated_ai_payload["trace"]["route"] == workflow.route
+    assert unvalidated_ai_payload["trace"]["provider_gate"]["required"] is False
+    assert unvalidated_ai_payload["trace"]["db_backed_restoration_validation"][
+        "status"
+    ] == "missing_db_path"
+    assert unvalidated_ai_payload["trace"]["codex_bridge"][
+        "contract_version"
+    ] == "research-x-codex-bridge-v1"
+    assert "codex_transcript_included" not in unvalidated_ai_payload["trace"]
+    assert db_validated_payload["status"] == "answer"
+    assert db_validated_payload["evidence_level"] == "citation_ready"
+    assert db_validated_payload["answer_text"]
+    assert all(citation["citation_ready"] for citation in db_validated_payload["citations"])
     assert db_validated_payload["trace"]["db_backed_restoration_validation"] == {
         "status": "passed",
         "required_for_answer": True,
