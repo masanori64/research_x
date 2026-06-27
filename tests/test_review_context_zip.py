@@ -13,6 +13,7 @@ def test_review_context_zip_required_files_cover_gpt_review_surfaces() -> None:
     module = _load_module()
 
     assert {
+        "control/adoption_registry.toml",
         "tools/wbs_viewer/projects/research-x-work-state.json",
         "prompt_contracts/research_x_memory_search_v1.yaml",
         "src/research_x/memory/api_budget.py",
@@ -28,12 +29,17 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     project_root = tmp_path / "project"
     _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
     _write_file(project_root / "src/research_x/memory/audit.py", "audit = True\n")
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
     zip_path = tmp_path / "review.zip"
 
     result = module.build_review_context_zip(
         project_root,
         zip_path,
         changed_files=("src/research_x/memory/audit.py",),
+        review_artifacts=review_artifacts,
         verify_manifest=True,
     )
 
@@ -56,7 +62,13 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     ) in names
     assert "attachments/project_context/src/research_x/memory/api_budget.py" in names
     assert "attachments/project_context/src/research_x/cli.py" in names
+    assert "attachments/project_context/control/adoption_registry.toml" in names
     assert "attachments/changed_files/src/research_x/memory/audit.py" in names
+    assert "attachments/logs/pytest.log" in names
+    assert "attachments/logs/ruff.log" in names
+    assert "attachments/audits/memory_audit.json" in names
+    assert "attachments/audits/adoption_audit.json" in names
+    assert "attachments/audits/pointer_map_audit.json" in names
     assert manifest["artifact_kind"] == module.REVIEW_ZIP_ARTIFACT_KIND
 
 
@@ -94,6 +106,32 @@ def test_verify_review_zip_detects_manifest_missing_required_file(
         "src/research_x/memory/api_budget.py" in error
         for error in errors
     )
+    assert any(
+        "required review artifact missing from manifest: "
+        "attachments/logs/pytest.log" in error
+        for error in errors
+    )
+
+
+def test_verify_review_zip_detects_missing_required_review_artifact(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts={},
+        verify_manifest=True,
+    )
+
+    assert any(
+        "required manifest file missing from ZIP: attachments/logs/pytest.log" in error
+        for error in result.verification_errors
+    )
 
 
 def _load_module():
@@ -109,6 +147,18 @@ def _load_module():
 def _write_required_project_files(project_root: Path, paths: tuple[str, ...]) -> None:
     for path in paths:
         _write_file(project_root / path, f"fixture for {path}\n")
+
+
+def _write_required_review_artifacts(
+    project_root: Path,
+    artifacts: dict[str, str],
+) -> dict[str, Path]:
+    paths: dict[str, Path] = {}
+    for artifact_id, zip_path in artifacts.items():
+        source = project_root / "review_inputs" / zip_path.replace("/", "_")
+        _write_file(source, f"fixture for {artifact_id}\n")
+        paths[artifact_id] = source
+    return paths
 
 
 def _write_file(path: Path, text: str) -> None:

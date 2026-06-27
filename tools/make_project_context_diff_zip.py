@@ -17,6 +17,7 @@ REVIEW_ZIP_ARTIFACT_KIND = "research_x_gpt_review_context_zip"
 REQUIRED_PROJECT_CONTEXT_FILES = (
     "README.codex.md",
     "PROJECT.md",
+    "control/adoption_registry.toml",
     "docs/memory-pipeline-v2.md",
     "docs/pipeline.md",
     "tools/wbs_viewer/projects/research-x-work-state.json",
@@ -25,6 +26,16 @@ REQUIRED_PROJECT_CONTEXT_FILES = (
     "src/research_x/cli.py",
     "src/research_x/tool_interface/memory_tool_contract.py",
 )
+
+REQUIRED_REVIEW_ARTIFACTS = {
+    "pytest_log": "attachments/logs/pytest.log",
+    "ruff_log": "attachments/logs/ruff.log",
+    "git_diff_check_log": "attachments/logs/git_diff_check.log",
+    "review_zip_verify_log": "attachments/logs/review_zip_verify.log",
+    "memory_audit": "attachments/audits/memory_audit.json",
+    "adoption_audit": "attachments/audits/adoption_audit.json",
+    "pointer_map_audit": "attachments/audits/pointer_map_audit.json",
+}
 
 CORE_MANIFEST_FILES = (
     "context.md",
@@ -49,6 +60,7 @@ def build_review_context_zip(
     head_ref: str = "HEAD",
     changed_files: tuple[str, ...] | None = None,
     extra_files: tuple[str, ...] = (),
+    review_artifacts: dict[str, str | Path] | None = None,
     verify_manifest: bool = True,
 ) -> ReviewZipBuildResult:
     root = Path(project_root).resolve()
@@ -101,6 +113,12 @@ def build_review_context_zip(
             tuple(dict.fromkeys(extra_files)),
             role="extra_context",
             required=False,
+        )
+        _copy_review_artifacts(
+            root,
+            staging,
+            files,
+            review_artifacts or {},
         )
         _write_git_artifacts(
             root,
@@ -167,7 +185,9 @@ def verify_review_zip(zip_path: str | Path) -> tuple[str, ...]:
         errors.append("manifest files must be a list")
         files = []
     required_source_paths = set(REQUIRED_PROJECT_CONTEXT_FILES)
+    required_review_artifacts = set(REQUIRED_REVIEW_ARTIFACTS.values())
     seen_required_sources: set[str] = set()
+    seen_required_review_artifacts: set[str] = set()
     for file_entry in files:
         if not isinstance(file_entry, dict):
             errors.append("manifest file entry is not an object")
@@ -182,12 +202,17 @@ def verify_review_zip(zip_path: str | Path) -> tuple[str, ...]:
             errors.append(f"required manifest file missing from ZIP: {zip_member}")
         if required and source_path in required_source_paths:
             seen_required_sources.add(source_path)
+        if required and zip_member in required_review_artifacts:
+            seen_required_review_artifacts.add(zip_member)
     for core_file in CORE_MANIFEST_FILES:
         if core_file not in names:
             errors.append(f"core review ZIP file missing: {core_file}")
     missing_required_sources = sorted(required_source_paths - seen_required_sources)
     for source_path in missing_required_sources:
         errors.append(f"required project context source missing from manifest: {source_path}")
+    missing_review_artifacts = sorted(required_review_artifacts - seen_required_review_artifacts)
+    for zip_path in missing_review_artifacts:
+        errors.append(f"required review artifact missing from manifest: {zip_path}")
     return tuple(errors)
 
 
@@ -239,6 +264,57 @@ def _zip_path_for_role(role: str, source_path: str) -> str:
     if role == "changed_file":
         return f"attachments/changed_files/{source_path}"
     return f"attachments/extra_context/{source_path}"
+
+
+def _copy_review_artifacts(
+    root: Path,
+    staging: Path,
+    files: list[dict[str, Any]],
+    review_artifacts: dict[str, str | Path],
+) -> None:
+    for artifact_id, zip_path in REQUIRED_REVIEW_ARTIFACTS.items():
+        raw_source = review_artifacts.get(artifact_id)
+        source = _resolve_optional_source(root, raw_source)
+        if source is None or not source.exists() or not source.is_file():
+            files.append(
+                {
+                    "role": "review_artifact",
+                    "artifact_id": artifact_id,
+                    "source_path": _manifest_source_path(root, source) if source else None,
+                    "zip_path": zip_path,
+                    "required": True,
+                    "missing_source": True,
+                }
+            )
+            continue
+        destination = staging / zip_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        files.append(
+            {
+                "role": "review_artifact",
+                "artifact_id": artifact_id,
+                "source_path": _manifest_source_path(root, source),
+                "zip_path": zip_path,
+                "required": True,
+            }
+        )
+
+
+def _resolve_optional_source(root: Path, value: str | Path | None) -> Path | None:
+    if value is None:
+        return None
+    path = Path(value)
+    return path if path.is_absolute() else root / path
+
+
+def _manifest_source_path(root: Path, source: Path | None) -> str | None:
+    if source is None:
+        return None
+    try:
+        return source.resolve().relative_to(root).as_posix()
+    except ValueError:
+        return str(source)
 
 
 def _write_context(
@@ -330,6 +406,7 @@ def _manifest_payload(
         "base_ref": base_ref,
         "head_ref": head_ref,
         "required_project_context_files": list(REQUIRED_PROJECT_CONTEXT_FILES),
+        "required_review_artifacts": REQUIRED_REVIEW_ARTIFACTS,
         "files": files,
     }
 
@@ -382,10 +459,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--head-ref", default="HEAD")
     parser.add_argument("--changed-file", action="append", default=[])
     parser.add_argument("--extra-file", action="append", default=[])
+    parser.add_argument("--pytest-log", type=Path)
+    parser.add_argument("--ruff-log", type=Path)
+    parser.add_argument("--git-diff-check-log", type=Path)
+    parser.add_argument("--review-zip-verify-log", type=Path)
+    parser.add_argument("--memory-audit", type=Path)
+    parser.add_argument("--adoption-audit", type=Path)
+    parser.add_argument("--pointer-map-audit", type=Path)
     parser.add_argument("--verify-manifest", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
+    review_artifacts = {
+        "pytest_log": args.pytest_log,
+        "ruff_log": args.ruff_log,
+        "git_diff_check_log": args.git_diff_check_log,
+        "review_zip_verify_log": args.review_zip_verify_log,
+        "memory_audit": args.memory_audit,
+        "adoption_audit": args.adoption_audit,
+        "pointer_map_audit": args.pointer_map_audit,
+    }
     result = build_review_context_zip(
         args.project_root,
         args.output,
@@ -393,6 +486,7 @@ def main(argv: list[str] | None = None) -> int:
         head_ref=args.head_ref,
         changed_files=tuple(args.changed_file) if args.changed_file else None,
         extra_files=tuple(args.extra_file),
+        review_artifacts=review_artifacts,
         verify_manifest=args.verify_manifest,
     )
     payload = asdict(result)
