@@ -10,6 +10,13 @@ from test_operational_trace_persistence import _seed_memory_db
 from research_x.memory.answer import build_memory_answer
 from research_x.memory.context import CitationAnnotation, build_context_bundle
 from research_x.memory.corpus import build_memory_corpus
+from research_x.memory.dedup_policy import (
+    DEDUP_CONFLICT_VARIANT_POLICY,
+    DEDUP_LINEAGE_POLICY,
+    DEDUP_LINEAGE_POLICY_SCOPE,
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+)
 from research_x.memory.evals import load_eval_cases
 from research_x.memory.evidence_invariants import (
     citation_block_reasons,
@@ -56,6 +63,7 @@ def test_search_dedupes_same_tweet_without_losing_bookmark_provenance(
     assert metadata["lineage_variant_count"] >= 2
     assert len(metadata["lineage_variants"]) >= 2
     assert metadata["source_hash_variant_count"] >= 1
+    _assert_dedup_policy(metadata)
 
 
 def test_search_dedupes_same_tweet_same_hash_without_variant_warning(
@@ -78,6 +86,10 @@ def test_search_dedupes_same_tweet_same_hash_without_variant_warning(
     assert metadata["source_doc_hash_status"] == "consistent"
     assert metadata["freshness_variants"] == ["active"]
     assert metadata["stale_lineage_variant_present"] is False
+    assert metadata["dedup_lineage_policy_action"] == "no_lineage_variant"
+    assert metadata["dedup_lineage_source_hash_variant_policy"] == (
+        DEDUP_SOURCE_HASH_VARIANT_POLICY
+    )
     assert "lineage_variant_warning" not in metadata
 
 
@@ -99,6 +111,7 @@ def test_context_citation_and_tool_output_preserve_dedup_provenance(
         assert set(metadata["bookmark_accounts"]) == {"acct", "acct-b"}
         assert metadata["duplicate_support_suppressed_count"] >= 1
         assert len(metadata["provenance_sources"]) >= 2
+        _assert_dedup_policy(metadata)
 
     assert unique_evidence_count((citation,)) == 1
     assert duplicate_evidence_count((citation,)) == 0
@@ -116,6 +129,7 @@ def test_context_citation_and_tool_output_preserve_dedup_provenance(
     assert len(restore["provenance_sources"]) >= 2
     assert restore["lineage_variant_count"] >= 2
     assert len(restore["lineage_variants"]) >= 2
+    _assert_dedup_policy(restore)
 
 
 def test_stale_hash_variant_blocks_citation_ready_without_silent_collapse(
@@ -139,6 +153,9 @@ def test_stale_hash_variant_blocks_citation_ready_without_silent_collapse(
     assert metadata["lineage_variant_warning"] == "stale"
     assert metadata["source_hash_variant_count"] > 1
     assert "stale" in metadata["freshness_variants"]
+    assert metadata["dedup_lineage_policy"] == DEDUP_LINEAGE_POLICY
+    assert metadata["dedup_lineage_policy_action"] == DEDUP_STALE_VARIANT_POLICY
+    assert metadata["dedup_lineage_stale_variant_policy"] == DEDUP_STALE_VARIANT_POLICY
     assert "stale_evidence" in citation_block_reasons(citation)
 
     workflow = _workflow(query=query, bundle=bundle, answer=None)
@@ -149,6 +166,7 @@ def test_stale_hash_variant_blocks_citation_ready_without_silent_collapse(
     restore = output.citations[0].restore
     assert restore["stale_lineage_variant_present"] is True
     assert restore["lineage_variant_warning"] == "stale"
+    assert restore["dedup_lineage_policy_action"] == DEDUP_STALE_VARIANT_POLICY
     assert any(
         variant["representative_reason"] == "duplicate_stale_lineage_variant"
         for variant in restore["lineage_variants"]
@@ -173,6 +191,11 @@ def test_conflicting_hash_variant_blocks_as_conflicting_evidence(
     assert metadata["conflict_lineage_variant_present"] is True
     assert metadata["lineage_variant_warning"] == "conflict"
     assert metadata["source_doc_hash_status"] == "conflict"
+    assert metadata["dedup_lineage_policy"] == DEDUP_LINEAGE_POLICY
+    assert metadata["dedup_lineage_policy_action"] == DEDUP_CONFLICT_VARIANT_POLICY
+    assert metadata["dedup_lineage_conflict_variant_policy"] == (
+        DEDUP_CONFLICT_VARIANT_POLICY
+    )
     assert citation_marks_conflict(citation) is True
     assert "conflicting_evidence" in citation_block_reasons(citation)
 
@@ -219,6 +242,7 @@ def test_dedup_fixture_file_declares_identity_and_conflict_boundaries() -> None:
     assert stale_variant.forbid_stale_evidence_support is True
     assert conflict_variant.expected_answerability_status == "conflicting"
     assert distinct_tweet_conflict.expected_unique_evidence_count == 2
+    assert all(case.expected_dedup_lineage_policy == DEDUP_LINEAGE_POLICY for case in cases)
 
 
 def _seed_cross_account_memory_db(tmp_path: Path) -> Path:
@@ -257,6 +281,16 @@ def _workflow(*, query: str, bundle: Any, answer: Any) -> MemoryWorkflow:
         context_bundle=bundle,
         answer=answer,
     )
+
+
+def _assert_dedup_policy(metadata: dict[str, Any]) -> None:
+    assert metadata["dedup_lineage_policy"] == DEDUP_LINEAGE_POLICY
+    assert metadata["dedup_lineage_policy_scope"] == DEDUP_LINEAGE_POLICY_SCOPE
+    assert metadata["dedup_lineage_source_hash_variant_policy"] == (
+        DEDUP_SOURCE_HASH_VARIANT_POLICY
+    )
+    assert metadata["dedup_lineage_stale_variant_policy"] == DEDUP_STALE_VARIANT_POLICY
+    assert metadata["dedup_lineage_conflict_variant_policy"] == DEDUP_CONFLICT_VARIANT_POLICY
 
 
 def _force_tweet_source_hash(db_path: Path, tweet_id: str, source_doc_hash: str) -> None:

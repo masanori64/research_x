@@ -391,6 +391,12 @@ def _public_result_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "duplicate_evidence_count",
         "unique_evidence_count",
         "dedup_reason",
+        "dedup_lineage_policy",
+        "dedup_lineage_policy_scope",
+        "dedup_lineage_source_hash_variant_policy",
+        "dedup_lineage_stale_variant_policy",
+        "dedup_lineage_conflict_variant_policy",
+        "dedup_lineage_policy_action",
     )
     return {key: metadata[key] for key in keys if key in metadata}
 
@@ -425,6 +431,12 @@ def _provenance_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "duplicate_evidence_count",
         "unique_evidence_count",
         "dedup_reason",
+        "dedup_lineage_policy",
+        "dedup_lineage_policy_scope",
+        "dedup_lineage_source_hash_variant_policy",
+        "dedup_lineage_stale_variant_policy",
+        "dedup_lineage_conflict_variant_policy",
+        "dedup_lineage_policy_action",
     )
     return {key: metadata[key] for key in keys if key in metadata}
 

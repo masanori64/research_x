@@ -55,6 +55,7 @@ class EvalCase:
     forbid_not_evidence_support: bool = True
     provider_free_fixture: bool = False
     quality_scope: str | None = None
+    expected_dedup_lineage_policy: str | None = None
     min_hit_score: float = 1.0
 
 
@@ -654,6 +655,9 @@ def _eval_case_from_mapping(record: Any) -> EvalCase:
             default=False,
         ),
         quality_scope=_optional_string(record.get("quality_scope")),
+        expected_dedup_lineage_policy=_optional_string(
+            record.get("expected_dedup_lineage_policy")
+        ),
         min_hit_score=float(record.get("min_hit_score", 1.0)),
     )
 

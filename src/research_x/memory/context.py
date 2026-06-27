@@ -772,6 +772,12 @@ def _provenance_metadata(*, hit: dict[str, Any], evidence: dict[str, Any]) -> di
         "duplicate_evidence_count",
         "unique_evidence_count",
         "dedup_reason",
+        "dedup_lineage_policy",
+        "dedup_lineage_policy_scope",
+        "dedup_lineage_source_hash_variant_policy",
+        "dedup_lineage_stale_variant_policy",
+        "dedup_lineage_conflict_variant_policy",
+        "dedup_lineage_policy_action",
     )
     result = {}
     for key in keys:

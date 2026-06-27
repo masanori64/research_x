@@ -619,6 +619,22 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
                 "duplicate_support_suppressed_count"
             )
             or 0,
+            "dedup_lineage_policy": citation.metadata.get("dedup_lineage_policy"),
+            "dedup_lineage_policy_scope": citation.metadata.get(
+                "dedup_lineage_policy_scope"
+            ),
+            "dedup_lineage_source_hash_variant_policy": citation.metadata.get(
+                "dedup_lineage_source_hash_variant_policy"
+            ),
+            "dedup_lineage_stale_variant_policy": citation.metadata.get(
+                "dedup_lineage_stale_variant_policy"
+            ),
+            "dedup_lineage_conflict_variant_policy": citation.metadata.get(
+                "dedup_lineage_conflict_variant_policy"
+            ),
+            "dedup_lineage_policy_action": citation.metadata.get(
+                "dedup_lineage_policy_action"
+            ),
         },
     )
 

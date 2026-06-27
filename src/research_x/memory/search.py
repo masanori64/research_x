@@ -7,6 +7,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from research_x.memory.dedup_policy import (
+    DEDUP_CONFLICT_VARIANT_POLICY,
+    DEDUP_LINEAGE_POLICY,
+    DEDUP_LINEAGE_POLICY_SCOPE,
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+)
 from research_x.memory.document_hashes import text_hash
 from research_x.memory.embeddings import (
     SemanticHit,
@@ -972,6 +979,11 @@ def _evidence_identity_metadata(
         stale_lineage_variant_present=stale_lineage_variant_present,
         conflict_lineage_variant_present=conflict_lineage_variant_present,
     )
+    dedup_lineage_policy = _dedup_lineage_policy_metadata(
+        source_hash_variant_count=source_hash_variant_count,
+        stale_lineage_variant_present=stale_lineage_variant_present,
+        conflict_lineage_variant_present=conflict_lineage_variant_present,
+    )
     metadata: dict[str, Any] = {
         "primary_evidence_identity": {
             "source_kind": source_kind,
@@ -1010,6 +1022,7 @@ def _evidence_identity_metadata(
             if duplicate_count
             else "unique_source_identity"
         ),
+        **dedup_lineage_policy,
     }
     if lineage_variant_warning:
         metadata["lineage_variant_warning"] = lineage_variant_warning
@@ -1105,6 +1118,30 @@ def _lineage_variant_warning(
     if source_hash_variant_count > 1:
         return "source_hash_variant"
     return None
+
+
+def _dedup_lineage_policy_metadata(
+    *,
+    source_hash_variant_count: int,
+    stale_lineage_variant_present: bool,
+    conflict_lineage_variant_present: bool,
+) -> dict[str, str]:
+    if conflict_lineage_variant_present:
+        action = DEDUP_CONFLICT_VARIANT_POLICY
+    elif stale_lineage_variant_present:
+        action = DEDUP_STALE_VARIANT_POLICY
+    elif source_hash_variant_count > 1:
+        action = DEDUP_SOURCE_HASH_VARIANT_POLICY
+    else:
+        action = "no_lineage_variant"
+    return {
+        "dedup_lineage_policy": DEDUP_LINEAGE_POLICY,
+        "dedup_lineage_policy_scope": DEDUP_LINEAGE_POLICY_SCOPE,
+        "dedup_lineage_source_hash_variant_policy": DEDUP_SOURCE_HASH_VARIANT_POLICY,
+        "dedup_lineage_stale_variant_policy": DEDUP_STALE_VARIANT_POLICY,
+        "dedup_lineage_conflict_variant_policy": DEDUP_CONFLICT_VARIANT_POLICY,
+        "dedup_lineage_policy_action": action,
+    }
 
 
 def _is_stale_lineage_status(value: Any) -> bool:
