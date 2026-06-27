@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import sys
+import zipfile
+from pathlib import Path
+
+SCRIPT_PATH = Path("tools/make_project_context_diff_zip.py")
+
+
+def test_review_context_zip_required_files_cover_gpt_review_surfaces() -> None:
+    module = _load_module()
+
+    assert {
+        "tools/wbs_viewer/projects/research-x-work-state.json",
+        "prompt_contracts/research_x_memory_search_v1.yaml",
+        "src/research_x/memory/api_budget.py",
+        "src/research_x/cli.py",
+        "src/research_x/tool_interface/memory_tool_contract.py",
+    } <= set(module.REQUIRED_PROJECT_CONTEXT_FILES)
+
+
+def test_build_review_context_zip_includes_required_context_and_manifest(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    _write_file(project_root / "src/research_x/memory/audit.py", "audit = True\n")
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        changed_files=("src/research_x/memory/audit.py",),
+        verify_manifest=True,
+    )
+
+    assert result.verification_errors == ()
+    assert zip_path.exists()
+    assert module.verify_review_zip(zip_path) == ()
+    with zipfile.ZipFile(zip_path) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("attachment_manifest.json").decode("utf-8"))
+    assert "context.md" in names
+    assert "attachment_manifest.md" in names
+    assert "attachment_manifest.json" in names
+    assert (
+        "attachments/project_context/tools/wbs_viewer/projects/"
+        "research-x-work-state.json"
+    ) in names
+    assert (
+        "attachments/project_context/prompt_contracts/"
+        "research_x_memory_search_v1.yaml"
+    ) in names
+    assert "attachments/project_context/src/research_x/memory/api_budget.py" in names
+    assert "attachments/project_context/src/research_x/cli.py" in names
+    assert "attachments/changed_files/src/research_x/memory/audit.py" in names
+    assert manifest["artifact_kind"] == module.REVIEW_ZIP_ARTIFACT_KIND
+
+
+def test_verify_review_zip_detects_manifest_missing_required_file(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    zip_path = tmp_path / "broken.zip"
+    manifest = {
+        "artifact_kind": module.REVIEW_ZIP_ARTIFACT_KIND,
+        "schema_version": module.REVIEW_ZIP_SCHEMA_VERSION,
+        "files": [
+            {
+                "role": "project_context",
+                "source_path": "README.codex.md",
+                "zip_path": "attachments/project_context/README.codex.md",
+                "required": True,
+            }
+        ],
+    }
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("context.md", "# context\n")
+        archive.writestr("attachment_manifest.md", "# manifest\n")
+        archive.writestr("attachment_manifest.json", json.dumps(manifest))
+
+    errors = module.verify_review_zip(zip_path)
+
+    assert any(
+        "required manifest file missing from ZIP: "
+        "attachments/project_context/README.codex.md" in error
+        for error in errors
+    )
+    assert any(
+        "required project context source missing from manifest: "
+        "src/research_x/memory/api_budget.py" in error
+        for error in errors
+    )
+
+
+def _load_module():
+    spec = importlib.util.spec_from_file_location("make_project_context_diff_zip", SCRIPT_PATH)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _write_required_project_files(project_root: Path, paths: tuple[str, ...]) -> None:
+    for path in paths:
+        _write_file(project_root / path, f"fixture for {path}\n")
+
+
+def _write_file(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
