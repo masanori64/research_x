@@ -107,6 +107,7 @@ STALE_METADATA_KEYS = (
     "freshness_status",
     "source_hash_status",
     "source_doc_hash_status",
+    "lineage_variant_warning",
     "retrieval_text_status",
     "retrieval_text_freshness",
     "pointer_status",
@@ -127,11 +128,14 @@ CONFLICT_METADATA_KEYS = (
     "evidence_relation",
     "relation",
     "relation_type",
+    "source_doc_hash_status",
+    "lineage_variant_warning",
     "support_type",
 )
 
 PROVENANCE_METADATA_KEYS = (
     "provenance_sources",
+    "lineage_variants",
     "duplicate_sources",
     "bookmark_accounts",
     "source_accounts",

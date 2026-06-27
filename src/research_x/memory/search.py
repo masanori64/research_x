@@ -951,6 +951,26 @@ def _evidence_identity_metadata(
         }
         for candidate in group
     ]
+    lineage_variants = _lineage_variants(
+        group,
+        representative_doc_id=representative_doc_id,
+    )
+    freshness_variants = _unique_strings(
+        variant.get("freshness_status") for variant in lineage_variants
+    )
+    source_hash_variant_count = len(source_doc_hashes)
+    stale_lineage_variant_present = any(
+        _is_stale_lineage_status(variant.get("freshness_status"))
+        for variant in lineage_variants
+    )
+    conflict_lineage_variant_present = any(
+        variant.get("conflict_variant") is True for variant in lineage_variants
+    )
+    lineage_variant_warning = _lineage_variant_warning(
+        source_hash_variant_count=source_hash_variant_count,
+        stale_lineage_variant_present=stale_lineage_variant_present,
+        conflict_lineage_variant_present=conflict_lineage_variant_present,
+    )
     metadata: dict[str, Any] = {
         "primary_evidence_identity": {
             "source_kind": source_kind,
@@ -971,6 +991,15 @@ def _evidence_identity_metadata(
         "source_doc_types": doc_types,
         "source_urls": urls,
         "provenance_sources": provenance_sources,
+        "lineage_variants": lineage_variants,
+        "lineage_variant_count": len(lineage_variants),
+        "source_hash_variant_count": source_hash_variant_count,
+        "source_doc_hash_status": "variant"
+        if source_hash_variant_count > 1
+        else "consistent",
+        "freshness_variants": freshness_variants,
+        "stale_lineage_variant_present": stale_lineage_variant_present,
+        "conflict_lineage_variant_present": conflict_lineage_variant_present,
         "duplicate_sources": duplicate_sources,
         "duplicate_support_suppressed_count": duplicate_count,
         "duplicate_evidence_count": duplicate_count,
@@ -981,10 +1010,121 @@ def _evidence_identity_metadata(
             else "unique_source_identity"
         ),
     }
+    if lineage_variant_warning:
+        metadata["lineage_variant_warning"] = lineage_variant_warning
+        if conflict_lineage_variant_present:
+            metadata["source_doc_hash_status"] = "conflict"
     if bookmark_account_ids:
         metadata["bookmark_accounts"] = bookmark_account_ids
         metadata["bookmark_provenance"] = bookmark_rows
     return metadata
+
+
+def _lineage_variants(
+    group: list[dict[str, Any]],
+    *,
+    representative_doc_id: str,
+) -> list[dict[str, Any]]:
+    representative_hash = next(
+        (
+            _string_or_none(candidate.get("source_doc_hash"))
+            for candidate in group
+            if str(candidate.get("doc_id") or "") == representative_doc_id
+        ),
+        None,
+    )
+    variants: list[dict[str, Any]] = []
+    for candidate in group:
+        doc_id = str(candidate.get("doc_id") or "")
+        candidate_metadata = _loads_json(candidate.get("metadata_json"))
+        source_hash = _string_or_none(candidate.get("source_doc_hash"))
+        freshness_status = _lineage_variant_freshness(candidate_metadata)
+        conflict_variant = _metadata_marks_conflict(candidate_metadata)
+        variants.append(
+            {
+                "doc_id": doc_id,
+                "doc_type": str(candidate.get("doc_type") or ""),
+                "source_tweet_id": _string_or_none(candidate.get("source_tweet_id")),
+                "account_id": _string_or_none(candidate.get("account_id")),
+                "source_doc_hash": source_hash,
+                "document_updated_at": _string_or_none(candidate.get("updated_at")),
+                "freshness_status": freshness_status,
+                "representative": doc_id == representative_doc_id,
+                "representative_reason": _lineage_variant_representative_reason(
+                    doc_id=doc_id,
+                    representative_doc_id=representative_doc_id,
+                    source_hash=source_hash,
+                    representative_hash=representative_hash,
+                    freshness_status=freshness_status,
+                    conflict_variant=conflict_variant,
+                ),
+                "conflict_variant": conflict_variant,
+            }
+        )
+    return variants
+
+
+def _lineage_variant_freshness(metadata: dict[str, Any]) -> str:
+    value = _string_or_none(metadata.get("freshness_status")) or _string_or_none(
+        metadata.get("freshness")
+    )
+    return value or "active"
+
+
+def _lineage_variant_representative_reason(
+    *,
+    doc_id: str,
+    representative_doc_id: str,
+    source_hash: str | None,
+    representative_hash: str | None,
+    freshness_status: str,
+    conflict_variant: bool,
+) -> str:
+    if doc_id == representative_doc_id:
+        return "representative"
+    if conflict_variant:
+        return "duplicate_conflicting_lineage_variant"
+    if _is_stale_lineage_status(freshness_status):
+        return "duplicate_stale_lineage_variant"
+    if source_hash and representative_hash and source_hash != representative_hash:
+        return "duplicate_source_hash_variant"
+    return "duplicate_same_source_identity"
+
+
+def _lineage_variant_warning(
+    *,
+    source_hash_variant_count: int,
+    stale_lineage_variant_present: bool,
+    conflict_lineage_variant_present: bool,
+) -> str | None:
+    if conflict_lineage_variant_present:
+        return "conflict"
+    if stale_lineage_variant_present:
+        return "stale"
+    if source_hash_variant_count > 1:
+        return "source_hash_variant"
+    return None
+
+
+def _is_stale_lineage_status(value: Any) -> bool:
+    return _normalized(value) in {"old", "obsolete", "outdated", "stale", "stale_only"}
+
+
+def _metadata_marks_conflict(metadata: dict[str, Any]) -> bool:
+    keys = (
+        "answerability",
+        "answerability_status",
+        "evidence_relation",
+        "relation",
+        "relation_type",
+        "source_doc_hash_status",
+        "support_type",
+    )
+    return any(
+        _normalized(metadata.get(key))
+        in {"conflict", "conflicting", "conflicting_evidence", "contradicts"}
+        for key in keys
+    )
 
 
 def _filter_anchor_candidates(
@@ -1359,7 +1499,9 @@ def _result_from_candidate(
             "similarity": _safe_float(semantic_hit.similarity),
             "weight": semantic_weight,
         }
-    if components["freshness"] > 0 and plan.prefers_recent:
+    if metadata.get("stale_lineage_variant_present") is True:
+        metadata["freshness"] = "stale"
+    elif components["freshness"] > 0 and plan.prefers_recent:
         metadata["freshness"] = "recent"
     elif plan.excludes_old and components["freshness"] < 0:
         metadata["freshness"] = "possibly_stale"
@@ -1644,6 +1786,10 @@ def _string_or_none(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _normalized(value: Any) -> str:
+    return str(value or "").strip().casefold().replace("-", "_").replace(" ", "_")
 
 
 def _components_text(components: dict[str, float]) -> str:

@@ -528,6 +528,21 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
                 "primary_evidence_source_id"
             ),
             "primary_evidence_hash": citation.metadata.get("primary_evidence_hash"),
+            "lineage_variants": citation.metadata.get("lineage_variants") or [],
+            "lineage_variant_count": citation.metadata.get("lineage_variant_count") or 0,
+            "lineage_variant_warning": citation.metadata.get("lineage_variant_warning"),
+            "source_hash_variant_count": citation.metadata.get("source_hash_variant_count")
+            or 0,
+            "source_doc_hash_status": citation.metadata.get("source_doc_hash_status"),
+            "freshness_variants": citation.metadata.get("freshness_variants") or [],
+            "stale_lineage_variant_present": citation.metadata.get(
+                "stale_lineage_variant_present"
+            )
+            is True,
+            "conflict_lineage_variant_present": citation.metadata.get(
+                "conflict_lineage_variant_present"
+            )
+            is True,
             "duplicate_sources": citation.metadata.get("duplicate_sources") or [],
             "provenance_sources": citation.metadata.get("provenance_sources") or [],
             "bookmark_accounts": citation.metadata.get("bookmark_accounts") or [],

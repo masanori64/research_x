@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,9 @@ from research_x.memory.context import CitationAnnotation, build_context_bundle
 from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.evals import load_eval_cases
 from research_x.memory.evidence_invariants import (
+    citation_block_reasons,
     citation_evidence_key,
+    citation_marks_conflict,
     duplicate_evidence_count,
     unique_evidence_count,
 )
@@ -50,6 +53,32 @@ def test_search_dedupes_same_tweet_without_losing_bookmark_provenance(
     )
     assert metadata["duplicate_support_suppressed_count"] >= 1
     assert len(metadata["provenance_sources"]) >= 2
+    assert metadata["lineage_variant_count"] >= 2
+    assert len(metadata["lineage_variants"]) >= 2
+    assert metadata["source_hash_variant_count"] >= 1
+
+
+def test_search_dedupes_same_tweet_same_hash_without_variant_warning(
+    tmp_path: Path,
+) -> None:
+    db_path = _seed_cross_account_memory_db(tmp_path)
+    _force_tweet_source_hash(db_path, "tweet-1", "same-source-hash")
+
+    results = search_memory(db_path, "強化学習 ロボット", limit=10)
+
+    same_tweet = [
+        result
+        for result in results
+        if result.metadata.get("primary_evidence_source_id") == "tweet-1"
+    ]
+    assert len(same_tweet) == 1
+    metadata = same_tweet[0].metadata
+    assert metadata["source_doc_hashes"] == ["same-source-hash"]
+    assert metadata["source_hash_variant_count"] == 1
+    assert metadata["source_doc_hash_status"] == "consistent"
+    assert metadata["freshness_variants"] == ["active"]
+    assert metadata["stale_lineage_variant_present"] is False
+    assert "lineage_variant_warning" not in metadata
 
 
 def test_context_citation_and_tool_output_preserve_dedup_provenance(
@@ -85,6 +114,67 @@ def test_context_citation_and_tool_output_preserve_dedup_provenance(
     assert set(restore["bookmark_accounts"]) == {"acct", "acct-b"}
     assert restore["duplicate_support_suppressed_count"] >= 1
     assert len(restore["provenance_sources"]) >= 2
+    assert restore["lineage_variant_count"] >= 2
+    assert len(restore["lineage_variants"]) >= 2
+
+
+def test_stale_hash_variant_blocks_citation_ready_without_silent_collapse(
+    tmp_path: Path,
+) -> None:
+    db_path = _seed_cross_account_memory_db(tmp_path)
+    _mark_doc_lineage_variant(
+        db_path,
+        "tweet:tweet-1",
+        source_doc_hash="stale-source-hash",
+        metadata_updates={"freshness_status": "stale"},
+    )
+    query = "強化学習 ロボット"
+
+    bundle = build_context_bundle(db_path, query, limit=1, store=True)
+    citation = bundle.citation_annotations[0]
+    metadata = citation.metadata
+
+    assert metadata["primary_evidence_source_id"] == "tweet-1"
+    assert metadata["stale_lineage_variant_present"] is True
+    assert metadata["lineage_variant_warning"] == "stale"
+    assert metadata["source_hash_variant_count"] > 1
+    assert "stale" in metadata["freshness_variants"]
+    assert "stale_evidence" in citation_block_reasons(citation)
+
+    workflow = _workflow(query=query, bundle=bundle, answer=None)
+    output = workflow_tool_output(workflow)
+
+    assert output.status == "needs_review"
+    assert output.citations[0].citation_ready is False
+    restore = output.citations[0].restore
+    assert restore["stale_lineage_variant_present"] is True
+    assert restore["lineage_variant_warning"] == "stale"
+    assert any(
+        variant["representative_reason"] == "duplicate_stale_lineage_variant"
+        for variant in restore["lineage_variants"]
+    )
+
+
+def test_conflicting_hash_variant_blocks_as_conflicting_evidence(
+    tmp_path: Path,
+) -> None:
+    db_path = _seed_cross_account_memory_db(tmp_path)
+    _mark_doc_lineage_variant(
+        db_path,
+        "tweet:tweet-1",
+        source_doc_hash="conflict-source-hash",
+        metadata_updates={"source_doc_hash_status": "conflict"},
+    )
+
+    bundle = build_context_bundle(db_path, "強化学習 ロボット", limit=1, store=True)
+    citation = bundle.citation_annotations[0]
+    metadata = citation.metadata
+
+    assert metadata["conflict_lineage_variant_present"] is True
+    assert metadata["lineage_variant_warning"] == "conflict"
+    assert metadata["source_doc_hash_status"] == "conflict"
+    assert citation_marks_conflict(citation) is True
+    assert "conflicting_evidence" in citation_block_reasons(citation)
 
 
 def test_distinct_conflicting_sources_are_not_deduped_by_text_similarity() -> None:
@@ -112,6 +202,10 @@ def test_dedup_fixture_file_declares_identity_and_conflict_boundaries() -> None:
     by_family = {case.fixture_family: case for case in cases}
     same_source = by_family["dedup_same_source"]
     distinct_conflict = by_family["dedup_distinct_conflict"]
+    same_hash = by_family["dedup_same_source_same_hash"]
+    stale_variant = by_family["dedup_same_source_stale_hash_variant"]
+    conflict_variant = by_family["dedup_same_source_conflict_hash_variant"]
+    distinct_tweet_conflict = by_family["dedup_same_text_distinct_tweet_conflict"]
 
     assert same_source.expected_unique_evidence_count == 1
     assert same_source.max_duplicate_support_count == 0
@@ -119,6 +213,12 @@ def test_dedup_fixture_file_declares_identity_and_conflict_boundaries() -> None:
     assert same_source.forbid_duplicate_citation_support is True
     assert distinct_conflict.expected_unique_evidence_count == 2
     assert distinct_conflict.expected_answerability_status == "conflicting"
+    assert same_hash.expected_unique_evidence_count == 1
+    assert same_hash.require_provenance_preserved is True
+    assert stale_variant.expected_answerability_status == "stale_only"
+    assert stale_variant.forbid_stale_evidence_support is True
+    assert conflict_variant.expected_answerability_status == "conflicting"
+    assert distinct_tweet_conflict.expected_unique_evidence_count == 2
 
 
 def _seed_cross_account_memory_db(tmp_path: Path) -> Path:
@@ -157,6 +257,47 @@ def _workflow(*, query: str, bundle: Any, answer: Any) -> MemoryWorkflow:
         context_bundle=bundle,
         answer=answer,
     )
+
+
+def _force_tweet_source_hash(db_path: Path, tweet_id: str, source_doc_hash: str) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE memory_documents
+            SET source_doc_hash = ?
+            WHERE source_tweet_id = ?
+            """,
+            (source_doc_hash, tweet_id),
+        )
+
+
+def _mark_doc_lineage_variant(
+    db_path: Path,
+    doc_id: str,
+    *,
+    source_doc_hash: str,
+    metadata_updates: dict[str, Any],
+) -> None:
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT metadata_json FROM memory_documents WHERE doc_id = ?",
+            (doc_id,),
+        ).fetchone()
+        assert row is not None
+        metadata = json.loads(row[0] or "{}")
+        metadata.update(metadata_updates)
+        conn.execute(
+            """
+            UPDATE memory_documents
+            SET source_doc_hash = ?, metadata_json = ?
+            WHERE doc_id = ?
+            """,
+            (
+                source_doc_hash,
+                json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+                doc_id,
+            ),
+        )
 
 
 def _citation_for_identity(
