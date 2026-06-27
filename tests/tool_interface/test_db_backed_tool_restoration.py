@@ -9,6 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "memory"))
 
 from test_operational_trace_persistence import _seed_memory_db
 
+from research_x.memory.source_identity import source_bundle_id
 from research_x.memory.workflow import run_memory_workflow
 from research_x.tool_interface.memory_tool_contract import (
     validate_tool_output,
@@ -31,6 +32,12 @@ def test_tool_output_answer_validates_against_stored_lineage(tmp_path: Path) -> 
 
     assert validate_tool_output(output) == []
     assert validate_tool_output_against_db(output, db_path) == []
+
+    restore = output.citations[0].restore
+    assert restore["source_bundle_id"] == source_bundle_id(
+        output.citations[0].source_id,
+        restore["source_doc_hash"],
+    )
 
 
 def test_payload_only_validator_rejects_forged_local_x_db_lineage() -> None:

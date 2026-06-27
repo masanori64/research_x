@@ -8,6 +8,7 @@ from typing import Any
 from research_x.memory.document_hashes import text_hash
 from research_x.memory.query import build_query_plan
 from research_x.memory.search import MemorySearchResult, search_memory
+from research_x.memory.source_identity import source_bundle_id as canonical_source_bundle_id
 
 
 def build_evidence_bundle(
@@ -291,7 +292,7 @@ def _source_lineage(conn: sqlite3.Connection, doc_id: str) -> dict[str, Any]:
     if row is None:
         return {
             "document_id": doc_id,
-            "source_bundle_id": _source_bundle_id(doc_id, ""),
+            "source_bundle_id": canonical_source_bundle_id(doc_id, ""),
             "lineage_status": "document_missing",
         }
     source_doc_hash = str(row["source_doc_hash"] or "")
@@ -304,7 +305,7 @@ def _source_lineage(conn: sqlite3.Connection, doc_id: str) -> dict[str, Any]:
         "retrieval_text_profile_id": retrieval_profile.get("profile_id"),
         "retrieval_text_profile": retrieval_profile.get("profile"),
         "retrieval_text_hash": retrieval_profile.get("hash"),
-        "source_bundle_id": _source_bundle_id(str(row["doc_id"]), source_doc_hash),
+        "source_bundle_id": canonical_source_bundle_id(str(row["doc_id"]), source_doc_hash),
         "document_created_at": row["created_at"],
         "document_observed_at": row["observed_at"],
         "document_updated_at": row["updated_at"],
@@ -336,10 +337,6 @@ def _retrieval_text_lineage(
         "hash": text_hash(str(row["retrieval_text"] or "")),
         "source_doc_hash": row["source_doc_hash"],
     }
-
-
-def _source_bundle_id(doc_id: str, source_doc_hash: str) -> str:
-    return text_hash("|".join(("source-bundle", doc_id, source_doc_hash)))[:24]
 
 
 def _derived_evidence(metadata: dict[str, Any]) -> dict[str, Any] | None:

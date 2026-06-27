@@ -15,6 +15,7 @@ from research_x.memory.reader import (
     extract_external_run_to_context,
 )
 from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.source_identity import source_bundle_id as canonical_source_bundle_id
 from research_x.memory.source_kinds import LOCAL_X_DB, source_quality_class, source_risk_flags
 
 EXTRACTOR_VERSION = "local-evidence-context-v1"
@@ -704,11 +705,9 @@ def _source_lineage_metadata(
     source_doc_hash = _string_or_none(lineage.get("source_doc_hash")) or _string_or_none(
         evidence.get("source_doc_hash")
     )
-    source_bundle_id = _string_or_none(lineage.get("source_bundle_id")) or _hash_id(
-        "source-bundle",
-        source_id,
-        source_doc_hash or "",
-    )[:24]
+    source_bundle_id = _string_or_none(lineage.get("source_bundle_id")) or (
+        canonical_source_bundle_id(source_id, source_doc_hash or "")
+    )
     freshness_status = _string_or_none(hit.get("freshness")) or _string_or_none(
         lineage.get("freshness_status")
     )

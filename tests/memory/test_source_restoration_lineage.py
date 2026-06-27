@@ -6,7 +6,10 @@ from pathlib import Path
 from test_operational_trace_persistence import _seed_memory_db
 
 from research_x.cli import main
-from research_x.memory.context import build_context_bundle
+from research_x.memory.context import _source_lineage_metadata, build_context_bundle
+from research_x.memory.source_identity import source_bundle_id
+
+CREATED_AT = "2026-06-27T00:00:00+00:00"
 
 
 def test_context_and_citation_store_generation_time_lineage_snapshot(
@@ -34,6 +37,23 @@ def test_context_and_citation_store_generation_time_lineage_snapshot(
         assert metadata["source_updated_at"] == metadata["document_updated_at"]
         assert metadata["restored_at"]
         assert metadata["lineage_status"] == "restored"
+        assert metadata["source_bundle_id"] == source_bundle_id(
+            metadata["document_id"],
+            metadata["source_doc_hash"],
+        )
+
+
+def test_context_fallback_lineage_uses_canonical_source_bundle_id() -> None:
+    metadata = _source_lineage_metadata(
+        hit={},
+        evidence={"source_doc_hash": "source-hash-1"},
+        source_kind="local_x_db",
+        source_id="tweet:1",
+        source_url="https://x.com/example/status/1",
+        restored_at=CREATED_AT,
+    )
+
+    assert metadata["source_bundle_id"] == source_bundle_id("tweet:1", "source-hash-1")
 
 
 def test_memory_audit_json_cli_emits_review_artifact_payload(

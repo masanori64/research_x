@@ -17,6 +17,7 @@ from research_x.memory.evidence_invariants import (
     citation_marks_conflict,
 )
 from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.source_identity import source_bundle_id as canonical_source_bundle_id
 from research_x.memory.workflow import MemoryWorkflow
 from research_x.tool_interface.codex_bridge import bridge_trace_contract
 
@@ -661,7 +662,7 @@ def _validate_citation_against_db(
 
     restore_bundle = str(restore.get("source_bundle_id") or "").strip()
     chunk_bundle = str(chunk_metadata.get("source_bundle_id") or "").strip()
-    expected_bundle = _source_bundle_id(source_id, current_source_hash)
+    expected_bundle = canonical_source_bundle_id(source_id, current_source_hash)
     if not restore_bundle:
         errors.append(f"{prefix}: citation {label} missing source_bundle_id")
     if not chunk_bundle:
@@ -782,10 +783,6 @@ def _validate_retrieval_lineage(
     if not any(text_hash(str(row["retrieval_text"] or "")) == retrieval_hash for row in rows):
         return [f"{prefix}: citation {label} retrieval_text_hash is not restorable"]
     return []
-
-
-def _source_bundle_id(doc_id: str, source_doc_hash: str) -> str:
-    return text_hash("|".join(("source-bundle", doc_id, source_doc_hash)))[:24]
 
 
 def _restore_value(metadata: dict[str, Any], key: str) -> str | None:
