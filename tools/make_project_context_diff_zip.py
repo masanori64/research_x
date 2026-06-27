@@ -31,6 +31,7 @@ REQUIRED_REVIEW_ARTIFACTS = {
     "pytest_log": "attachments/logs/pytest.log",
     "ruff_log": "attachments/logs/ruff.log",
     "git_diff_check_log": "attachments/logs/git_diff_check.log",
+    "git_status_log": "attachments/logs/git_status_short.log",
     "review_zip_verify_log": "attachments/logs/review_zip_verify.log",
     "memory_audit": "attachments/audits/memory_audit.json",
     "adoption_audit": "attachments/audits/adoption_audit.json",
@@ -162,6 +163,7 @@ def verify_review_zip(zip_path: str | Path) -> tuple[str, ...]:
     errors: list[str] = []
     if not path.exists():
         return (f"zip missing: {path}",)
+    required_artifact_payloads: dict[str, bytes] = {}
     with zipfile.ZipFile(path) as archive:
         names = {name.replace("\\", "/") for name in archive.namelist()}
         if "attachment_manifest.json" not in names:
@@ -170,6 +172,9 @@ def verify_review_zip(zip_path: str | Path) -> tuple[str, ...]:
             manifest = json.loads(archive.read("attachment_manifest.json").decode("utf-8"))
         except (KeyError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             return (f"attachment_manifest.json unreadable: {exc}",)
+        for artifact_id, zip_member in REQUIRED_REVIEW_ARTIFACTS.items():
+            if zip_member in names:
+                required_artifact_payloads[artifact_id] = archive.read(zip_member)
     if manifest.get("artifact_kind") != REVIEW_ZIP_ARTIFACT_KIND:
         errors.append(
             "manifest artifact_kind mismatch: "
@@ -213,6 +218,77 @@ def verify_review_zip(zip_path: str | Path) -> tuple[str, ...]:
     missing_review_artifacts = sorted(required_review_artifacts - seen_required_review_artifacts)
     for zip_path in missing_review_artifacts:
         errors.append(f"required review artifact missing from manifest: {zip_path}")
+    errors.extend(_validate_required_review_artifacts(required_artifact_payloads))
+    return tuple(errors)
+
+
+def _validate_required_review_artifacts(payloads: dict[str, bytes]) -> tuple[str, ...]:
+    errors: list[str] = []
+    for artifact_id, zip_path in REQUIRED_REVIEW_ARTIFACTS.items():
+        raw = payloads.get(artifact_id)
+        if raw is None:
+            continue
+        if not raw.strip():
+            errors.append(f"required review artifact is empty: {zip_path}")
+    pointer_raw = payloads.get("pointer_map_audit")
+    if pointer_raw is not None and pointer_raw.strip():
+        errors.extend(_validate_pointer_map_audit(pointer_raw))
+    return tuple(errors)
+
+
+def _validate_pointer_map_audit(raw: bytes) -> tuple[str, ...]:
+    zip_path = REQUIRED_REVIEW_ARTIFACTS["pointer_map_audit"]
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return (f"pointer map audit artifact is not valid JSON: {zip_path}: {exc}",)
+    if not isinstance(payload, dict):
+        return (f"pointer map audit artifact must be a JSON object: {zip_path}",)
+    errors: list[str] = []
+    if payload.get("source_kind") != "pointer_map":
+        errors.append(
+            "pointer map audit source_kind must be 'pointer_map': "
+            f"{payload.get('source_kind')!r}"
+        )
+    status = str(payload.get("status") or "")
+    allowed_statuses = {"passed", "skipped_external_pointer_map_absent"}
+    if status not in allowed_statuses:
+        errors.append(
+            "pointer map audit status must be passed or skipped_external_pointer_map_absent: "
+            f"{status!r}"
+        )
+    for key in ("entry_count", "usable_count", "failed_count", "invalid_entry_count"):
+        value = payload.get(key)
+        if not isinstance(value, int) or value < 0:
+            errors.append(f"pointer map audit {key} must be a non-negative integer")
+    results = payload.get("results")
+    if not isinstance(results, list):
+        errors.append("pointer map audit results must be a list")
+    if status == "passed":
+        entry_count = payload.get("entry_count")
+        usable_count = payload.get("usable_count")
+        failed_count = payload.get("failed_count")
+        if failed_count != 0:
+            errors.append("pointer map audit passed status requires failed_count=0")
+        if (
+            isinstance(entry_count, int)
+            and isinstance(usable_count, int)
+            and isinstance(failed_count, int)
+            and entry_count != usable_count + failed_count
+        ):
+            errors.append(
+                "pointer map audit counts must satisfy "
+                "entry_count == usable_count + failed_count"
+            )
+        if isinstance(results, list) and not results:
+            errors.append("pointer map audit passed status requires result entries")
+    if (
+        status == "skipped_external_pointer_map_absent"
+        and payload.get("skipped_reason") != "pointer_map_absent"
+    ):
+        errors.append(
+            "skipped pointer map audit requires skipped_reason='pointer_map_absent'"
+        )
     return tuple(errors)
 
 
@@ -462,6 +538,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pytest-log", type=Path)
     parser.add_argument("--ruff-log", type=Path)
     parser.add_argument("--git-diff-check-log", type=Path)
+    parser.add_argument("--git-status-log", type=Path)
     parser.add_argument("--review-zip-verify-log", type=Path)
     parser.add_argument("--memory-audit", type=Path)
     parser.add_argument("--adoption-audit", type=Path)
@@ -474,6 +551,7 @@ def main(argv: list[str] | None = None) -> int:
         "pytest_log": args.pytest_log,
         "ruff_log": args.ruff_log,
         "git_diff_check_log": args.git_diff_check_log,
+        "git_status_log": args.git_status_log,
         "review_zip_verify_log": args.review_zip_verify_log,
         "memory_audit": args.memory_audit,
         "adoption_audit": args.adoption_audit,

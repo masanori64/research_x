@@ -66,6 +66,7 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     assert "attachments/changed_files/src/research_x/memory/audit.py" in names
     assert "attachments/logs/pytest.log" in names
     assert "attachments/logs/ruff.log" in names
+    assert "attachments/logs/git_status_short.log" in names
     assert "attachments/audits/memory_audit.json" in names
     assert "attachments/audits/adoption_audit.json" in names
     assert "attachments/audits/pointer_map_audit.json" in names
@@ -134,6 +135,57 @@ def test_verify_review_zip_detects_missing_required_review_artifact(
     )
 
 
+def test_verify_review_zip_rejects_failed_pointer_map_audit(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["pointer_map_audit"].write_text(
+        json.dumps(
+            {
+                "source_kind": "pointer_map",
+                "status": "failed",
+                "entry_count": 1,
+                "usable_count": 0,
+                "failed_count": 1,
+                "invalid_entry_count": 0,
+                "results": [
+                    {
+                        "pointer_id": "stale",
+                        "status": "stale_pointer",
+                        "issues": ["stale_hash"],
+                    }
+                ],
+                "skipped_reason": None,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "pointer map audit status must be passed or skipped_external_pointer_map_absent"
+        in error
+        for error in result.verification_errors
+    )
+
+
 def _load_module():
     spec = importlib.util.spec_from_file_location("make_project_context_diff_zip", SCRIPT_PATH)
     assert spec is not None
@@ -156,9 +208,55 @@ def _write_required_review_artifacts(
     paths: dict[str, Path] = {}
     for artifact_id, zip_path in artifacts.items():
         source = project_root / "review_inputs" / zip_path.replace("/", "_")
-        _write_file(source, f"fixture for {artifact_id}\n")
+        _write_file(source, _review_artifact_fixture(artifact_id))
         paths[artifact_id] = source
     return paths
+
+
+def _review_artifact_fixture(artifact_id: str) -> str:
+    if artifact_id == "memory_audit":
+        return json.dumps(
+            {
+                "readiness": {"local_no_provider_ready": True},
+                "structured_warnings": [],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+    if artifact_id == "adoption_audit":
+        return json.dumps(
+            {
+                "errors": [],
+                "status": "ok",
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+    if artifact_id == "pointer_map_audit":
+        return json.dumps(
+            {
+                "source_kind": "pointer_map",
+                "status": "passed",
+                "entry_count": 1,
+                "usable_count": 1,
+                "failed_count": 0,
+                "invalid_entry_count": 0,
+                "results": [
+                    {
+                        "pointer_id": "fixture-pointer",
+                        "status": "usable_pointer",
+                        "issues": [],
+                    }
+                ],
+                "skipped_reason": None,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+    return f"fixture log for {artifact_id}\n"
 
 
 def _write_file(path: Path, text: str) -> None:
