@@ -23,6 +23,17 @@ ALLOWED_POINTER_ARTIFACT_KINDS = frozenset(
         "route_memory_registry",
         "source_code",
         "wbs_json",
+        "chatgpt_consultation",
+        "codex_review_capture",
+        "compressed_summary",
+        "context_offload_preview",
+        "context_preview",
+        "d2_source",
+        "diagram_review",
+        "html_structure_view",
+        "presentation_svg",
+        "review_artifact",
+        "wbs_rendered_view",
     }
 )
 ALLOWED_POINTER_OWNER_PLANES = frozenset(
@@ -535,6 +546,7 @@ def _write_offload_artifact(
         "artifact_kind": pointer.artifact_kind,
         "owner_plane": pointer.owner_plane,
         "not_evidence": True,
+        "answer_support_allowed": False,
         "evidence_status": "not_evidence",
         "citation_policy": "not_citation_restore_and_verify_source_context_first",
         "pointer": pointer.as_dict(),
@@ -550,6 +562,7 @@ def _write_offload_artifact(
             "source_url": chunk.get("source_url"),
             "citation_refs": list(citation_refs),
             "not_evidence": True,
+            "answer_support_allowed": False,
         },
     }
     artifact_dir.mkdir(parents=True, exist_ok=True)

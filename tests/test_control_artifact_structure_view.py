@@ -66,6 +66,36 @@ def test_control_artifact_rejects_wbs_or_pdg_as_citation_source() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "artifact_kind",
+    (
+        "diagram_review",
+        "compressed_summary",
+        "context_offload_preview",
+        "html_structure_view",
+        "wbs_rendered_view",
+        "chatgpt_consultation",
+        "gpt_pro_plan",
+    ),
+)
+def test_control_artifact_rejects_phase8_artifact_kinds_as_citation_sources(
+    artifact_kind: str,
+) -> None:
+    payload = _fixture()
+    source = payload["source_artifacts"][0]
+    assert isinstance(source, dict)
+    source["artifact_kind"] = artifact_kind
+    source["evidence_role"] = "citation"
+    source["evidence_status"] = "citation_ready"
+
+    errors = validate_control_artifact_payload(payload)
+
+    assert any(
+        f"{artifact_kind} cannot be evidence, citation, or answer support" in error
+        for error in errors
+    )
+
+
 def test_control_artifact_rejects_source_answer_support() -> None:
     payload = _fixture()
     source = payload["source_artifacts"][0]

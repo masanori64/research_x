@@ -33,6 +33,26 @@ EVIDENCE_LEVELS = {
     "context_chunk",
     "citation_ready",
 }
+NON_EVIDENCE_RESTORE_MARKERS = {
+    "chatgpt_consultation",
+    "codex_review_capture",
+    "compressed_summary",
+    "context_offload_preview",
+    "context_preview",
+    "control_artifact",
+    "diagram",
+    "diagram_review",
+    "gpt_pro_plan",
+    "html_review",
+    "html_structure_view",
+    "not_citation",
+    "not_evidence",
+    "pointer_map",
+    "preview",
+    "review_artifact",
+    "wbs",
+    "wbs_rendered_view",
+}
 
 
 @dataclass(frozen=True)
@@ -126,6 +146,12 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
             errors.append(
                 f"{prefix}: answer status requires restored citations: "
                 + ", ".join(not_restored)
+            )
+        not_evidence = _payload_citations_with_not_evidence_support(citations)
+        if not_evidence:
+            errors.append(
+                f"{prefix}: answer status cannot cite not-evidence artifacts: "
+                + ", ".join(not_evidence)
             )
     if data.get("status") == "provider_gated" and str(data.get("answer_text") or "").strip():
         errors.append(f"{prefix}: provider_gated status must not include completed answer_text")
@@ -267,6 +293,7 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
         },
         "citation_restoration": citation_restoration,
         "pointer_offload_verification": pointer_offload,
+        "non_evidence_artifacts": _non_evidence_artifact_trace(raw_citations),
         "provider_gate": {
             "required": status == "provider_gated",
             "no_quota_default": True,
@@ -378,6 +405,34 @@ def _pointer_offload_verification(
     }
 
 
+def _non_evidence_artifact_trace(
+    raw_citations: tuple[CitationAnnotation, ...],
+) -> dict[str, Any]:
+    results = []
+    for citation in raw_citations:
+        metadata = citation.metadata
+        if not citation_is_not_evidence(citation):
+            continue
+        results.append(
+            {
+                "citation_id": citation.citation_id,
+                "blocked": True,
+                "artifact_kind": metadata.get("artifact_kind"),
+                "artifact_type": metadata.get("artifact_type"),
+                "owner_plane": metadata.get("owner_plane"),
+                "preview_kind": metadata.get("preview_kind"),
+                "citation_policy": metadata.get("citation_policy"),
+                "not_evidence": metadata.get("not_evidence"),
+                "answer_support_allowed": metadata.get("answer_support_allowed"),
+            }
+        )
+    return {
+        "status": "blocked" if results else "no_not_evidence_artifacts",
+        "artifact_count": len(results),
+        "results": results,
+    }
+
+
 def _raw_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:
     raw_citations, _context_run_id = _raw_citations_with_context_run_id(workflow)
     return raw_citations
@@ -419,6 +474,13 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "source_anchor": citation.metadata.get("tweet_id")
             or citation.metadata.get("source_context_citation_id")
             or citation.source_id,
+            "artifact_kind": citation.metadata.get("artifact_kind"),
+            "artifact_type": citation.metadata.get("artifact_type"),
+            "owner_plane": citation.metadata.get("owner_plane"),
+            "preview_kind": citation.metadata.get("preview_kind"),
+            "citation_policy": citation.metadata.get("citation_policy"),
+            "not_evidence": citation.metadata.get("not_evidence"),
+            "answer_support_allowed": citation.metadata.get("answer_support_allowed"),
             "primary_evidence_identity": citation.metadata.get("primary_evidence_identity"),
             "primary_evidence_key": citation.metadata.get("primary_evidence_key"),
             "primary_evidence_source_id": citation.metadata.get(
@@ -527,6 +589,48 @@ def _payload_citations_with_restore_issues(citations: list[Any]) -> list[str]:
         ):
             broken.append(citation_id)
     return broken
+
+
+def _payload_citations_with_not_evidence_support(citations: list[Any]) -> list[str]:
+    broken: list[str] = []
+    for item in citations:
+        if not isinstance(item, dict):
+            broken.append("<unknown>")
+            continue
+        citation_id = str(item.get("citation_id") or "<unknown>")
+        restore = item.get("restore")
+        if not isinstance(restore, dict):
+            continue
+        if _restore_marks_not_evidence(restore):
+            broken.append(citation_id)
+    return broken
+
+
+def _restore_marks_not_evidence(restore: dict[str, Any]) -> bool:
+    if restore.get("not_evidence") is True:
+        return True
+    if restore.get("answer_support_allowed") is False:
+        return True
+    for key in (
+        "artifact_kind",
+        "artifact_type",
+        "owner_plane",
+        "preview_kind",
+        "citation_policy",
+    ):
+        value = restore.get(key)
+        if value is not None and _not_evidence_restore_value(value):
+            return True
+    return False
+
+
+def _not_evidence_restore_value(value: Any) -> bool:
+    if isinstance(value, list | tuple | set):
+        return any(_not_evidence_restore_value(item) for item in value)
+    if isinstance(value, dict):
+        return any(_not_evidence_restore_value(item) for item in value.values())
+    normalized = str(value).strip().casefold().replace("-", "_").replace(" ", "_")
+    return any(marker in normalized for marker in NON_EVIDENCE_RESTORE_MARKERS)
 
 
 def _answerability_status(answer: MemoryAnswer) -> str | None:

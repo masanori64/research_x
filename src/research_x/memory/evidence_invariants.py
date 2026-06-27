@@ -50,6 +50,23 @@ NON_EVIDENCE_MARKERS = {
     "map_hint_not_evidence_restore_source_first",
     "brief_is_not_evidence",
     "not_evidence_until_fetched_and_chunked",
+    "chatgpt_consultation",
+    "codex_review_capture",
+    "context_offload",
+    "context_offload_preview",
+    "context_preview",
+    "control_artifact_view",
+    "d2_source",
+    "diagram_review",
+    "generated_diagram",
+    "gpt_pro_plan",
+    "html_review",
+    "html_structure_view",
+    "presentation_svg",
+    "review_artifact",
+    "review_capture",
+    "structure_view",
+    "wbs_rendered_view",
 }
 
 NON_READY_SUPPORT_TYPES = {

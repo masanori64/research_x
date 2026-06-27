@@ -6,15 +6,41 @@ from typing import Any
 
 CONTROL_ARTIFACT_KINDS = {
     "chatgpt_consultation",
+    "codex_review_capture",
+    "compressed_summary",
+    "context_offload_preview",
+    "context_preview",
     "d2_source",
+    "diagram_review",
+    "generated_diagram",
     "gpt_pro_plan",
     "html_review",
+    "html_structure_view",
     "pointer_map",
     "presentation_svg",
+    "review_artifact",
     "svg_review",
     "wbs_json",
+    "wbs_rendered_view",
     "x_url",
 }
+CONTROL_ARTIFACT_KIND_MARKERS = (
+    "chatgpt",
+    "codex_review",
+    "compressed_summary",
+    "control_artifact",
+    "diagram",
+    "gpt",
+    "html_review",
+    "html_structure",
+    "pointer_map",
+    "preview",
+    "rendered_view",
+    "review_artifact",
+    "structure_view",
+    "summary",
+    "wbs",
+)
 EVIDENCE_CLAIM_FIELDS = {
     "answer_support",
     "citation",
@@ -174,7 +200,7 @@ def _validate_source_artifacts(view_id: str, value: object) -> list[str]:
         artifact_kind = str(item["artifact_kind"])
         evidence_role = str(item.get("evidence_role", "control"))
         evidence_status = str(item.get("evidence_status", "not_evidence"))
-        if artifact_kind in CONTROL_ARTIFACT_KINDS and (
+        if _is_control_artifact_kind(artifact_kind) and (
             evidence_role in EVIDENCE_ROLES or evidence_status in EVIDENCE_ROLES
         ):
             errors.append(
@@ -184,6 +210,13 @@ def _validate_source_artifacts(view_id: str, value: object) -> list[str]:
         if path.startswith(("http://", "https://", "//")):
             errors.append(f"{prefix}: remote artifact paths are not renderable control inputs")
     return errors
+
+
+def _is_control_artifact_kind(artifact_kind: str) -> bool:
+    normalized = artifact_kind.strip().casefold().replace("-", "_").replace(" ", "_")
+    return artifact_kind in CONTROL_ARTIFACT_KINDS or any(
+        marker in normalized for marker in CONTROL_ARTIFACT_KIND_MARKERS
+    )
 
 
 def _validate_sections(view_id: str, value: object) -> list[str]:

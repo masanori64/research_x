@@ -53,6 +53,9 @@ def test_context_budget_offload_preserves_restore_pointer_and_citation_refs(
     assert pointer["not_evidence"] is True
     assert pointer["citation_refs"][0]["citation_id"] == "citation-1"
     assert artifact["not_evidence"] is True
+    assert artifact["answer_support_allowed"] is False
+    assert artifact["source_anchor"]["not_evidence"] is True
+    assert artifact["source_anchor"]["answer_support_allowed"] is False
     assert artifact["content"] == original_text
     assert payload["context_chunks"][0]["chunk_text"] == original_text
 
