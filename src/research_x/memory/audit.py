@@ -34,6 +34,8 @@ class MemoryAuditReport:
     claim_citation_issues: dict[str, int]
     freshness_lineage_issues: dict[str, int]
     strategy_gap_counts: dict[str, int]
+    structured_warnings: tuple[dict[str, Any], ...]
+    readiness: dict[str, Any]
     warnings: tuple[str, ...]
 
 
@@ -78,6 +80,8 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         freshness_lineage_issues=freshness_lineage_issues,
         strategy_gap_counts=strategy_gap_counts,
     )
+    structured_warnings = _structured_warnings_from_messages(warnings)
+    readiness = _readiness_summary(structured_warnings)
     return MemoryAuditReport(
         db_path=str(path),
         documents=documents,
@@ -96,6 +100,8 @@ def audit_memory_db(db_path: str | Path) -> MemoryAuditReport:
         claim_citation_issues=claim_citation_issues,
         freshness_lineage_issues=freshness_lineage_issues,
         strategy_gap_counts=strategy_gap_counts,
+        structured_warnings=tuple(structured_warnings),
+        readiness=readiness,
         warnings=tuple(warnings),
     )
 
@@ -122,6 +128,12 @@ def format_audit_report(report: MemoryAuditReport) -> str:
         f"claim/citation issues: {report.claim_citation_issues or {}}",
         f"freshness/lineage issues: {report.freshness_lineage_issues or {}}",
         f"strategy gap counts: {report.strategy_gap_counts or {}}",
+        "local/no-provider-ready: "
+        f"{'yes' if report.readiness['local_no_provider_ready'] else 'no'}",
+        "provider-production-ready: "
+        f"{'yes' if report.readiness['provider_production_ready'] else 'no'}",
+        f"blocking issues: {report.readiness['blocking_issue_count']}",
+        f"expected gated warnings: {report.readiness['expected_gated_warning_count']}",
         "embedding specs:",
     ]
     if report.embedding_specs:
@@ -140,10 +152,17 @@ def format_audit_report(report: MemoryAuditReport) -> str:
             lines.append("  " + " ".join(parts))
     else:
         lines.append("  none")
-    lines.append(f"production-ready: {'no' if report.warnings else 'yes'}")
-    if report.warnings:
+    lines.append(
+        f"production-ready: {'yes' if report.readiness['provider_production_ready'] else 'no'}"
+    )
+    if report.structured_warnings:
         lines.append("warnings:")
-        lines.extend(f"  - {warning}" for warning in report.warnings)
+        lines.extend(
+            "  - "
+            f"[{warning['code']} {warning['category']}/{warning['severity']}] "
+            f"{warning['message']}"
+            for warning in report.structured_warnings
+        )
     else:
         lines.append("warnings: none")
     return "\n".join(lines)
@@ -1109,6 +1128,148 @@ def _loads_json(value: Any, *, default: Any) -> Any:
         return json.loads(str(value))
     except json.JSONDecodeError:
         return default
+
+
+def _structured_warnings_from_messages(
+    warnings: list[str],
+) -> list[dict[str, Any]]:
+    return [_classify_warning(message) for message in warnings]
+
+
+def _classify_warning(message: str) -> dict[str, Any]:
+    code = "unclassified_warning"
+    severity = "warning"
+    category = "blocking_issue"
+    gate = "memory_audit"
+    blocks_local = True
+    blocks_provider = True
+    if message.startswith("memory_documents is empty"):
+        code = "memory_documents_empty"
+        gate = "memory_corpus"
+    elif message.startswith("FTS row count differs"):
+        code = "fts_row_count_mismatch"
+        gate = "memory_fts"
+    elif message.startswith("memory_relations is empty"):
+        code = "memory_relations_empty"
+        gate = "relation_graph"
+    elif "relation edges point to missing documents" in message:
+        code = "orphaned_relations"
+        gate = "relation_graph"
+    elif "documents have no relation edge" in message:
+        code = "relation_coverage_gap"
+        category = "local_no_provider_warning"
+        gate = "relation_graph"
+        blocks_local = False
+    elif "feedback rows point to missing documents" in message:
+        code = "orphaned_feedback"
+        gate = "feedback"
+    elif message.startswith("V2 evidence graph has orphan rows"):
+        code = "v2_evidence_orphans"
+        gate = "v2_evidence_graph"
+    elif message.startswith("invalid JSON detected"):
+        code = "invalid_json"
+        gate = "schema_integrity"
+    elif message.startswith("invalid enum values detected"):
+        code = "invalid_enums"
+        gate = "schema_integrity"
+    elif message.startswith("fixture/fake memory artifacts are present"):
+        code = "fixture_artifacts_present"
+        severity = "expected"
+        category = "fixture_quarantined_expected"
+        gate = "fixture_quarantine"
+        blocks_local = False
+    elif message.startswith("stored answer artifacts need review"):
+        code = "stored_answers_need_review"
+        category = "local_no_provider_warning"
+        gate = "answer_review"
+        blocks_local = False
+    elif message.startswith("claim/citation verification issues detected"):
+        code = "claim_citation_issues"
+        gate = "citation_integrity"
+    elif message.startswith("freshness/projection lineage issues detected"):
+        code = "freshness_lineage_issues"
+        gate = "source_lineage"
+    elif message.startswith("retrieval strategy catalog still has no-spend"):
+        code = "retrieval_strategy_no_spend_gap"
+        gate = "retrieval_strategy"
+    elif message.startswith("provider embedding rows are quarantined"):
+        code = "provider_embedding_rows_quarantined"
+        severity = "expected"
+        category = "provider_gated_expected"
+        gate = "provider_quota_freeze"
+        blocks_local = False
+    elif message.startswith("only local_hash embeddings are present"):
+        code = "local_hash_diagnostic_only"
+        severity = "expected"
+        category = "provider_gated_expected"
+        gate = "semantic_provider_gate"
+        blocks_local = False
+    elif message.startswith("embedding index incomplete"):
+        code = "embedding_index_incomplete"
+        severity = "expected"
+        category = "provider_gated_expected"
+        gate = "embedding_index"
+        blocks_local = False
+    elif message.startswith("embedding index has stale rows"):
+        code = "embedding_index_stale_rows"
+        gate = "embedding_index"
+    elif message.startswith("embedding index lacks source hashes"):
+        code = "embedding_index_missing_source_hash"
+        gate = "embedding_index"
+    return {
+        "code": code,
+        "severity": severity,
+        "category": category,
+        "message": message,
+        "gate": gate,
+        "blocking_for_local_no_provider": blocks_local,
+        "blocking_for_provider_production": blocks_provider,
+    }
+
+
+def _readiness_summary(
+    structured_warnings: list[dict[str, Any]],
+) -> dict[str, Any]:
+    blocking_local = sum(
+        1 for warning in structured_warnings if warning["blocking_for_local_no_provider"]
+    )
+    blocking_provider = sum(
+        1 for warning in structured_warnings if warning["blocking_for_provider_production"]
+    )
+    blocking_issue_count = sum(
+        1 for warning in structured_warnings if warning["category"] == "blocking_issue"
+    )
+    expected_gated_count = sum(
+        1
+        for warning in structured_warnings
+        if warning["category"]
+        in {
+            "provider_gated_expected",
+            "fixture_quarantined_expected",
+            "install_gated_expected",
+        }
+    )
+    fixture_quarantine_count = sum(
+        1
+        for warning in structured_warnings
+        if warning["category"] == "fixture_quarantined_expected"
+    )
+    local_warning_count = sum(
+        1
+        for warning in structured_warnings
+        if warning["category"] == "local_no_provider_warning"
+    )
+    return {
+        "local_no_provider_ready": blocking_local == 0,
+        "provider_production_ready": blocking_provider == 0,
+        "blocking_issue_count": blocking_issue_count,
+        "blocking_for_local_no_provider_count": blocking_local,
+        "blocking_for_provider_production_count": blocking_provider,
+        "expected_gated_warning_count": expected_gated_count,
+        "fixture_quarantine_warning_count": fixture_quarantine_count,
+        "local_no_provider_warning_count": local_warning_count,
+        "total_warning_count": len(structured_warnings),
+    }
 
 
 def _warnings(
