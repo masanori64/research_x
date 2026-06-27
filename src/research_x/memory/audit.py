@@ -588,6 +588,14 @@ def _fixture_artifact_counts(conn: sqlite3.Connection) -> dict[str, int]:
             """,
         ),
         (
+            "memory_media_embeddings.fixture_provider",
+            """
+            SELECT COUNT(*)
+            FROM memory_media_embeddings
+            WHERE provider = 'fixture_media'
+            """,
+        ),
+        (
             "memory_answer_runs.fake_provider",
             """
             SELECT COUNT(*)

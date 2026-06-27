@@ -29,6 +29,8 @@ from research_x.memory.schema import ensure_memory_schema
 
 GEMINI_MEDIA_PROVIDER = "gemini"
 GEMINI_MEDIA_DEFAULT_MODEL = "gemini-embedding-2"
+FIXTURE_MEDIA_PROVIDER = "fixture_media"
+FIXTURE_MEDIA_DEFAULT_MODEL = "fixture-media-embedding-v1"
 GEMINI_MEDIA_DEFAULT_DIMENSIONS = 1536
 DEFAULT_MEDIA_EMBEDDING_PROFILE = "native_multimodal_media"
 DEFAULT_INPUT_TEMPLATE_VERSION = "gemini-media-input-v1"
@@ -162,14 +164,24 @@ def resolve_media_embedding_spec(
     timeout_seconds: float = 60.0,
 ) -> MediaEmbeddingSpec:
     resolved_provider = (provider or GEMINI_MEDIA_PROVIDER).strip().lower()
-    if resolved_provider != GEMINI_MEDIA_PROVIDER:
-        raise ValueError("native media embeddings currently support provider=gemini only")
+    if resolved_provider not in {GEMINI_MEDIA_PROVIDER, FIXTURE_MEDIA_PROVIDER}:
+        raise ValueError(
+            "native media embeddings currently support provider=gemini or fixture_media"
+        )
     resolved_dimensions = dimensions or GEMINI_MEDIA_DEFAULT_DIMENSIONS
     if resolved_dimensions <= 0:
         raise ValueError("media embedding dimensions must be positive")
+    resolved_model = (
+        model
+        or (
+            FIXTURE_MEDIA_DEFAULT_MODEL
+            if resolved_provider == FIXTURE_MEDIA_PROVIDER
+            else GEMINI_MEDIA_DEFAULT_MODEL
+        )
+    )
     return MediaEmbeddingSpec(
         provider=resolved_provider,
-        model=model or GEMINI_MEDIA_DEFAULT_MODEL,
+        model=resolved_model,
         dimensions=resolved_dimensions,
         embedding_profile=embedding_profile or DEFAULT_MEDIA_EMBEDDING_PROFILE,
         input_template_version=input_template_version or DEFAULT_INPUT_TEMPLATE_VERSION,
@@ -261,11 +273,12 @@ def build_media_embeddings(
         base_url=base_url,
         timeout_seconds=timeout_seconds,
     )
-    _require_media_provider_quota_allowed(
-        allow_provider_quota=allow_provider_quota,
-        provider=spec.provider,
-        model=spec.model,
-    )
+    if spec.provider != FIXTURE_MEDIA_PROVIDER:
+        _require_media_provider_quota_allowed(
+            allow_provider_quota=allow_provider_quota,
+            provider=spec.provider,
+            model=spec.model,
+        )
     inputs = _selected_inputs(
         _media_inputs(
             path,
@@ -277,7 +290,7 @@ def build_media_embeddings(
         rebuild=rebuild,
         limit=limit,
     )
-    embedder = GeminiMediaEmbedder(spec)
+    embedder = _media_embedder(spec)
     embedded = 0
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
@@ -369,12 +382,13 @@ def search_media_embeddings(
         base_url=base_url,
         timeout_seconds=timeout_seconds,
     )
-    _require_media_provider_quota_allowed(
-        allow_provider_quota=allow_provider_quota,
-        provider=spec.provider,
-        model=spec.model,
-    )
-    query_vector = GeminiMediaEmbedder(spec).embed_query(query)
+    if spec.provider != FIXTURE_MEDIA_PROVIDER:
+        _require_media_provider_quota_allowed(
+            allow_provider_quota=allow_provider_quota,
+            provider=spec.provider,
+            model=spec.model,
+        )
+    query_vector = _media_embedder(spec).embed_query(query)
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
@@ -599,6 +613,33 @@ class GeminiMediaEmbedder:
         if not isinstance(values, list):
             raise RuntimeError(f"Gemini media embedding response missing values: {response}")
         return _normalize_vector([float(value) for value in values])
+
+
+class FixtureMediaEmbedder:
+    def __init__(self, spec: MediaEmbeddingSpec) -> None:
+        self.spec = spec
+
+    def embed_query(self, query: str) -> list[float]:
+        return _fixture_vector(f"query:{query}", dimensions=self.spec.dimensions)
+
+    def embed_media(self, media_input: MediaInput) -> list[float]:
+        payload = f"media:{media_input.media_id}:{media_input.context_text}"
+        return _fixture_vector(payload, dimensions=self.spec.dimensions)
+
+
+def _media_embedder(spec: MediaEmbeddingSpec) -> GeminiMediaEmbedder | FixtureMediaEmbedder:
+    if spec.provider == FIXTURE_MEDIA_PROVIDER:
+        return FixtureMediaEmbedder(spec)
+    return GeminiMediaEmbedder(spec)
+
+
+def _fixture_vector(value: str, *, dimensions: int) -> list[float]:
+    digest = hashlib.sha256(value.encode("utf-8")).digest()
+    raw = [
+        ((digest[index % len(digest)] / 255.0) * 2.0) - 1.0
+        for index in range(dimensions)
+    ]
+    return _normalize_vector(raw)
 
 
 def media_embedding_estimate_json(estimate: MediaEmbeddingEstimate) -> str:

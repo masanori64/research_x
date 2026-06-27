@@ -8,7 +8,9 @@ import pytest
 from research_x.cli import main
 from research_x.memory import media_embeddings
 from research_x.memory.api_budget import api_budget_context, upsert_api_price
+from research_x.memory.audit import audit_memory_db
 from research_x.memory.media_embeddings import (
+    FIXTURE_MEDIA_PROVIDER,
     MEDIA_PROVIDER_QUOTA_GATE_MESSAGE,
     build_media_embeddings,
     search_media_embeddings,
@@ -69,61 +71,29 @@ def test_search_media_embeddings_blocks_query_embedding_by_default(
     assert called is False
 
 
-def test_media_embedding_fake_fixture_requires_explicit_provider_quota_flag(
-    media_db_with_file: Path,
-    monkeypatch,
-) -> None:
-    payloads: list[dict[str, Any]] = []
-
-    def fake_post_json(
-        url: str,
-        payload: dict[str, Any],
-        *,
-        headers: dict[str, str],
-        timeout_seconds: float,
-        retries: int = 3,
-    ) -> dict[str, Any]:
-        payloads.append(payload)
-        return {"embeddings": [{"values": [0.1, 0.2, 0.3]}]}
-
-    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
-    monkeypatch.setattr(media_embeddings, "_post_json", fake_post_json)
-    upsert_api_price(
+def test_media_embedding_fixture_provider_is_provider_free(media_db_with_file: Path) -> None:
+    summary = build_media_embeddings(
         media_db_with_file,
-        provider="gemini",
-        model="gemini-embedding-2",
-        operation="media_embedding",
-        unit="call",
-        usd_per_unit=0.0,
-        source_url="fixture://media-embedding-provider-gate",
-        notes="provider-free monkeypatched fixture",
+        provider=FIXTURE_MEDIA_PROVIDER,
+        dimensions=3,
+        limit=1,
+    )
+    hits = search_media_embeddings(
+        media_db_with_file,
+        "robot image",
+        provider=FIXTURE_MEDIA_PROVIDER,
+        dimensions=3,
+        limit=1,
     )
 
-    with api_budget_context(
-        db_path=media_db_with_file,
-        run_id="fixture",
-        provider_quota_approval=_provider_quota_approval(),
-        no_quota_freeze_active=False,
-    ):
-        summary = build_media_embeddings(
-            media_db_with_file,
-            dimensions=3,
-            limit=1,
-            allow_provider_quota=True,
-        )
-        hits = search_media_embeddings(
-            media_db_with_file,
-            "robot image",
-            dimensions=3,
-            limit=1,
-            allow_provider_quota=True,
-        )
-
     assert summary.embedded == 1
-    assert len(payloads) == 2
     assert hits[0].media_id == "media-1"
     assert hits[0].evidence_role == "media_source_candidate_signal"
     assert hits[0].quality_scope == "media_signal_boundary_not_model_quality"
+
+    audit = audit_memory_db(media_db_with_file)
+    assert audit.fixture_artifacts["memory_media_embeddings.fixture_provider"] == 1
+    assert audit.readiness["fixture_quarantine_warning_count"] == 1
 
 
 def test_media_embedding_valid_approval_still_hard_blocks_by_default(

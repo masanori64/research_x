@@ -8,12 +8,10 @@ sys.path.append(str(Path(__file__).resolve().parent))
 
 from test_operational_trace_persistence import _seed_memory_db
 
-from research_x.memory import embeddings
 from research_x.memory.answer import build_memory_answer
-from research_x.memory.api_budget import api_budget_context, upsert_api_price
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.corpus import build_memory_corpus
-from research_x.memory.embeddings import build_memory_embeddings
+from research_x.memory.embeddings import build_memory_embeddings, pack_embedding
 from research_x.memory.relations import build_memory_relations
 from research_x.memory.schema import ensure_memory_schema
 
@@ -39,56 +37,14 @@ def test_audit_taxonomy_treats_local_hash_as_expected_provider_gate(
 
 def test_audit_taxonomy_treats_provider_rows_as_expected_quarantine(
     tmp_path: Path,
-    monkeypatch,
 ) -> None:
     db_path = _seed_ready_memory_db(tmp_path)
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        del url, headers, timeout_seconds, retries
-        return {
-            "data": [
-                {"index": index, "embedding": [1.0, 0.0, 0.0]}
-                for index, _text in enumerate(payload["input"])
-            ]
-        }
-
-    monkeypatch.setenv("CUSTOM_EMBED_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-    upsert_api_price(
+    _insert_provider_embedding_row(
         db_path,
         provider="openai_compatible",
         model="custom-embedding",
-        operation="embedding",
-        unit="call",
-        usd_per_unit=0.0,
-        source_url="fixture://audit-warning-taxonomy",
-        notes="provider-free monkeypatched fixture",
+        dimensions=3,
     )
-    with api_budget_context(
-        db_path=db_path,
-        run_id="audit-provider-row-fixture",
-        provider_quota_approval={
-            "provider_quota_approval_id": "fixture-approval",
-            "provider": "openai_compatible",
-            "model": "custom-embedding",
-            "operation": "embedding",
-            "max_calls": 10,
-            "max_cost_usd": 0.0,
-            "price_source": "fixture://audit-warning-taxonomy",
-            "approved_scope": "*",
-            "approved_at": "2026-06-27T00:00:00+00:00",
-        },
-        no_quota_freeze_active=False,
-    ):
-        build_memory_embeddings(
-            db_path,
-            provider="openai_compatible",
-            model="custom-embedding",
-            dimensions=3,
-            api_key_env="CUSTOM_EMBED_KEY",
-            base_url="https://embeddings.example/v1/embeddings",
-            allow_provider_quota=True,
-        )
 
     report = audit_memory_db(db_path)
     warning = _warning_by_code(
@@ -160,3 +116,54 @@ def _warning_by_code(
         if warning["code"] == code:
             return warning
     raise AssertionError(f"missing warning code: {code}; got {[item['code'] for item in warnings]}")
+
+
+def _insert_provider_embedding_row(
+    db_path: Path,
+    *,
+    provider: str,
+    model: str,
+    dimensions: int,
+) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        row = conn.execute(
+            """
+            SELECT doc_id, source_doc_hash, embedding_text_hash
+            FROM memory_documents
+            ORDER BY doc_id
+            LIMIT 1
+            """
+        ).fetchone()
+        assert row is not None
+        now = "2026-06-27T00:00:00+00:00"
+        conn.execute(
+            """
+            INSERT INTO memory_embeddings (
+                doc_id, provider, model, dimensions, embedding_profile,
+                text_template_version, embedding, source_doc_hash,
+                embedded_text_hash, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row["doc_id"],
+                provider,
+                model,
+                dimensions,
+                "general_memory",
+                "memory-doc-embedding-v1",
+                pack_embedding(_fixture_embedding(dimensions)),
+                row["source_doc_hash"],
+                row["embedding_text_hash"],
+                now,
+                now,
+            ),
+        )
+
+
+def _fixture_embedding(dimensions: int) -> list[float]:
+    vector = [0.0] * dimensions
+    vector[0] = 1.0
+    return vector
