@@ -1586,6 +1586,7 @@ def test_memory_media_embedding_schema_estimate_build_and_search(
             operation="media_embedding",
             price_source="fixture://test-memory-media-embedding",
         ),
+        no_quota_freeze_active=False,
     ):
         summary = build_media_embeddings(
             db_path,
@@ -1603,6 +1604,7 @@ def test_memory_media_embedding_schema_estimate_build_and_search(
             operation="media_embedding",
             price_source="fixture://test-memory-media-embedding",
         ),
+        no_quota_freeze_active=False,
     ):
         hits = search_media_embeddings(
             db_path,
@@ -3225,6 +3227,7 @@ def test_memory_audit_quarantines_openai_compatible_embeddings_under_freeze(
             operation="embedding",
             price_source="fixture://test-memory-custom-embedding",
         ),
+        no_quota_freeze_active=False,
     ):
         build_memory_embeddings(
             db_path,

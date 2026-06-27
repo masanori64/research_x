@@ -40,6 +40,7 @@ def test_media_embedding_similarity_is_candidate_signal_not_citation(
         db_path=media_db_with_file,
         run_id="media-signal-fixture",
         provider_quota_approval=_provider_quota_approval(),
+        no_quota_freeze_active=False,
     ):
         build_media_embeddings(
             media_db_with_file,
@@ -51,6 +52,7 @@ def test_media_embedding_similarity_is_candidate_signal_not_citation(
         db_path=media_db_with_file,
         run_id="media-signal-search-fixture",
         provider_quota_approval=_provider_quota_approval(),
+        no_quota_freeze_active=False,
     ):
         hits = search_media_embeddings(
             media_db_with_file,

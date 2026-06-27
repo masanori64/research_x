@@ -78,6 +78,7 @@ def test_audit_taxonomy_treats_provider_rows_as_expected_quarantine(
             "approved_scope": "*",
             "approved_at": "2026-06-27T00:00:00+00:00",
         },
+        no_quota_freeze_active=False,
     ):
         build_memory_embeddings(
             db_path,

@@ -25,9 +25,14 @@ DEFAULT_WARNING_FRACTION = 0.8
 EXEMPT_PROVIDERS = {"fake", "local", "local_hash"}
 BUDGET_EXHAUSTED_STATUS = "budget_exhausted"
 PROVIDER_QUOTA_FREEZE_ACTIVE = True
+NO_QUOTA_FREEZE_BLOCK_STATUS = "provider_gated_by_no_quota_freeze"
 PROVIDER_QUOTA_APPROVAL_GATE_MESSAGE = (
     "provider quota execution requires a scoped provider quota approval object; "
     "--allow-provider-quota alone is not sufficient"
+)
+NO_QUOTA_FREEZE_BLOCK_MESSAGE = (
+    "provider_gated_by_no_quota_freeze: provider API calls are blocked while the "
+    "no-quota freeze is active; approval objects are dry-run inputs only"
 )
 
 _ACTIVE_CONTEXT: ContextVar[ApiBudgetContext | None] = ContextVar(
@@ -57,6 +62,7 @@ class ApiBudgetContext:
     metadata: dict[str, Any] | None = None
     provider_quota_approval: ProviderQuotaApproval | None = None
     provider_quota_current_scope: str | None = None
+    no_quota_freeze_active: bool = PROVIDER_QUOTA_FREEZE_ACTIVE
 
 
 @dataclass(frozen=True)
@@ -95,6 +101,7 @@ def api_budget_context(
     metadata: dict[str, Any] | None = None,
     provider_quota_approval: ProviderQuotaApproval | dict[str, Any] | None = None,
     provider_quota_current_scope: str | None = None,
+    no_quota_freeze_active: bool = PROVIDER_QUOTA_FREEZE_ACTIVE,
 ) -> Iterator[ApiBudgetContext]:
     context = ApiBudgetContext(
         db_path=str(db_path),
@@ -106,6 +113,7 @@ def api_budget_context(
         metadata=metadata,
         provider_quota_approval=_coerce_provider_quota_approval(provider_quota_approval),
         provider_quota_current_scope=provider_quota_current_scope,
+        no_quota_freeze_active=no_quota_freeze_active,
     )
     token = _ACTIVE_CONTEXT.set(context)
     try:
@@ -279,6 +287,8 @@ def require_provider_quota_approval(
     if _is_exempt_provider(provider):
         return
     context = active_api_budget_context()
+    if context is None or context.no_quota_freeze_active:
+        raise RuntimeError(NO_QUOTA_FREEZE_BLOCK_MESSAGE)
     approval = context.provider_quota_approval if context is not None else None
     approved_scope = context.provider_quota_current_scope if context is not None else None
     result = validate_provider_quota_approval(
@@ -554,6 +564,33 @@ def reserve_api_budget(
             policy = _policy_row(conn, context.policy_id)
             if policy is None:
                 raise ApiBudgetError(f"API budget policy not found: {context.policy_id}")
+            if context.no_quota_freeze_active and not _is_exempt_provider(provider_id):
+                _insert_api_event(
+                    conn,
+                    event_id=event_id,
+                    context=context,
+                    provider=provider_id,
+                    model=model_id,
+                    provider_role=provider_role,
+                    operation=operation_id,
+                    status="blocked",
+                    units=units,
+                    estimated_cost_usd=0.0,
+                    request_hash=request_hash,
+                    started_at=now,
+                    finished_at=now,
+                    error=NO_QUOTA_FREEZE_BLOCK_MESSAGE,
+                    metadata={
+                        **metadata_payload,
+                        "freeze_status": NO_QUOTA_FREEZE_BLOCK_STATUS,
+                        "price_status": "not_checked_due_to_freeze",
+                    },
+                )
+                conn.execute("COMMIT")
+                raise ApiBudgetExceededError(
+                    f"{BUDGET_EXHAUSTED_STATUS}: {NO_QUOTA_FREEZE_BLOCK_MESSAGE}",
+                    event_id=event_id,
+                )
             if not int(policy["enabled"]):
                 conn.execute("COMMIT")
                 return ApiBudgetReservation(str(db_path), event_id, 0.0)

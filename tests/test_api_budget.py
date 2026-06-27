@@ -46,7 +46,7 @@ def test_unpriced_provider_blocks_before_http(monkeypatch, tmp_path: Path) -> No
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
-    with api_budget_context(db_path=db_path, run_id="run"):
+    with api_budget_context(db_path=db_path, run_id="run", no_quota_freeze_active=False):
         try:
             _post_json(
                 "https://api.openai.com/v1/embeddings",
@@ -82,7 +82,7 @@ def test_priced_api_reserves_and_finishes_ok(tmp_path: Path) -> None:
     )
 
     with (
-        api_budget_context(db_path=db_path, run_id="run"),
+        api_budget_context(db_path=db_path, run_id="run", no_quota_freeze_active=False),
         budgeted_api_call(
             provider="openai",
             model="text-embedding-3-small",
@@ -101,6 +101,42 @@ def test_priced_api_reserves_and_finishes_ok(tmp_path: Path) -> None:
     assert status["recent_events"][0]["status"] == "ok"
 
 
+def test_no_quota_freeze_blocks_budgeted_api_call_even_with_price(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    upsert_api_price(
+        db_path,
+        provider="openai",
+        model="text-embedding-3-small",
+        operation="embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://no-quota-freeze-hard-block",
+    )
+
+    with api_budget_context(db_path=db_path, run_id="run"):
+        try:
+            with budgeted_api_call(
+                provider="openai",
+                model="text-embedding-3-small",
+                provider_role="embedding",
+                operation="embedding",
+                units=api_units(calls=1),
+                request_payload={"input": "x"},
+            ):
+                pass
+        except ApiBudgetExceededError as exc:
+            assert "provider_gated_by_no_quota_freeze" in str(exc)
+        else:
+            raise AssertionError("no-quota freeze should block provider budget reservation")
+
+    status = api_budget_status(db_path, run_id="run")
+    assert status["recent_events"][0]["status"] == "blocked"
+    assert "provider_gated_by_no_quota_freeze" in status["recent_events"][0]["error"]
+    assert status["recent_events"][0]["metadata"]["freeze_status"] == (
+        "provider_gated_by_no_quota_freeze"
+    )
+
+
 def test_run_budget_includes_reserved_cost(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     upsert_api_price(
@@ -115,7 +151,7 @@ def test_run_budget_includes_reserved_cost(tmp_path: Path) -> None:
     )
     set_api_budget_policy(db_path, max_run_usd=5.0)
 
-    with api_budget_context(db_path=db_path, run_id="run"):
+    with api_budget_context(db_path=db_path, run_id="run", no_quota_freeze_active=False):
         reservation = budgeted_api_call(
             provider="openai",
             model="m",
@@ -158,7 +194,7 @@ def test_kill_switch_blocks_next_call(tmp_path: Path) -> None:
     )
     set_api_kill_switch(db_path, enabled=True)
 
-    with api_budget_context(db_path=db_path, run_id="run"):
+    with api_budget_context(db_path=db_path, run_id="run", no_quota_freeze_active=False):
         try:
             with budgeted_api_call(
                 provider="openai",
@@ -178,7 +214,7 @@ def test_kill_switch_blocks_next_call(tmp_path: Path) -> None:
 def test_fake_and_local_providers_are_exempt(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
 
-    with api_budget_context(db_path=db_path, run_id="run"):
+    with api_budget_context(db_path=db_path, run_id="run", no_quota_freeze_active=False):
         with budgeted_api_call(
             provider="fake",
             model="fake-model",

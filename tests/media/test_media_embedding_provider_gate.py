@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -104,6 +103,7 @@ def test_media_embedding_fake_fixture_requires_explicit_provider_quota_flag(
         db_path=media_db_with_file,
         run_id="fixture",
         provider_quota_approval=_provider_quota_approval(),
+        no_quota_freeze_active=False,
     ):
         summary = build_media_embeddings(
             media_db_with_file,
@@ -124,6 +124,53 @@ def test_media_embedding_fake_fixture_requires_explicit_provider_quota_flag(
     assert hits[0].media_id == "media-1"
     assert hits[0].evidence_role == "media_source_candidate_signal"
     assert hits[0].quality_scope == "media_signal_boundary_not_model_quality"
+
+
+def test_media_embedding_valid_approval_still_hard_blocks_by_default(
+    media_db_with_file: Path,
+    monkeypatch,
+) -> None:
+    called = False
+
+    def fail_post_json(
+        url: str,
+        payload: dict[str, Any],
+        *,
+        headers: dict[str, str],
+        timeout_seconds: float,
+        retries: int = 3,
+    ) -> dict[str, Any]:
+        nonlocal called
+        called = True
+        raise AssertionError("provider media embedding call should be gated")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    monkeypatch.setattr(media_embeddings, "_post_json", fail_post_json)
+    upsert_api_price(
+        media_db_with_file,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://media-embedding-provider-gate",
+        notes="provider-free monkeypatched fixture",
+    )
+
+    with api_budget_context(
+        db_path=media_db_with_file,
+        run_id="freeze-hard-block",
+        provider_quota_approval=_provider_quota_approval(),
+    ), pytest.raises(RuntimeError) as excinfo:
+        build_media_embeddings(
+            media_db_with_file,
+            dimensions=3,
+            limit=1,
+            allow_provider_quota=True,
+        )
+
+    assert "provider_gated_by_no_quota_freeze" in str(excinfo.value)
+    assert called is False
 
 
 def test_media_embedding_cli_budget_options_do_not_override_provider_freeze(
@@ -228,11 +275,13 @@ def test_media_embedding_cli_provider_quota_flag_requires_approval_object(
     assert called is False
 
 
-def test_media_embedding_cli_allows_explicit_fake_provider_fixture(
+def test_media_embedding_cli_provider_quota_approval_still_blocks_under_freeze(
     media_db_with_file: Path,
     monkeypatch,
     capsys,
 ) -> None:
+    called = False
+
     def fake_post_json(
         url: str,
         payload: dict[str, Any],
@@ -241,6 +290,8 @@ def test_media_embedding_cli_allows_explicit_fake_provider_fixture(
         timeout_seconds: float,
         retries: int = 3,
     ) -> dict[str, Any]:
+        nonlocal called
+        called = True
         return {"embeddings": [{"values": [0.1, 0.2, 0.3]}]}
 
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
@@ -288,10 +339,9 @@ def test_media_embedding_cli_allows_explicit_fake_provider_fixture(
                 "2026-06-27T00:00:00+00:00",
             ]
         )
-        == 0
+        == 1
     )
-    build_payload = json.loads(capsys.readouterr().out)
-    assert build_payload["embedded"] == 1
+    assert "provider_gated_by_no_quota_freeze" in capsys.readouterr().err
 
     assert (
         main(
@@ -328,12 +378,10 @@ def test_media_embedding_cli_allows_explicit_fake_provider_fixture(
                 "2026-06-27T00:00:00+00:00",
             ]
         )
-        == 0
+        == 1
     )
-    hits = json.loads(capsys.readouterr().out)
-    assert hits[0]["media_id"] == "media-1"
-    assert hits[0]["answer_support_allowed"] is False
-    assert hits[0]["quality_scope"] == "media_signal_boundary_not_model_quality"
+    assert "provider_gated_by_no_quota_freeze" in capsys.readouterr().err
+    assert called is False
 
 
 def _provider_quota_approval() -> dict[str, object]:
