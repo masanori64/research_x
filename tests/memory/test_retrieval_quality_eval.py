@@ -8,6 +8,13 @@ from research_x.memory import evals as memory_evals
 from research_x.memory.answer import build_memory_answer, store_memory_answer
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.context import CitationAnnotation, ContextBundle, ContextChunk
+from research_x.memory.dedup_policy import (
+    DEDUP_CONFLICT_VARIANT_POLICY,
+    DEDUP_LINEAGE_POLICY,
+    DEDUP_LINEAGE_POLICY_SCOPE,
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+)
 from research_x.memory.evals import EvalCase, load_eval_cases
 from research_x.memory.workflow import MemoryWorkflow
 from research_x.tool_interface.memory_tool_contract import (
@@ -27,6 +34,12 @@ LINEAGE_METADATA = {
     "source_bundle_id": "bundle-source-1",
     "lineage_status": "restored",
     "restored_at": CREATED_AT,
+    "dedup_lineage_policy": DEDUP_LINEAGE_POLICY,
+    "dedup_lineage_policy_scope": DEDUP_LINEAGE_POLICY_SCOPE,
+    "dedup_lineage_source_hash_variant_policy": DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    "dedup_lineage_stale_variant_policy": DEDUP_STALE_VARIANT_POLICY,
+    "dedup_lineage_conflict_variant_policy": DEDUP_CONFLICT_VARIANT_POLICY,
+    "dedup_lineage_policy_action": "no_lineage_variant",
 }
 
 
@@ -74,6 +87,7 @@ def test_dedup_fixture_does_not_inflate_support(tmp_path: Path) -> None:
         max_duplicate_support_count=0,
         require_provenance_preserved=True,
         forbid_duplicate_citation_support=True,
+        expected_dedup_lineage_policy=DEDUP_LINEAGE_POLICY,
         min_hit_score=0.0,
     )
 
@@ -102,6 +116,8 @@ def test_dedup_fixture_does_not_inflate_support(tmp_path: Path) -> None:
     )
 
     assert positive_result.status == "ok"
+    assert positive_result.dedup_lineage_policy_violation_count == 0
+    assert positive_result.dedup_lineage_policy_actions == ("no_lineage_variant",)
     assert positive_result.unique_evidence_count == 1
     assert positive_result.duplicate_support_count == 0
     assert duplicate_result.status == "fail"
@@ -110,6 +126,106 @@ def test_dedup_fixture_does_not_inflate_support(tmp_path: Path) -> None:
     assert any(
         note.startswith("duplicate citation support forbidden")
         for note in duplicate_result.notes
+    )
+
+
+def test_dedup_policy_expected_fixture_fails_on_metadata_mismatch(
+    tmp_path: Path,
+) -> None:
+    bundle = _bundle("dedup-policy")
+    answer = build_memory_answer(
+        tmp_path / "dedup_policy.sqlite3",
+        "fixture dedup policy",
+        context_bundle=bundle,
+        store=False,
+    )
+    case = EvalCase(
+        query="fixture dedup policy",
+        required_any_terms=("fixture",),
+        question_type="aggregation_count_rank",
+        expected_answerability_status="answerable",
+        min_answer_citations=1,
+        required_source_kinds=("local_x_db",),
+        require_citation_ready=True,
+        expected_unique_evidence_count=1,
+        max_duplicate_support_count=0,
+        expected_dedup_lineage_policy=DEDUP_LINEAGE_POLICY,
+        min_hit_score=0.0,
+    )
+    broken_answer = replace(
+        answer,
+        citation_annotations=(
+            replace(
+                answer.citation_annotations[0],
+                metadata={
+                    **answer.citation_annotations[0].metadata,
+                    "dedup_lineage_policy": "visible_warning_only",
+                },
+            ),
+        ),
+    )
+
+    positive_result = memory_evals._evaluate_case(  # noqa: SLF001
+        case,
+        _workflow(case.query, bundle, answer),
+        _hits(bundle),
+    )
+    broken_result = memory_evals._evaluate_case(  # noqa: SLF001
+        case,
+        _workflow(case.query, bundle, broken_answer),
+        _hits(bundle),
+    )
+
+    assert positive_result.status == "ok"
+    assert positive_result.dedup_lineage_policy_violation_count == 0
+    assert broken_result.status == "fail"
+    assert broken_result.dedup_lineage_policy_violation_count == 1
+    assert any(
+        note.startswith("dedup lineage policy mismatch on answer_citation")
+        for note in broken_result.notes
+    )
+
+
+def test_dedup_stale_variant_policy_mismatch_fails_eval_contract(
+    tmp_path: Path,
+) -> None:
+    stale_bundle = _bundle(
+        "dedup-stale-policy",
+        citation_metadata={
+            "source_hash_variant_count": 2,
+            "stale_lineage_variant_present": True,
+            "lineage_variant_warning": "stale",
+            "freshness_status": "stale",
+            "dedup_lineage_policy_action": DEDUP_SOURCE_HASH_VARIANT_POLICY,
+        },
+    )
+    answer = build_memory_answer(
+        tmp_path / "stale_policy.sqlite3",
+        "fixture stale policy",
+        context_bundle=stale_bundle,
+        store=False,
+    )
+    case = EvalCase(
+        query="fixture stale policy",
+        required_any_terms=("fixture",),
+        question_type="temporal_freshness",
+        expected_dedup_lineage_policy=DEDUP_LINEAGE_POLICY,
+        require_citation_ready=False,
+        min_hit_score=0.0,
+    )
+
+    result = memory_evals._evaluate_case(  # noqa: SLF001
+        case,
+        _workflow(case.query, stale_bundle, answer),
+        _hits(stale_bundle),
+    )
+
+    assert result.status == "fail"
+    assert result.dedup_lineage_policy_violation_count >= 1
+    assert any(
+        note.startswith("dedup lineage policy action mismatch")
+        and DEDUP_STALE_VARIANT_POLICY in note
+        for note in result.notes
     )
 
 

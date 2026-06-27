@@ -9,6 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from research_x.memory.context import CitationAnnotation
+from research_x.memory.dedup_policy import (
+    DEDUP_CONFLICT_VARIANT_POLICY,
+    DEDUP_LINEAGE_POLICY_SCOPE,
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+)
 from research_x.memory.evidence_invariants import (
     citation_is_citation_ready,
     citation_is_not_evidence,
@@ -28,6 +34,13 @@ ALLOWED_ANSWERABILITY_STATUSES = {
     "partially_supported",
     "stale_only",
     "unanswerable",
+}
+
+_ALLOWED_DEDUP_LINEAGE_POLICY_ACTIONS = {
+    "no_lineage_variant",
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+    DEDUP_CONFLICT_VARIANT_POLICY,
 }
 
 
@@ -292,6 +305,8 @@ class MemoryEvalResult:
     stale_support_count: int
     not_evidence_support_count: int
     non_ready_citation_count: int
+    dedup_lineage_policy_violation_count: int
+    dedup_lineage_policy_actions: tuple[str, ...]
     provider_free_fixture: bool
     quality_scope: str | None
     notes: tuple[str, ...]
@@ -558,6 +573,8 @@ def format_eval_run(payload: dict[str, Any]) -> str:
             f"redundant_search={result.get('redundant_search_count', 0)} "
             f"unique_evidence={result.get('unique_evidence_count', 0)} "
             f"duplicate_support={result.get('duplicate_support_count', 0)} "
+            f"dedup_policy_violations="
+            f"{result.get('dedup_lineage_policy_violation_count', 0)} "
             f"stop={result['stop_reason']} best={result['best_score']:.2f} "
             f"first={result.get('first_doc_id') or '-'} notes={notes}"
         )
@@ -581,6 +598,7 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
             f"duplicate_support={result.duplicate_support_count} "
             f"stale_support={result.stale_support_count} "
             f"not_evidence={result.not_evidence_support_count} "
+            f"dedup_policy_violations={result.dedup_lineage_policy_violation_count} "
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
@@ -714,6 +732,12 @@ def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
             metadata.get("not_evidence_support_count") or 0
         ),
         "non_ready_citation_count": int(metadata.get("non_ready_citation_count") or 0),
+        "dedup_lineage_policy_violation_count": int(
+            metadata.get("dedup_lineage_policy_violation_count") or 0
+        ),
+        "dedup_lineage_policy_actions": _json_array_from_value(
+            metadata.get("dedup_lineage_policy_actions")
+        ),
         "provider_free_fixture": bool(metadata.get("provider_free_fixture")),
         "quality_scope": metadata.get("quality_scope"),
         "notes": _loads_json_array(row["notes_json"]),
@@ -740,6 +764,10 @@ def _loads_json_array(value: str | None) -> list[Any]:
     except json.JSONDecodeError:
         return []
     return parsed if isinstance(parsed, list) else []
+
+
+def _json_array_from_value(value: Any) -> list[Any]:
+    return list(value) if isinstance(value, list | tuple) else []
 
 
 def _tuple_field(record: dict[str, Any], key: str) -> tuple[str, ...]:
@@ -809,6 +837,8 @@ class _QualityGateMetrics:
     not_evidence_support_count: int
     non_ready_citation_count: int
     duplicate_provenance_preserved: bool
+    dedup_lineage_policy_notes: tuple[str, ...]
+    dedup_lineage_policy_actions: tuple[str, ...]
     provider_free_fixture: bool
     quality_scope: str | None
 
@@ -909,6 +939,7 @@ def _contract_notes(
             "citation support not ready: "
             f"got {quality_metrics.non_ready_citation_count}"
         )
+    notes.extend(quality_metrics.dedup_lineage_policy_notes)
     if (
         quality_metrics.provider_free_fixture
         and quality_metrics.quality_scope != "boundary_wiring_not_model_quality"
@@ -997,6 +1028,10 @@ def _evaluate_case(
             stale_support_count=quality_metrics.stale_support_count,
             not_evidence_support_count=quality_metrics.not_evidence_support_count,
             non_ready_citation_count=quality_metrics.non_ready_citation_count,
+            dedup_lineage_policy_violation_count=len(
+                quality_metrics.dedup_lineage_policy_notes
+            ),
+            dedup_lineage_policy_actions=quality_metrics.dedup_lineage_policy_actions,
             provider_free_fixture=quality_metrics.provider_free_fixture,
             quality_scope=quality_metrics.quality_scope,
             notes=tuple(notes),
@@ -1065,6 +1100,10 @@ def _evaluate_case(
         stale_support_count=quality_metrics.stale_support_count,
         not_evidence_support_count=quality_metrics.not_evidence_support_count,
         non_ready_citation_count=quality_metrics.non_ready_citation_count,
+        dedup_lineage_policy_violation_count=len(
+            quality_metrics.dedup_lineage_policy_notes
+        ),
+        dedup_lineage_policy_actions=quality_metrics.dedup_lineage_policy_actions,
         provider_free_fixture=quality_metrics.provider_free_fixture,
         quality_scope=quality_metrics.quality_scope,
         notes=tuple(notes),
@@ -1098,6 +1137,7 @@ def _is_contract_failure_note(note: str) -> bool:
         or note.startswith("stale evidence support forbidden")
         or note.startswith("not-evidence support forbidden")
         or note.startswith("citation support not ready")
+        or note.startswith("dedup lineage policy")
         or note.startswith("provider-free fixture missing boundary-only quality scope")
     )
 
@@ -1119,6 +1159,7 @@ def _stop_condition_audit(workflow: MemoryWorkflow) -> dict[str, Any]:
 
 def _quality_gate_metrics(case: EvalCase, workflow: MemoryWorkflow) -> _QualityGateMetrics:
     citations = _eval_citations(workflow)
+    dedup_records = _dedup_lineage_metadata_records(workflow)
     duplicate_count = duplicate_evidence_count(citations)
     duplicate_provenance_preserved = (
         duplicate_count == 0
@@ -1142,6 +1183,8 @@ def _quality_gate_metrics(case: EvalCase, workflow: MemoryWorkflow) -> _QualityG
             1 for citation in citations if not citation_is_citation_ready(citation)
         ),
         duplicate_provenance_preserved=duplicate_provenance_preserved,
+        dedup_lineage_policy_notes=_dedup_lineage_policy_notes(case, dedup_records),
+        dedup_lineage_policy_actions=_dedup_lineage_policy_actions(dedup_records),
         provider_free_fixture=provider_free_fixture,
         quality_scope=quality_scope,
     )
@@ -1153,6 +1196,154 @@ def _eval_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:
     if workflow.context_bundle is not None:
         return workflow.context_bundle.citation_annotations
     return ()
+
+
+def _dedup_lineage_metadata_records(
+    workflow: MemoryWorkflow,
+) -> tuple[tuple[str, dict[str, Any]], ...]:
+    records: list[tuple[str, dict[str, Any]]] = []
+    if workflow.context_bundle is not None:
+        for chunk in workflow.context_bundle.context_chunks:
+            records.append((f"context_chunk:{chunk.chunk_id}", chunk.metadata))
+        for citation in workflow.context_bundle.citation_annotations:
+            records.append((f"context_citation:{citation.citation_id}", citation.metadata))
+    if workflow.answer is not None:
+        for citation in workflow.answer.citation_annotations:
+            records.append((f"answer_citation:{citation.citation_id}", citation.metadata))
+    return tuple(records)
+
+
+def _dedup_lineage_policy_actions(
+    records: tuple[tuple[str, dict[str, Any]], ...],
+) -> tuple[str, ...]:
+    actions: list[str] = []
+    for _, metadata in records:
+        action = _metadata_text(metadata, "dedup_lineage_policy_action")
+        if action and action not in actions:
+            actions.append(action)
+    return tuple(actions)
+
+
+def _dedup_lineage_policy_notes(
+    case: EvalCase,
+    records: tuple[tuple[str, dict[str, Any]], ...],
+) -> tuple[str, ...]:
+    expected_policy = case.expected_dedup_lineage_policy
+    if expected_policy is None:
+        return ()
+    if not records:
+        return ("dedup lineage policy metadata missing: no citation or context records",)
+    notes: list[str] = []
+    for surface, metadata in records:
+        notes.extend(
+            _dedup_lineage_policy_record_notes(
+                surface,
+                metadata,
+                expected_policy=expected_policy,
+            )
+        )
+    return tuple(notes)
+
+
+def _dedup_lineage_policy_record_notes(
+    surface: str,
+    metadata: dict[str, Any],
+    *,
+    expected_policy: str,
+) -> list[str]:
+    notes: list[str] = []
+    policy = _metadata_text(metadata, "dedup_lineage_policy")
+    if policy != expected_policy:
+        notes.append(
+            "dedup lineage policy mismatch on "
+            f"{surface}: expected {expected_policy}, got {policy or '-'}"
+        )
+    scope = _metadata_text(metadata, "dedup_lineage_policy_scope")
+    if scope != DEDUP_LINEAGE_POLICY_SCOPE:
+        notes.append(
+            "dedup lineage policy scope mismatch on "
+            f"{surface}: expected {DEDUP_LINEAGE_POLICY_SCOPE}, got {scope or '-'}"
+        )
+    source_hash_policy = _metadata_text(
+        metadata,
+        "dedup_lineage_source_hash_variant_policy",
+    )
+    if source_hash_policy != DEDUP_SOURCE_HASH_VARIANT_POLICY:
+        notes.append(
+            "dedup lineage source-hash variant policy mismatch on "
+            f"{surface}: expected {DEDUP_SOURCE_HASH_VARIANT_POLICY}, "
+            f"got {source_hash_policy or '-'}"
+        )
+    stale_policy = _metadata_text(metadata, "dedup_lineage_stale_variant_policy")
+    if stale_policy != DEDUP_STALE_VARIANT_POLICY:
+        notes.append(
+            "dedup lineage stale variant policy mismatch on "
+            f"{surface}: expected {DEDUP_STALE_VARIANT_POLICY}, got {stale_policy or '-'}"
+        )
+    conflict_policy = _metadata_text(metadata, "dedup_lineage_conflict_variant_policy")
+    if conflict_policy != DEDUP_CONFLICT_VARIANT_POLICY:
+        notes.append(
+            "dedup lineage conflict variant policy mismatch on "
+            f"{surface}: expected {DEDUP_CONFLICT_VARIANT_POLICY}, "
+            f"got {conflict_policy or '-'}"
+        )
+    action = _metadata_text(metadata, "dedup_lineage_policy_action")
+    if not action:
+        notes.append(f"dedup lineage policy action missing on {surface}")
+        return notes
+    if action not in _ALLOWED_DEDUP_LINEAGE_POLICY_ACTIONS:
+        notes.append(
+            "dedup lineage policy action invalid on "
+            f"{surface}: got {action}"
+        )
+        return notes
+    expected_action = _expected_dedup_lineage_policy_action(metadata)
+    if action != expected_action:
+        notes.append(
+            "dedup lineage policy action mismatch on "
+            f"{surface}: expected {expected_action}, got {action}"
+        )
+    return notes
+
+
+def _expected_dedup_lineage_policy_action(metadata: dict[str, Any]) -> str:
+    if (
+        _metadata_truthy(metadata.get("conflict_lineage_variant_present"))
+        or _metadata_text(metadata, "lineage_variant_warning") == "conflict"
+        or _metadata_text(metadata, "source_doc_hash_status") == "conflict"
+    ):
+        return DEDUP_CONFLICT_VARIANT_POLICY
+    if (
+        _metadata_truthy(metadata.get("stale_lineage_variant_present"))
+        or _metadata_text(metadata, "lineage_variant_warning") == "stale"
+        or _metadata_text(metadata, "freshness_status") == "stale"
+    ):
+        return DEDUP_STALE_VARIANT_POLICY
+    if _metadata_int(metadata.get("source_hash_variant_count")) > 1:
+        return DEDUP_SOURCE_HASH_VARIANT_POLICY
+    return "no_lineage_variant"
+
+
+def _metadata_text(metadata: dict[str, Any], key: str) -> str:
+    value = metadata.get(key)
+    return str(value).strip() if value is not None else ""
+
+
+def _metadata_truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return value != 0
+    if value is None:
+        return False
+    return str(value).strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
+def _metadata_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _valid_hit(hit: dict) -> bool:
