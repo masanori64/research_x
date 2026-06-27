@@ -135,6 +135,30 @@ def test_verify_review_zip_detects_missing_required_review_artifact(
     )
 
 
+def test_verify_review_zip_allows_empty_success_git_logs(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["git_diff_check_log"].write_text("", encoding="utf-8")
+    review_artifacts["git_status_log"].write_text("", encoding="utf-8")
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert result.verification_errors == ()
+
+
 def test_verify_review_zip_rejects_failed_pointer_map_audit(
     tmp_path: Path,
 ) -> None:

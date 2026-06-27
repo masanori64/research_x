@@ -37,6 +37,12 @@ REQUIRED_REVIEW_ARTIFACTS = {
     "adoption_audit": "attachments/audits/adoption_audit.json",
     "pointer_map_audit": "attachments/audits/pointer_map_audit.json",
 }
+ALLOW_EMPTY_REVIEW_ARTIFACTS = frozenset(
+    {
+        "git_diff_check_log",
+        "git_status_log",
+    }
+)
 
 CORE_MANIFEST_FILES = (
     "context.md",
@@ -228,7 +234,7 @@ def _validate_required_review_artifacts(payloads: dict[str, bytes]) -> tuple[str
         raw = payloads.get(artifact_id)
         if raw is None:
             continue
-        if not raw.strip():
+        if artifact_id not in ALLOW_EMPTY_REVIEW_ARTIFACTS and not raw.strip():
             errors.append(f"required review artifact is empty: {zip_path}")
     pointer_raw = payloads.get("pointer_map_audit")
     if pointer_raw is not None and pointer_raw.strip():
