@@ -211,6 +211,23 @@ def test_gated_statuses_are_explicitly_separated_from_active_work() -> None:
         )
 
 
+def test_media_ocr_wbs_lane_is_not_complete_or_answer_evidence() -> None:
+    leaves = _leaf_tasks(_project()["tasks"])
+    media = next(
+        leaf["_research_x"]
+        for leaf in leaves
+        if leaf["_research_x"]["artifact_layer"] == "ocr_media_preparation"
+    )
+
+    assert media["status"] == "staging"
+    assert media["evidence_status"] == "not_evidence"
+    assert media["answer_support_allowed"] is False
+    assert "dependency install" in media["stop_condition"]
+    assert "model download" in media["stop_condition"]
+    assert "provider OCR" in media["stop_condition"]
+    assert "media embedding calls" in media["stop_condition"]
+
+
 def test_codex_contact_in_current_wbs_is_only_the_thin_local_bridge() -> None:
     leaves = _leaf_tasks(_project()["tasks"])
     codex_leaves = [leaf for leaf in leaves if "Codex" in leaf["name"]]

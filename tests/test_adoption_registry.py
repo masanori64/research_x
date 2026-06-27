@@ -152,6 +152,27 @@ def test_staging_candidates_stay_disabled_and_unimplemented() -> None:
     assert all("evidence promotion" in item.stop_condition for item in staging)
 
 
+def test_media_ocr_provider_and_install_lanes_stay_gated() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+
+    for name in ("paddleocr", "paddleocr_vl", "manga_ocr"):
+        item = candidates[name]
+        assert item.status == "staged"
+        assert item.enabled is False
+        assert item.provider_or_quota is False
+        assert "dependency install" in item.stop_condition
+        assert "model download" in item.stop_condition
+        assert "evidence promotion" in item.stop_condition
+
+    for name in ("mistral_ocr", "gemini_media_embedding"):
+        item = candidates[name]
+        assert item.status == "provider_gated"
+        assert item.enabled is False
+        assert item.provider_or_quota is True
+        assert "paid/free-tier" in item.stop_condition
+        assert "zero-dollar" in item.stop_condition
+
+
 def test_adopted_research_x_artifacts_exist_and_pdgkit_is_historical() -> None:
     candidates = adoption_candidates(REGISTRY)
     adopted = [

@@ -131,6 +131,11 @@ class MediaSearchHit:
     dimensions: int
     embedding_profile: str
     input_template_version: str
+    evidence_role: str
+    answer_support_allowed: bool
+    citation_ready: bool
+    promotion_gate: str
+    quality_scope: str
     bundle: dict[str, Any]
 
 
@@ -361,6 +366,7 @@ def search_media_embeddings(
         hits = []
         for row, score in scored[: max(1, limit)]:
             bundle = restore_media_source_bundle(conn, str(row["media_id"]))
+            signal_policy = _media_signal_policy("media_embedding_similarity")
             hits.append(
                 MediaSearchHit(
                     media_id=str(row["media_id"]),
@@ -374,6 +380,11 @@ def search_media_embeddings(
                     dimensions=int(row["dimensions"]),
                     embedding_profile=str(row["embedding_profile"]),
                     input_template_version=str(row["input_template_version"]),
+                    evidence_role=signal_policy["evidence_role"],
+                    answer_support_allowed=signal_policy["answer_support_allowed"],
+                    citation_ready=signal_policy["citation_ready"],
+                    promotion_gate=signal_policy["promotion_gate"],
+                    quality_scope=signal_policy["quality_scope"],
                     bundle=bundle,
                 )
             )
@@ -407,6 +418,7 @@ def restore_media_source_bundle(conn: sqlite3.Connection, media_id: str) -> dict
             "media_id": media_id,
             "evidence_level": "raw_media_match",
             "evidence_status": "unconfirmed_media_match",
+            **_media_signal_policy("raw_media_source_bundle"),
             "restored": False,
         }
     tweet_id = str(row["tweet_id"])
@@ -437,6 +449,7 @@ def restore_media_source_bundle(conn: sqlite3.Connection, media_id: str) -> dict
         """,
         (media_id, f"media:{media_id}"),
     ).fetchone()[0]
+    media_signal = _media_signal_policy("raw_media_source_bundle")
     return {
         "media_id": row["media_id"],
         "doc_id": row["media_doc_id"] or f"media:{media_id}",
@@ -473,9 +486,21 @@ def restore_media_source_bundle(conn: sqlite3.Connection, media_id: str) -> dict
         ],
         "evidence_level": "media_source_evidence",
         "evidence_status": "unconfirmed_media_match",
+        **media_signal,
         "media_content_evidence": bool(content_chunks),
         "context_text": _media_context_text(row),
         "restored": True,
+    }
+
+
+def _media_signal_policy(signal_role: str) -> dict[str, Any]:
+    return {
+        "media_signal_role": signal_role,
+        "evidence_role": "media_source_candidate_signal",
+        "answer_support_allowed": False,
+        "citation_ready": False,
+        "promotion_gate": "ocr_caption_vlm_context_chunk_citation_required",
+        "quality_scope": "media_signal_boundary_not_model_quality",
     }
 
 

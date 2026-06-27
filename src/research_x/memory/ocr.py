@@ -1486,7 +1486,14 @@ def _insert_ocr_text(
             second_pass_status,
             second_pass_reason,
             _utc_now(),
-            json.dumps(result.metadata or {}, ensure_ascii=False, sort_keys=True),
+            json.dumps(
+                {
+                    **(result.metadata or {}),
+                    **_media_text_signal_metadata(text_profile),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
         ),
     )
     return text_id
@@ -1542,6 +1549,7 @@ def _insert_ocr_text_variant(
                     "derived_from": parent["text_id"],
                     "reason": reason,
                     "raw_text_preserved": True,
+                    **_media_text_signal_metadata(text_profile),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -1616,6 +1624,7 @@ def _insert_visual_observation_profile(
                     "prompt": prompt,
                     "session_id": session_id,
                     "contract": "codex_observation_is_inference_annotation_not_fact",
+                    **_media_text_signal_metadata("codex_observation"),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -1632,6 +1641,18 @@ def _evidence_status_for_text(text_profile: str, normalized_text: str) -> str:
     if text_profile in {"caption", "vlm_caption"}:
         return "inference"
     return "inference"
+
+
+def _media_text_signal_metadata(text_profile: str) -> dict[str, Any]:
+    return {
+        "media_signal_role": text_profile,
+        "evidence_role": "media_text_candidate_signal",
+        "answer_support_allowed": False,
+        "citation_ready": False,
+        "promotion_gate": "context_chunk_citation_annotation_required",
+        "quality_scope": "media_signal_boundary_not_model_quality",
+        "not_evidence": True,
+    }
 
 
 def _second_pass_decision(region: OcrRegion, result: OcrResult) -> dict[str, str | None]:
@@ -1705,6 +1726,10 @@ def _promote_region_to_chunk(
         "model": model,
         "ocr_profile": ocr_profile,
         "raw_text_preserved": True,
+        **_promoted_media_context_metadata(
+            "raw_ocr",
+            answer_support_allowed=True,
+        ),
     }
     conn.execute(
         """
@@ -1821,6 +1846,12 @@ def _promote_text_to_chunk(conn: sqlite3.Connection, *, text_id: str) -> bool:
     support_type = (
         "supports_media_content" if text_profile == "raw_ocr" else "supports_search_helper"
     )
+    metadata.update(
+        _promoted_media_context_metadata(
+            text_profile,
+            answer_support_allowed=support_type == "supports_media_content",
+        )
+    )
     conn.execute(
         """
         INSERT INTO memory_context_chunks (
@@ -1889,6 +1920,24 @@ def _promote_text_to_chunk(conn: sqlite3.Connection, *, text_id: str) -> bool:
         ),
     )
     return True
+
+
+def _promoted_media_context_metadata(
+    text_profile: str,
+    *,
+    answer_support_allowed: bool,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "source_media_signal_role": text_profile,
+        "media_signal_role": "promoted_context_chunk",
+        "evidence_role": "context_chunk_from_media_text",
+        "promotion_gate": "context_chunk_citation_annotation_created",
+        "quality_scope": "media_signal_boundary_not_model_quality",
+    }
+    if not answer_support_allowed:
+        metadata["answer_support_allowed"] = False
+        metadata["not_evidence"] = True
+    return metadata
 
 
 def _provider(
