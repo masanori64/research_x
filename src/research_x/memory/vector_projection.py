@@ -19,6 +19,8 @@ from research_x.memory.embeddings import (
     _embedding_rows,
     _resolve_available_spec,
     _semantic_matrix_from_rows,
+    embedding_provider_signal_policy,
+    require_embedding_provider_quota_allowed,
     semantic_search_memory,
 )
 from research_x.memory.schema import ensure_memory_schema
@@ -327,6 +329,7 @@ def search_vector_projection(
     doc_type: str | None = None,
     account: str | None = None,
     doc_ids: tuple[str, ...] = (),
+    allow_provider_quota: bool = False,
 ) -> tuple[SemanticHit, ...]:
     path = Path(db_path)
     with sqlite3.connect(path, timeout=60) as conn:
@@ -355,6 +358,10 @@ def search_vector_projection(
             account=account,
             doc_ids=doc_ids,
         )
+    require_embedding_provider_quota_allowed(
+        spec.provider,
+        allow_provider_quota=allow_provider_quota,
+    )
     query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
     hits = _search_projection_files(
         query_vector=query_vector,
@@ -426,6 +433,7 @@ def benchmark_vector_backends(
             )
             for backend in resolved_backends
         )
+    semantic_policy = embedding_provider_signal_policy(provider)
     status = "ok" if all(result.status == "ok" for result in results) else "needs_review"
     return VectorBackendBenchmarkReport(
         db_path=str(path),
@@ -442,12 +450,8 @@ def benchmark_vector_backends(
             "benchmark_version": "vector-backend-benchmark-v1",
             "candidate_backends": list(BENCHMARK_VECTOR_BACKENDS),
             "dependency_gate": "zvec and other new backends require source/dependency review",
-            "provider_policy": "local_hash query embeddings only under the no-quota freeze",
-            "evidence_role": "retrieval_candidate_signal",
-            "answer_support_allowed": False,
-            "diagnostic_only": provider == "local_hash",
-            "production_eligible": provider != "local_hash",
-            "promotion_gate": "source_bundle_context_citation_required",
+            "query_embedding_policy": "local_hash query embeddings only under the no-quota freeze",
+            **semantic_policy,
         },
     )
 
@@ -904,6 +908,7 @@ def _store_projection_generation(
         "doc_type": doc_type,
         "account": account,
         "embedding_spec": asdict(spec),
+        "embedding_provider_policy": embedding_provider_signal_policy(spec.provider),
     }
     conn.execute(
         """

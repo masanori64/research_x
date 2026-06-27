@@ -3156,7 +3156,7 @@ def test_memory_audit_flags_retrieval_text_lineage_issues(tmp_path: Path) -> Non
     assert report.freshness_lineage_issues["retrieval_text_profiles_missing_fts"] == 1
 
 
-def test_memory_audit_accepts_openai_compatible_embeddings_as_production(
+def test_memory_audit_quarantines_openai_compatible_embeddings_under_freeze(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -3183,11 +3183,20 @@ def test_memory_audit_accepts_openai_compatible_embeddings_as_production(
         dimensions=3,
         api_key_env="CUSTOM_EMBED_KEY",
         base_url="https://embeddings.example/v1/embeddings",
+        allow_provider_quota=True,
     )
 
     report = audit_memory_db(db_path)
+    spec = next(
+        item
+        for item in report.embedding_specs
+        if item["provider"] == "openai_compatible"
+    )
 
-    assert not report.warnings
+    assert spec["provider_gated"] is True
+    assert spec["quarantined"] is True
+    assert spec["production_eligible"] is False
+    assert any("provider embedding rows are quarantined" in item for item in report.warnings)
 
 
 def test_memory_commands_do_not_implicitly_rebuild_corpus(tmp_path: Path) -> None:

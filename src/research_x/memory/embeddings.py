@@ -66,6 +66,13 @@ EMBEDDING_SELECTION_POLICIES = (
     "sequential",
     "doc_type_round_robin",
 )
+EMBEDDING_PROVIDER_QUOTA_GATE_MESSAGE = (
+    "semantic embedding provider API use is frozen, including paid/free-tier, "
+    "trial-credit, zero-dollar, and keyless quota calls. Non-local embedding "
+    "providers are provider_gated/quarantined while the no-quota freeze is active; "
+    "use provider=local_hash only for diagnostic wiring or pass "
+    "allow_provider_quota=True after explicit approval with API Budget Guard preflight."
+)
 
 DEFAULT_DIMENSIONS = {
     LOCAL_HASH_PROVIDER: 512,
@@ -180,6 +187,46 @@ class SemanticScore:
     text_template_version: str
 
 
+def embedding_provider_signal_policy(provider: str | None) -> dict[str, Any]:
+    normalized = _normalize_provider_for_policy(provider)
+    provider_gated = normalized != LOCAL_HASH_PROVIDER
+    return {
+        "evidence_role": "retrieval_candidate_signal",
+        "answer_support_allowed": False,
+        "diagnostic_only": not provider_gated,
+        "provider_gated": provider_gated,
+        "quarantined": provider_gated,
+        "production_eligible": False,
+        "production_eligible_reason": (
+            "provider_gated_while_no_quota_freeze"
+            if provider_gated
+            else "diagnostic_local_hash_only"
+        ),
+        "provider_policy": (
+            "no_quota_freeze_provider_gated"
+            if provider_gated
+            else "local_hash_diagnostic_only"
+        ),
+        "promotion_gate": "source_bundle_context_citation_required",
+    }
+
+
+def require_embedding_provider_quota_allowed(
+    provider: str | None,
+    *,
+    allow_provider_quota: bool,
+) -> None:
+    if (
+        _normalize_provider_for_policy(provider) != LOCAL_HASH_PROVIDER
+        and not allow_provider_quota
+    ):
+        raise RuntimeError(EMBEDDING_PROVIDER_QUOTA_GATE_MESSAGE)
+
+
+def _normalize_provider_for_policy(provider: str | None) -> str:
+    return (provider or "").strip().lower().replace("-", "_") or "auto"
+
+
 @dataclass(frozen=True)
 class LoadedSemanticIndex:
     spec: EmbeddingSpec
@@ -252,6 +299,7 @@ def build_memory_embeddings(
     progress_every: int = 1000,
     execution_stage: str = "auto",
     selection_policy: str = "auto",
+    allow_provider_quota: bool = False,
 ) -> EmbeddingBuildSummary:
     path = Path(db_path)
     if not path.exists():
@@ -264,6 +312,10 @@ def build_memory_embeddings(
         text_template_version=text_template_version,
         api_key_env=api_key_env,
         base_url=base_url,
+    )
+    require_embedding_provider_quota_allowed(
+        spec.provider,
+        allow_provider_quota=allow_provider_quota,
     )
     resolved_execution_stage = _resolve_embedding_execution_stage(
         execution_stage,
@@ -364,6 +416,7 @@ def semantic_search_memory(
     limit: int = 50,
     doc_type: str | None = None,
     account: str | None = None,
+    allow_provider_quota: bool = False,
 ) -> tuple[SemanticHit, ...]:
     path = Path(db_path)
     with sqlite3.connect(path, timeout=60) as conn:
@@ -378,6 +431,10 @@ def semantic_search_memory(
             text_template_version=text_template_version,
             api_key_env=api_key_env,
             base_url=base_url,
+        )
+        require_embedding_provider_quota_allowed(
+            spec.provider,
+            allow_provider_quota=allow_provider_quota,
         )
         query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
         rows = _embedding_rows(conn, spec=spec, doc_type=doc_type, account=account)
@@ -441,9 +498,14 @@ def semantic_search_loaded_index(
     query: str,
     *,
     limit: int = 50,
+    allow_provider_quota: bool = False,
 ) -> tuple[SemanticHit, ...]:
     if not index.doc_ids:
         return ()
+    require_embedding_provider_quota_allowed(
+        index.spec.provider,
+        allow_provider_quota=allow_provider_quota,
+    )
     query_vector = _embedder(index.spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
     query_array = np.asarray(query_vector[: index.spec.dimensions], dtype=np.float32)
     scores = index.matrix @ query_array
@@ -479,6 +541,7 @@ def semantic_scores_for_doc_ids(
     text_template_version: str | None = None,
     api_key_env: str | None = None,
     base_url: str | None = None,
+    allow_provider_quota: bool = False,
 ) -> dict[str, SemanticScore]:
     if not doc_ids:
         return {}
@@ -495,6 +558,10 @@ def semantic_scores_for_doc_ids(
             text_template_version=text_template_version,
             api_key_env=api_key_env,
             base_url=base_url,
+        )
+        require_embedding_provider_quota_allowed(
+            spec.provider,
+            allow_provider_quota=allow_provider_quota,
         )
         query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
         rows = _embedding_rows_for_doc_ids(conn, spec=spec, doc_ids=doc_ids)

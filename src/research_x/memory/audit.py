@@ -9,7 +9,7 @@ from typing import Any
 
 from research_x.memory.context import CitationAnnotation
 from research_x.memory.document_hashes import memory_document_source_hash
-from research_x.memory.embeddings import PRODUCTION_PROVIDERS
+from research_x.memory.embeddings import PRODUCTION_PROVIDERS, embedding_provider_signal_policy
 from research_x.memory.evidence_invariants import citation_block_reasons
 from research_x.memory.retrieval_strategy import DEFAULT_RETRIEVAL_STRATEGIES
 from research_x.memory.schema import ensure_memory_schema
@@ -252,6 +252,7 @@ def _embedding_specs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "rows": int(row["rows"]),
             "orphaned_rows": int(row["orphaned_rows"] or 0),
             "source_hash_missing": int(row["source_hash_missing"] or 0),
+            **embedding_provider_signal_policy(row["provider"]),
         }
         for row in rows
     ]
@@ -1191,6 +1192,15 @@ def _warnings(
         for spec in specs
         if spec["provider"] in PRODUCTION_PROVIDERS
     ]
+    if production_specs:
+        warnings.append(
+            "provider embedding rows are quarantined by the no-quota freeze; "
+            "do not treat them as production semantic evidence: "
+            + ", ".join(
+                f"{spec['provider']}/{spec['model']} rows={spec['rows']}"
+                for spec in production_specs
+            )
+        )
     if specs and not production_specs:
         warnings.append(
             "only local_hash embeddings are present; "

@@ -11,6 +11,7 @@ from research_x.memory.document_hashes import text_hash
 from research_x.memory.embeddings import (
     SemanticHit,
     SemanticScore,
+    embedding_provider_signal_policy,
     semantic_scores_for_doc_ids,
     semantic_search_memory,
 )
@@ -1291,14 +1292,7 @@ def _with_semantic_contributions(
 
 
 def _semantic_signal_policy(provider: str) -> dict[str, Any]:
-    diagnostic_only = provider == "local_hash"
-    return {
-        "evidence_role": "retrieval_candidate_signal",
-        "answer_support_allowed": False,
-        "diagnostic_only": diagnostic_only,
-        "production_eligible": not diagnostic_only,
-        "promotion_gate": "source_bundle_context_citation_required",
-    }
+    return embedding_provider_signal_policy(provider)
 
 
 def _dedupe_engine_contributions(values: list[Any]) -> list[dict[str, Any]]:

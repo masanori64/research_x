@@ -8,7 +8,9 @@ from typing import Any
 
 from research_x.memory.context import build_context_bundle
 from research_x.memory.embeddings import (
+    EMBEDDING_PROVIDER_QUOTA_GATE_MESSAGE,
     LoadedSemanticIndex,
+    embedding_provider_signal_policy,
     load_semantic_index,
     semantic_search_loaded_index,
     semantic_search_memory,
@@ -607,9 +609,10 @@ def _run_arm(
         )
         return arm, hits
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        error = _compact_error(str(exc))
         arm = PortfolioArmResult(
             name=name,
-            status="error",
+            status="provider_gated" if _is_provider_quota_gate_error(error) else "error",
             mode=spec.mode if spec else "local_hybrid",
             provider=spec.provider if spec else None,
             model=spec.model if spec else None,
@@ -620,7 +623,7 @@ def _run_arm(
             hit_count=0,
             top_doc_ids=(),
             top_bundle_keys=(),
-            error=_compact_error(str(exc)),
+            error=error,
         )
         return arm, []
 
@@ -1141,6 +1144,7 @@ def _run_semantic_only_arm(
                 "embedding_profile": hit.embedding_profile,
                 "text_template_version": hit.text_template_version,
                 "similarity": hit.similarity,
+                **embedding_provider_signal_policy(hit.provider),
             },
             "rank_score_components": {"semantic": hit.similarity},
             "engine_contributions": [
@@ -1155,6 +1159,7 @@ def _run_semantic_only_arm(
                     "dimensions": hit.dimensions,
                     "embedding_profile": hit.embedding_profile,
                     "text_template_version": hit.text_template_version,
+                    **embedding_provider_signal_policy(hit.provider),
                 }
             ],
         }
@@ -1184,6 +1189,10 @@ def _run_semantic_only_arm(
         error=None,
     )
     return arm, hits
+
+
+def _is_provider_quota_gate_error(error: str) -> bool:
+    return EMBEDDING_PROVIDER_QUOTA_GATE_MESSAGE in error
 
 
 def _filter_raw_hits_by_query_anchors(
