@@ -74,6 +74,38 @@ def test_stored_ok_answer_missing_source_lineage_is_audit_issue(
     assert any("claim/citation verification issues" in warning for warning in report.warnings)
 
 
+def test_stored_ok_answer_missing_retrieval_lineage_is_audit_issue(
+    tmp_path: Path,
+) -> None:
+    db_path = _seed_memory_db(tmp_path)
+    answer = build_memory_answer(
+        db_path,
+        "強化学習 ロボット",
+        limit=1,
+        answer_provider="fake",
+    )
+    chunk_id = answer.selected_context_chunks[0].chunk_id
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_memory_schema(conn)
+        metadata = _chunk_metadata(conn, chunk_id)
+        metadata.pop("retrieval_text_hash", None)
+        metadata.pop("retrieval_text_profile_id", None)
+        conn.execute(
+            """
+            UPDATE memory_context_chunks
+            SET metadata_json = ?
+            WHERE chunk_id = ?
+            """,
+            (json.dumps(metadata, ensure_ascii=False, sort_keys=True), chunk_id),
+        )
+
+    report = audit_memory_db(db_path)
+
+    assert report.claim_citation_issues["ok_answer_citation_missing_source_lineage"] == 1
+    assert any("claim/citation verification issues" in warning for warning in report.warnings)
+
+
 def _chunk_metadata(conn: sqlite3.Connection, chunk_id: str) -> dict[str, object]:
     row = conn.execute(
         """

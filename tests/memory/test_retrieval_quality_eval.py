@@ -17,6 +17,17 @@ from research_x.tool_interface.memory_tool_contract import (
 
 FIXTURE_CASES = Path("tests/fixtures/memory_eval_quality/retrieval_quality_cases.jsonl")
 CREATED_AT = "2026-06-27T00:00:00+00:00"
+LINEAGE_METADATA = {
+    "source_doc_hash": "hash-source-1",
+    "embedding_text_hash": "embedding-hash-source-1",
+    "retrieval_text_hash": "retrieval-hash-source-1",
+    "retrieval_text_profile": "full_text",
+    "retrieval_profile_kind": "full_text",
+    "retrieval_text_profile_id": "profile-source-1",
+    "source_bundle_id": "bundle-source-1",
+    "lineage_status": "restored",
+    "restored_at": CREATED_AT,
+}
 
 
 def test_retrieval_quality_fixture_manifest_covers_phase1_families() -> None:
@@ -344,7 +355,7 @@ def _bundle(
     run_id = f"fixture:{name}"
     base_metadata = {
         "answerability_fixture": "answerable",
-        "source_doc_hash": "hash-source-1",
+        **LINEAGE_METADATA,
     }
     base_metadata.update(citation_metadata or {})
     chunks = [
@@ -354,7 +365,7 @@ def _bundle(
             source_id="tweet:source-1",
             source_url="https://x.com/example/status/source-1",
             text="Text: fixture source one supports the local answer.",
-            metadata={"answerability_fixture": "answerable"},
+            metadata={"answerability_fixture": "answerable", **LINEAGE_METADATA},
         )
     ]
     if duplicate_second_source or conflicting_second_source:
@@ -368,6 +379,7 @@ def _bundle(
                 text="Text: fixture source two is either duplicate or contradicting evidence.",
                 index=1,
                 metadata={
+                    **LINEAGE_METADATA,
                     "answerability_fixture": (
                         "conflicting" if conflicting_second_source else "answerable"
                     ),

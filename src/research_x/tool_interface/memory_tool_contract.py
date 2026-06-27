@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from research_x.memory.answer import MemoryAnswer
 from research_x.memory.context import CitationAnnotation
+from research_x.memory.document_hashes import memory_document_source_hash, text_hash
 from research_x.memory.evidence_invariants import (
     citation_block_reasons,
     citation_is_citation_ready,
@@ -13,10 +16,12 @@ from research_x.memory.evidence_invariants import (
     citation_is_stale,
     citation_marks_conflict,
 )
+from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.workflow import MemoryWorkflow
 from research_x.tool_interface.codex_bridge import bridge_trace_contract
 
 CONTRACT_VERSION = "research-x-ai-tool-v1"
+LOCAL_X_DB = "local_x_db"
 TOOL_OUTPUT_STATUSES = {
     "answer",
     "abstain",
@@ -189,6 +194,29 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
     return errors
 
 
+def validate_tool_output_against_db(
+    payload: dict[str, Any] | ToolOutput,
+    db_path: str | Path,
+) -> list[str]:
+    """Validate an AI-facing payload against stored local source lineage."""
+
+    data = payload.as_dict() if isinstance(payload, ToolOutput) else payload
+    errors = validate_tool_output(data)
+    if data.get("status") != "answer":
+        return errors
+    citations = data.get("citations")
+    if not isinstance(citations, list):
+        return errors
+    path = Path(db_path)
+    prefix = str(data.get("tool_kind") or "<unknown>")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        for item in citations:
+            errors.extend(_validate_citation_against_db(conn, prefix=prefix, item=item))
+    return errors
+
+
 def _workflow_status(workflow: MemoryWorkflow) -> str:
     if workflow.status == "error":
         if _provider_gate_required(workflow):
@@ -328,7 +356,7 @@ def _citation_restoration_trace(
     rows = []
     for citation in raw_citations:
         context_chunk_restored = bool(context_run_id and citation.chunk_id)
-        source_restored = bool(citation.source_kind and citation.source_id)
+        source_restored = _citation_source_restored(citation)
         rows.append(
             {
                 "citation_id": citation.citation_id,
@@ -466,10 +494,23 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "source_url": citation.source_url,
             "field_path": citation.field_path,
             "context_chunk_restored": bool(context_run_id and citation.chunk_id),
-            "source_restored": bool(citation.source_kind and citation.source_id),
+            "source_restored": _citation_source_restored(citation),
             "citation_ready": _citation_ready(citation),
             "block_reasons": list(citation_block_reasons(citation)),
+            "answer_id": citation.answer_id,
+            "source_context_citation_id": citation.metadata.get(
+                "source_context_citation_id"
+            ),
+            "document_id": citation.metadata.get("document_id"),
+            "lineage_status": citation.metadata.get("lineage_status"),
             "source_doc_hash": citation.metadata.get("source_doc_hash"),
+            "embedding_text_hash": citation.metadata.get("embedding_text_hash"),
+            "retrieval_text_hash": citation.metadata.get("retrieval_text_hash"),
+            "retrieval_text_profile": citation.metadata.get("retrieval_text_profile"),
+            "retrieval_profile_kind": citation.metadata.get("retrieval_profile_kind"),
+            "retrieval_text_profile_id": citation.metadata.get(
+                "retrieval_text_profile_id"
+            ),
             "source_bundle_id": citation.metadata.get("source_bundle_id"),
             "source_anchor": citation.metadata.get("tweet_id")
             or citation.metadata.get("source_context_citation_id")
@@ -501,6 +542,255 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
 
 def _citation_ready(citation: CitationAnnotation) -> bool:
     return citation_is_citation_ready(citation)
+
+
+def _citation_source_restored(citation: CitationAnnotation) -> bool:
+    if str(citation.source_kind or "").strip() != LOCAL_X_DB:
+        return bool(citation.source_kind and citation.source_id)
+    metadata = citation.metadata
+    return (
+        bool(str(citation.source_id or "").strip())
+        and _restore_value(metadata, "source_doc_hash") is not None
+        and _restore_value(metadata, "source_bundle_id") is not None
+        and _restore_value(metadata, "lineage_status") == "restored"
+        and (
+            _restore_value(metadata, "retrieval_text_hash") is not None
+            or _restore_value(metadata, "retrieval_text_profile_id") is not None
+        )
+    )
+
+
+def _validate_citation_against_db(
+    conn: sqlite3.Connection,
+    *,
+    prefix: str,
+    item: Any,
+) -> list[str]:
+    if not isinstance(item, dict):
+        return [f"{prefix}: answer citation is not an object"]
+    restore = item.get("restore")
+    if not isinstance(restore, dict):
+        return [f"{prefix}: answer citation lacks restore metadata"]
+    source_kind = str(restore.get("source_kind") or item.get("source_kind") or "").strip()
+    if source_kind != LOCAL_X_DB:
+        return []
+
+    citation_id = str(item.get("citation_id") or "").strip()
+    chunk_id = str(restore.get("chunk_id") or item.get("chunk_id") or "").strip()
+    source_id = str(restore.get("source_id") or item.get("source_id") or "").strip()
+    label = citation_id or chunk_id or "<unknown>"
+    errors: list[str] = []
+    if not citation_id:
+        errors.append(f"{prefix}: citation <unknown> missing citation_id")
+    if not chunk_id:
+        errors.append(f"{prefix}: citation {label} missing chunk_id")
+    if not source_id:
+        errors.append(f"{prefix}: citation {label} missing source_id")
+    if errors:
+        return errors
+
+    citation_row = _stored_citation_row(conn, citation_id, restore)
+    if citation_row is None:
+        errors.append(f"{prefix}: citation {label} is not stored in memory_citation_annotations")
+    elif citation_block_reasons(_citation_from_row(citation_row)):
+        reasons = ", ".join(citation_block_reasons(_citation_from_row(citation_row)))
+        errors.append(f"{prefix}: citation {label} stored row is not citation-ready: {reasons}")
+
+    chunk_row = conn.execute(
+        """
+        SELECT chunk_id, source_kind, source_id, source_url, metadata_json
+        FROM memory_context_chunks
+        WHERE chunk_id = ?
+        """,
+        (chunk_id,),
+    ).fetchone()
+    if chunk_row is None:
+        errors.append(f"{prefix}: citation {label} chunk {chunk_id} is not stored")
+        return errors
+    if str(chunk_row["source_kind"] or "") != source_kind:
+        errors.append(f"{prefix}: citation {label} chunk source_kind mismatch")
+    if str(chunk_row["source_id"] or "") != source_id:
+        errors.append(f"{prefix}: citation {label} chunk source_id mismatch")
+
+    chunk_metadata = _loads_json(chunk_row["metadata_json"])
+    restore_source_hash = str(restore.get("source_doc_hash") or "").strip()
+    chunk_source_hash = str(chunk_metadata.get("source_doc_hash") or "").strip()
+    if not restore_source_hash:
+        errors.append(f"{prefix}: citation {label} missing restore source_doc_hash")
+    if not chunk_source_hash:
+        errors.append(f"{prefix}: citation {label} chunk missing source_doc_hash")
+    if restore_source_hash and chunk_source_hash and restore_source_hash != chunk_source_hash:
+        errors.append(f"{prefix}: citation {label} restore source_doc_hash mismatches chunk")
+    if str(restore.get("lineage_status") or "").strip() != "restored":
+        errors.append(f"{prefix}: citation {label} lineage_status is not restored")
+    if str(chunk_metadata.get("lineage_status") or "").strip() != "restored":
+        errors.append(f"{prefix}: citation {label} chunk lineage_status is not restored")
+
+    doc_row = conn.execute(
+        """
+        SELECT doc_id, title, body, compact_text, metadata_json, source_doc_hash
+        FROM memory_documents
+        WHERE doc_id = ?
+        """,
+        (source_id,),
+    ).fetchone()
+    if doc_row is None:
+        errors.append(f"{prefix}: citation {label} source document {source_id} is missing")
+        return errors
+    current_source_hash = memory_document_source_hash(doc_row)
+    stored_source_hash = str(doc_row["source_doc_hash"] or "").strip()
+    if stored_source_hash != current_source_hash:
+        errors.append(f"{prefix}: citation {label} source document hash is stale")
+    if restore_source_hash and restore_source_hash != current_source_hash:
+        errors.append(f"{prefix}: citation {label} restore source_doc_hash is stale")
+
+    restore_bundle = str(restore.get("source_bundle_id") or "").strip()
+    chunk_bundle = str(chunk_metadata.get("source_bundle_id") or "").strip()
+    expected_bundle = _source_bundle_id(source_id, current_source_hash)
+    if not restore_bundle:
+        errors.append(f"{prefix}: citation {label} missing source_bundle_id")
+    if not chunk_bundle:
+        errors.append(f"{prefix}: citation {label} chunk missing source_bundle_id")
+    if restore_bundle and restore_bundle != expected_bundle:
+        errors.append(f"{prefix}: citation {label} source_bundle_id is not reproducible")
+    if chunk_bundle and chunk_bundle != restore_bundle:
+        errors.append(f"{prefix}: citation {label} chunk source_bundle_id mismatch")
+
+    errors.extend(
+        _validate_retrieval_lineage(
+            conn,
+            prefix=prefix,
+            label=label,
+            source_id=source_id,
+            source_hash=current_source_hash,
+            restore=restore,
+        )
+    )
+    return errors
+
+
+def _stored_citation_row(
+    conn: sqlite3.Connection,
+    citation_id: str,
+    restore: dict[str, Any],
+) -> sqlite3.Row | None:
+    row = conn.execute(
+        """
+        SELECT
+            citation_id, answer_id, chunk_id, source_kind, source_id, source_url,
+            title, field_path, support_type, evidence_status, confidence, created_at,
+            metadata_json
+        FROM memory_citation_annotations
+        WHERE citation_id = ?
+        """,
+        (citation_id,),
+    ).fetchone()
+    if row is not None:
+        return row
+    source_context_citation_id = str(restore.get("source_context_citation_id") or "").strip()
+    if not source_context_citation_id:
+        return None
+    return conn.execute(
+        """
+        SELECT
+            citation_id, answer_id, chunk_id, source_kind, source_id, source_url,
+            title, field_path, support_type, evidence_status, confidence, created_at,
+            metadata_json
+        FROM memory_citation_annotations
+        WHERE citation_id = ?
+        """,
+        (source_context_citation_id,),
+    ).fetchone()
+
+
+def _citation_from_row(row: sqlite3.Row) -> CitationAnnotation:
+    return CitationAnnotation(
+        citation_id=str(row["citation_id"] or ""),
+        answer_id=str(row["answer_id"]) if row["answer_id"] is not None else None,
+        chunk_id=str(row["chunk_id"] or ""),
+        source_kind=str(row["source_kind"] or ""),
+        source_id=str(row["source_id"] or ""),
+        source_url=row["source_url"],
+        title=str(row["title"] or ""),
+        field_path=str(row["field_path"] or ""),
+        support_type=str(row["support_type"] or ""),
+        evidence_status=str(row["evidence_status"] or ""),
+        confidence=float(row["confidence"] or 0.0),
+        created_at=str(row["created_at"] or ""),
+        metadata=_loads_json(row["metadata_json"]),
+    )
+
+
+def _validate_retrieval_lineage(
+    conn: sqlite3.Connection,
+    *,
+    prefix: str,
+    label: str,
+    source_id: str,
+    source_hash: str,
+    restore: dict[str, Any],
+) -> list[str]:
+    profile_id = str(restore.get("retrieval_text_profile_id") or "").strip()
+    retrieval_hash = str(restore.get("retrieval_text_hash") or "").strip()
+    if not profile_id and not retrieval_hash:
+        return [f"{prefix}: citation {label} missing retrieval-text lineage"]
+    if profile_id:
+        row = conn.execute(
+            """
+            SELECT profile_id, doc_id, retrieval_text, source_doc_hash
+            FROM memory_retrieval_text_profiles
+            WHERE profile_id = ?
+            """,
+            (profile_id,),
+        ).fetchone()
+        if row is None:
+            return [f"{prefix}: citation {label} retrieval_text_profile_id is missing"]
+        errors = []
+        if str(row["doc_id"] or "") != source_id:
+            errors.append(f"{prefix}: citation {label} retrieval_text_profile doc mismatch")
+        if str(row["source_doc_hash"] or "") != source_hash:
+            errors.append(f"{prefix}: citation {label} retrieval_text_profile hash mismatch")
+        row_hash = text_hash(str(row["retrieval_text"] or ""))
+        if retrieval_hash and retrieval_hash != row_hash:
+            errors.append(f"{prefix}: citation {label} retrieval_text_hash mismatch")
+        return errors
+
+    rows = conn.execute(
+        """
+        SELECT retrieval_text
+        FROM memory_retrieval_text_profiles
+        WHERE doc_id = ?
+          AND source_doc_hash = ?
+        """,
+        (source_id, source_hash),
+    ).fetchall()
+    if not any(text_hash(str(row["retrieval_text"] or "")) == retrieval_hash for row in rows):
+        return [f"{prefix}: citation {label} retrieval_text_hash is not restorable"]
+    return []
+
+
+def _source_bundle_id(doc_id: str, source_doc_hash: str) -> str:
+    return text_hash("|".join(("source-bundle", doc_id, source_doc_hash)))[:24]
+
+
+def _restore_value(metadata: dict[str, Any], key: str) -> str | None:
+    value = metadata.get(key)
+    if value is None:
+        lineage = metadata.get("source_lineage")
+        if isinstance(lineage, dict):
+            value = lineage.get(key)
+    text = str(value or "").strip()
+    return text or None
+
+
+def _loads_json(value: str | None) -> dict[str, Any]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _provider_gate_required(workflow: MemoryWorkflow) -> bool:
@@ -586,9 +876,33 @@ def _payload_citations_with_restore_issues(citations: list[Any]) -> list[str]:
             restore.get("context_chunk_restored") is not True
             or restore.get("source_restored") is not True
             or restore.get("citation_ready") is not True
+            or _payload_local_x_db_restore_issue(item, restore)
         ):
             broken.append(citation_id)
     return broken
+
+
+def _payload_local_x_db_restore_issue(
+    item: dict[str, Any],
+    restore: dict[str, Any],
+) -> bool:
+    source_kind = str(
+        restore.get("source_kind")
+        or item.get("source_kind")
+        or ""
+    ).strip()
+    if source_kind != LOCAL_X_DB:
+        return False
+    if not str(restore.get("source_doc_hash") or "").strip():
+        return True
+    if not str(restore.get("source_bundle_id") or "").strip():
+        return True
+    if str(restore.get("lineage_status") or "").strip() != "restored":
+        return True
+    return not (
+        str(restore.get("retrieval_text_hash") or "").strip()
+        or str(restore.get("retrieval_text_profile_id") or "").strip()
+    )
 
 
 def _payload_citations_with_not_evidence_support(citations: list[Any]) -> list[str]:

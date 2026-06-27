@@ -152,6 +152,7 @@ from research_x.memory.workflow import (
 )
 from research_x.tool_interface.memory_tool_contract import (
     validate_tool_output,
+    validate_tool_output_against_db,
     workflow_tool_output,
     workflow_tool_output_json,
 )
@@ -228,6 +229,7 @@ def test_memory_retrieval_text_profiles_are_search_only_projection(tmp_path: Pat
     _seed_db(db_path)
     build_memory_corpus(db_path)
     build_memory_relations(db_path)
+    build_retrieval_text_profiles(db_path)
 
     summary = build_retrieval_text_profiles(db_path)
     coverage = retrieval_text_coverage(db_path)
@@ -1227,6 +1229,7 @@ def test_memory_portfolio_eval_fuses_multiple_semantic_arms(tmp_path: Path) -> N
     _seed_db(db_path)
     build_memory_corpus(db_path)
     build_memory_relations(db_path)
+    build_retrieval_text_profiles(db_path)
     build_memory_embeddings(db_path, provider="local_hash", dimensions=64)
     build_memory_embeddings(
         db_path,
@@ -4467,6 +4470,7 @@ def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> No
     _seed_db(db_path)
     build_memory_corpus(db_path)
     build_memory_relations(db_path)
+    build_retrieval_text_profiles(db_path)
 
     workflow = run_memory_workflow(
         db_path,
@@ -4480,6 +4484,7 @@ def test_memory_workflow_tool_output_is_stable_ai_contract(tmp_path: Path) -> No
 
     assert validate_tool_output(output) == []
     assert validate_tool_output(payload) == []
+    assert validate_tool_output_against_db(output, db_path) == []
     assert payload["contract_version"] == "research-x-ai-tool-v1"
     assert payload["tool_kind"] == "research_x.memory.workflow"
     assert payload["status"] == "answer"
@@ -4522,6 +4527,7 @@ def test_memory_workflow_cli_can_emit_tool_json(tmp_path: Path, capsys) -> None:
     _seed_db(db_path)
     build_memory_corpus(db_path)
     build_memory_relations(db_path)
+    build_retrieval_text_profiles(db_path)
 
     assert (
         main(
@@ -6168,6 +6174,20 @@ def test_memory_cli_reports_runtime_errors_without_traceback(tmp_path: Path, cap
 def _answerability_fixture_bundle(kind: str) -> ContextBundle:
     run_id = f"answerability:{kind}"
     created_at = "2026-06-22T00:00:00+00:00"
+    def _lineage(source_id: str) -> dict[str, str]:
+        suffix = source_id.removeprefix("tweet:")
+        return {
+            "source_doc_hash": f"hash-{suffix}",
+            "embedding_text_hash": f"embedding-{suffix}",
+            "retrieval_text_hash": f"retrieval-{suffix}",
+            "retrieval_text_profile": "full_text",
+            "retrieval_profile_kind": "full_text",
+            "retrieval_text_profile_id": f"profile-{suffix}",
+            "source_bundle_id": f"bundle-{suffix}",
+            "lineage_status": "restored",
+            "restored_at": created_at,
+        }
+
     if kind == "unanswerable":
         return ContextBundle(
             run_id=run_id,
@@ -6179,11 +6199,15 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
             citation_annotations=(),
         )
 
-    first_chunk_metadata = {"answerability_fixture": "answerable"}
+    first_chunk_metadata = {
+        "answerability_fixture": "answerable",
+        **_lineage("tweet:answerable"),
+    }
     if kind == "stale_only":
         first_chunk_metadata = {
             "answerability_fixture": "stale_only",
             "freshness_status": "stale",
+            **_lineage("tweet:answerable"),
         }
     chunks = [
         ContextChunk(
@@ -6220,7 +6244,10 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
                 relevance_score=0.9,
                 extractor_version="answerability-fixture-v1",
                 created_at=created_at,
-                metadata={"answerability_fixture": second_fixture},
+                metadata={
+                    "answerability_fixture": second_fixture,
+                    **_lineage("tweet:conflicting"),
+                },
             )
         )
 
@@ -6244,7 +6271,24 @@ def _answerability_fixture_bundle(kind: str) -> ContextBundle:
             ),
             confidence=1.0,
             created_at=created_at,
-            metadata={"answerability_fixture": chunk.metadata["answerability_fixture"]},
+            metadata={
+                "answerability_fixture": chunk.metadata["answerability_fixture"],
+                **{
+                    key: chunk.metadata[key]
+                    for key in (
+                        "source_doc_hash",
+                        "embedding_text_hash",
+                        "retrieval_text_hash",
+                        "retrieval_text_profile",
+                        "retrieval_profile_kind",
+                        "retrieval_text_profile_id",
+                        "source_bundle_id",
+                        "lineage_status",
+                        "restored_at",
+                    )
+                    if key in chunk.metadata
+                },
+            },
         )
         for index, chunk in enumerate(chunks)
         if kind not in {"citation_missing"}

@@ -165,6 +165,7 @@ def citation_block_reasons(citation: CitationAnnotation) -> tuple[str, ...]:
         reasons.append("stale_evidence")
     if citation_is_not_evidence(citation):
         reasons.append("not_evidence")
+    reasons.extend(_local_x_db_lineage_block_reasons(citation))
     return tuple(_dedupe_preserve_order(reasons))
 
 
@@ -214,6 +215,34 @@ def citation_is_not_evidence(citation: CitationAnnotation) -> bool:
         *(_metadata_values(citation.metadata, NON_EVIDENCE_METADATA_KEYS)),
     ]
     return any(_is_non_evidence_value(value) for value in values)
+
+
+def _local_x_db_lineage_block_reasons(citation: CitationAnnotation) -> list[str]:
+    if str(citation.source_kind or "").strip() != "local_x_db":
+        return []
+    metadata = citation.metadata
+    reasons: list[str] = []
+    if not _lineage_value(metadata, "source_doc_hash"):
+        reasons.append("missing_source_doc_hash")
+    if not _lineage_value(metadata, "source_bundle_id"):
+        reasons.append("missing_source_bundle_id")
+    if _lineage_value(metadata, "lineage_status") != "restored":
+        reasons.append("source_not_restored")
+    if not (
+        _lineage_value(metadata, "retrieval_text_hash")
+        or _lineage_value(metadata, "retrieval_text_profile_id")
+    ):
+        reasons.append("missing_retrieval_text_lineage")
+    return reasons
+
+
+def _lineage_value(metadata: dict[str, Any], key: str) -> str:
+    direct = metadata.get(key)
+    if direct is None:
+        lineage = metadata.get("source_lineage")
+        if isinstance(lineage, dict):
+            direct = lineage.get(key)
+    return str(direct or "").strip()
 
 
 def chunk_is_not_evidence(chunk: ContextChunk) -> bool:

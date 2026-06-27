@@ -386,7 +386,14 @@ def _manual_context_bundle(chunk_text: str) -> ContextBundle:
         created_at=CREATED_AT,
         metadata={
             "source_doc_hash": "hash-manual",
+            "embedding_text_hash": "embedding-hash-manual",
+            "retrieval_text_hash": "retrieval-hash-manual",
+            "retrieval_text_profile": "full_text",
+            "retrieval_profile_kind": "full_text",
+            "retrieval_text_profile_id": "profile-manual",
             "source_bundle_id": "bundle-manual",
+            "lineage_status": "restored",
+            "restored_at": CREATED_AT,
         },
     )
     citation = CitationAnnotation(

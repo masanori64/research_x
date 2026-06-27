@@ -168,7 +168,14 @@ def _citation_for_identity(
 ) -> CitationAnnotation:
     metadata = {
         "source_doc_hash": "same-normalized-text-hash",
+        "embedding_text_hash": f"embedding-{source_id}",
+        "retrieval_text_hash": f"retrieval-{source_id}",
+        "retrieval_text_profile": "full_text",
+        "retrieval_profile_kind": "full_text",
+        "retrieval_text_profile_id": f"profile-{source_id}",
         "source_bundle_id": f"bundle-{source_id}",
+        "lineage_status": "restored",
+        "restored_at": CREATED_AT,
         "marker_found": True,
         "primary_evidence_identity": {
             "source_kind": "local_x_db",

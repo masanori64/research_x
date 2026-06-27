@@ -12,6 +12,17 @@ from research_x.tool_interface.memory_tool_contract import (
 )
 
 CREATED_AT = "2026-06-27T00:00:00Z"
+LINEAGE_METADATA = {
+    "source_doc_hash": "hash-1",
+    "embedding_text_hash": "embedding-hash-1",
+    "retrieval_text_hash": "retrieval-hash-1",
+    "retrieval_text_profile": "full_text",
+    "retrieval_profile_kind": "full_text",
+    "retrieval_text_profile_id": "profile-1",
+    "source_bundle_id": "bundle-1",
+    "lineage_status": "restored",
+    "restored_at": CREATED_AT,
+}
 
 
 def test_stale_conflict_and_preview_citations_block_answer_status() -> None:
@@ -178,8 +189,7 @@ def _chunk(*, metadata: dict[str, Any]) -> ContextChunk:
         extractor_version="fixture",
         created_at=CREATED_AT,
         metadata={
-            "source_doc_hash": "hash-1",
-            "source_bundle_id": "bundle-1",
+            **LINEAGE_METADATA,
             **metadata,
         },
     )
@@ -205,8 +215,7 @@ def _citation(
         confidence=1.0,
         created_at=CREATED_AT,
         metadata={
-            "source_doc_hash": "hash-1",
-            "source_bundle_id": "bundle-1",
+            **LINEAGE_METADATA,
             "marker_found": True,
             **metadata,
         },

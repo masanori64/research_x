@@ -1023,6 +1023,8 @@ def _citation_source_hash_drift(conn: sqlite3.Connection, row: sqlite3.Row) -> b
 
 
 def _citation_source_lineage_missing(row: sqlite3.Row) -> bool:
+    if str(row["source_kind"] or "") != "local_x_db":
+        return False
     if not str(row["chunk_id"] or "").strip():
         return True
     if row["chunk_source_id"] is None:
@@ -1032,11 +1034,25 @@ def _citation_source_lineage_missing(row: sqlite3.Row) -> bool:
     if not isinstance(citation_metadata, dict) or not isinstance(chunk_metadata, dict):
         return True
     required = ("source_doc_hash", "source_bundle_id")
-    return any(
+    if any(
         not str(citation_metadata.get(key) or "").strip()
         or not str(chunk_metadata.get(key) or "").strip()
         for key in required
+    ):
+        return True
+    if str(citation_metadata.get("lineage_status") or "").strip() != "restored":
+        return True
+    if str(chunk_metadata.get("lineage_status") or "").strip() != "restored":
+        return True
+    citation_has_retrieval = bool(
+        str(citation_metadata.get("retrieval_text_hash") or "").strip()
+        or str(citation_metadata.get("retrieval_text_profile_id") or "").strip()
     )
+    chunk_has_retrieval = bool(
+        str(chunk_metadata.get("retrieval_text_hash") or "").strip()
+        or str(chunk_metadata.get("retrieval_text_profile_id") or "").strip()
+    )
+    return not (citation_has_retrieval and chunk_has_retrieval)
 
 
 def _is_nonclaim_answer_line(line: str) -> bool:
