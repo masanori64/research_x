@@ -137,6 +137,23 @@ def test_no_quota_freeze_blocks_budgeted_api_call_even_with_price(tmp_path: Path
     )
 
 
+def test_no_quota_freeze_blocks_budgeted_api_call_without_active_context() -> None:
+    try:
+        with budgeted_api_call(
+            provider="openai",
+            model="text-embedding-3-small",
+            provider_role="embedding",
+            operation="embedding",
+            units=api_units(calls=1),
+            request_payload={"input": "x"},
+        ):
+            pass
+    except RuntimeError as exc:
+        assert "provider_gated_by_no_quota_freeze" in str(exc)
+    else:
+        raise AssertionError("no-quota freeze should block provider execution without context")
+
+
 def test_run_budget_includes_reserved_cost(tmp_path: Path) -> None:
     db_path = tmp_path / "x.sqlite3"
     upsert_api_price(
@@ -231,6 +248,15 @@ def test_fake_and_local_providers_are_exempt(tmp_path: Path) -> None:
             operation="embedding",
             units=api_units(calls=1, input_tokens=999999),
             request_payload={"local": True},
+        ):
+            pass
+        with budgeted_api_call(
+            provider="fixture_media",
+            model="fixture-media-v1",
+            provider_role="embedding",
+            operation="embedding",
+            units=api_units(calls=1, input_tokens=999999),
+            request_payload={"fixture": True},
         ):
             pass
 

@@ -45,6 +45,9 @@ permission.
 
 - No real provider API, free-tier, trial-credit, or zero-dollar quota use while the
   no-quota freeze is active.
+- Provider execution hard blocks live at the request boundary through the API
+  budget gate; request-shape tests inspect builders only and are not model-quality
+  proof.
 - `store=True` workflow trace writes are operational audit rows only; they do not
   authorize raw source, governance, feedback, provider, or answer-support mutation.
 - Provider, Reader, external search, OCR, rerank, classifier, answer, embedding,
@@ -64,6 +67,8 @@ permission.
 - The current machine-readable adoption boundary is `control/adoption_registry.toml`.
   It is the registry for what this project owns, what it only bridges to
   `maasa/.codex`, and what remains provider-gated or historical.
+- GPT review ZIPs must include provider execution source files plus semantic
+  memory/adoption/Pointer Map audit validation before they are review-ready.
 
 ## Current Tracker Rule
 

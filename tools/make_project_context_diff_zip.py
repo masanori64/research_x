@@ -23,6 +23,16 @@ REQUIRED_PROJECT_CONTEXT_FILES = (
     "tools/wbs_viewer/projects/research-x-work-state.json",
     "prompt_contracts/research_x_memory_search_v1.yaml",
     "src/research_x/memory/api_budget.py",
+    "src/research_x/memory/answer.py",
+    "src/research_x/memory/rerank.py",
+    "src/research_x/memory/llm_context.py",
+    "src/research_x/memory/embeddings.py",
+    "src/research_x/memory/media_embeddings.py",
+    "src/research_x/memory/external.py",
+    "src/research_x/memory/reader.py",
+    "src/research_x/memory/ocr.py",
+    "src/research_x/memory/judge_relations.py",
+    "src/research_x/bookmark_classifier.py",
     "src/research_x/cli.py",
     "src/research_x/tool_interface/memory_tool_contract.py",
 )
@@ -239,6 +249,59 @@ def _validate_required_review_artifacts(payloads: dict[str, bytes]) -> tuple[str
     pointer_raw = payloads.get("pointer_map_audit")
     if pointer_raw is not None and pointer_raw.strip():
         errors.extend(_validate_pointer_map_audit(pointer_raw))
+    memory_raw = payloads.get("memory_audit")
+    if memory_raw is not None and memory_raw.strip():
+        errors.extend(_validate_memory_audit(memory_raw))
+    adoption_raw = payloads.get("adoption_audit")
+    if adoption_raw is not None and adoption_raw.strip():
+        errors.extend(_validate_adoption_audit(adoption_raw))
+    return tuple(errors)
+
+
+def _validate_memory_audit(raw: bytes) -> tuple[str, ...]:
+    zip_path = REQUIRED_REVIEW_ARTIFACTS["memory_audit"]
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return (f"memory audit artifact is not valid JSON: {zip_path}: {exc}",)
+    if not isinstance(payload, dict):
+        return (f"memory audit artifact must be a JSON object: {zip_path}",)
+    errors: list[str] = []
+    readiness = payload.get("readiness")
+    if not isinstance(readiness, dict):
+        errors.append("memory audit readiness must be a JSON object")
+    else:
+        if readiness.get("local_no_provider_ready") is not True:
+            errors.append("memory audit readiness.local_no_provider_ready must be true")
+        if readiness.get("blocking_issue_count") != 0:
+            errors.append("memory audit readiness.blocking_issue_count must be 0")
+    for key in ("claim_citation_issues", "freshness_lineage_issues"):
+        value = payload.get(key)
+        if not isinstance(value, dict):
+            errors.append(f"memory audit {key} must be a JSON object")
+        elif value:
+            errors.append(f"memory audit {key} must be empty")
+    structured_warnings = payload.get("structured_warnings")
+    if not isinstance(structured_warnings, list):
+        errors.append("memory audit structured_warnings must be a list")
+    return tuple(errors)
+
+
+def _validate_adoption_audit(raw: bytes) -> tuple[str, ...]:
+    zip_path = REQUIRED_REVIEW_ARTIFACTS["adoption_audit"]
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return (f"adoption audit artifact is not valid JSON: {zip_path}: {exc}",)
+    if not isinstance(payload, dict):
+        return (f"adoption audit artifact must be a JSON object: {zip_path}",)
+    errors: list[str] = []
+    if payload.get("status") != "ok":
+        errors.append("adoption audit status must be ok")
+    if payload.get("errors") != []:
+        errors.append("adoption audit errors must be empty")
+    if not isinstance(payload.get("candidates"), list):
+        errors.append("adoption audit candidates must be a list")
     return tuple(errors)
 
 
@@ -288,6 +351,8 @@ def _validate_pointer_map_audit(raw: bytes) -> tuple[str, ...]:
             )
         if isinstance(results, list) and not results:
             errors.append("pointer map audit passed status requires result entries")
+        if isinstance(results, list):
+            errors.extend(_validate_passed_pointer_map_results(results))
     if (
         status == "skipped_external_pointer_map_absent"
         and payload.get("skipped_reason") != "pointer_map_absent"
@@ -295,6 +360,25 @@ def _validate_pointer_map_audit(raw: bytes) -> tuple[str, ...]:
         errors.append(
             "skipped pointer map audit requires skipped_reason='pointer_map_absent'"
         )
+    return tuple(errors)
+
+
+def _validate_passed_pointer_map_results(results: list[Any]) -> tuple[str, ...]:
+    errors: list[str] = []
+    for index, result in enumerate(results):
+        label = f"pointer map audit results[{index}]"
+        if not isinstance(result, dict):
+            errors.append(f"{label} must be a JSON object")
+            continue
+        if result.get("status") != "usable_pointer":
+            errors.append(f"{label}.status must be usable_pointer")
+        if result.get("issues") != []:
+            errors.append(f"{label}.issues must be empty")
+        if result.get("not_evidence") is not True:
+            errors.append(f"{label}.not_evidence must be true")
+        for key in ("sha256_match", "byte_count_match", "char_count_match"):
+            if key in result and result.get(key) is not True:
+                errors.append(f"{label}.{key} must be true when present")
     return tuple(errors)
 
 
@@ -418,6 +502,7 @@ def _write_context(
         "Use source bundles, context chunks, and citations for answer support.",
         "",
         "Required project context is listed in attachment_manifest.json.",
+        "Provider execution surface source files are included for no-quota gate review.",
     ]
     (staging / "context.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 

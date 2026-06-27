@@ -17,6 +17,16 @@ def test_review_context_zip_required_files_cover_gpt_review_surfaces() -> None:
         "tools/wbs_viewer/projects/research-x-work-state.json",
         "prompt_contracts/research_x_memory_search_v1.yaml",
         "src/research_x/memory/api_budget.py",
+        "src/research_x/memory/answer.py",
+        "src/research_x/memory/rerank.py",
+        "src/research_x/memory/llm_context.py",
+        "src/research_x/memory/embeddings.py",
+        "src/research_x/memory/media_embeddings.py",
+        "src/research_x/memory/external.py",
+        "src/research_x/memory/reader.py",
+        "src/research_x/memory/ocr.py",
+        "src/research_x/memory/judge_relations.py",
+        "src/research_x/bookmark_classifier.py",
         "src/research_x/cli.py",
         "src/research_x/tool_interface/memory_tool_contract.py",
     } <= set(module.REQUIRED_PROJECT_CONTEXT_FILES)
@@ -49,6 +59,7 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     with zipfile.ZipFile(zip_path) as archive:
         names = set(archive.namelist())
         manifest = json.loads(archive.read("attachment_manifest.json").decode("utf-8"))
+        context_text = archive.read("context.md").decode("utf-8")
     assert "context.md" in names
     assert "attachment_manifest.md" in names
     assert "attachment_manifest.json" in names
@@ -61,6 +72,16 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
         "research_x_memory_search_v1.yaml"
     ) in names
     assert "attachments/project_context/src/research_x/memory/api_budget.py" in names
+    assert "attachments/project_context/src/research_x/memory/answer.py" in names
+    assert "attachments/project_context/src/research_x/memory/rerank.py" in names
+    assert "attachments/project_context/src/research_x/memory/llm_context.py" in names
+    assert "attachments/project_context/src/research_x/memory/embeddings.py" in names
+    assert "attachments/project_context/src/research_x/memory/media_embeddings.py" in names
+    assert "attachments/project_context/src/research_x/memory/external.py" in names
+    assert "attachments/project_context/src/research_x/memory/reader.py" in names
+    assert "attachments/project_context/src/research_x/memory/ocr.py" in names
+    assert "attachments/project_context/src/research_x/memory/judge_relations.py" in names
+    assert "attachments/project_context/src/research_x/bookmark_classifier.py" in names
     assert "attachments/project_context/src/research_x/cli.py" in names
     assert "attachments/project_context/control/adoption_registry.toml" in names
     assert "attachments/changed_files/src/research_x/memory/audit.py" in names
@@ -71,6 +92,7 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     assert "attachments/audits/adoption_audit.json" in names
     assert "attachments/audits/pointer_map_audit.json" in names
     assert manifest["artifact_kind"] == module.REVIEW_ZIP_ARTIFACT_KIND
+    assert "Provider execution surface source files are included" in context_text
 
 
 def test_verify_review_zip_detects_manifest_missing_required_file(
@@ -210,6 +232,152 @@ def test_verify_review_zip_rejects_failed_pointer_map_audit(
     )
 
 
+def test_verify_review_zip_rejects_inconsistent_pointer_map_passed_audit(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["pointer_map_audit"].write_text(
+        json.dumps(
+            {
+                "source_kind": "pointer_map",
+                "status": "passed",
+                "entry_count": 1,
+                "usable_count": 1,
+                "failed_count": 0,
+                "invalid_entry_count": 0,
+                "results": [
+                    {
+                        "pointer_id": "stale",
+                        "status": "stale_pointer",
+                        "issues": ["stale_hash"],
+                        "not_evidence": False,
+                        "sha256_match": False,
+                    }
+                ],
+                "skipped_reason": None,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "pointer map audit results[0].status must be usable_pointer" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "pointer map audit results[0].not_evidence must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "pointer map audit results[0].sha256_match must be true when present" in error
+        for error in result.verification_errors
+    )
+
+
+def test_verify_review_zip_rejects_memory_audit_not_local_ready(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["memory_audit"].write_text(
+        json.dumps(
+            {
+                "claim_citation_issues": {},
+                "freshness_lineage_issues": {},
+                "readiness": {
+                    "local_no_provider_ready": False,
+                    "blocking_issue_count": 1,
+                },
+                "structured_warnings": [],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "memory audit readiness.local_no_provider_ready must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "memory audit readiness.blocking_issue_count must be 0" in error
+        for error in result.verification_errors
+    )
+
+
+def test_verify_review_zip_rejects_failed_adoption_audit(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["adoption_audit"].write_text(
+        json.dumps(
+            {
+                "candidates": [],
+                "errors": ["missing active artifact"],
+                "status": "failed",
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any("adoption audit status must be ok" in error for error in result.verification_errors)
+    assert any(
+        "adoption audit errors must be empty" in error for error in result.verification_errors
+    )
+
+
 def _load_module():
     spec = importlib.util.spec_from_file_location("make_project_context_diff_zip", SCRIPT_PATH)
     assert spec is not None
@@ -241,7 +409,12 @@ def _review_artifact_fixture(artifact_id: str) -> str:
     if artifact_id == "memory_audit":
         return json.dumps(
             {
-                "readiness": {"local_no_provider_ready": True},
+                "claim_citation_issues": {},
+                "freshness_lineage_issues": {},
+                "readiness": {
+                    "local_no_provider_ready": True,
+                    "blocking_issue_count": 0,
+                },
                 "structured_warnings": [],
             },
             ensure_ascii=False,
@@ -251,6 +424,7 @@ def _review_artifact_fixture(artifact_id: str) -> str:
     if artifact_id == "adoption_audit":
         return json.dumps(
             {
+                "candidates": [{"name": "fixture", "status": "implemented"}],
                 "errors": [],
                 "status": "ok",
             },
@@ -269,7 +443,11 @@ def _review_artifact_fixture(artifact_id: str) -> str:
                 "invalid_entry_count": 0,
                 "results": [
                     {
+                        "byte_count_match": True,
+                        "char_count_match": True,
+                        "not_evidence": True,
                         "pointer_id": "fixture-pointer",
+                        "sha256_match": True,
                         "status": "usable_pointer",
                         "issues": [],
                     }

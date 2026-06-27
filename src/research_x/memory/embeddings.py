@@ -898,24 +898,148 @@ class _LocalHashEmbedder:
         return [_local_hash_embedding(text, dimensions=self.spec.dimensions) for text in texts]
 
 
+def _embedding_provider_request(
+    *,
+    spec: EmbeddingSpec,
+    api_key: str,
+    texts: list[str],
+    task_type: str,
+) -> dict[str, Any]:
+    if spec.provider == OPENAI_PROVIDER:
+        payload: dict[str, Any] = {
+            "model": spec.model,
+            "input": texts,
+            "encoding_format": "float",
+        }
+        if spec.dimensions:
+            payload["dimensions"] = spec.dimensions
+        url = spec.base_url or "https://api.openai.com/v1/embeddings"
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif spec.provider == OPENAI_COMPATIBLE_PROVIDER:
+        if not spec.base_url:
+            raise RuntimeError(
+                "openai_compatible embeddings require --base-url or "
+                f"{OPENAI_COMPATIBLE_BASE_URL_ENV}"
+            )
+        payload = {
+            "model": spec.model,
+            "input": texts,
+            "encoding_format": "float",
+        }
+        if spec.dimensions:
+            payload["dimensions"] = spec.dimensions
+        url = spec.base_url
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif spec.provider == GEMINI_PROVIDER:
+        model_name = _gemini_model_name(spec.model)
+        requests = []
+        for text in texts:
+            config: dict[str, Any] = {}
+            if spec.dimensions:
+                config["outputDimensionality"] = spec.dimensions
+            if not _is_gemini_embedding_2(spec.model):
+                config["taskType"] = task_type
+            request: dict[str, Any] = {
+                "model": model_name,
+                "content": {
+                    "parts": [
+                        {
+                            "text": _gemini_content_text(
+                                text,
+                                model=spec.model,
+                                embedding_profile=spec.embedding_profile,
+                                task_type=task_type,
+                            )
+                        }
+                    ]
+                },
+            }
+            if config:
+                request["embedContentConfig"] = config
+            requests.append(request)
+        payload = {"requests": requests}
+        url = (
+            spec.base_url
+            or f"https://generativelanguage.googleapis.com/v1beta/{model_name}:batchEmbedContents"
+        )
+        headers = {"x-goog-api-key": api_key}
+    elif spec.provider == VOYAGE_PROVIDER:
+        payload = {
+            "model": spec.model,
+            "input": texts,
+            "input_type": _voyage_input_type(task_type),
+            "truncation": True,
+            "output_dtype": "float",
+        }
+        if spec.dimensions:
+            payload["output_dimension"] = spec.dimensions
+        url = spec.base_url or "https://api.voyageai.com/v1/embeddings"
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif spec.provider == COHERE_PROVIDER:
+        payload = {
+            "model": spec.model,
+            "texts": texts,
+            "input_type": _cohere_input_type(task_type),
+            "embedding_types": ["float"],
+            "truncate": "END",
+        }
+        if spec.dimensions:
+            payload["output_dimension"] = spec.dimensions
+        url = spec.base_url or "https://api.cohere.com/v2/embed"
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif spec.provider == MISTRAL_PROVIDER:
+        payload = {
+            "model": spec.model,
+            "input": texts,
+            "encoding_format": "float",
+        }
+        url = spec.base_url or "https://api.mistral.ai/v1/embeddings"
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif spec.provider == JINA_PROVIDER:
+        payload = {
+            "model": spec.model,
+            "input": texts,
+            "task": _jina_task(task_type),
+            "embedding_type": "float",
+            "normalized": True,
+            "truncate": True,
+        }
+        if spec.dimensions:
+            payload["dimensions"] = spec.dimensions
+        url = spec.base_url or "https://api.jina.ai/v1/embeddings"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "research-x/0.1 (+https://github.com/masanori64/research_x)",
+        }
+    else:
+        raise RuntimeError(f"provider has no remote embedding request shape: {spec.provider}")
+    return {
+        "url": url,
+        "payload": payload,
+        "headers": headers,
+        "timeout_seconds": spec.timeout_seconds,
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
+
+
 class _OpenAIEmbedder:
     def __init__(self, spec: EmbeddingSpec) -> None:
         self.spec = spec
         self.api_key = _api_key(spec.api_key_env or "OPENAI_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        payload: dict[str, Any] = {
-            "model": self.spec.model,
-            "input": texts,
-            "encoding_format": "float",
-        }
-        if self.spec.dimensions:
-            payload["dimensions"] = self.spec.dimensions
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url or "https://api.openai.com/v1/embeddings",
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",
@@ -944,18 +1068,17 @@ class _OpenAICompatibleEmbedder:
         self.api_key = _api_key(spec.api_key_env or "OPENAI_COMPATIBLE_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        payload: dict[str, Any] = {
-            "model": self.spec.model,
-            "input": texts,
-            "encoding_format": "float",
-        }
-        if self.spec.dimensions:
-            payload["dimensions"] = self.spec.dimensions
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url or "",
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",
@@ -981,38 +1104,17 @@ class _GeminiEmbedder:
         self.api_key = _api_key(spec.api_key_env or "GEMINI_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        model_name = _gemini_model_name(self.spec.model)
-        requests = []
-        for text in texts:
-            config: dict[str, Any] = {}
-            if self.spec.dimensions:
-                config["outputDimensionality"] = self.spec.dimensions
-            if not _is_gemini_embedding_2(self.spec.model):
-                config["taskType"] = task_type
-            request: dict[str, Any] = {
-                "model": model_name,
-                "content": {
-                    "parts": [
-                        {
-                            "text": _gemini_content_text(
-                                text,
-                                model=self.spec.model,
-                                embedding_profile=self.spec.embedding_profile,
-                                task_type=task_type,
-                            )
-                        }
-                    ]
-                },
-            }
-            if config:
-                request["embedContentConfig"] = config
-            requests.append(request)
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url
-            or f"https://generativelanguage.googleapis.com/v1beta/{model_name}:batchEmbedContents",
-            {"requests": requests},
-            headers={"x-goog-api-key": self.api_key},
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",
@@ -1036,20 +1138,17 @@ class _VoyageEmbedder:
         self.api_key = _api_key(spec.api_key_env or "VOYAGE_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        payload: dict[str, Any] = {
-            "model": self.spec.model,
-            "input": texts,
-            "input_type": _voyage_input_type(task_type),
-            "truncation": True,
-            "output_dtype": "float",
-        }
-        if self.spec.dimensions:
-            payload["output_dimension"] = self.spec.dimensions
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url or "https://api.voyageai.com/v1/embeddings",
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",
@@ -1064,20 +1163,17 @@ class _CohereEmbedder:
         self.api_key = _api_key(spec.api_key_env or "COHERE_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        payload: dict[str, Any] = {
-            "model": self.spec.model,
-            "texts": texts,
-            "input_type": _cohere_input_type(task_type),
-            "embedding_types": ["float"],
-            "truncate": "END",
-        }
-        if self.spec.dimensions:
-            payload["output_dimension"] = self.spec.dimensions
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url or "https://api.cohere.com/v2/embed",
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",
@@ -1097,16 +1193,17 @@ class _MistralEmbedder:
         self.api_key = _api_key(spec.api_key_env or "MISTRAL_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        payload: dict[str, Any] = {
-            "model": self.spec.model,
-            "input": texts,
-            "encoding_format": "float",
-        }
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url or "https://api.mistral.ai/v1/embeddings",
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",
@@ -1121,24 +1218,17 @@ class _JinaEmbedder:
         self.api_key = _api_key(spec.api_key_env or "JINA_API_KEY")
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
-        payload: dict[str, Any] = {
-            "model": self.spec.model,
-            "input": texts,
-            "task": _jina_task(task_type),
-            "embedding_type": "float",
-            "normalized": True,
-            "truncate": True,
-        }
-        if self.spec.dimensions:
-            payload["dimensions"] = self.spec.dimensions
+        request = _embedding_provider_request(
+            spec=self.spec,
+            api_key=self.api_key,
+            texts=texts,
+            task_type=task_type,
+        )
         response = _post_json_budgeted(
-            self.spec.base_url or "https://api.jina.ai/v1/embeddings",
-            payload,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": "research-x/0.1 (+https://github.com/masanori64/research_x)",
-            },
-            timeout_seconds=self.spec.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.spec.provider,
             budget_model=self.spec.model,
             budget_operation="embedding",

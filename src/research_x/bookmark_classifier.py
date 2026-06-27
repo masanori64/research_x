@@ -169,19 +169,20 @@ def classify_bookmarks(
     classifications: list[BookmarkClassification] = []
     try:
         for batch in _chunks(item_tuple, max(1, settings.batch_size)):
-            payload = _classifier_payload(batch, settings, categories)
-            response = _post_json_budgeted(
-                _classifier_url(settings),
-                payload,
+            request = _classifier_request(
+                batch,
+                settings=settings,
+                categories=categories,
                 api_key=api_key,
-                timeout_seconds=settings.request_timeout_seconds,
-                budget_provider=_budget_provider_for_settings(settings),
-                budget_model=settings.model,
-                budget_units=api_units(
-                    calls=1,
-                    input_tokens=rough_text_tokens(payload),
-                    documents=len(batch),
-                ),
+            )
+            response = _post_json_budgeted(
+                request["url"],
+                request["payload"],
+                api_key=request["api_key"],
+                timeout_seconds=request["timeout_seconds"],
+                budget_provider=request["budget_provider"],
+                budget_model=request["budget_model"],
+                budget_units=request["budget_units"],
             )
             classifications.extend(
                 _classifications_from_response(response, batch, categories, settings.max_tags)
@@ -357,6 +358,31 @@ def _classifier_payload(
     if settings.provider == "openai_responses":
         return _openai_responses_payload(items, settings, categories)
     return _openai_compatible_chat_payload(items, settings, categories)
+
+
+def _classifier_request(
+    items: tuple[XItem, ...],
+    *,
+    settings: BookmarkClassifierSettings,
+    categories: tuple[BookmarkCategory, ...],
+    api_key: str,
+) -> dict[str, Any]:
+    payload = _classifier_payload(items, settings, categories)
+    return {
+        "url": _classifier_url(settings),
+        "payload": payload,
+        "api_key": api_key,
+        "timeout_seconds": settings.request_timeout_seconds,
+        "budget_provider": _budget_provider_for_settings(settings),
+        "budget_model": settings.model,
+        "budget_units": api_units(
+            calls=1,
+            input_tokens=rough_text_tokens(payload),
+            documents=len(items),
+        ),
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
 
 
 def _openai_responses_payload(

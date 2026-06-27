@@ -148,22 +148,46 @@ class BraveLLMContextProvider:
         parameters: dict[str, Any],
         max_chars_per_source: int,
     ) -> tuple[tuple[LLMContextSource, ...], str | None, dict[str, Any]]:
-        payload = {"q": query, **parameters}
-        raw = _post_json_budgeted(
-            self.endpoint,
-            payload,
-            headers={"X-Subscription-Token": _api_key(self.api_key_env)},
+        request = _brave_llm_context_request(
+            endpoint=self.endpoint,
+            api_key=_api_key(self.api_key_env),
+            query=query,
+            parameters=parameters,
             timeout_seconds=self.timeout_seconds,
+        )
+        raw = _post_json_budgeted(
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.provider_id,
             budget_model="llm-context",
             budget_units=api_units(
                 calls=1,
-                input_tokens=rough_text_tokens(payload),
+                input_tokens=rough_text_tokens(request["payload"]),
                 documents=int(parameters.get("count") or 0),
             ),
         )
         sources = _sources_from_brave_response(raw, max_chars_per_source=max_chars_per_source)
         return sources, _json_hash(raw), {"grounding_keys": sorted(raw.get("grounding") or {})}
+
+
+def _brave_llm_context_request(
+    *,
+    endpoint: str,
+    api_key: str,
+    query: str,
+    parameters: dict[str, Any],
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    return {
+        "url": endpoint,
+        "payload": {"q": query, **parameters},
+        "headers": {"X-Subscription-Token": api_key},
+        "timeout_seconds": timeout_seconds,
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
 
 
 def fetch_llm_context_to_context(

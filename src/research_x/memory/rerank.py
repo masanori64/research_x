@@ -161,18 +161,21 @@ class VoyageRerankProvider:
         *,
         top_n: int,
     ) -> tuple[RerankResult, ...]:
-        payload = {
-            "model": self.model,
-            "query": query,
-            "documents": [document.text for document in documents],
-            "top_k": max(1, top_n),
-            "truncation": True,
-        }
-        response = _post_json_budgeted(
-            self.base_url,
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
+        request = _rerank_provider_request(
+            provider=self.provider_id,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=self.model,
+            query=query,
+            documents=documents,
+            top_n=top_n,
             timeout_seconds=self.timeout_seconds,
+        )
+        response = _post_json_budgeted(
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.provider_id,
             budget_model=self.model,
             budget_units=_rerank_api_units(query, documents, retries=3),
@@ -209,17 +212,21 @@ class CohereRerankProvider:
         *,
         top_n: int,
     ) -> tuple[RerankResult, ...]:
-        payload = {
-            "model": self.model,
-            "query": query,
-            "documents": [document.text for document in documents],
-            "top_n": max(1, top_n),
-        }
-        response = _post_json_budgeted(
-            self.base_url,
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
+        request = _rerank_provider_request(
+            provider=self.provider_id,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=self.model,
+            query=query,
+            documents=documents,
+            top_n=top_n,
             timeout_seconds=self.timeout_seconds,
+        )
+        response = _post_json_budgeted(
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.provider_id,
             budget_model=self.model,
             budget_units=_rerank_api_units(query, documents, retries=3),
@@ -256,17 +263,21 @@ class JinaRerankProvider:
         *,
         top_n: int,
     ) -> tuple[RerankResult, ...]:
-        payload = {
-            "model": self.model,
-            "query": query,
-            "documents": [{"text": document.text} for document in documents],
-            "top_n": max(1, top_n),
-        }
-        response = _post_json_budgeted(
-            self.base_url,
-            payload,
-            headers={"Authorization": f"Bearer {self.api_key}"},
+        request = _rerank_provider_request(
+            provider=self.provider_id,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=self.model,
+            query=query,
+            documents=documents,
+            top_n=top_n,
             timeout_seconds=self.timeout_seconds,
+        )
+        response = _post_json_budgeted(
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.provider_id,
             budget_model=self.model,
             budget_units=_rerank_api_units(query, documents, retries=3),
@@ -278,6 +289,52 @@ class JinaRerankProvider:
             model=self.model,
             score_keys=("relevance_score", "score"),
         )
+
+
+def _rerank_provider_request(
+    *,
+    provider: str,
+    base_url: str,
+    api_key: str,
+    model: str,
+    query: str,
+    documents: tuple[RerankInputDocument, ...],
+    top_n: int,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    provider_id = _resolve_provider(provider)
+    if provider_id == VOYAGE_RERANK_PROVIDER:
+        payload: dict[str, Any] = {
+            "model": model,
+            "query": query,
+            "documents": [document.text for document in documents],
+            "top_k": max(1, top_n),
+            "truncation": True,
+        }
+    elif provider_id == COHERE_RERANK_PROVIDER:
+        payload = {
+            "model": model,
+            "query": query,
+            "documents": [document.text for document in documents],
+            "top_n": max(1, top_n),
+        }
+    elif provider_id == JINA_RERANK_PROVIDER:
+        payload = {
+            "model": model,
+            "query": query,
+            "documents": [{"text": document.text} for document in documents],
+            "top_n": max(1, top_n),
+        }
+    else:
+        raise ValueError(f"provider has no remote rerank request shape: {provider}")
+    return {
+        "url": base_url,
+        "payload": payload,
+        "headers": {"Authorization": f"Bearer {api_key}"},
+        "timeout_seconds": timeout_seconds,
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
 
 
 def rerank_evidence_query(

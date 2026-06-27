@@ -23,6 +23,7 @@ DEFAULT_MAX_MONTH_USD = 25.0
 DEFAULT_UNKNOWN_PRICE_ACTION = "block"
 DEFAULT_WARNING_FRACTION = 0.8
 EXEMPT_PROVIDERS = {"fake", "local", "local_hash"}
+EXEMPT_PROVIDER_PREFIXES = ("fixture_",)
 BUDGET_EXHAUSTED_STATUS = "budget_exhausted"
 PROVIDER_QUOTA_FREEZE_ACTIVE = True
 NO_QUOTA_FREEZE_BLOCK_STATUS = "provider_gated_by_no_quota_freeze"
@@ -126,6 +127,30 @@ def active_api_budget_context() -> ApiBudgetContext | None:
     return _ACTIVE_CONTEXT.get()
 
 
+def provider_is_quota_exempt(provider: str) -> bool:
+    return _is_exempt_provider(provider)
+
+
+def require_provider_execution_allowed(
+    *,
+    provider: str,
+    model: str | None = None,
+    operation: str | None = None,
+) -> None:
+    del model, operation
+    if _is_exempt_provider(provider):
+        return
+    context = active_api_budget_context()
+    if context is None:
+        if PROVIDER_QUOTA_FREEZE_ACTIVE:
+            raise RuntimeError(NO_QUOTA_FREEZE_BLOCK_MESSAGE)
+        raise RuntimeError(
+            f"{PROVIDER_QUOTA_APPROVAL_GATE_MESSAGE}: active API budget context is required"
+        )
+    if context.no_quota_freeze_active:
+        raise RuntimeError(NO_QUOTA_FREEZE_BLOCK_MESSAGE)
+
+
 @contextlib.contextmanager
 def budgeted_api_call(
     *,
@@ -137,10 +162,13 @@ def budgeted_api_call(
     request_payload: Any | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Iterator[ApiBudgetReservation | None]:
-    context = active_api_budget_context()
-    if context is None or _is_exempt_provider(provider):
+    if _is_exempt_provider(provider):
         yield None
         return
+    context = active_api_budget_context()
+    if context is None:
+        require_provider_execution_allowed(provider=provider, model=model, operation=operation)
+        raise AssertionError("unreachable provider execution gate state")
     reservation = reserve_api_budget(
         context,
         provider=provider,
@@ -287,8 +315,7 @@ def require_provider_quota_approval(
     if _is_exempt_provider(provider):
         return
     context = active_api_budget_context()
-    if context is None or context.no_quota_freeze_active:
-        raise RuntimeError(NO_QUOTA_FREEZE_BLOCK_MESSAGE)
+    require_provider_execution_allowed(provider=provider, model=model, operation=operation)
     approval = context.provider_quota_approval if context is not None else None
     approved_scope = context.provider_quota_current_scope if context is not None else None
     result = validate_provider_quota_approval(
@@ -1535,7 +1562,8 @@ def _clean_model(value: str) -> str:
 
 
 def _is_exempt_provider(provider: str) -> bool:
-    return _clean_id(provider) in EXEMPT_PROVIDERS
+    provider_id = _clean_id(provider)
+    return provider_id in EXEMPT_PROVIDERS or provider_id.startswith(EXEMPT_PROVIDER_PREFIXES)
 
 
 def _coalesce(value: Any, fallback: Any) -> Any:

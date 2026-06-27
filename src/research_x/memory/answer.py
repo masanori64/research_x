@@ -283,27 +283,27 @@ class OpenAICompatibleAnswerProvider:
         prompt_version: str,
     ) -> GeneratedAnswer:
         api_key = _api_key(self.api_key_env)
-        payload = {
-            "model": self.model,
-            "messages": _answer_messages(
-                question=question,
-                chunks=chunks,
-                citations=citations,
-                prompt_version=prompt_version,
-            ),
-            "temperature": 0.1,
-        }
-        raw = _post_json_budgeted(
-            f"{self.base_url}/chat/completions",
-            payload,
-            headers={"Authorization": f"Bearer {api_key}"},
+        request = _openai_compatible_chat_request(
+            base_url=self.base_url,
+            api_key=api_key,
+            model=self.model,
+            question=question,
+            chunks=chunks,
+            citations=citations,
+            prompt_version=prompt_version,
             timeout_seconds=self.timeout_seconds,
+        )
+        raw = _post_json_budgeted(
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.provider_id,
             budget_model=self.model,
             budget_units=api_units(
                 calls=3,
                 retries=2,
-                input_tokens=rough_text_tokens(payload),
+                input_tokens=rough_text_tokens(request["payload"]),
                 documents=len(chunks),
             ),
         )
@@ -854,6 +854,37 @@ def _provider(
             timeout_seconds=timeout_seconds,
         )
     raise ValueError(f"unknown answer provider: {provider}")
+
+
+def _openai_compatible_chat_request(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    question: str,
+    chunks: tuple[ContextChunk, ...],
+    citations: tuple[CitationAnnotation, ...],
+    prompt_version: str,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    payload = {
+        "model": model,
+        "messages": _answer_messages(
+            question=question,
+            chunks=chunks,
+            citations=citations,
+            prompt_version=prompt_version,
+        ),
+        "temperature": 0.1,
+    }
+    return {
+        "url": f"{base_url.rstrip('/')}/chat/completions",
+        "payload": payload,
+        "headers": {"Authorization": f"Bearer {api_key}"},
+        "timeout_seconds": timeout_seconds,
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
 
 
 def _select_chunks(

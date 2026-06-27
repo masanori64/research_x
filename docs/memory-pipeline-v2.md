@@ -225,6 +225,8 @@ fields: id, provider, model, operation, max calls, max USD, price source, scope,
 and approved time. `--allow-provider-quota` alone is insufficient; preflight is
 dry-run and must report zero provider requests while the freeze is active.
 
+Hard block is enforced at `budgeted_api_call`: contextless non-exempt routes are blocked, active-context freeze blocks are recorded, and only fake/local/local_hash plus explicit `fixture_*` providers are exempt. Request-shape tests inspect builders only; GPT review ZIPs must include logs, provider source, semantic memory/adoption readiness, and usable/not-evidence Pointer Map rows.
+
 ## ContextBudgetPolicy Boundary
 
 Runtime ContextBudgetPolicy may offload large context/workflow/answer JSON outputs

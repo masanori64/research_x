@@ -158,25 +158,28 @@ class SerperSearchProvider:
         if not api_key:
             raise RuntimeError(f"{self.api_key_env} is not set")
         resolved_limit = max(1, limit)
-        payload: dict[str, Any] = {"q": query, "num": resolved_limit}
-        if self.country:
-            payload["gl"] = self.country
-        if self.language:
-            payload["hl"] = self.language
-        if self.location:
-            payload["location"] = self.location
+        request = _serper_search_request(
+            endpoint=self.endpoint,
+            api_key=api_key,
+            query=query,
+            limit=resolved_limit,
+            country=self.country,
+            language=self.language,
+            location=self.location,
+            timeout_seconds=self.timeout_seconds,
+        )
 
         retrieved_at = _utc_now()
         raw = _post_json_budgeted(
-            self.endpoint,
-            payload,
-            headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-            timeout_seconds=self.timeout_seconds,
+            request["url"],
+            request["payload"],
+            headers=request["headers"],
+            timeout_seconds=request["timeout_seconds"],
             budget_provider=self.provider_id,
             budget_model="serper-search",
             budget_units=api_units(
                 calls=1,
-                input_tokens=rough_text_tokens(payload),
+                input_tokens=rough_text_tokens(request["payload"]),
                 documents=resolved_limit,
             ),
         )
@@ -186,12 +189,40 @@ class SerperSearchProvider:
             provider=self.provider_id,
             provider_role=self.provider_role,
             endpoint=self.endpoint,
-            parameters=_public_parameters(payload, api_key_env=self.api_key_env),
+            parameters=_public_parameters(request["payload"], api_key_env=self.api_key_env),
             status="ok",
             retrieved_at=retrieved_at,
             raw_response=raw,
             items=items,
         )
+
+
+def _serper_search_request(
+    *,
+    endpoint: str,
+    api_key: str,
+    query: str,
+    limit: int,
+    country: str | None,
+    language: str | None,
+    location: str | None,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"q": query, "num": max(1, limit)}
+    if country:
+        payload["gl"] = country
+    if language:
+        payload["hl"] = language
+    if location:
+        payload["location"] = location
+    return {
+        "url": endpoint,
+        "payload": payload,
+        "headers": {"X-API-KEY": api_key, "Content-Type": "application/json"},
+        "timeout_seconds": timeout_seconds,
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
 
 
 def search_external_evidence(

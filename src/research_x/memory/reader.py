@@ -194,11 +194,14 @@ class JinaReaderProvider:
         title: str | None,
         max_chars: int,
     ) -> ReaderPage:
-        endpoint = f"{self.endpoint_base}/{url}"
-        headers: dict[str, str] = {}
-        api_key = os.environ.get("JINA_API_KEY")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+        request = _jina_reader_request(
+            endpoint_base=self.endpoint_base,
+            url=url,
+            api_key=os.environ.get("JINA_API_KEY"),
+            timeout_seconds=self.timeout_seconds,
+            user_agent=self.user_agent,
+            max_bytes=self.max_bytes,
+        )
         with budgeted_api_call(
             provider=self.provider_id,
             model="reader",
@@ -206,14 +209,14 @@ class JinaReaderProvider:
             operation="reader_extract",
             units=api_units(calls=1, input_tokens=rough_text_tokens({"url": url, "query": query})),
             request_payload={"url": url, "query": query, "max_chars": max_chars},
-            metadata={"endpoint": endpoint, "uses_api_key": bool(api_key)},
+            metadata={"endpoint": request["url"], "uses_api_key": bool(request["api_key_used"])},
         ):
             response = _read_url(
-                endpoint,
-                timeout_seconds=self.timeout_seconds,
-                user_agent=self.user_agent,
-                max_bytes=self.max_bytes,
-                extra_headers=headers,
+                request["url"],
+                timeout_seconds=request["timeout_seconds"],
+                user_agent=request["user_agent"],
+                max_bytes=request["max_bytes"],
+                extra_headers=request["headers"],
             )
         _extracted_title, text = _extract_text(response.body, response.content_type)
         return ReaderPage(
@@ -227,9 +230,33 @@ class JinaReaderProvider:
                 "reader_endpoint": response.final_url,
                 "query": query,
                 "truncated_bytes": response.truncated,
-                "uses_api_key": bool(api_key),
+                "uses_api_key": bool(request["api_key_used"]),
             },
         )
+
+
+def _jina_reader_request(
+    *,
+    endpoint_base: str,
+    url: str,
+    api_key: str | None,
+    timeout_seconds: float,
+    user_agent: str,
+    max_bytes: int,
+) -> dict[str, Any]:
+    headers: dict[str, str] = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return {
+        "url": f"{endpoint_base.rstrip('/')}/{url}",
+        "headers": headers,
+        "timeout_seconds": timeout_seconds,
+        "user_agent": user_agent,
+        "max_bytes": max_bytes,
+        "api_key_used": bool(api_key),
+        "request_shape_only": True,
+        "provider_quality_proof": False,
+    }
 
 
 @dataclass(frozen=True)

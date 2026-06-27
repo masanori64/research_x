@@ -8,10 +8,13 @@ from pathlib import Path
 import pytest
 
 from research_x.cli import main
+from research_x.memory import answer as memory_answer
 from research_x.memory import api_lane_estimate as memory_api_lane_estimate
 from research_x.memory import embeddings
 from research_x.memory import evals as memory_evals
+from research_x.memory import external as memory_external
 from research_x.memory import portfolio as memory_portfolio
+from research_x.memory import reader as memory_reader
 from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import answer_json, assess_answerability, build_memory_answer
 from research_x.memory.api_lane_estimate import (
@@ -2815,16 +2818,16 @@ def test_memory_rerank_fake_provider_stores_tool_call(tmp_path: Path) -> None:
     assert json.loads(row[3])["results"][0]["provider"] == "fake"
 
 
-def test_memory_rerank_real_provider_payloads(monkeypatch) -> None:
-    captured = []
+def test_memory_rerank_provider_is_gated_under_no_quota_freeze(monkeypatch) -> None:
+    called = False
 
     def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured.append((url, payload, headers))
-        return {"results": [{"index": 0, "relevance_score": 0.9}]}
+        del url, payload, headers, timeout_seconds, retries
+        nonlocal called
+        called = True
+        raise AssertionError("provider request should be blocked before HTTP send")
 
     monkeypatch.setenv("COHERE_API_KEY", "cohere-key")
-    monkeypatch.setenv("JINA_API_KEY", "jina-key")
-    monkeypatch.setenv("VOYAGE_API_KEY", "voyage-key")
     monkeypatch.setattr(memory_rerank, "_post_json", fake_post_json)
     hits = [
         {
@@ -2838,16 +2841,10 @@ def test_memory_rerank_real_provider_payloads(monkeypatch) -> None:
         }
     ]
 
-    rerank_hits("強化学習", hits, provider="cohere", model="rerank-v4.0-pro")
-    rerank_hits("強化学習", hits, provider="jina", model="jina-reranker-v3")
-    rerank_hits("強化学習", hits, provider="voyage", model="rerank-2.5")
+    with pytest.raises(RuntimeError, match="provider_gated_by_no_quota_freeze"):
+        rerank_hits("強化学習", hits, provider="cohere", model="rerank-v4.0-pro")
 
-    assert captured[0][0] == "https://api.cohere.com/v2/rerank"
-    assert captured[0][1]["top_n"] == 5
-    assert captured[1][0] == "https://api.jina.ai/v1/rerank"
-    assert isinstance(captured[1][1]["documents"][0], dict)
-    assert captured[2][0] == "https://api.voyageai.com/v1/rerank"
-    assert captured[2][1]["top_k"] == 5
+    assert called is False
 
 
 def test_memory_portfolio_eval_accepts_fake_reranker_arm(tmp_path: Path) -> None:
@@ -3756,19 +3753,23 @@ def test_external_evidence_fake_provider_is_stored(tmp_path: Path) -> None:
     assert any("fixture/fake memory artifacts" in warning for warning in report.warnings)
 
 
-def test_external_evidence_serper_provider_uses_key_and_normalizes(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    db_path = tmp_path / "x.sqlite3"
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        captured["timeout_seconds"] = timeout_seconds
-        return {
+def test_external_evidence_serper_request_builder_uses_key_and_normalizes() -> None:
+    request = memory_external._serper_search_request(  # noqa: SLF001
+        endpoint="https://google.serper.dev/search",
+        api_key="secret-key",
+        query="北千住 ピザ",
+        limit=1,
+        country="jp",
+        language="ja",
+        location=None,
+        timeout_seconds=12.0,
+    )
+    public_parameters = memory_external._public_parameters(  # noqa: SLF001
+        request["payload"],
+        api_key_env="SERPER_API_KEY",
+    )
+    items = memory_external._serper_items(  # noqa: SLF001
+        {
             "organic": [
                 {
                     "title": "Kitaseju Pizza",
@@ -3777,28 +3778,19 @@ def test_external_evidence_serper_provider_uses_key_and_normalizes(
                     "position": 1,
                 }
             ]
-        }
-
-    monkeypatch.setenv("SERPER_API_KEY", "secret-key")
-    monkeypatch.setattr("research_x.memory.external._post_json", fake_post_json)
-
-    bundle = search_external_evidence(
-        db_path,
-        "北千住 ピザ",
-        provider="serper",
+        },
         limit=1,
-        country="jp",
-        language="ja",
-        timeout_seconds=12.0,
     )
 
-    assert captured["url"] == "https://google.serper.dev/search"
-    assert captured["payload"] == {"q": "北千住 ピザ", "num": 1, "gl": "jp", "hl": "ja"}
-    assert captured["headers"]["X-API-KEY"] == "secret-key"
-    assert bundle.parameters["api_key_env"] == "SERPER_API_KEY"
-    assert "secret-key" not in json.dumps(bundle.as_dict(), ensure_ascii=False)
-    assert bundle.items[0].source == "example.com"
-    assert bundle.items[0].metadata["snippet_is_not_evidence"] is True
+    assert request["url"] == "https://google.serper.dev/search"
+    assert request["payload"] == {"q": "北千住 ピザ", "num": 1, "gl": "jp", "hl": "ja"}
+    assert request["headers"]["X-API-KEY"] == "secret-key"
+    assert request["request_shape_only"] is True
+    assert request["provider_quality_proof"] is False
+    assert public_parameters["api_key_env"] == "SERPER_API_KEY"
+    assert "secret-key" not in json.dumps(public_parameters, ensure_ascii=False)
+    assert items[0].source == "example.com"
+    assert items[0].metadata["snippet_is_not_evidence"] is True
 
 
 def test_memory_context_chunks_and_citations_are_stored(tmp_path: Path) -> None:
@@ -4999,73 +4991,64 @@ def test_memory_default_eval_cases_cover_question_catalog() -> None:
     assert covered == expected
 
 
-def test_memory_answer_gemini_provider_uses_openai_compatible_chat(
+def test_memory_answer_provider_is_gated_under_no_quota_freeze(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     db_path = tmp_path / "x.sqlite3"
     _seed_db(db_path)
     build_memory_corpus(db_path)
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        captured["timeout_seconds"] = timeout_seconds
-        captured["retries"] = retries
-        return {"choices": [{"message": {"content": "根拠に基づく回答です [1]"}}]}
-
-    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
-    monkeypatch.setattr("research_x.memory.answer._post_json", fake_post_json)
-
-    answer = build_memory_answer(
-        db_path,
-        "強化学習 ロボット",
-        limit=1,
-        answer_provider="gemini",
-        answer_model="gemini-2.5-flash",
-        answer_timeout_seconds=7.0,
-    )
-
-    assert answer.model == "gemini-2.5-flash"
-    assert answer.provider == "gemini"
-    assert answer.answer_text == "根拠に基づく回答です [1]"
-    assert captured["url"].endswith("/v1beta/openai/chat/completions")
-    assert captured["payload"]["model"] == "gemini-2.5-flash"
-    assert captured["headers"]["Authorization"] == "Bearer fake-key"
-    assert captured["timeout_seconds"] == 7.0
-    assert "fake-key" not in json.dumps(answer.as_dict(), ensure_ascii=False)
-
-
-def test_memory_answer_marks_uncited_generated_text_for_review(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    db_path = tmp_path / "x.sqlite3"
-    _seed_db(db_path)
-    build_memory_corpus(db_path)
+    called = False
 
     def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
         del url, payload, headers, timeout_seconds, retries
-        return {"choices": [{"message": {"content": "根拠はありますが番号を付けません。"}}]}
+        nonlocal called
+        called = True
+        raise AssertionError("provider request should be blocked before HTTP send")
 
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
     monkeypatch.setattr("research_x.memory.answer._post_json", fake_post_json)
 
-    answer = build_memory_answer(
-        db_path,
-        "強化学習 ロボット",
-        limit=1,
-        answer_provider="gemini",
+    with pytest.raises(RuntimeError, match="provider_gated_by_no_quota_freeze"):
+        build_memory_answer(
+            db_path,
+            "強化学習 ロボット",
+            limit=1,
+            answer_provider="gemini",
+            answer_model="gemini-2.5-flash",
+            answer_timeout_seconds=7.0,
+        )
+
+    assert called is False
+
+
+def test_memory_answer_marks_uncited_generated_text_for_review() -> None:
+    bundle = _answerability_fixture_bundle("answerable")
+    answer_citations = memory_answer._answer_citations(  # noqa: SLF001
+        answer_id="answer:uncited",
+        answer_text="根拠はありますが番号を付けません。",
+        citations=bundle.citation_annotations,
+        created_at="2026-06-22T00:00:00+00:00",
+    )
+    missing_markers = [
+        citation.metadata["marker"]
+        for citation in answer_citations
+        if not citation.metadata.get("marker_found")
+    ]
+    answerability = assess_answerability(
+        question=bundle.query,
+        chunks=bundle.context_chunks,
+        citations=bundle.citation_annotations,
     )
 
-    assert answer.status == "needs_review"
-    assert answer.structured["missing_citation_markers"] == ["[1]"]
-    assert answer.citation_annotations[0].support_type == "uncited_context"
-    report = audit_memory_db(db_path)
-    assert report.answer_status_counts["needs_review"] == 1
-    assert any("stored answer artifacts need review" in warning for warning in report.warnings)
+    assert memory_answer._answer_status(  # noqa: SLF001
+        chunks=bundle.context_chunks,
+        answer_text="根拠はありますが番号を付けません。",
+        missing_markers=missing_markers,
+        answerability=answerability,
+    ) == "needs_review"
+    assert missing_markers == ["[1]"]
+    assert answer_citations[0].support_type == "uncited_context"
 
 
 def test_memory_build_derived_documents_creates_searchable_cards(tmp_path: Path) -> None:
@@ -5224,38 +5207,21 @@ def test_reader_extract_http_provider_normalizes_html(
     assert bundle.citation_annotation["evidence_status"] == "fact"
 
 
-def test_reader_extract_jina_provider_uses_reader_endpoint(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    db_path = tmp_path / "x.sqlite3"
-    captured = {}
-
-    def fake_read_url(url, *, timeout_seconds, user_agent, max_bytes, extra_headers=None):
-        captured["url"] = url
-        captured["headers"] = extra_headers or {}
-        return HttpResponse(
-            final_url=url,
-            status_code=200,
-            content_type="text/plain",
-            body=b"Jina extracted markdown for pizza.",
-        )
-
-    monkeypatch.setenv("JINA_API_KEY", "jina-key")
-    monkeypatch.setattr("research_x.memory.reader._read_url", fake_read_url)
-
-    bundle = extract_url_to_context(
-        db_path,
-        "https://example.com/pizza",
-        provider="jina",
-        title="Pizza",
+def test_reader_jina_request_builder_uses_reader_endpoint() -> None:
+    request = memory_reader._jina_reader_request(  # noqa: SLF001
+        endpoint_base="https://r.jina.ai",
+        url="https://example.com/pizza",
+        api_key="jina-key",
+        timeout_seconds=30.0,
+        user_agent="research-x/0.1",
+        max_bytes=2_000_000,
     )
 
-    assert captured["url"] == "https://r.jina.ai/https://example.com/pizza"
-    assert captured["headers"]["Authorization"] == "Bearer jina-key"
-    assert bundle.provider == "jina"
-    assert bundle.page.url == "https://example.com/pizza"
-    assert "Jina extracted markdown" in bundle.page.text
+    assert request["url"] == "https://r.jina.ai/https://example.com/pizza"
+    assert request["headers"]["Authorization"] == "Bearer jina-key"
+    assert request["api_key_used"] is True
+    assert request["request_shape_only"] is True
+    assert request["provider_quality_proof"] is False
 
 
 def test_reader_extract_external_run_uses_stored_urls(tmp_path: Path) -> None:
@@ -5319,61 +5285,35 @@ def test_llm_context_fake_provider_stores_chunks_and_citations(tmp_path: Path) -
     assert citations == len(bundle.citation_annotations)
 
 
-def test_llm_context_brave_provider_parses_generic_grounding(
+def test_llm_context_provider_is_gated_under_no_quota_freeze(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    captured = {}
+    called = False
 
     def fake_post_json(url, payload, *, headers, timeout_seconds):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        captured["timeout_seconds"] = timeout_seconds
-        return {
-            "grounding": {
-                "generic": [
-                    {
-                        "url": "https://example.com/pizza",
-                        "title": "Pizza page",
-                        "snippets": ["北千住のピザ店", "予約情報"],
-                    }
-                ]
-            },
-            "sources": {
-                "https://example.com/pizza": {
-                    "title": "Pizza page",
-                    "hostname": "example.com",
-                }
-            },
-        }
+        del url, payload, headers, timeout_seconds
+        nonlocal called
+        called = True
+        raise AssertionError("provider request should be blocked before HTTP send")
 
     monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "brave-key")
     monkeypatch.setattr("research_x.memory.llm_context._post_json", fake_post_json)
 
-    bundle = fetch_llm_context_to_context(
-        tmp_path / "x.sqlite3",
-        "北千住 ピザ",
-        provider="brave",
-        count=99,
-        maximum_number_of_urls=99,
-        maximum_number_of_tokens=999999,
-        maximum_number_of_snippets=999,
-        search_lang="ja",
-        country="JP",
-    )
+    with pytest.raises(RuntimeError, match="provider_gated_by_no_quota_freeze"):
+        fetch_llm_context_to_context(
+            tmp_path / "x.sqlite3",
+            "北千住 ピザ",
+            provider="brave",
+            count=99,
+            maximum_number_of_urls=99,
+            maximum_number_of_tokens=999999,
+            maximum_number_of_snippets=999,
+            search_lang="ja",
+            country="JP",
+        )
 
-    assert captured["url"] == "https://api.search.brave.com/res/v1/llm/context"
-    assert captured["headers"]["X-Subscription-Token"] == "brave-key"
-    assert captured["payload"]["q"] == "北千住 ピザ"
-    assert captured["payload"]["count"] == 50
-    assert captured["payload"]["maximum_number_of_urls"] == 50
-    assert captured["payload"]["maximum_number_of_tokens"] == 32768
-    assert captured["payload"]["maximum_number_of_snippets"] == 256
-    assert bundle.sources[0].url == "https://example.com/pizza"
-    assert bundle.context_chunks[0]["source_kind"] == "secondary"
-    assert "北千住" in bundle.context_chunks[0]["chunk_text"]
-    assert "brave-key" not in json.dumps(bundle.as_dict(), ensure_ascii=False)
+    assert called is False
 
 
 def test_external_source_kind_classification() -> None:
@@ -5382,49 +5322,32 @@ def test_external_source_kind_classification() -> None:
     assert classify_external_source_kind("https://example.com/article") == "secondary"
 
 
-def test_gemini_embedding_2_request_uses_current_config(monkeypatch) -> None:
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        return {"embeddings": [{"values": [0.1, 0.2, 0.3]}]}
-
-    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
+def test_gemini_embedding_2_request_uses_current_config() -> None:
     spec = embeddings.resolve_embedding_spec(
         provider="gemini",
         model="gemini-embedding-2",
         dimensions=3,
     )
-    vector = embeddings._GeminiEmbedder(spec).embed_texts(  # noqa: SLF001
-        ["robot learning"],
+    built = embeddings._embedding_provider_request(  # noqa: SLF001
+        spec=spec,
+        api_key="fake-key",
+        texts=["robot learning"],
         task_type="RETRIEVAL_QUERY",
-    )[0]
+    )
 
-    request = captured["payload"]["requests"][0]
-    assert vector
+    request = built["payload"]["requests"][0]
+    assert built["url"].endswith("models/gemini-embedding-2:batchEmbedContents")
+    assert built["headers"]["x-goog-api-key"] == "fake-key"
     assert "taskType" not in request
     assert request["embedContentConfig"]["outputDimensionality"] == 3
     assert request["content"]["parts"][0]["text"].startswith(
         "task: question answering | query:"
     )
+    assert built["request_shape_only"] is True
+    assert built["provider_quality_proof"] is False
 
 
-def test_openai_compatible_embedding_request_uses_custom_endpoint(monkeypatch) -> None:
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
-
-    monkeypatch.setenv("CUSTOM_EMBED_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
+def test_openai_compatible_embedding_request_uses_custom_endpoint() -> None:
     spec = embeddings.resolve_embedding_spec(
         provider="openai_compatible",
         model="custom-embedding",
@@ -5432,48 +5355,41 @@ def test_openai_compatible_embedding_request_uses_custom_endpoint(monkeypatch) -
         api_key_env="CUSTOM_EMBED_KEY",
         base_url="https://embeddings.example/v1/embeddings",
     )
-    vector = embeddings._OpenAICompatibleEmbedder(spec).embed_texts(  # noqa: SLF001
-        ["robot learning"],
+    built = embeddings._embedding_provider_request(  # noqa: SLF001
+        spec=spec,
+        api_key="fake-key",
+        texts=["robot learning"],
         task_type="RETRIEVAL_DOCUMENT",
-    )[0]
+    )
 
-    assert vector
-    assert captured["url"] == "https://embeddings.example/v1/embeddings"
-    assert captured["headers"]["Authorization"] == "Bearer fake-key"
-    assert captured["payload"] == {
+    assert built["url"] == "https://embeddings.example/v1/embeddings"
+    assert built["headers"]["Authorization"] == "Bearer fake-key"
+    assert built["payload"] == {
         "model": "custom-embedding",
         "input": ["robot learning"],
         "encoding_format": "float",
         "dimensions": 3,
     }
+    assert built["request_shape_only"] is True
+    assert built["provider_quality_proof"] is False
 
 
-def test_voyage_embedding_request_uses_retrieval_input_type(monkeypatch) -> None:
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
-
-    monkeypatch.setenv("VOYAGE_API_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
+def test_voyage_embedding_request_uses_retrieval_input_type() -> None:
     spec = embeddings.resolve_embedding_spec(
         provider="voyage",
         model="voyage-3.5",
         dimensions=3,
     )
-    vector = embeddings._VoyageEmbedder(spec).embed_texts(  # noqa: SLF001
-        ["robot learning"],
+    built = embeddings._embedding_provider_request(  # noqa: SLF001
+        spec=spec,
+        api_key="fake-key",
+        texts=["robot learning"],
         task_type="RETRIEVAL_QUERY",
-    )[0]
+    )
 
-    assert vector
-    assert captured["url"] == "https://api.voyageai.com/v1/embeddings"
-    assert captured["headers"]["Authorization"] == "Bearer fake-key"
-    assert captured["payload"] == {
+    assert built["url"] == "https://api.voyageai.com/v1/embeddings"
+    assert built["headers"]["Authorization"] == "Bearer fake-key"
+    assert built["payload"] == {
         "model": "voyage-3.5",
         "input": ["robot learning"],
         "input_type": "query",
@@ -5481,34 +5397,26 @@ def test_voyage_embedding_request_uses_retrieval_input_type(monkeypatch) -> None
         "output_dtype": "float",
         "output_dimension": 3,
     }
+    assert built["request_shape_only"] is True
+    assert built["provider_quality_proof"] is False
 
 
-def test_cohere_embedding_request_uses_v2_embed_shape(monkeypatch) -> None:
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        return {"embeddings": {"float": [[0.1, 0.2, 0.3]]}}
-
-    monkeypatch.setenv("COHERE_API_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
+def test_cohere_embedding_request_uses_v2_embed_shape() -> None:
     spec = embeddings.resolve_embedding_spec(
         provider="cohere",
         model="embed-v4.0",
         dimensions=3,
     )
-    vector = embeddings._CohereEmbedder(spec).embed_texts(  # noqa: SLF001
-        ["robot learning"],
+    built = embeddings._embedding_provider_request(  # noqa: SLF001
+        spec=spec,
+        api_key="fake-key",
+        texts=["robot learning"],
         task_type="RETRIEVAL_DOCUMENT",
-    )[0]
+    )
 
-    assert vector
-    assert captured["url"] == "https://api.cohere.com/v2/embed"
-    assert captured["headers"]["Authorization"] == "Bearer fake-key"
-    assert captured["payload"] == {
+    assert built["url"] == "https://api.cohere.com/v2/embed"
+    assert built["headers"]["Authorization"] == "Bearer fake-key"
+    assert built["payload"] == {
         "model": "embed-v4.0",
         "texts": ["robot learning"],
         "input_type": "search_document",
@@ -5516,67 +5424,51 @@ def test_cohere_embedding_request_uses_v2_embed_shape(monkeypatch) -> None:
         "truncate": "END",
         "output_dimension": 3,
     }
+    assert built["request_shape_only"] is True
+    assert built["provider_quality_proof"] is False
 
 
-def test_mistral_embedding_request_omits_unsupported_output_dimension(monkeypatch) -> None:
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
-
-    monkeypatch.setenv("MISTRAL_API_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
+def test_mistral_embedding_request_omits_unsupported_output_dimension() -> None:
     spec = embeddings.resolve_embedding_spec(
         provider="mistral",
         model="mistral-embed",
         dimensions=3,
     )
-    vector = embeddings._MistralEmbedder(spec).embed_texts(  # noqa: SLF001
-        ["robot learning"],
+    built = embeddings._embedding_provider_request(  # noqa: SLF001
+        spec=spec,
+        api_key="fake-key",
+        texts=["robot learning"],
         task_type="RETRIEVAL_DOCUMENT",
-    )[0]
+    )
 
-    assert vector
-    assert captured["url"] == "https://api.mistral.ai/v1/embeddings"
-    assert captured["headers"]["Authorization"] == "Bearer fake-key"
-    assert captured["payload"] == {
+    assert built["url"] == "https://api.mistral.ai/v1/embeddings"
+    assert built["headers"]["Authorization"] == "Bearer fake-key"
+    assert built["payload"] == {
         "model": "mistral-embed",
         "input": ["robot learning"],
         "encoding_format": "float",
     }
+    assert built["request_shape_only"] is True
+    assert built["provider_quality_proof"] is False
 
 
-def test_jina_embedding_request_sets_retrieval_task(monkeypatch) -> None:
-    captured = {}
-
-    def fake_post_json(url, payload, *, headers, timeout_seconds, retries=3):
-        captured["url"] = url
-        captured["payload"] = payload
-        captured["headers"] = headers
-        return {"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]}
-
-    monkeypatch.setenv("JINA_API_KEY", "fake-key")
-    monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
+def test_jina_embedding_request_sets_retrieval_task() -> None:
     spec = embeddings.resolve_embedding_spec(
         provider="jina",
         model="jina-embeddings-v3",
         dimensions=3,
     )
-    vector = embeddings._JinaEmbedder(spec).embed_texts(  # noqa: SLF001
-        ["robot learning"],
+    built = embeddings._embedding_provider_request(  # noqa: SLF001
+        spec=spec,
+        api_key="fake-key",
+        texts=["robot learning"],
         task_type="RETRIEVAL_QUERY",
-    )[0]
+    )
 
-    assert vector
-    assert captured["url"] == "https://api.jina.ai/v1/embeddings"
-    assert captured["headers"]["Authorization"] == "Bearer fake-key"
-    assert captured["headers"]["User-Agent"].startswith("research-x/")
-    assert captured["payload"] == {
+    assert built["url"] == "https://api.jina.ai/v1/embeddings"
+    assert built["headers"]["Authorization"] == "Bearer fake-key"
+    assert built["headers"]["User-Agent"].startswith("research-x/")
+    assert built["payload"] == {
         "model": "jina-embeddings-v3",
         "input": ["robot learning"],
         "task": "retrieval.query",
@@ -5585,6 +5477,8 @@ def test_jina_embedding_request_sets_retrieval_task(monkeypatch) -> None:
         "truncate": True,
         "dimensions": 3,
     }
+    assert built["request_shape_only"] is True
+    assert built["provider_quality_proof"] is False
 
 
 def test_embedding_post_json_uses_retry_after(monkeypatch) -> None:
