@@ -81,9 +81,13 @@ uv run ruff check <explicit-targets>
 ```
 
 - No real provider API calls while the no-quota freeze is active, including
-  free-tier, trial-credit, and zero-dollar quota.
+  free-tier, trial-credit, zero-dollar, keyless, or otherwise quota-consuming
+  calls.
 - Fake/local providers, static inspection, offline estimates, and monkeypatched
   tests are allowed.
+- `store=True` memory workflow runs may write operational trace rows only; they
+  do not authorize raw source, governance, feedback, provider, or answer-support
+  mutation.
 - Continue through local planning, implementation, review, repair, verification,
   and scoped commit/push unless an oversight gate is hit.
 - Run the completion notification at the end:

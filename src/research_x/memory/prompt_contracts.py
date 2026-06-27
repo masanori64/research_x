@@ -207,8 +207,10 @@ READ_ONLY_MEMORY_PROMPT_CONTRACT = PromptContract(
         "source_bundle_restoration",
         "citation_required_before_answer",
         "no_provider_calls",
-        "no_db_writes",
+        "no_raw_source_mutation",
         "no_governance_mutation",
+        "no_feedback_mutation",
+        "operational_trace_write_allowed_when_store_true",
     ),
 )
 

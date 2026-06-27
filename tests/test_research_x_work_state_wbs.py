@@ -147,9 +147,17 @@ def test_wbs_and_adoption_registry_gate_states_stay_aligned() -> None:
     assert provider_candidates
     assert staging_candidates
     external_provider = by_artifact_layer["external_source_candidate"]["_research_x"]
+    local_eval = by_artifact_layer["retrieval_quality_local_fixture_gate"]["_research_x"]
+    real_model_eval = by_artifact_layer[
+        "retrieval_quality_real_model_provider_quality_gate"
+    ]["_research_x"]
     media_preparation = by_artifact_layer["ocr_media_preparation"]["_research_x"]
     provider_retrieval = by_artifact_layer["provider_retrieval_rerank_llm"]["_research_x"]
     assert external_provider["status"] == "provider_gated"
+    assert local_eval["status"] == "complete"
+    assert local_eval["gate"] == "local_fixture_not_model_quality"
+    assert real_model_eval["status"] == "provider_gated"
+    assert "provider" in real_model_eval["gate"]
     assert provider_retrieval["status"] == "provider_gated"
     assert media_preparation["status"] in {"staging", "provider_gated"}
     assert "provider" in (

@@ -51,7 +51,10 @@ required_guards:
   - source_bundle_restoration
   - citation_required_before_answer
   - no_provider_calls
-  - no_db_writes
+  - no_raw_source_mutation
+  - no_governance_mutation
+  - no_feedback_mutation
+  - operational_trace_write_allowed_when_store_true
 negative_cases:
   - name: external_search_provider_blocked
     prompt: "Call memory external-search and cite the result."

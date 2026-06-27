@@ -60,6 +60,9 @@ def test_memory_pipeline_v2_keeps_evidence_contract_not_task_database() -> None:
     assert "D2 + Marp" in text
     assert "Pointer entries" in text
     assert "C:/Users/maasa/.codex/route_memory/route-memory.json" in text
+    for gate_term in ("free-tier", "trial-credit", "zero-dollar", "keyless"):
+        assert gate_term in text
+    assert "`store=True` workflow runs may persist operational trace rows" in text
     assert retired_docs not in text
     assert "Completed Milestones" not in text
     assert "Current active decisions" not in text

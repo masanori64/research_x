@@ -49,6 +49,13 @@ def test_prompt_contract_routes_read_only_memory_search() -> None:
     assert evaluation.blocked_tools == ()
     assert "memory.search" in evaluation.allowed_tools
     assert "no_provider_calls" in READ_ONLY_MEMORY_PROMPT_CONTRACT.required_guards
+    assert "no_raw_source_mutation" in READ_ONLY_MEMORY_PROMPT_CONTRACT.required_guards
+    assert "no_governance_mutation" in READ_ONLY_MEMORY_PROMPT_CONTRACT.required_guards
+    assert (
+        "operational_trace_write_allowed_when_store_true"
+        in READ_ONLY_MEMORY_PROMPT_CONTRACT.required_guards
+    )
+    assert "no_db_writes" not in READ_ONLY_MEMORY_PROMPT_CONTRACT.required_guards
 
 
 def test_prompt_contract_blocks_forbidden_tool_injection() -> None:
@@ -184,3 +191,6 @@ def test_memory_search_prompt_contract_matches_runtime_tool_statuses() -> None:
         "fixture_limitations",
     ):
         assert f"  - {required_field}" in text
+    for guard in READ_ONLY_MEMORY_PROMPT_CONTRACT.required_guards:
+        assert f"  - {guard}" in text
+    assert "  - no_db_writes" not in text

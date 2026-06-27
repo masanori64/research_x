@@ -45,6 +45,8 @@ permission.
 
 - No real provider API, free-tier, trial-credit, or zero-dollar quota use while the
   no-quota freeze is active.
+- `store=True` workflow trace writes are operational audit rows only; they do not
+  authorize raw source, governance, feedback, provider, or answer-support mutation.
 - Provider, Reader, external search, OCR, rerank, classifier, answer, embedding,
   managed-RAG, and real-model prompt checks require explicit approval plus the API
   Budget Guard preflight.

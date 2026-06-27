@@ -100,7 +100,7 @@
                 "owner_doc": "control/vendor_sources.lock.md",
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
-                "stop_condition": "Stop before any real provider, API, network, quota, free-tier, or Reader call.",
+                "stop_condition": "Stop before any provider, API, network, Reader, free-tier, trial-credit, zero-dollar, or keyless call.",
                 "next_action": "Run budget guard and source restoration review only after explicit approval."
               }
             }
@@ -268,7 +268,7 @@
             },
             {
               "id": "3.2",
-              "name": "Retrieval quality eval staging gate",
+              "name": "Retrieval quality local fixture gate",
               "qty": 1,
               "hours": 1,
               "assignee": "Codex",
@@ -277,23 +277,23 @@
                 "end": null
               },
               "actual": {
-                "start": null,
-                "end": null
+                "start": "2026-06-27",
+                "end": "2026-06-27"
               },
-              "note": "OCC-RAG, SAAS, Bosun, WarrantBench, and stale masking inform local fixtures only.",
+              "note": "Local fixtures cover answerability, conflict, support, stop, dedup, stale, and preview boundaries.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "runtime_layer": "retrieval_eval",
-                "artifact_layer": "answerability_relevance_eval",
-                "decision_band": "staging",
-                "gate": "fixture_before_runtime",
-                "status": "staging",
+                "artifact_layer": "retrieval_quality_local_fixture_gate",
+                "decision_band": "implemented_local_gate",
+                "gate": "local_fixture_not_model_quality",
+                "status": "complete",
                 "artifact_pointer": "src/research_x/memory/evals.py",
-                "owner_doc": "control/adoption_registry.toml",
+                "owner_doc": "docs/memory-pipeline-v2.md",
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
-                "stop_condition": "Stop before importing benchmark runtimes, downloading models, or treating eval hints as evidence.",
-                "next_action": "Promote only local/fake fixtures that expose answerability, conflict, support, and stop-condition gaps."
+                "stop_condition": "Stop if local fixture pass is described as real provider or model quality.",
+                "next_action": "Keep fixtures boundary-focused and leave real model/provider quality gated."
               }
             },
             {
@@ -352,8 +352,38 @@
                 "owner_doc": "docs/pipeline.md",
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
-                "stop_condition": "Stop before any paid, free-tier, trial-credit, or zero-dollar quota provider call.",
+                "stop_condition": "Stop before any paid, free-tier, trial-credit, zero-dollar, or keyless provider call.",
                 "next_action": "Run offline estimates first if the user explicitly lifts the provider gate."
+              }
+            },
+            {
+              "id": "3.5",
+              "name": "Retrieval real model quality gate",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Provider-free fixtures do not prove embedding, rerank, OCR, VLM, or answer model quality.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "retrieval_eval",
+                "artifact_layer": "retrieval_quality_real_model_provider_quality_gate",
+                "decision_band": "provider_gated",
+                "gate": "provider_model_quality_gate",
+                "status": "provider_gated",
+                "artifact_pointer": "src/research_x/memory/api_budget.py",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before any real provider/model quality eval or quota-backed benchmark.",
+                "next_action": "Run budget guard and smallest-limit eval only after explicit approval."
               }
             }
           ]

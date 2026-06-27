@@ -38,15 +38,13 @@ not the canonical project for Codex self-improvement.
   permission, and root instructions are not inputs to the `research_x` evidence
   pipeline.
 
-This split is not conservative minimalism. External candidates are kept alive by
-adoption shape: `adopt`, `bridge`, `staging`, `provider_gated`, or `historical`.
-Only paid/quota provider execution is a hard execution block. Hooks, MCP,
-plugins, native dependencies, and local model candidates enter through isolated
-staging, dry-run, dependency review, and manual promotion rather than permanent
-rejection.
+External candidates are kept alive by adoption shape: `adopt`, `bridge`,
+`staging`, `provider_gated`, or `historical`. Provider/API execution is a hard
+block while the no-quota freeze is active, including free-tier, trial-credit,
+zero-dollar, keyless, or otherwise quota-consuming calls. Hooks, MCP, plugins,
+dependencies, and local model candidates use isolated staging and manual review.
 
-Boundary registry: `control/adoption_registry.toml`; validate with
-`research-x adoption audit`. Codex-foundation ownership stays in `.codex`.
+Boundary registry: `control/adoption_registry.toml`; validate with `research-x adoption audit`. Codex-foundation ownership stays in `.codex`.
 
 ## Ideal Runtime Layers
 
@@ -72,6 +70,8 @@ workflow JSON changes. The current AI-callable output contract is implemented as
 - `citations`: restore pointers back to context chunks and source IDs;
 - `trace`: route, stop/skip reason, provider gate, budget state, eval warnings,
   and the narrow Codex bridge boundary.
+
+`store=True` workflow runs may persist operational trace rows for auditability; this does not permit raw source, governance, feedback, provider, or answer-support mutation outside separate gates.
 
 ## Core Invariant
 
