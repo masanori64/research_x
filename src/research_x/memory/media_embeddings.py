@@ -12,7 +12,12 @@ from typing import Any
 
 import numpy as np
 
-from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
+from research_x.memory.api_budget import (
+    api_units,
+    budgeted_api_call,
+    require_provider_quota_approval,
+    rough_text_tokens,
+)
 from research_x.memory.embeddings import (
     _api_key,
     _gemini_model_name,
@@ -256,7 +261,11 @@ def build_media_embeddings(
         base_url=base_url,
         timeout_seconds=timeout_seconds,
     )
-    _require_media_provider_quota_allowed(allow_provider_quota=allow_provider_quota)
+    _require_media_provider_quota_allowed(
+        allow_provider_quota=allow_provider_quota,
+        provider=spec.provider,
+        model=spec.model,
+    )
     inputs = _selected_inputs(
         _media_inputs(
             path,
@@ -360,7 +369,11 @@ def search_media_embeddings(
         base_url=base_url,
         timeout_seconds=timeout_seconds,
     )
-    _require_media_provider_quota_allowed(allow_provider_quota=allow_provider_quota)
+    _require_media_provider_quota_allowed(
+        allow_provider_quota=allow_provider_quota,
+        provider=spec.provider,
+        model=spec.model,
+    )
     query_vector = GeminiMediaEmbedder(spec).embed_query(query)
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
@@ -514,9 +527,19 @@ def _media_signal_policy(signal_role: str) -> dict[str, Any]:
     }
 
 
-def _require_media_provider_quota_allowed(*, allow_provider_quota: bool) -> None:
+def _require_media_provider_quota_allowed(
+    *,
+    allow_provider_quota: bool,
+    provider: str,
+    model: str,
+) -> None:
     if not allow_provider_quota:
         raise RuntimeError(MEDIA_PROVIDER_QUOTA_GATE_MESSAGE)
+    require_provider_quota_approval(
+        provider=provider,
+        model=model,
+        operation="media_embedding",
+    )
 
 
 class GeminiMediaEmbedder:

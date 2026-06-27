@@ -9,6 +9,7 @@ from research_x.memory.api_budget import (
     api_budget_status,
     api_units,
     budgeted_api_call,
+    provider_quota_preflight,
     set_api_budget_policy,
     set_api_kill_switch,
     upsert_api_price,
@@ -252,3 +253,131 @@ def test_api_budget_cli_accepts_db_after_nested_command(tmp_path: Path, capsys) 
     output = capsys.readouterr().out
     assert "api price set: gemini/gemini-embedding-2 embedding input_tokens" in output
     assert "input_token" in output
+
+
+def test_provider_quota_preflight_requires_approval_and_sends_zero_requests(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+
+    report = provider_quota_preflight(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        units=api_units(calls=1),
+    )
+
+    assert report["status"] == "approval_required"
+    assert report["provider_call_allowed"] is False
+    assert report["provider_requests_sent"] == 0
+    assert report["approval_contract"]["valid"] is False
+    assert "provider quota approval object is required" in report["approval_contract"]["errors"]
+
+
+def test_provider_quota_preflight_valid_approval_remains_gated_by_freeze(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    upsert_api_price(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://provider-quota-preflight",
+        notes="provider-free dry-run fixture",
+    )
+
+    report = provider_quota_preflight(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        units=api_units(calls=1),
+        approval=_provider_quota_approval(),
+        approved_scope="memory:build-media-embeddings",
+    )
+
+    assert report["status"] == "provider_gated_by_no_quota_freeze"
+    assert report["dry_run"] is True
+    assert report["provider_call_allowed"] is False
+    assert report["provider_requests_sent"] == 0
+    assert report["budget_guard"]["status"] == "passed"
+    assert report["approval_contract"]["valid"] is True
+    assert json.dumps(report, ensure_ascii=False)
+
+
+def test_provider_quota_preflight_cli_outputs_json(tmp_path: Path, capsys) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    upsert_api_price(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://provider-quota-preflight",
+        notes="provider-free dry-run fixture",
+    )
+
+    assert (
+        main(
+            [
+                "memory",
+                "api-budget",
+                "preflight",
+                "--db",
+                str(db_path),
+                "--provider",
+                "gemini",
+                "--model",
+                "gemini-embedding-2",
+                "--operation",
+                "media_embedding",
+                "--limit",
+                "1",
+                "--current-scope",
+                "memory:build-media-embeddings",
+                "--provider-quota-approval-id",
+                "fixture-approval",
+                "--provider-quota-provider",
+                "gemini",
+                "--provider-quota-model",
+                "gemini-embedding-2",
+                "--provider-quota-operation",
+                "media_embedding",
+                "--provider-quota-max-calls",
+                "1",
+                "--provider-quota-max-cost-usd",
+                "0",
+                "--provider-quota-price-source",
+                "fixture://provider-quota-preflight",
+                "--provider-quota-approved-scope",
+                "memory:build-media-embeddings",
+                "--provider-quota-approved-at",
+                "2026-06-27T00:00:00+00:00",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "provider_gated_by_no_quota_freeze"
+    assert payload["provider_requests_sent"] == 0
+    assert payload["approval_contract"]["valid"] is True
+
+
+def _provider_quota_approval() -> dict[str, object]:
+    return {
+        "provider_quota_approval_id": "fixture-approval",
+        "provider": "gemini",
+        "model": "gemini-embedding-2",
+        "operation": "media_embedding",
+        "max_calls": 1,
+        "max_cost_usd": 0.0,
+        "price_source": "fixture://provider-quota-preflight",
+        "approved_scope": "memory:build-media-embeddings",
+        "approved_at": "2026-06-27T00:00:00+00:00",
+    }

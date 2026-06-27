@@ -5,6 +5,7 @@ import contextlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from research_x.accounts import resolve_account_paths, write_account_profile
 from research_x.adapters import catalog_entries, known_adapter_ids
@@ -90,6 +91,59 @@ def _add_provider_quota_gate_option(parser: argparse.ArgumentParser) -> None:
             "lifted for this command"
         ),
     )
+    _add_provider_quota_approval_options(parser)
+
+
+def _add_provider_quota_approval_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--provider-quota-approval-id",
+        default=None,
+        help="scoped provider quota approval id required with --allow-provider-quota",
+    )
+    parser.add_argument(
+        "--provider-quota-provider",
+        default=None,
+        help="provider covered by the scoped approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-model",
+        default=None,
+        help="model covered by the scoped approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-operation",
+        default=None,
+        help="operation covered by the scoped approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-max-calls",
+        type=int,
+        default=None,
+        help="maximum provider call count covered by the approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-max-cost-usd",
+        type=float,
+        default=None,
+        help="maximum estimated USD cost covered by the approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-price-source",
+        default=None,
+        help="price source reviewed for the approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-approved-scope",
+        default=None,
+        help="scope covered by the approval object, or *",
+    )
+    parser.add_argument(
+        "--provider-quota-approved-at",
+        default=None,
+        help="ISO-8601 approval timestamp with timezone",
+    )
+    parser.add_argument("--provider-quota-approved-by", default=None)
+    parser.add_argument("--provider-quota-expires-at", default=None)
 
 
 def _add_context_budget_options(parser: argparse.ArgumentParser) -> None:
@@ -125,17 +179,76 @@ def _api_budget_for_args(args: argparse.Namespace):
     db_path = getattr(args, "db", None) or "runs/x_data.sqlite3"
     from research_x.memory.api_budget import api_budget_context
 
+    provider_quota_approval = _provider_quota_approval_payload_for_args(
+        args,
+        require_when_allowed=True,
+    )
+    provider_quota_current_scope = _provider_quota_current_scope_for_args(args)
+    metadata = {
+        "cli_command": getattr(args, "command", None),
+        "memory_command": getattr(args, "memory_command", None),
+    }
+    if provider_quota_approval:
+        metadata["provider_quota_approval_id"] = provider_quota_approval.get(
+            "provider_quota_approval_id"
+        )
     return api_budget_context(
         db_path=db_path,
         policy_id=args.api_budget_policy,
         run_id=args.api_run_id,
         max_run_usd_override=args.max_run_usd,
         allow_unpriced_api=args.allow_unpriced_api,
-        metadata={
-            "cli_command": getattr(args, "command", None),
-            "memory_command": getattr(args, "memory_command", None),
-        },
+        metadata=metadata,
+        provider_quota_approval=provider_quota_approval,
+        provider_quota_current_scope=provider_quota_current_scope,
     )
+
+
+def _provider_quota_approval_payload_for_args(
+    args: argparse.Namespace,
+    *,
+    require_when_allowed: bool = False,
+) -> dict[str, Any] | None:
+    payload = {
+        "provider_quota_approval_id": getattr(args, "provider_quota_approval_id", None),
+        "provider": getattr(args, "provider_quota_provider", None),
+        "model": getattr(args, "provider_quota_model", None),
+        "operation": getattr(args, "provider_quota_operation", None),
+        "max_calls": getattr(args, "provider_quota_max_calls", None),
+        "max_cost_usd": getattr(args, "provider_quota_max_cost_usd", None),
+        "price_source": getattr(args, "provider_quota_price_source", None),
+        "approved_scope": getattr(args, "provider_quota_approved_scope", None),
+        "approved_at": getattr(args, "provider_quota_approved_at", None),
+        "approved_by": getattr(args, "provider_quota_approved_by", None),
+        "expires_at": getattr(args, "provider_quota_expires_at", None),
+    }
+    if any(value not in (None, "") for value in payload.values()):
+        return payload
+    if require_when_allowed and bool(getattr(args, "allow_provider_quota", False)):
+        return payload
+    return None
+
+
+def _provider_quota_current_scope_for_args(args: argparse.Namespace) -> str | None:
+    if not hasattr(args, "provider_quota_approval_id"):
+        return None
+    if getattr(args, "api_run_id", None):
+        return str(args.api_run_id)
+    if getattr(args, "memory_command", None):
+        return f"memory:{args.memory_command}"
+    return getattr(args, "command", None)
+
+
+def _provider_quota_units_for_args(args: argparse.Namespace) -> dict[str, int | float]:
+    calls = getattr(args, "calls", None) or getattr(args, "limit", None) or 1
+    return {
+        "calls": calls,
+        "input_tokens": getattr(args, "input_tokens", 0),
+        "output_tokens": getattr(args, "output_tokens", 0),
+        "media_bytes": getattr(args, "media_bytes", 0),
+        "documents": getattr(args, "documents", 0),
+        "pages": getattr(args, "pages", 0),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -550,6 +663,38 @@ def main(argv: list[str] | None = None) -> int:
         help="register checked default provider/model price rows used before future provider runs",
     )
     memory_api_budget_seed_prices_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_preflight_parser = memory_api_budget_subparsers.add_parser(
+        "preflight",
+        help="dry-run validate scoped provider quota approval and API budget guard",
+    )
+    memory_api_budget_preflight_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_preflight_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_preflight_parser.add_argument("--run-id", default=None)
+    memory_api_budget_preflight_parser.add_argument("--provider", required=True)
+    memory_api_budget_preflight_parser.add_argument("--model", required=True)
+    memory_api_budget_preflight_parser.add_argument("--operation", required=True)
+    memory_api_budget_preflight_parser.add_argument("--provider-role", default="provider")
+    memory_api_budget_preflight_parser.add_argument(
+        "--limit",
+        type=int,
+        default=1,
+        help="planned provider call count for this dry-run preflight",
+    )
+    memory_api_budget_preflight_parser.add_argument("--calls", type=int, default=None)
+    memory_api_budget_preflight_parser.add_argument("--input-tokens", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--output-tokens", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--media-bytes", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--documents", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--pages", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--max-run-usd", type=float, default=None)
+    memory_api_budget_preflight_parser.add_argument("--allow-unpriced-api", action="store_true")
+    memory_api_budget_preflight_parser.add_argument(
+        "--current-scope",
+        default=None,
+        help="scope being checked against the approval object",
+    )
+    _add_provider_quota_approval_options(memory_api_budget_preflight_parser)
+    memory_api_budget_preflight_parser.add_argument("--json", action="store_true")
 
     memory_api_usage_parser = memory_subparsers.add_parser(
         "api-usage",
@@ -3043,6 +3188,8 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
         from research_x.memory.api_budget import (
             api_budget_status,
             format_api_budget_status,
+            format_provider_quota_preflight,
+            provider_quota_preflight,
             set_api_budget_policy,
             set_api_kill_switch,
             upsert_api_price,
@@ -3111,6 +3258,27 @@ def _handle_memory_command(args: argparse.Namespace) -> int:
 
             count = seed_default_api_price_catalog(args.db)
             print(f"seeded default API prices: {count}")
+            return 0
+        if args.api_budget_command == "preflight":
+            report = provider_quota_preflight(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                operation=args.operation,
+                provider_role=args.provider_role,
+                units=_provider_quota_units_for_args(args),
+                approval=_provider_quota_approval_payload_for_args(args),
+                policy_id=args.policy_id,
+                run_id=args.run_id,
+                approved_scope=args.current_scope,
+                max_run_usd_override=args.max_run_usd,
+                allow_unpriced_api=args.allow_unpriced_api,
+            )
+            print(
+                json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_provider_quota_preflight(report)
+            )
             return 0
         raise AssertionError(f"unhandled api-budget command {args.api_budget_command}")
     if args.memory_command == "api-usage":

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from research_x.memory.api_budget import api_budget_context, upsert_api_price
 from research_x.memory.context import CitationAnnotation
 from research_x.memory.evidence_invariants import (
     citation_block_reasons,
@@ -24,20 +25,40 @@ def test_media_embedding_similarity_is_candidate_signal_not_citation(
 
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
     monkeypatch.setattr("research_x.memory.media_embeddings._post_json", fake_post_json)
+    upsert_api_price(
+        media_db_with_file,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://media-signal-not-citation",
+        notes="provider-free monkeypatched fixture",
+    )
 
-    build_media_embeddings(
-        media_db_with_file,
-        dimensions=3,
-        limit=1,
-        allow_provider_quota=True,
-    )
-    hits = search_media_embeddings(
-        media_db_with_file,
-        "robot image",
-        dimensions=3,
-        limit=1,
-        allow_provider_quota=True,
-    )
+    with api_budget_context(
+        db_path=media_db_with_file,
+        run_id="media-signal-fixture",
+        provider_quota_approval=_provider_quota_approval(),
+    ):
+        build_media_embeddings(
+            media_db_with_file,
+            dimensions=3,
+            limit=1,
+            allow_provider_quota=True,
+        )
+    with api_budget_context(
+        db_path=media_db_with_file,
+        run_id="media-signal-search-fixture",
+        provider_quota_approval=_provider_quota_approval(),
+    ):
+        hits = search_media_embeddings(
+            media_db_with_file,
+            "robot image",
+            dimensions=3,
+            limit=1,
+            allow_provider_quota=True,
+        )
 
     hit = hits[0]
     assert hit.evidence_status == "unconfirmed_media_match"
@@ -54,6 +75,20 @@ def test_media_embedding_similarity_is_candidate_signal_not_citation(
     citation = _citation_from_media_signal(hit.bundle)
     assert citation_is_citation_ready(citation) is False
     assert "not_evidence" in citation_block_reasons(citation)
+
+
+def _provider_quota_approval() -> dict[str, object]:
+    return {
+        "provider_quota_approval_id": "fixture-approval",
+        "provider": "gemini",
+        "model": "gemini-embedding-2",
+        "operation": "media_embedding",
+        "max_calls": 3,
+        "max_cost_usd": 0.0,
+        "price_source": "fixture://media-signal-not-citation",
+        "approved_scope": "*",
+        "approved_at": CREATED_AT,
+    }
 
 
 def _citation_from_media_signal(metadata: dict[str, object]) -> CitationAnnotation:

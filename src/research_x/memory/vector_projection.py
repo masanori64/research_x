@@ -361,6 +361,7 @@ def search_vector_projection(
     require_embedding_provider_quota_allowed(
         spec.provider,
         allow_provider_quota=allow_provider_quota,
+        model=spec.model,
     )
     query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
     hits = _search_projection_files(

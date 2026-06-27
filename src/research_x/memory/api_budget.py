@@ -9,7 +9,7 @@ import uuid
 import webbrowser
 from collections.abc import Iterator
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -24,6 +24,11 @@ DEFAULT_UNKNOWN_PRICE_ACTION = "block"
 DEFAULT_WARNING_FRACTION = 0.8
 EXEMPT_PROVIDERS = {"fake", "local", "local_hash"}
 BUDGET_EXHAUSTED_STATUS = "budget_exhausted"
+PROVIDER_QUOTA_FREEZE_ACTIVE = True
+PROVIDER_QUOTA_APPROVAL_GATE_MESSAGE = (
+    "provider quota execution requires a scoped provider quota approval object; "
+    "--allow-provider-quota alone is not sufficient"
+)
 
 _ACTIVE_CONTEXT: ContextVar[ApiBudgetContext | None] = ContextVar(
     "research_x_api_budget_context",
@@ -50,6 +55,8 @@ class ApiBudgetContext:
     max_run_usd_override: float | None = None
     allow_unpriced_api: bool = False
     metadata: dict[str, Any] | None = None
+    provider_quota_approval: ProviderQuotaApproval | None = None
+    provider_quota_current_scope: str | None = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +64,23 @@ class ApiBudgetReservation:
     db_path: str
     event_id: str
     estimated_cost_usd: float
+
+
+@dataclass(frozen=True)
+class ProviderQuotaApproval:
+    provider_quota_approval_id: str
+    provider: str
+    model: str
+    operation: str
+    max_calls: int
+    max_cost_usd: float
+    price_source: str
+    approved_scope: str
+    approved_at: str
+    provider_role: str | None = None
+    approved_by: str | None = None
+    expires_at: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @contextlib.contextmanager
@@ -69,6 +93,8 @@ def api_budget_context(
     max_run_usd_override: float | None = None,
     allow_unpriced_api: bool = False,
     metadata: dict[str, Any] | None = None,
+    provider_quota_approval: ProviderQuotaApproval | dict[str, Any] | None = None,
+    provider_quota_current_scope: str | None = None,
 ) -> Iterator[ApiBudgetContext]:
     context = ApiBudgetContext(
         db_path=str(db_path),
@@ -78,6 +104,8 @@ def api_budget_context(
         max_run_usd_override=max_run_usd_override,
         allow_unpriced_api=allow_unpriced_api,
         metadata=metadata,
+        provider_quota_approval=_coerce_provider_quota_approval(provider_quota_approval),
+        provider_quota_current_scope=provider_quota_current_scope,
     )
     token = _ACTIVE_CONTEXT.set(context)
     try:
@@ -161,6 +189,239 @@ def rough_text_tokens(value: Any) -> int:
     if chars <= 0:
         return 0
     return max(1, (chars + 1) // 2)
+
+
+def provider_quota_approval_as_dict(approval: ProviderQuotaApproval) -> dict[str, Any]:
+    return asdict(approval)
+
+
+def validate_provider_quota_approval(
+    approval: ProviderQuotaApproval | dict[str, Any] | None,
+    *,
+    provider: str,
+    model: str | None,
+    operation: str,
+    units: dict[str, int | float] | None = None,
+    estimated_cost_usd: float | None = None,
+    approved_scope: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    errors: list[str] = []
+    try:
+        resolved = _coerce_provider_quota_approval(approval)
+    except (TypeError, ValueError) as exc:
+        resolved = None
+        errors.append(str(exc))
+    normalized_units = _normalize_units(units or {"calls": 1})
+    provider_id = _clean_id(provider)
+    model_id = _clean_model(model or "")
+    operation_id = _clean_id(operation)
+    if resolved is None:
+        errors.append("provider quota approval object is required")
+        return _provider_quota_validation_payload(
+            approval=None,
+            errors=errors,
+            units=normalized_units,
+            estimated_cost_usd=estimated_cost_usd,
+        )
+
+    approval_provider = _clean_id(resolved.provider)
+    approval_model = _clean_model(resolved.model)
+    approval_operation = _clean_id(resolved.operation)
+    if approval_provider != provider_id:
+        errors.append(f"approval provider mismatch: {approval_provider} != {provider_id}")
+    if model_id and approval_model != model_id:
+        errors.append(f"approval model mismatch: {approval_model} != {model_id}")
+    if approval_operation != operation_id:
+        errors.append(f"approval operation mismatch: {approval_operation} != {operation_id}")
+    if approved_scope and resolved.approved_scope not in {"*", approved_scope}:
+        errors.append(
+            f"approval scope mismatch: {resolved.approved_scope} does not cover {approved_scope}"
+        )
+    if not str(resolved.price_source).strip():
+        errors.append("approval price_source is required")
+    max_calls = int(resolved.max_calls)
+    planned_calls = int(float(normalized_units.get("calls", 1) or 1))
+    if max_calls <= 0:
+        errors.append("approval max_calls must be positive")
+    elif planned_calls > max_calls:
+        errors.append(f"planned calls exceed approval max_calls: {planned_calls} > {max_calls}")
+    max_cost_usd = float(resolved.max_cost_usd)
+    if max_cost_usd < 0:
+        errors.append("approval max_cost_usd must be non-negative")
+    if estimated_cost_usd is not None and float(estimated_cost_usd) > max_cost_usd:
+        errors.append(
+            "estimated cost exceeds approval max_cost_usd: "
+            f"{float(estimated_cost_usd):.8f} > {max_cost_usd:.8f}"
+        )
+    _validate_approval_timestamp("approved_at", resolved.approved_at, errors)
+    if resolved.expires_at:
+        expires_at = _validate_approval_timestamp("expires_at", resolved.expires_at, errors)
+        current = now or datetime.now(tz=UTC)
+        if expires_at is not None and expires_at < current:
+            errors.append("approval expires_at is in the past")
+    return _provider_quota_validation_payload(
+        approval=resolved,
+        errors=errors,
+        units=normalized_units,
+        estimated_cost_usd=estimated_cost_usd,
+    )
+
+
+def require_provider_quota_approval(
+    *,
+    provider: str,
+    model: str | None,
+    operation: str,
+    units: dict[str, int | float] | None = None,
+    estimated_cost_usd: float | None = None,
+) -> None:
+    if _is_exempt_provider(provider):
+        return
+    context = active_api_budget_context()
+    approval = context.provider_quota_approval if context is not None else None
+    approved_scope = context.provider_quota_current_scope if context is not None else None
+    result = validate_provider_quota_approval(
+        approval,
+        provider=provider,
+        model=model,
+        operation=operation,
+        units=units,
+        estimated_cost_usd=estimated_cost_usd,
+        approved_scope=approved_scope,
+    )
+    if not result["valid"]:
+        details = "; ".join(result["errors"])
+        raise RuntimeError(f"{PROVIDER_QUOTA_APPROVAL_GATE_MESSAGE}: {details}")
+
+
+def provider_quota_preflight(
+    db_path: str | Path,
+    *,
+    provider: str,
+    model: str,
+    operation: str,
+    provider_role: str = "provider",
+    units: dict[str, int | float] | None = None,
+    approval: ProviderQuotaApproval | dict[str, Any] | None = None,
+    policy_id: str = DEFAULT_API_BUDGET_POLICY_ID,
+    run_id: str | None = None,
+    approved_scope: str | None = None,
+    max_run_usd_override: float | None = None,
+    allow_unpriced_api: bool = False,
+    freeze_active: bool = PROVIDER_QUOTA_FREEZE_ACTIVE,
+) -> dict[str, Any]:
+    path = Path(db_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    provider_id = _clean_id(provider)
+    model_id = _clean_model(model)
+    operation_id = _clean_id(operation)
+    normalized_units = _normalize_units(units or {"calls": 1})
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_api_budget_schema(conn)
+        policy = _policy_row(conn, policy_id)
+        if policy is None:
+            raise ApiBudgetError(f"API budget policy not found: {policy_id}")
+        cost_result = _estimated_cost(
+            conn,
+            provider=provider_id,
+            model=model_id,
+            operation=operation_id,
+            units=normalized_units,
+            allow_unpriced=allow_unpriced_api,
+            unknown_price_action=str(policy["unknown_price_action"] or "block"),
+        )
+        budget_block_reason = _policy_block_reason(policy)
+        if budget_block_reason is None:
+            budget_block_reason = _cap_block_reason(
+                conn,
+                policy,
+                run_id=run_id,
+                estimated_cost=float(cost_result["estimated_cost_usd"]),
+                units=normalized_units,
+                max_run_usd_override=max_run_usd_override,
+            )
+    approval_result = validate_provider_quota_approval(
+        approval,
+        provider=provider_id,
+        model=model_id,
+        operation=operation_id,
+        units=normalized_units,
+        estimated_cost_usd=float(cost_result["estimated_cost_usd"]),
+        approved_scope=approved_scope,
+    )
+    if cost_result.get("unknown_price"):
+        budget_status = "needs_price_evidence"
+        budget_block_reason = str(cost_result["unknown_price"])
+    elif budget_block_reason:
+        budget_status = "blocked"
+    else:
+        budget_status = "passed"
+    provider_call_allowed = (
+        not freeze_active and approval_result["valid"] and budget_status == "passed"
+    )
+    if _is_exempt_provider(provider_id):
+        status = "local_exempt"
+    elif not approval_result["valid"]:
+        status = "approval_required"
+    elif budget_status != "passed":
+        status = budget_status
+    elif freeze_active:
+        status = "provider_gated_by_no_quota_freeze"
+    else:
+        status = "approved_smallest_limit"
+    return {
+        "schema_version": 1,
+        "preflight_kind": "provider_quota_approval",
+        "dry_run": True,
+        "status": status,
+        "provider_call_allowed": provider_call_allowed,
+        "provider_requests_sent": 0,
+        "provider_quota_freeze_active": freeze_active,
+        "db_path": str(path),
+        "policy_id": policy_id,
+        "run_id": run_id,
+        "provider": provider_id,
+        "model": model_id,
+        "operation": operation_id,
+        "provider_role": provider_role,
+        "approved_scope": approved_scope,
+        "units": normalized_units,
+        "estimated_cost_usd": float(cost_result["estimated_cost_usd"]),
+        "price_status": cost_result["metadata"].get("price_status"),
+        "price_metadata": cost_result["metadata"],
+        "budget_guard": {
+            "status": budget_status,
+            "block_reason": budget_block_reason,
+        },
+        "approval_contract": approval_result,
+    }
+
+
+def format_provider_quota_preflight(report: dict[str, Any]) -> str:
+    approval = report["approval_contract"]
+    budget = report["budget_guard"]
+    lines = [
+        f"status: {report['status']}",
+        f"dry_run: {report['dry_run']}",
+        f"provider_call_allowed: {report['provider_call_allowed']}",
+        f"provider_requests_sent: {report['provider_requests_sent']}",
+        (
+            "target: "
+            f"{report['provider']}/{report['model']} {report['operation']} "
+            f"scope={report.get('approved_scope') or ''}"
+        ),
+        f"units: {json.dumps(report['units'], ensure_ascii=False, sort_keys=True)}",
+        f"estimated_cost_usd: {report['estimated_cost_usd']:.8f}",
+        f"budget_guard: {budget['status']} {budget.get('block_reason') or ''}".rstrip(),
+        f"approval_contract: {'valid' if approval['valid'] else 'invalid'}",
+    ]
+    for error in approval["errors"]:
+        lines.append(f"  approval_error: {error}")
+    if report["provider_quota_freeze_active"]:
+        lines.append("stop_condition: no_quota_provider_freeze")
+    return "\n".join(lines)
 
 
 def ensure_api_budget_schema(conn: sqlite3.Connection) -> None:
@@ -1117,6 +1378,88 @@ def _normalize_units(units: dict[str, int | float]) -> dict[str, int | float]:
     if "calls" not in normalized:
         normalized["calls"] = 1
     return normalized
+
+
+def _coerce_provider_quota_approval(
+    approval: ProviderQuotaApproval | dict[str, Any] | None,
+) -> ProviderQuotaApproval | None:
+    if approval is None:
+        return None
+    if isinstance(approval, ProviderQuotaApproval):
+        return approval
+    if not isinstance(approval, dict):
+        raise TypeError("provider quota approval must be a mapping")
+    required = (
+        "provider_quota_approval_id",
+        "provider",
+        "model",
+        "operation",
+        "max_calls",
+        "max_cost_usd",
+        "price_source",
+        "approved_scope",
+        "approved_at",
+    )
+    missing = [key for key in required if approval.get(key) in (None, "")]
+    if missing:
+        raise ValueError("provider quota approval missing fields: " + ", ".join(missing))
+    return ProviderQuotaApproval(
+        provider_quota_approval_id=str(approval["provider_quota_approval_id"]),
+        provider=str(approval["provider"]),
+        model=str(approval["model"]),
+        operation=str(approval["operation"]),
+        max_calls=int(approval["max_calls"]),
+        max_cost_usd=float(approval["max_cost_usd"]),
+        price_source=str(approval["price_source"]),
+        approved_scope=str(approval["approved_scope"]),
+        approved_at=str(approval["approved_at"]),
+        provider_role=_optional_str(approval.get("provider_role")),
+        approved_by=_optional_str(approval.get("approved_by")),
+        expires_at=_optional_str(approval.get("expires_at")),
+        metadata=approval.get("metadata") if isinstance(approval.get("metadata"), dict) else None,
+    )
+
+
+def _provider_quota_validation_payload(
+    *,
+    approval: ProviderQuotaApproval | None,
+    errors: list[str],
+    units: dict[str, int | float],
+    estimated_cost_usd: float | None,
+) -> dict[str, Any]:
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "approval": provider_quota_approval_as_dict(approval) if approval else None,
+        "units": units,
+        "estimated_cost_usd": estimated_cost_usd,
+    }
+
+
+def _validate_approval_timestamp(
+    field_name: str,
+    value: str,
+    errors: list[str],
+) -> datetime | None:
+    text = str(value).strip()
+    if not text:
+        errors.append(f"approval {field_name} is required")
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        errors.append(f"approval {field_name} must be ISO-8601")
+        return None
+    if parsed.tzinfo is None:
+        errors.append(f"approval {field_name} must include a timezone")
+        return None
+    return parsed
+
+
+def _optional_str(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    return str(value)
 
 
 def _count_text_chars(value: Any) -> int:

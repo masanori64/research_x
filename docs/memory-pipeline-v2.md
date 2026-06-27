@@ -219,13 +219,11 @@ Blocked lanes include real embeddings, native media embeddings, rerankers, Reade
 extraction, OCR, classifiers, answer engines, relation judges, external search,
 LLM-context, managed RAG, and real-model prompt-contract validation.
 
-Before the first approved provider call:
-
-1. run `memory api-budget status`;
-2. run the relevant offline estimate;
-3. review price source, provider/model/profile, projected cost, coverage, and the
-   smallest useful limit;
-4. stop again before execution if pricing, quota, or budget evidence is unclear.
+Before the first approved provider call, run `memory api-budget status`, the
+relevant offline estimate, and `memory api-budget preflight` with scoped approval
+fields: id, provider, model, operation, max calls, max USD, price source, scope,
+and approved time. `--allow-provider-quota` alone is insufficient; preflight is
+dry-run and must report zero provider requests while the freeze is active.
 
 ## ContextBudgetPolicy Boundary
 

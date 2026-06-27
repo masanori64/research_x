@@ -14,6 +14,7 @@ from research_x.memory import evals as memory_evals
 from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import answer_json, assess_answerability, build_memory_answer
+from research_x.memory.api_budget import api_budget_context, upsert_api_price
 from research_x.memory.api_lane_estimate import (
     build_api_lane_estimate_report,
     discover_external_urls,
@@ -1564,22 +1565,52 @@ def test_memory_media_embedding_schema_estimate_build_and_search(
 
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
     monkeypatch.setattr(media_embeddings, "_post_json", fake_post_json)
+    upsert_api_price(
+        db_path,
+        provider="gemini",
+        model="gemini-embedding-2",
+        operation="media_embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://test-memory-media-embedding",
+        notes="provider-free monkeypatched fixture",
+    )
 
     estimate = estimate_media_embedding_build(db_path, dimensions=3)
-    summary = build_media_embeddings(
-        db_path,
-        dimensions=3,
-        limit=1,
-        allow_provider_quota=True,
-    )
+    with api_budget_context(
+        db_path=db_path,
+        run_id="media-fixture",
+        provider_quota_approval=_provider_quota_approval(
+            provider="gemini",
+            model="gemini-embedding-2",
+            operation="media_embedding",
+            price_source="fixture://test-memory-media-embedding",
+        ),
+    ):
+        summary = build_media_embeddings(
+            db_path,
+            dimensions=3,
+            limit=1,
+            allow_provider_quota=True,
+        )
     coverage = media_embedding_coverage_report(db_path, dimensions=3)
-    hits = search_media_embeddings(
-        db_path,
-        "robot image",
-        dimensions=3,
-        limit=1,
-        allow_provider_quota=True,
-    )
+    with api_budget_context(
+        db_path=db_path,
+        run_id="media-fixture-search",
+        provider_quota_approval=_provider_quota_approval(
+            provider="gemini",
+            model="gemini-embedding-2",
+            operation="media_embedding",
+            price_source="fixture://test-memory-media-embedding",
+        ),
+    ):
+        hits = search_media_embeddings(
+            db_path,
+            "robot image",
+            dimensions=3,
+            limit=1,
+            allow_provider_quota=True,
+        )
 
     assert estimate.media == 1
     assert estimate.selected == 1
@@ -3175,16 +3206,35 @@ def test_memory_audit_quarantines_openai_compatible_embeddings_under_freeze(
 
     monkeypatch.setenv("CUSTOM_EMBED_KEY", "fake-key")
     monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-
-    build_memory_embeddings(
+    upsert_api_price(
         db_path,
         provider="openai_compatible",
         model="custom-embedding",
-        dimensions=3,
-        api_key_env="CUSTOM_EMBED_KEY",
-        base_url="https://embeddings.example/v1/embeddings",
-        allow_provider_quota=True,
+        operation="embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://test-memory-custom-embedding",
+        notes="provider-free monkeypatched fixture",
     )
+    with api_budget_context(
+        db_path=db_path,
+        run_id="custom-embedding-fixture",
+        provider_quota_approval=_provider_quota_approval(
+            provider="openai_compatible",
+            model="custom-embedding",
+            operation="embedding",
+            price_source="fixture://test-memory-custom-embedding",
+        ),
+    ):
+        build_memory_embeddings(
+            db_path,
+            provider="openai_compatible",
+            model="custom-embedding",
+            dimensions=3,
+            api_key_env="CUSTOM_EMBED_KEY",
+            base_url="https://embeddings.example/v1/embeddings",
+            allow_provider_quota=True,
+        )
 
     report = audit_memory_db(db_path)
     spec = next(
@@ -6406,6 +6456,26 @@ def _count_table(db_path: Path, table: str) -> int:
     with sqlite3.connect(db_path) as conn:
         ensure_memory_schema(conn)
         return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+
+
+def _provider_quota_approval(
+    *,
+    provider: str,
+    model: str,
+    operation: str,
+    price_source: str,
+) -> dict[str, object]:
+    return {
+        "provider_quota_approval_id": "fixture-approval",
+        "provider": provider,
+        "model": model,
+        "operation": operation,
+        "max_calls": 10,
+        "max_cost_usd": 0.0,
+        "price_source": price_source,
+        "approved_scope": "*",
+        "approved_at": "2026-06-27T00:00:00+00:00",
+    }
 
 
 def _seed_derived_source_rows(db_path: Path) -> None:

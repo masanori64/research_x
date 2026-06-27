@@ -11,7 +11,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-from research_x.memory.api_budget import api_units, budgeted_api_call
+from research_x.memory.api_budget import (
+    api_units,
+    budgeted_api_call,
+    require_provider_quota_approval,
+)
 from research_x.memory.embeddings import _api_key, _post_json
 from research_x.memory.media_embeddings import restore_media_source_bundle
 from research_x.memory.schema import ensure_memory_schema
@@ -306,6 +310,12 @@ def build_ocr_evidence(
             "provider OCR API use is frozen, including paid, free-tier, trial-credit, and "
             "zero-dollar quota calls. Use provider=fake unless the no-quota freeze is explicitly "
             "lifted."
+        )
+    if normalized_provider != OCR_PROVIDER_FAKE:
+        require_provider_quota_approval(
+            provider=normalized_provider,
+            model=model,
+            operation="ocr",
         )
     selected = _selected_regions(
         _ocr_regions(

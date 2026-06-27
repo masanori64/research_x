@@ -10,6 +10,7 @@ from test_operational_trace_persistence import _seed_memory_db
 
 from research_x.memory import embeddings
 from research_x.memory.answer import build_memory_answer
+from research_x.memory.api_budget import api_budget_context, upsert_api_price
 from research_x.memory.audit import audit_memory_db
 from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.embeddings import build_memory_embeddings
@@ -53,15 +54,40 @@ def test_audit_taxonomy_treats_provider_rows_as_expected_quarantine(
 
     monkeypatch.setenv("CUSTOM_EMBED_KEY", "fake-key")
     monkeypatch.setattr(embeddings, "_post_json", fake_post_json)
-    build_memory_embeddings(
+    upsert_api_price(
         db_path,
         provider="openai_compatible",
         model="custom-embedding",
-        dimensions=3,
-        api_key_env="CUSTOM_EMBED_KEY",
-        base_url="https://embeddings.example/v1/embeddings",
-        allow_provider_quota=True,
+        operation="embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://audit-warning-taxonomy",
+        notes="provider-free monkeypatched fixture",
     )
+    with api_budget_context(
+        db_path=db_path,
+        run_id="audit-provider-row-fixture",
+        provider_quota_approval={
+            "provider_quota_approval_id": "fixture-approval",
+            "provider": "openai_compatible",
+            "model": "custom-embedding",
+            "operation": "embedding",
+            "max_calls": 10,
+            "max_cost_usd": 0.0,
+            "price_source": "fixture://audit-warning-taxonomy",
+            "approved_scope": "*",
+            "approved_at": "2026-06-27T00:00:00+00:00",
+        },
+    ):
+        build_memory_embeddings(
+            db_path,
+            provider="openai_compatible",
+            model="custom-embedding",
+            dimensions=3,
+            api_key_env="CUSTOM_EMBED_KEY",
+            base_url="https://embeddings.example/v1/embeddings",
+            allow_provider_quota=True,
+        )
 
     report = audit_memory_db(db_path)
     warning = _warning_by_code(

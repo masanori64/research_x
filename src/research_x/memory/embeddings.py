@@ -18,7 +18,12 @@ from typing import Any
 
 import numpy as np
 
-from research_x.memory.api_budget import api_units, budgeted_api_call, rough_text_tokens
+from research_x.memory.api_budget import (
+    api_units,
+    budgeted_api_call,
+    require_provider_quota_approval,
+    rough_text_tokens,
+)
 from research_x.memory.document_hashes import (
     memory_document_embedding_text,
     memory_document_source_hash,
@@ -215,12 +220,18 @@ def require_embedding_provider_quota_allowed(
     provider: str | None,
     *,
     allow_provider_quota: bool,
+    model: str | None = None,
+    operation: str = "embedding",
 ) -> None:
-    if (
-        _normalize_provider_for_policy(provider) != LOCAL_HASH_PROVIDER
-        and not allow_provider_quota
-    ):
+    if _normalize_provider_for_policy(provider) == LOCAL_HASH_PROVIDER:
+        return
+    if not allow_provider_quota:
         raise RuntimeError(EMBEDDING_PROVIDER_QUOTA_GATE_MESSAGE)
+    require_provider_quota_approval(
+        provider=provider or "auto",
+        model=model,
+        operation=operation,
+    )
 
 
 def _normalize_provider_for_policy(provider: str | None) -> str:
@@ -316,6 +327,7 @@ def build_memory_embeddings(
     require_embedding_provider_quota_allowed(
         spec.provider,
         allow_provider_quota=allow_provider_quota,
+        model=spec.model,
     )
     resolved_execution_stage = _resolve_embedding_execution_stage(
         execution_stage,
@@ -435,6 +447,7 @@ def semantic_search_memory(
         require_embedding_provider_quota_allowed(
             spec.provider,
             allow_provider_quota=allow_provider_quota,
+            model=spec.model,
         )
         query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
         rows = _embedding_rows(conn, spec=spec, doc_type=doc_type, account=account)
@@ -505,6 +518,7 @@ def semantic_search_loaded_index(
     require_embedding_provider_quota_allowed(
         index.spec.provider,
         allow_provider_quota=allow_provider_quota,
+        model=index.spec.model,
     )
     query_vector = _embedder(index.spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
     query_array = np.asarray(query_vector[: index.spec.dimensions], dtype=np.float32)
@@ -562,6 +576,7 @@ def semantic_scores_for_doc_ids(
         require_embedding_provider_quota_allowed(
             spec.provider,
             allow_provider_quota=allow_provider_quota,
+            model=spec.model,
         )
         query_vector = _embedder(spec).embed_texts([query], task_type="RETRIEVAL_QUERY")[0]
         rows = _embedding_rows_for_doc_ids(conn, spec=spec, doc_ids=doc_ids)
