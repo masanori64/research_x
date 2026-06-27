@@ -131,6 +131,10 @@ class PointerAuditReport:
     source_kind: str
     status: str
     results: tuple[PointerVerificationResult, ...]
+    entry_count: int = 0
+    invalid_entry_count: int = 0
+    usable_count: int = 0
+    failed_count: int = 0
     skipped_reason: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -138,6 +142,10 @@ class PointerAuditReport:
             "source_path": self.source_path,
             "source_kind": self.source_kind,
             "status": self.status,
+            "entry_count": self.entry_count,
+            "invalid_entry_count": self.invalid_entry_count,
+            "usable_count": self.usable_count,
+            "failed_count": self.failed_count,
             "results": [result.as_dict() for result in self.results],
             "skipped_reason": self.skipped_reason,
         }
@@ -322,6 +330,8 @@ def verify_offload_pointer(
             issues.append("stale_char_count")
         if not byte_count_match:
             issues.append("stale_byte_count")
+        if artifact_kind == DEFAULT_OFFLOAD_ARTIFACT_KIND and artifact is None:
+            issues.append("invalid_offload_artifact_json")
         if isinstance(artifact, dict) and isinstance(artifact.get("pointer"), dict):
             artifact_pointer = artifact["pointer"]
             if _string_or_none(artifact_pointer.get("pointer_id")) != pointer_id:
@@ -376,27 +386,14 @@ def verify_pointer_map(
             source_kind="pointer_map",
             status="failed",
             results=(
-                PointerVerificationResult(
-                    pointer_id=None,
+                _invalid_pointer_result(
                     artifact_path=str(path),
                     status="invalid_pointer_map",
                     issues=(f"invalid_json:{exc.msg}",),
-                    artifact_exists=True,
-                    sha256_match=None,
-                    char_count_match=None,
-                    byte_count_match=None,
-                    artifact_kind=None,
-                    owner_plane=None,
-                    not_evidence=None,
-                    expected_sha256=None,
-                    actual_sha256=None,
-                    expected_char_count=None,
-                    actual_char_count=None,
-                    expected_byte_count=None,
-                    actual_byte_count=None,
-                    restore_hint=None,
                 ),
             ),
+            invalid_entry_count=1,
+            failed_count=1,
         )
     entries = payload.get("entries") if isinstance(payload, dict) else None
     if not isinstance(entries, list):
@@ -405,46 +402,36 @@ def verify_pointer_map(
             source_kind="pointer_map",
             status="failed",
             results=(
-                PointerVerificationResult(
-                    pointer_id=None,
+                _invalid_pointer_result(
                     artifact_path=str(path),
                     status="invalid_pointer_map",
                     issues=("missing_entries",),
-                    artifact_exists=True,
-                    sha256_match=None,
-                    char_count_match=None,
-                    byte_count_match=None,
-                    artifact_kind=None,
-                    owner_plane=None,
-                    not_evidence=None,
-                    expected_sha256=None,
-                    actual_sha256=None,
-                    expected_char_count=None,
-                    actual_char_count=None,
-                    expected_byte_count=None,
-                    actual_byte_count=None,
-                    restore_hint=None,
                 ),
             ),
+            invalid_entry_count=1,
+            failed_count=1,
         )
-    root = Path(base_dir) if base_dir is not None else Path.cwd()
-    results = tuple(
-        verify_offload_pointer(entry, base_dir=root)
-        for entry in entries
-        if isinstance(entry, dict)
-    )
-    status = (
-        "passed"
-        if results and all(result.status == "usable_pointer" for result in results)
-        else "failed"
-    )
-    if not results:
-        status = "failed"
-    return PointerAuditReport(
+    root = Path(base_dir) if base_dir is not None else path.parent
+    results: list[PointerVerificationResult] = []
+    invalid_entry_count = 0
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            invalid_entry_count += 1
+            results.append(
+                _invalid_pointer_result(
+                    artifact_path=str(path),
+                    status="invalid_pointer_map_entry",
+                    issues=(f"invalid_entry_type:{index}:{type(entry).__name__}",),
+                )
+            )
+            continue
+        results.append(verify_offload_pointer(entry, base_dir=root))
+    return _audit_report(
         source_path=str(path),
         source_kind="pointer_map",
-        status=status,
-        results=results,
+        results=tuple(results),
+        entry_count=len(entries),
+        invalid_entry_count=invalid_entry_count,
     )
 
 
@@ -464,27 +451,95 @@ def verify_offload_directory(
         )
     root = Path(base_dir) if base_dir is not None else Path.cwd()
     results: list[PointerVerificationResult] = []
+    invalid_entry_count = 0
     for artifact_path in sorted(path.rglob("*.json")):
         try:
             artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            invalid_entry_count += 1
+            results.append(
+                _invalid_pointer_result(
+                    artifact_path=str(artifact_path),
+                    status="invalid_offload_artifact_json",
+                    issues=(f"invalid_json:{exc.msg}",),
+                )
+            )
             continue
         pointer = artifact.get("pointer") if isinstance(artifact, dict) else None
         if isinstance(pointer, dict):
             results.append(verify_offload_pointer(pointer, base_dir=root))
-    if not results:
-        status = "empty"
-    else:
-        status = (
-            "passed"
-            if all(result.status == "usable_pointer" for result in results)
-            else "failed"
+            continue
+        invalid_entry_count += 1
+        results.append(
+            _invalid_pointer_result(
+                artifact_path=str(artifact_path),
+                status="invalid_offload_artifact",
+                issues=("missing_pointer",),
+            )
         )
-    return PointerAuditReport(
+    status = "empty" if not results else None
+    return _audit_report(
         source_path=str(path),
         source_kind="offload_dir",
-        status=status,
         results=tuple(results),
+        entry_count=sum(1 for _ in path.rglob("*.json")),
+        invalid_entry_count=invalid_entry_count,
+        empty_status=status,
+    )
+
+
+def _audit_report(
+    *,
+    source_path: str,
+    source_kind: str,
+    results: tuple[PointerVerificationResult, ...],
+    entry_count: int,
+    invalid_entry_count: int = 0,
+    empty_status: str | None = None,
+) -> PointerAuditReport:
+    usable_count = sum(1 for result in results if result.status == "usable_pointer")
+    failed_count = sum(1 for result in results if result.status != "usable_pointer")
+    if empty_status is not None and not results:
+        status = empty_status
+    else:
+        status = "passed" if results and failed_count == 0 else "failed"
+    return PointerAuditReport(
+        source_path=source_path,
+        source_kind=source_kind,
+        status=status,
+        results=results,
+        entry_count=entry_count,
+        invalid_entry_count=invalid_entry_count,
+        usable_count=usable_count,
+        failed_count=failed_count,
+    )
+
+
+def _invalid_pointer_result(
+    *,
+    artifact_path: str,
+    status: str,
+    issues: tuple[str, ...],
+) -> PointerVerificationResult:
+    return PointerVerificationResult(
+        pointer_id=None,
+        artifact_path=artifact_path,
+        status=status,
+        issues=issues,
+        artifact_exists=True,
+        sha256_match=None,
+        char_count_match=None,
+        byte_count_match=None,
+        artifact_kind=None,
+        owner_plane=None,
+        not_evidence=None,
+        expected_sha256=None,
+        actual_sha256=None,
+        expected_char_count=None,
+        actual_char_count=None,
+        expected_byte_count=None,
+        actual_byte_count=None,
+        restore_hint=None,
     )
 
 
@@ -714,6 +769,8 @@ def _pointer_status(issues: list[str]) -> str:
         return "unsupported_artifact_kind"
     if any(issue.startswith("unsupported_owner_plane") for issue in issues):
         return "unsupported_owner_plane"
+    if "invalid_offload_artifact_json" in issues:
+        return "invalid_offload_artifact_json"
     if "stale_hash" in issues:
         return "stale_hash"
     if "stale_char_count" in issues or "stale_byte_count" in issues:

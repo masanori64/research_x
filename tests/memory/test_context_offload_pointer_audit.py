@@ -6,6 +6,7 @@ from pathlib import Path
 from research_x.memory.context_budget import (
     ContextBudgetPolicy,
     budget_json_payload,
+    verify_offload_directory,
     verify_offload_pointer,
 )
 
@@ -96,6 +97,22 @@ def test_context_offload_pointer_detects_missing_and_unsupported_targets(
     assert "missing_artifact" in missing.issues
     assert bad_kind.status == "unsupported_artifact_kind"
     assert "unsupported_artifact_kind:answer_evidence" in bad_kind.issues
+
+
+def test_offload_directory_fails_invalid_json_artifact(tmp_path: Path) -> None:
+    offload_dir = tmp_path / "offloads"
+    offload_dir.mkdir()
+    broken = offload_dir / "broken.json"
+    broken.write_text("{not valid json", encoding="utf-8")
+
+    report = verify_offload_directory(offload_dir)
+
+    assert report.status == "failed"
+    assert report.entry_count == 1
+    assert report.invalid_entry_count == 1
+    assert report.failed_count == 1
+    assert report.results[0].status == "invalid_offload_artifact_json"
+    assert "invalid_json" in report.results[0].issues[0]
 
 
 def _budgeted_pointer(tmp_path: Path) -> dict[str, object]:
