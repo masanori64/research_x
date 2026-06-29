@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.TARGET_REF }}
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - name: Build rollback Pages site
         shell: bash
         run: |
