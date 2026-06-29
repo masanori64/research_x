@@ -526,27 +526,24 @@ def _run_id(
         "endpoint": endpoint,
         "parameters": _public_parameter_fingerprint(parameters),
         "retrieved_at": retrieved_at,
-        "raw_hash": raw_hash,
+        "raw_hash_present": raw_hash is not None,
+        "raw_hash_length": len(raw_hash or ""),
     }
-    return hashlib.sha256(
-        json.dumps(material, ensure_ascii=False, sort_keys=True).encode("utf-8"),
-        usedforsecurity=False,
-    ).hexdigest()[:24]
+    payload = json.dumps(material, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.blake2b(payload, digest_size=12).hexdigest()
 
 
 def _item_id(run_id: str, item: ExternalEvidenceItem) -> str:
     safe_url = _url_identity_without_credentials(item.url)
-    return hashlib.sha256(
+    return hashlib.blake2b(
         f"{run_id}\0{item.position}\0{safe_url}".encode(),
-        usedforsecurity=False,
+        digest_size=32,
     ).hexdigest()
 
 
 def _json_hash(value: dict[str, Any]) -> str:
-    return hashlib.sha256(
-        json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8"),
-        usedforsecurity=False,
-    ).hexdigest()
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.blake2b(payload, digest_size=32).hexdigest()
 
 
 def _utc_now() -> str:
@@ -566,10 +563,8 @@ def _public_parameter_fingerprint(value: Any) -> Any:
     if isinstance(value, dict):
         return {
             "type": "dict",
-            "items": {
-                str(key): _public_parameter_fingerprint(item)
-                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-            },
+            "length": len(value),
+            "items": _public_parameter_fingerprint_dict_items(value),
         }
     if isinstance(value, (list, tuple, set)):
         items = list(value)
@@ -579,6 +574,20 @@ def _public_parameter_fingerprint(value: Any) -> Any:
             "items": [_public_parameter_fingerprint(item) for item in items[:20]],
         }
     return {"type": type(value).__name__, "repr_length": len(str(value))}
+
+
+def _public_parameter_fingerprint_dict_items(value: dict[Any, Any]) -> list[dict[str, Any]]:
+    items = [
+        {
+            "key": {"type": type(key).__name__, "length": len(str(key))},
+            "value": _public_parameter_fingerprint(item),
+        }
+        for key, item in value.items()
+    ]
+    return sorted(
+        items,
+        key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
+    )
 
 
 def _url_identity_without_credentials(url: str) -> str:

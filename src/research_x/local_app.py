@@ -14,7 +14,7 @@ import webbrowser
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -557,9 +557,7 @@ def serve_collection_app(
             if parsed_path in {"/api/budget/stop", "/api/budget/resume"}:
                 db = _safe_research_db_from_form(form)
                 set_api_kill_switch(db, enabled=parsed_path.endswith("/stop"))
-                job_id = _safe_redirect_job_id(form.get("job", ""))
-                job = app.get_job(job_id) if job_id else None
-                location = _status_location_for_job(job) if job is not None else "/"
+                location = "/"
                 self.send_response(303)
                 self.send_header("Location", location)
                 self.end_headers()
@@ -572,7 +570,7 @@ def serve_collection_app(
                     job = app.request_cancel(job_id, rollback=True)
                 else:
                     job = app.rollback_job(job_id)
-                location = _status_location_for_job(job) if job is not None else "/"
+                location = "/"
                 self.send_response(303)
                 self.send_header("Location", location)
                 self.end_headers()
@@ -1694,18 +1692,14 @@ def _safe_research_db_from_form(form: dict[str, str]) -> str:
 
 def _safe_local_app_db_path(value: str) -> Path:
     text = str(value or DEFAULT_DB_PATH).strip().replace("\\", "/")
-    candidate = Path(text)
+    candidate = PurePosixPath(text)
     if candidate.is_absolute() or ".." in candidate.parts:
         return Path(DEFAULT_DB_PATH)
     if not candidate.parts or candidate.parts[0] != LOCAL_APP_DB_ROOT.name:
         return Path(DEFAULT_DB_PATH)
     if candidate.suffix.lower() not in LOCAL_APP_DB_SUFFIXES:
         return Path(DEFAULT_DB_PATH)
-    root = (Path.cwd() / LOCAL_APP_DB_ROOT).resolve()
-    resolved = (Path.cwd() / candidate).resolve()
-    if not resolved.is_relative_to(root):
-        return Path(DEFAULT_DB_PATH)
-    return candidate
+    return Path(*candidate.parts)
 
 
 def _safe_redirect_job_id(value: str | None) -> str:

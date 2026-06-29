@@ -1580,15 +1580,13 @@ def _request_hash(value: Any | None) -> str | None:
     if value is None:
         return None
     material = _request_fingerprint_material(value)
-    return hashlib.sha256(
-        json.dumps(material, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8"),
-        usedforsecurity=False,
-    ).hexdigest()
+    payload = json.dumps(material, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.blake2b(payload, digest_size=32).hexdigest()
 
 
 def _event_id(*parts: object) -> str:
     payload = "|".join(str(part) for part in (*parts, uuid.uuid4().hex))
-    return hashlib.sha256(payload.encode("utf-8"), usedforsecurity=False).hexdigest()[:32]
+    return hashlib.blake2b(payload.encode("utf-8"), digest_size=16).hexdigest()
 
 
 def _request_fingerprint_material(value: Any) -> Any:
@@ -1601,10 +1599,8 @@ def _request_fingerprint_material(value: Any) -> Any:
     if isinstance(value, dict):
         return {
             "type": "dict",
-            "items": {
-                str(key): _request_fingerprint_material(item)
-                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-            },
+            "length": len(value),
+            "items": _request_fingerprint_dict_items(value),
         }
     if isinstance(value, (list, tuple, set)):
         items = list(value)
@@ -1614,6 +1610,20 @@ def _request_fingerprint_material(value: Any) -> Any:
             "items": [_request_fingerprint_material(item) for item in items[:20]],
         }
     return {"type": type(value).__name__, "repr_length": len(str(value))}
+
+
+def _request_fingerprint_dict_items(value: dict[Any, Any]) -> list[dict[str, Any]]:
+    items = [
+        {
+            "key": {"type": type(key).__name__, "length": len(str(key))},
+            "value": _request_fingerprint_material(item),
+        }
+        for key, item in value.items()
+    ]
+    return sorted(
+        items,
+        key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
+    )
 
 
 def _clean_id(value: str) -> str:

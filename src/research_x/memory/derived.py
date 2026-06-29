@@ -975,14 +975,14 @@ def _stable_key(value: str) -> str:
     cleaned = re.sub(r"[^0-9A-Za-z一-龥ぁ-んァ-ンー_.-]+", "_", value).strip("_")
     if 1 <= len(cleaned) <= 80:
         return cleaned
-    return hashlib.sha1(value.encode("utf-8"), usedforsecurity=False).hexdigest()[:20]
+    return hashlib.blake2b(value.encode("utf-8"), digest_size=10).hexdigest()
 
 
 def _relation_id(source_doc_id: str, target_doc_id: str, relation_type: str) -> str:
-    return hashlib.sha1(
+    return hashlib.blake2b(
         f"{source_doc_id}\0{target_doc_id}\0{relation_type}".encode(),
-        usedforsecurity=False,
-    ).hexdigest()[:24]
+        digest_size=12,
+    ).hexdigest()
 
 
 def _loads_json(value: str | None) -> dict[str, Any]:
