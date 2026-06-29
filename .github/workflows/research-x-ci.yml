@@ -73,6 +73,7 @@ jobs:
       - name: Run review ZIP and provider-gate smoke tests
         run: >
           uv run pytest -q
+          tests/test_pytest_lane_markers.py
           tests/test_review_context_zip.py
           tests/provider_gate/test_static_network_send_guard.py
 

@@ -51,10 +51,21 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
+    "fast: developer fast-loop checks intended to stay small and provider-free",
     "unit: local unit tests with no provider, browser, network, or repository-setting side effects",
+    "contract: local schema, prompt, tool, workflow, CI, or artifact contract checks",
     "integration: local integration tests such as DB, CLI, registry, and tool-interface wiring",
     "e2e: local fake/fixture end-to-end workflow checks only",
+    "local_fixture: local fake/fixture checks that validate wiring and boundaries, not real model quality",
+    "retrieval_eval: retrieval quality fixture checks for answerability, conflict, citation support, stop-condition, dedup, and stale judgments",
     "provider_gate: tests that verify provider/quota boundaries without real provider calls",
+    "static_guard: static scans that guard provider, network, dependency, or boundary bypasses",
+    "review_package: review ZIP, manifest, command-log, provenance, and non-evidence artifact checks",
+    "wbs_control: WBS and viewer control-state checks; not evidence or answer support",
+    "packaging: build, wheel, sdist, or artifact packaging checks",
+    "slow: tests intentionally excluded from fast local lanes unless selected",
+    "nightly: scheduled or long-regression checks; must stay provider-free unless separately gated",
+    "manual_provider_gated: disabled-by-default real provider/model quality lane requiring explicit approval and budget guard",
     "control_artifact: Codex control artifact checks; not product evidence, citation, or answer support",
     "browser: browser-adapter tests that must stay local/fake unless an explicit gate is lifted",
 ]

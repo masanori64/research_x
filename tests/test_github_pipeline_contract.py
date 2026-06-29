@@ -33,6 +33,7 @@ def test_product_ci_covers_lint_tests_local_e2e_boundary_and_build() -> None:
         "tools/make_project_context_diff_zip.py",
         "tools/audit_context_pointers.py",
         "review-package-gates:",
+        "tests/test_pytest_lane_markers.py",
         "tests/test_review_context_zip.py",
         "tests/provider_gate/test_static_network_send_guard.py",
         "uv run pytest --cov=research_x --cov-report=term-missing --cov-report=xml",

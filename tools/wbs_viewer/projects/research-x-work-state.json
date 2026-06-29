@@ -354,7 +354,7 @@
                 "start": "2026-06-27",
                 "end": "2026-06-27"
               },
-              "note": "Local fixtures cover answerability, conflict, support, stop, dedup, stale, and preview boundaries.",
+              "note": "Local fixtures cover answerability, conflict, support, stop, dedup, stale, preview, and lane-marker boundaries.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "runtime_layer": "retrieval_eval",
@@ -367,7 +367,7 @@
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if local fixture pass is described as real provider or model quality.",
-                "next_action": "Keep fixtures boundary-focused and leave real model/provider quality gated."
+                "next_action": "Keep retrieval_eval/local_fixture markers green and real model/provider quality gated."
               }
             },
             {
@@ -540,7 +540,7 @@
                 "start": "2026-06-25",
                 "end": "2026-06-25"
               },
-              "note": "Adoption audit, review ZIP checks, and CI review-package gates cover owner surface, branch/commit provenance, command evidence coverage, stop conditions, and enabled gates.",
+              "note": "Adoption audit, review ZIP checks, pytest lane markers, and CI review-package gates cover owner surface, branch/commit provenance, command evidence coverage, stop conditions, and enabled gates.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "runtime_layer": "tool_interface",
@@ -553,7 +553,7 @@
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if source locks, adoption shapes, or enabled/provider flags diverge.",
-                "next_action": "Run adoption audit, review ZIP verification, and CI review-package smoke tests after registry, branch provenance, command-manifest coverage, or audit triage changes."
+                "next_action": "Run adoption audit, review ZIP verification, pytest lane marker smoke, and CI review-package smoke tests after governance or review-package changes."
               }
             },
             {

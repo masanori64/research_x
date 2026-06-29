@@ -106,11 +106,9 @@ uv run python -m research_x memory --help
 uv run python -m research_x test-diagnose --help
 ```
 
-Common local/fake verification families include memory audit/eval/portfolio checks,
-research-intake dry-runs, prompt-contract tests, Skill manifest validation, WBS
-structure checks, D2/Marp build-boundary checks, pointer-map hash checks, review ZIP
-branch provenance validation, command-manifest required-artifact coverage/API-budget
-observed-zero deltas, optional non-evidence GitHub Actions status artifacts, CI review-package gates, and static provider/network send guard scans. Keep provider-backed commands gated.
+Common local/fake verification covers memory audits/evals, prompt contracts,
+WBS/pointer checks, review ZIP provenance, pytest marker lanes, CI gates, and
+static provider/network scans. Marker lanes do not make provider-free fixtures real model-quality evidence; keep provider-backed commands gated.
 
 ## Work-State And Structure
 
@@ -149,8 +147,10 @@ target, not the audit owner.
 ## Verification
 
 ```powershell
+uv run pytest -m fast -q
+uv run pytest -m "contract or provider_gate or retrieval_eval or local_fixture or review_package or wbs_control" -q
+uv run pytest tests -q
 uv run ruff check src\research_x tests
-uv run pytest
 ```
 
 GitHub workflow ownership:
