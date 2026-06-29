@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.TARGET_REF }}
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - name: Build rollback Pages site
         shell: bash
         run: |
@@ -83,8 +83,8 @@ jobs:
             "rollback_class": "safe_static_pages"
           }
           JSON
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _codex_pages_site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
