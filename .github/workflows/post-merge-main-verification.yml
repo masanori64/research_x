@@ -62,10 +62,11 @@ jobs:
                   --repo "$REPO" \
                   --workflow "$workflow" \
                   --branch "$TARGET_REF" \
-                  --limit 20 \
-                  --json headSha,conclusion \
-                  --jq --arg sha "$head_sha" \
-                  'any(.[]; .headSha == $sha and .conclusion == "success")'
+                  --commit "$head_sha" \
+                  --status success \
+                  --limit 1 \
+                  --json databaseId \
+                  --jq 'length > 0'
               )"
               if [ "$ok" != "true" ]; then
                 missing+=("$workflow")
@@ -78,35 +79,35 @@ jobs:
             workflows=("${missing[@]}")
           fi
 
-          start_epoch="$(date -u +%s)"
           run_ids=()
           for workflow in "${workflows[@]}"; do
             echo "Dispatching $workflow for $TARGET_REF at $head_sha"
-            gh workflow run "$workflow" --repo "$REPO" --ref "$TARGET_REF"
-          done
-
-          sleep 8
-          for workflow in "${workflows[@]}"; do
-            run_id=""
-            for _ in {1..40}; do
-              run_id="$(
-                gh run list \
-                  --repo "$REPO" \
-                  --workflow "$workflow" \
-                  --branch "$TARGET_REF" \
-                  --limit 20 \
-                  --json databaseId,createdAt,event,headSha \
-                  --jq --arg sha "$head_sha" --argjson start "$start_epoch" \
-                  'map(select(.event == "workflow_dispatch" and .headSha == $sha and (.createdAt | fromdateiso8601) >= $start)) | sort_by(.createdAt) | last | .databaseId // empty'
-              )"
-              if [ -n "$run_id" ]; then
-                break
-              fi
-              sleep 3
-            done
+            dispatch_output="$(gh workflow run "$workflow" --repo "$REPO" --ref "$TARGET_REF")"
+            echo "$dispatch_output"
+            run_id="$(printf '%s\n' "$dispatch_output" | grep -Eo '[0-9]+$' | tail -n 1 || true)"
             if [ -z "$run_id" ]; then
-              echo "::error::Could not find dispatched run for $workflow at $head_sha"
-              exit 1
+              sleep 8
+              for _ in {1..40}; do
+                run_id="$(
+                  gh run list \
+                    --repo "$REPO" \
+                    --workflow "$workflow" \
+                    --branch "$TARGET_REF" \
+                    --commit "$head_sha" \
+                    --event workflow_dispatch \
+                    --limit 20 \
+                    --json databaseId,createdAt \
+                    --jq 'sort_by(.createdAt) | last | .databaseId // empty'
+                )"
+                if [ -n "$run_id" ]; then
+                  break
+                fi
+                sleep 3
+              done
+              if [ -z "$run_id" ]; then
+                echo "::error::Could not find dispatched run for $workflow at $head_sha"
+                exit 1
+              fi
             fi
             echo "Found $workflow run $run_id"
             run_ids+=("$run_id")
