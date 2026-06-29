@@ -29,7 +29,12 @@ def test_product_ci_covers_lint_tests_local_e2e_boundary_and_build() -> None:
     for expected in (
         'python-version: "3.11"',
         "uv sync --locked --group dev",
-        "uv run ruff check src/research_x tests",
+        "uv run ruff check",
+        "tools/make_project_context_diff_zip.py",
+        "tools/audit_context_pointers.py",
+        "review-package-gates:",
+        "tests/test_review_context_zip.py",
+        "tests/provider_gate/test_static_network_send_guard.py",
         "uv run pytest --cov=research_x --cov-report=term-missing --cov-report=xml",
         "tests/cli/test_memory_tool_json_db_restoration.py",
         "tests/tool_interface/test_db_backed_tool_restoration.py",

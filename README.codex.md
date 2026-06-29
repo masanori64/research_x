@@ -110,7 +110,7 @@ Common local/fake verification families include memory audit/eval/portfolio chec
 research-intake dry-runs, prompt-contract tests, Skill manifest validation, WBS
 structure checks, D2/Marp build-boundary checks, pointer-map hash checks, review ZIP
 branch provenance validation, command-manifest required-artifact coverage/API-budget
-observed-zero deltas, and static provider/network send guard scans. Keep provider-backed commands gated.
+observed-zero deltas, optional non-evidence GitHub Actions status artifacts, CI review-package gates, and static provider/network send guard scans. Keep provider-backed commands gated.
 
 ## Work-State And Structure
 

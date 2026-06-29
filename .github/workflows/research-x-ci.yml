@@ -40,7 +40,41 @@ jobs:
         run: uv sync --locked --group dev
 
       - name: Run ruff
-        run: uv run ruff check src/research_x tests
+        run: >
+          uv run ruff check
+          src/research_x
+          tests
+          tools/make_project_context_diff_zip.py
+          tools/audit_context_pointers.py
+
+  review-package-gates:
+    name: Research X Product CI / review package gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run review ZIP and provider-gate smoke tests
+        run: >
+          uv run pytest -q
+          tests/test_review_context_zip.py
+          tests/provider_gate/test_static_network_send_guard.py
 
   tests:
     name: Research X Product CI / pytest coverage

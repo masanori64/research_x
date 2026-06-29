@@ -540,7 +540,7 @@
                 "start": "2026-06-25",
                 "end": "2026-06-25"
               },
-              "note": "Adoption audit and review ZIP checks cover owner surface, branch/commit provenance, command evidence coverage, stop conditions, and enabled gates.",
+              "note": "Adoption audit, review ZIP checks, and CI review-package gates cover owner surface, branch/commit provenance, command evidence coverage, stop conditions, and enabled gates.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "runtime_layer": "tool_interface",
@@ -553,7 +553,7 @@
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if source locks, adoption shapes, or enabled/provider flags diverge.",
-                "next_action": "Run adoption audit and review ZIP verification after registry, branch provenance, command-manifest coverage, or audit triage changes."
+                "next_action": "Run adoption audit, review ZIP verification, and CI review-package smoke tests after registry, branch provenance, command-manifest coverage, or audit triage changes."
               }
             },
             {

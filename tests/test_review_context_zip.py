@@ -168,6 +168,132 @@ def test_review_context_zip_can_require_expected_branch(tmp_path: Path) -> None:
     )
 
 
+def test_review_context_zip_can_include_optional_github_actions_status(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["github_actions_status"] = project_root / "review_inputs" / (
+        "github_actions_status.json"
+    )
+    review_artifacts["github_actions_status"].write_text(
+        json.dumps(
+            {
+                "artifact_kind": module.GITHUB_ACTIONS_STATUS_ARTIFACT_KIND,
+                "schema_version": module.GITHUB_ACTIONS_STATUS_SCHEMA_VERSION,
+                "source": "github_actions_api",
+                "status": "success",
+                "workflow_runs": [
+                    {
+                        "workflow": "Research X Product CI",
+                        "conclusion": "success",
+                    }
+                ],
+                "not_answer_support": True,
+                "not_citation": True,
+                "not_evidence": True,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert result.verification_errors == ()
+    with zipfile.ZipFile(zip_path) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("attachment_manifest.json").decode("utf-8"))
+    assert "attachments/logs/github_actions_status.json" in names
+    assert (
+        manifest["optional_review_artifacts"]["github_actions_status"]
+        == "attachments/logs/github_actions_status.json"
+    )
+    github_status_entries = [
+        entry
+        for entry in manifest["files"]
+        if entry.get("artifact_id") == "github_actions_status"
+    ]
+    assert github_status_entries == [
+        {
+            "artifact_id": "github_actions_status",
+            "optional": True,
+            "required": False,
+            "role": "review_artifact",
+            "source_path": "review_inputs/github_actions_status.json",
+            "zip_path": "attachments/logs/github_actions_status.json",
+        }
+    ]
+
+
+def test_review_context_zip_rejects_github_actions_status_as_evidence(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["github_actions_status"] = project_root / "review_inputs" / (
+        "github_actions_status.json"
+    )
+    review_artifacts["github_actions_status"].write_text(
+        json.dumps(
+            {
+                "artifact_kind": module.GITHUB_ACTIONS_STATUS_ARTIFACT_KIND,
+                "schema_version": module.GITHUB_ACTIONS_STATUS_SCHEMA_VERSION,
+                "source": "github_actions_api",
+                "status": "success",
+                "not_answer_support": False,
+                "not_citation": False,
+                "not_evidence": False,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "github actions status not_evidence must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "github actions status not_citation must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "github actions status not_answer_support must be true" in error
+        for error in result.verification_errors
+    )
+
+
 def test_verify_review_zip_detects_manifest_missing_required_file(
     tmp_path: Path,
 ) -> None:

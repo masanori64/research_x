@@ -68,9 +68,9 @@ permission.
   It is the registry for what this project owns, what it only bridges to
   `maasa/.codex`, and what remains provider-gated or historical.
 - GPT review ZIPs must include provider execution source files, git branch/commit
-  provenance, command-manifest required-artifact coverage and observed-zero
-  API-budget deltas, plus semantic memory/adoption/Pointer Map audit validation
-  before they are review-ready.
+  provenance, command-manifest required-artifact coverage, observed-zero API-budget
+  deltas, semantic memory/adoption/Pointer Map audit validation, and optional
+  GitHub Actions status only as non-evidence control artifact review context.
 
 ## Current Tracker Rule
 
