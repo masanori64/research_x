@@ -83,7 +83,7 @@ jobs:
             "rollback_class": "safe_static_pages"
           }
           JSON
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _codex_pages_site
       - id: deployment
