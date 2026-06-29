@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 CODEX_PROJECT_REVIEWS = Path(
     "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
 )
@@ -23,8 +25,14 @@ def _leaf_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return leaves
 
 
+def _load_owner_machine_wbs() -> dict[str, Any]:
+    if not WBS_JSON.exists():
+        pytest.skip("owner-machine WBS consultation capture is outside the portable repository")
+    return json.loads(WBS_JSON.read_text(encoding="utf-8"))
+
+
 def test_wbs_canary_contains_all_35_x_items() -> None:
-    data = json.loads(WBS_JSON.read_text(encoding="utf-8"))
+    data = _load_owner_machine_wbs()
     project = data["projects"][0]
     leaves = _leaf_tasks(project["tasks"])
 
@@ -35,7 +43,7 @@ def test_wbs_canary_contains_all_35_x_items() -> None:
 
 
 def test_wbs_canary_marks_items_11_and_35_as_body_adoption_candidates() -> None:
-    data = json.loads(WBS_JSON.read_text(encoding="utf-8"))
+    data = _load_owner_machine_wbs()
     leaves = _leaf_tasks(data["projects"][0]["tasks"])
     by_item = {leaf["_research_x"]["item"]: leaf for leaf in leaves}
 

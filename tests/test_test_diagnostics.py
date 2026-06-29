@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from research_x.cli import main
 from research_x.test_diagnostics import (
     TestDiagnosticResult,
@@ -76,7 +78,7 @@ def test_test_diagnose_cli_uses_diagnostic_runner(monkeypatch, capsys) -> None:
         == 0
     )
 
-    assert captured["targets"] == ["tests\\test_memory.py"]
+    assert captured["targets"] == [str(Path("tests/test_memory.py"))]
     assert captured["mode"] == "tests"
     assert captured["timeout_seconds"] == 5
     assert captured["pytest_args"] == ("-q",)
