@@ -2,6 +2,8 @@
 .pytest_cache/
 .ruff_cache/
 .secrets/
+.coverage
+coverage.xml
 __pycache__/
 *.py[cod]
 accounts*.db

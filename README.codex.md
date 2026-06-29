@@ -154,6 +154,18 @@ uv run ruff check src\research_x tests
 uv run pytest
 ```
 
+GitHub workflow ownership:
+
+- `.github/workflows/research-x-ci.yml`: product gate for lint, tests with
+  report-only coverage, local fixture E2E, adoption audit, boundary type check,
+  and build. Full-source type coverage is a ratchet target, not yet a hard gate.
+- `.github/workflows/research-x-build-artifacts.yml`: build-only release
+  artifact lane; it uploads `dist/` and does not publish or deploy.
+- `.github/workflows/research-x-dependency-review.yml`,
+  `.github/workflows/research-x-codeql.yml`, and `.github/dependabot.yml`: dependency/security surfaces.
+- `.github/workflows/codex-*.yml`: Codex control artifact lanes only. They are
+  not product evidence, research evidence, citations, or answer support.
+
 Skill governance checks:
 
 ```powershell

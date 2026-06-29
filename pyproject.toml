@@ -27,6 +27,8 @@ local-vector = [
 
 [dependency-groups]
 dev = [
+    "mypy>=1.10.0",
+    "pytest-cov>=5.0.0",
     "pytest>=8.3.0",
     "ruff>=0.11.0",
 ]
@@ -48,3 +50,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "unit: local unit tests with no provider, browser, network, or repository-setting side effects",
+    "integration: local integration tests such as DB, CLI, registry, and tool-interface wiring",
+    "e2e: local fake/fixture end-to-end workflow checks only",
+    "provider_gate: tests that verify provider/quota boundaries without real provider calls",
+    "control_artifact: Codex control artifact checks; not product evidence, citation, or answer support",
+    "browser: browser-adapter tests that must stay local/fake unless an explicit gate is lifted",
+]

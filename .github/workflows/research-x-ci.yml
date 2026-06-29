@@ -1,0 +1,215 @@
+name: Research X Product CI
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-x-product-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Research X Product CI / lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run ruff
+        run: uv run ruff check src/research_x tests
+
+  tests:
+    name: Research X Product CI / pytest coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run pytest with report-only coverage
+        run: uv run pytest --cov=research_x --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-x-coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  local-fixture-e2e:
+    name: Research X Product CI / local fixture e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run local workflow contract checks
+        run: >
+          uv run pytest
+          tests/cli/test_memory_tool_json_db_restoration.py
+          tests/tool_interface/test_db_backed_tool_restoration.py
+          tests/tool_interface/test_memory_tool_contract_strictness.py
+          tests/tool_interface/test_preview_cannot_be_citation.py
+          tests/memory/test_retrieval_quality_eval.py
+
+  boundary:
+    name: Research X Product CI / adoption boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Audit adoption boundary
+        run: uv run python -m research_x adoption audit
+
+  type-check:
+    name: Research X Product CI / type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run boundary type checks
+        run: >
+          uv run python -m mypy
+          src/research_x/contracts.py
+          src/research_x/pipeline_contracts.py
+          src/research_x/session_broker.py
+          src/research_x/tool_interface/codex_bridge.py
+          --ignore-missing-imports
+          --follow-imports=silent
+
+  build:
+    name: Research X Product CI / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Build package artifacts
+        run: uv build
+
+      - name: Verify build outputs
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          dist = Path("dist")
+          wheels = list(dist.glob("research_x-*.whl"))
+          sdists = list(dist.glob("research_x-*.tar.gz"))
+          if not wheels or not sdists:
+              raise SystemExit("expected both wheel and source distribution")
+          PY
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-x-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
