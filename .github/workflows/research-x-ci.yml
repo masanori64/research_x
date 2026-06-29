@@ -46,6 +46,7 @@ jobs:
           tests
           tools/make_project_context_diff_zip.py
           tools/audit_context_pointers.py
+          tools/doc_budget_audit.py
 
   review-package-gates:
     name: Research X Product CI / review package gates

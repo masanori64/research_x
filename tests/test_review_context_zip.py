@@ -294,6 +294,113 @@ def test_review_context_zip_rejects_github_actions_status_as_evidence(
     )
 
 
+def test_review_context_zip_can_include_optional_doc_budget_audit(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["doc_budget_audit"] = project_root / "review_inputs" / (
+        "doc_budget_audit.json"
+    )
+    review_artifacts["doc_budget_audit"].write_text(
+        json.dumps(_valid_doc_budget_audit_payload(module), indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert result.verification_errors == ()
+    with zipfile.ZipFile(zip_path) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("attachment_manifest.json").decode("utf-8"))
+    assert "attachments/audits/doc_budget_audit.json" in names
+    assert (
+        manifest["optional_review_artifacts"]["doc_budget_audit"]
+        == "attachments/audits/doc_budget_audit.json"
+    )
+    doc_budget_entries = [
+        entry
+        for entry in manifest["files"]
+        if entry.get("artifact_id") == "doc_budget_audit"
+    ]
+    assert doc_budget_entries == [
+        {
+            "artifact_id": "doc_budget_audit",
+            "optional": True,
+            "required": False,
+            "role": "review_artifact",
+            "source_path": "review_inputs/doc_budget_audit.json",
+            "zip_path": "attachments/audits/doc_budget_audit.json",
+        }
+    ]
+
+
+def test_review_context_zip_rejects_doc_budget_audit_as_evidence_or_violating(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    payload = _valid_doc_budget_audit_payload(module)
+    payload["not_evidence"] = False
+    payload["not_citation"] = False
+    payload["not_answer_support"] = False
+    payload["documents"][0]["missing_required_sections"] = ["Evidence Invariant"]
+    payload["wbs"]["semantic_violation_count"] = 1
+    review_artifacts["doc_budget_audit"] = project_root / "review_inputs" / (
+        "doc_budget_audit.json"
+    )
+    review_artifacts["doc_budget_audit"].write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "doc budget audit not_evidence must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "doc budget audit not_citation must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "doc budget audit not_answer_support must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "doc budget audit PROJECT.md missing_required_sections must be empty" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "doc budget audit wbs semantic_violation_count must be 0" in error
+        for error in result.verification_errors
+    )
+
+
 def test_verify_review_zip_detects_manifest_missing_required_file(
     tmp_path: Path,
 ) -> None:
@@ -870,6 +977,39 @@ def _review_artifact_fixture(artifact_id: str) -> str:
             sort_keys=True,
         ) + "\n"
     return f"fixture log for {artifact_id}\n"
+
+
+def _valid_doc_budget_audit_payload(module) -> dict[str, object]:
+    empty_document = {
+        "path": "PROJECT.md",
+        "role": "short_project_tracker",
+        "exists": True,
+        "line_count": 80,
+        "target_lines": 100,
+        "hard_ceiling_lines": 120,
+        "over_target": False,
+        "budget_review_marker_present": False,
+        "target_review_marker_missing": False,
+        "hard_ceiling_violations": [],
+        "missing_required_sections": [],
+        "forbidden_sections_present": [],
+        "missing_required_terms": [],
+        "banned_fragments_present": [],
+        "ordered_fragment_violations": [],
+    }
+    return {
+        "artifact_kind": module.DOC_BUDGET_AUDIT_ARTIFACT_KIND,
+        "schema_version": module.DOC_BUDGET_AUDIT_SCHEMA_VERSION,
+        "not_answer_support": True,
+        "not_citation": True,
+        "not_evidence": True,
+        "documents": [empty_document],
+        "wbs": {
+            "not_evidence_violation_count": 0,
+            "answer_support_allowed_violation_count": 0,
+            "semantic_violation_count": 0,
+        },
+    }
 
 
 def _write_file(path: Path, text: str) -> None:

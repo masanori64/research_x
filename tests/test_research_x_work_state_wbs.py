@@ -7,6 +7,11 @@ from typing import Any
 import pytest
 
 from research_x.adoption_registry import adoption_candidates
+from research_x.control_artifacts.doc_budget import (
+    WBS_ACTION_CATEGORIES,
+    classify_wbs_next_action,
+    wbs_budget_report,
+)
 
 WBS_PATH = Path("tools/wbs_viewer/projects/research-x-work-state.json")
 ADOPTION_REGISTRY = Path("control/adoption_registry.toml")
@@ -224,6 +229,65 @@ def test_gated_statuses_are_explicitly_separated_from_active_work() -> None:
             word in (meta["gate"] + " " + meta["stop_condition"])
             for word in ("dependency", "fixture", "model", "runtime")
         )
+
+
+def test_wbs_leaf_next_actions_have_semantic_categories() -> None:
+    leaves = _leaf_tasks(_project()["tasks"])
+    categories = {
+        classify_wbs_next_action(leaf["_research_x"])
+        for leaf in leaves
+    }
+
+    assert categories <= set(WBS_ACTION_CATEGORIES)
+    assert {
+        "local_audit",
+        "local_test",
+        "review_package",
+        "provider_gate_review",
+        "install_gate_review",
+    } <= categories
+
+
+def test_current_wbs_semantic_budget_report_has_no_control_boundary_violations() -> None:
+    report = wbs_budget_report()
+
+    assert report["leaf_count"] == len(_leaf_tasks(_project()["tasks"]))
+    assert report["not_evidence_violation_count"] == 0
+    assert report["answer_support_allowed_violation_count"] == 0
+    assert report["semantic_violation_count"] == 0
+    assert report["max_field_lengths"]["note"] <= 240
+    assert report["max_field_lengths"]["next_action"] <= 180
+    assert report["max_field_lengths"]["stop_condition"] <= 180
+    assert report["provider_gated_count"] >= 1
+    assert report["install_gated_count"] >= 1
+
+
+def test_provider_and_install_gated_wbs_actions_remain_review_oriented() -> None:
+    leaves = _leaf_tasks(_project()["tasks"])
+
+    for leaf in leaves:
+        meta = leaf["_research_x"]
+        category = classify_wbs_next_action(meta)
+        if meta["status"] == "provider_gated":
+            boundary_text = (
+                meta["gate"] + " " + meta["stop_condition"] + " " + meta["next_action"]
+            ).lower()
+            assert category == "provider_gate_review"
+            assert "provider" in meta["gate"] or "quota" in meta["gate"]
+            assert any(
+                token in boundary_text
+                for token in (
+                    "explicit approval",
+                    "approved provider",
+                    "before any",
+                    "budget guard",
+                )
+            )
+            assert "call provider" not in boundary_text
+            assert "invoke provider" not in boundary_text
+            assert "send provider" not in boundary_text
+        if meta["status"] == "staging":
+            assert category == "install_gate_review"
 
 
 def test_media_ocr_wbs_lane_is_not_complete_or_answer_evidence() -> None:

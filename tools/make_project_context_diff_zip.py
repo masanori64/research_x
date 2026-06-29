@@ -22,6 +22,8 @@ API_BUDGET_EVENT_DELTA_SCHEMA_VERSION = 1
 API_BUDGET_EVENT_DELTA_ARTIFACT_KIND = "research_x_api_budget_event_delta"
 GITHUB_ACTIONS_STATUS_SCHEMA_VERSION = 1
 GITHUB_ACTIONS_STATUS_ARTIFACT_KIND = "research_x_github_actions_status"
+DOC_BUDGET_AUDIT_SCHEMA_VERSION = 1
+DOC_BUDGET_AUDIT_ARTIFACT_KIND = "research_x_doc_budget_audit"
 
 REQUIRED_PROJECT_CONTEXT_FILES = (
     "README.codex.md",
@@ -60,6 +62,7 @@ REQUIRED_REVIEW_ARTIFACTS = {
 }
 OPTIONAL_REVIEW_ARTIFACTS = {
     "github_actions_status": "attachments/logs/github_actions_status.json",
+    "doc_budget_audit": "attachments/audits/doc_budget_audit.json",
 }
 GENERATED_REVIEW_ARTIFACTS = frozenset({"git_provenance"})
 COMMAND_MANIFEST_REQUIRED_LOG_PATHS = tuple(
@@ -332,6 +335,82 @@ def _validate_optional_review_artifacts(payloads: dict[str, bytes]) -> tuple[str
             )
         else:
             errors.extend(_validate_github_actions_status(github_actions_raw))
+    doc_budget_raw = payloads.get("doc_budget_audit")
+    if doc_budget_raw is not None:
+        if not doc_budget_raw.strip():
+            errors.append(
+                "optional review artifact is empty: "
+                f"{OPTIONAL_REVIEW_ARTIFACTS['doc_budget_audit']}"
+            )
+        else:
+            errors.extend(_validate_doc_budget_audit(doc_budget_raw))
+    return tuple(errors)
+
+
+def _validate_doc_budget_audit(raw: bytes) -> tuple[str, ...]:
+    zip_path = OPTIONAL_REVIEW_ARTIFACTS["doc_budget_audit"]
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return (f"doc budget audit artifact is not valid JSON: {zip_path}: {exc}",)
+    if not isinstance(payload, dict):
+        return (f"doc budget audit artifact must be a JSON object: {zip_path}",)
+    errors: list[str] = []
+    if payload.get("artifact_kind") != DOC_BUDGET_AUDIT_ARTIFACT_KIND:
+        errors.append(
+            "doc budget audit artifact_kind must be "
+            f"{DOC_BUDGET_AUDIT_ARTIFACT_KIND!r}"
+        )
+    if payload.get("schema_version") != DOC_BUDGET_AUDIT_SCHEMA_VERSION:
+        errors.append(
+            "doc budget audit schema_version must be "
+            f"{DOC_BUDGET_AUDIT_SCHEMA_VERSION}"
+        )
+    for key in ("not_evidence", "not_citation", "not_answer_support"):
+        if payload.get(key) is not True:
+            errors.append(f"doc budget audit {key} must be true")
+    documents = payload.get("documents")
+    if not isinstance(documents, list):
+        errors.append("doc budget audit documents must be a list")
+    else:
+        errors.extend(_validate_doc_budget_documents(documents))
+    wbs = payload.get("wbs")
+    if not isinstance(wbs, dict):
+        errors.append("doc budget audit wbs must be an object")
+    else:
+        for key in (
+            "not_evidence_violation_count",
+            "answer_support_allowed_violation_count",
+            "semantic_violation_count",
+        ):
+            if wbs.get(key) != 0:
+                errors.append(f"doc budget audit wbs {key} must be 0")
+    return tuple(errors)
+
+
+def _validate_doc_budget_documents(documents: list[Any]) -> tuple[str, ...]:
+    errors: list[str] = []
+    for index, document in enumerate(documents):
+        if not isinstance(document, dict):
+            errors.append(f"doc budget audit documents[{index}] must be an object")
+            continue
+        path = document.get("path", f"<document {index}>")
+        if document.get("target_review_marker_missing") is True:
+            errors.append(f"doc budget audit {path} target review marker is missing")
+        for key in (
+            "hard_ceiling_violations",
+            "missing_required_sections",
+            "forbidden_sections_present",
+            "missing_required_terms",
+            "banned_fragments_present",
+            "ordered_fragment_violations",
+        ):
+            value = document.get(key)
+            if not isinstance(value, list):
+                errors.append(f"doc budget audit {path} {key} must be a list")
+                continue
+            if value:
+                errors.append(f"doc budget audit {path} {key} must be empty")
     return tuple(errors)
 
 
@@ -1159,6 +1238,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adoption-audit", type=Path)
     parser.add_argument("--pointer-map-audit", type=Path)
     parser.add_argument("--github-actions-status", type=Path)
+    parser.add_argument("--doc-budget-audit", type=Path)
     parser.add_argument("--verify-manifest", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -1174,6 +1254,7 @@ def main(argv: list[str] | None = None) -> int:
         "adoption_audit": args.adoption_audit,
         "pointer_map_audit": args.pointer_map_audit,
         "github_actions_status": args.github_actions_status,
+        "doc_budget_audit": args.doc_budget_audit,
     }
     result = build_review_context_zip(
         args.project_root,

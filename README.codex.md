@@ -150,7 +150,7 @@ target, not the audit owner.
 uv run pytest -m fast -q
 uv run pytest -m "contract or provider_gate or retrieval_eval or local_fixture or review_package or wbs_control" -q
 uv run pytest tests -q
-uv run ruff check src\research_x tests tools\make_project_context_diff_zip.py tools\audit_context_pointers.py
+uv run ruff check src\research_x tests tools\make_project_context_diff_zip.py tools\audit_context_pointers.py tools\doc_budget_audit.py
 ```
 
 GitHub workflow ownership:

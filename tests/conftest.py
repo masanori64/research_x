@@ -124,6 +124,11 @@ PATH_MARKERS: dict[str, tuple[str, ...]] = {
     "tests/test_db_view.py": ("integration",),
     "tests/test_dependency_security_contract.py": ("contract", "static_guard"),
     "tests/test_diagram_review_boundary.py": ("contract", "control_artifact"),
+    "tests/test_doc_budget_audit.py": (
+        "contract",
+        "control_artifact",
+        "review_package",
+    ),
     "tests/test_github_pipeline_contract.py": ("contract", "control_artifact"),
     "tests/test_label_existing.py": ("integration",),
     "tests/test_local_app.py": ("integration",),
