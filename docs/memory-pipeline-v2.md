@@ -156,10 +156,10 @@ permission to call providers.
 
 Work state belongs in `tools/wbs_viewer/projects/research-x-work-state.json`.
 WBS owns only current Source, Evidence, Retrieval-Eval, and Tool Interface layer
-work state plus viewer-only calendar settings such as `holidays`: status, gates,
-owner surfaces, artifact pointers, stop conditions, and next actions. It must not
-hold historical 35-item lists, source-review prose, candidate inventories, or
-Codex foundation tasks. Historical mixed WBS state is
+work state: status, gates, owner surfaces, artifact pointers, stop conditions,
+and next actions. It must not hold historical 35-item lists, source-review prose,
+candidate inventories, Codex foundation tasks, or viewer implementation details.
+Historical mixed WBS state is
 archived outside the repo at
 `C:/Users/maasa/.codex/foundation/work_state/research-x-pre-layer-wbs-archive-20260625.json`;
 Codex foundation work state lives at

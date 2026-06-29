@@ -123,15 +123,15 @@ provider-backed commands gated.
   `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
-Use research_x WBS only for current 4-layer runtime work state and viewer-only
-calendar display settings such as `holidays`. Keep historical 35-item consultation
-lists, candidate inventories, source-review prose, and Codex foundation tasks out
-of it. Use adoption/source-lock files for candidate decisions, the Codex foundation
-work-state archive for externalized Skill lifecycle/self-improvement/route-memory
-leaves, Route Memory for recurring operation-route success/failure selection, and
-Pointer Map for path/hash/size restore hints. D2 + Marp remains the
-presentation/deck boundary. Keep Markdown for durable reasons, invariants, stop
-conditions, and pointers.
+Use research_x WBS only for current 4-layer runtime work state; viewer-only
+display settings stay there as display config, not evidence. Keep historical
+35-item consultation lists, candidate inventories, source-review prose, and Codex
+foundation tasks out of it. Use adoption/source-lock files for candidate
+decisions, the Codex foundation work-state archive for externalized Skill
+lifecycle/self-improvement/route-memory leaves, Route Memory for recurring
+operation-route success/failure selection, and Pointer Map for path/hash/size
+restore hints. D2 + Marp remains the presentation/deck boundary. Keep Markdown for
+durable reasons, invariants, stop conditions, and pointers.
 
 ## Repo Skills
 

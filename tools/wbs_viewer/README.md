@@ -38,12 +38,21 @@ the update target unless a task explicitly says so.
 
 ## Boundary
 
-WBS owns operational state:
+Role split:
+
+- `vendor/single-file-wbs-v1.3.0/` is the unchanged upstream viewer copy.
+- `projects/research-x-work-state.json` is the project-owned work-state file.
+- `UPSTREAM.md` and `control/vendor_sources.lock.md` own provenance, pinning,
+  and adoption gates.
+- `docs/memory-pipeline-v2.md` owns the evidence boundary only; it should not
+  accumulate viewer behavior.
+
+The project-owned WBS file owns operational state:
 
 - candidate and phase queues;
 - planned/actual dates;
 - gate, decision band, status, next action, and artifact pointers;
-- completed, blocked, closed, archived, or active work.
+- completed, blocked, closed, archived, or active work;
 - viewer-only calendar display configuration such as top-level `holidays`.
 
 WBS must not carry long rationale, source review prose, context chunks, citations,
