@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "camoufox>=0.4.11",
-    "crawl4ai>=0.8.6",
+    "numpy>=2.0.0",
+    "pillow>=11.0.0",
     "gallery-dl>=1.30.8",
+    "lxml>=6.1.0",
     "patchright>=1.59.1",
     "playwright>=1.60.0",
     "rebrowser-playwright>=1.52.0",
@@ -18,8 +20,15 @@ dependencies = [
     "twscrape>=0.17.0",
 ]
 
+[project.optional-dependencies]
+local-vector = [
+    "turbovec>=0.7.0",
+]
+
 [dependency-groups]
 dev = [
+    "mypy>=1.10.0",
+    "pytest-cov>=5.0.0",
     "pytest>=8.3.0",
     "ruff>=0.11.0",
 ]
@@ -41,3 +50,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "unit: local unit tests with no provider, browser, network, or repository-setting side effects",
+    "integration: local integration tests such as DB, CLI, registry, and tool-interface wiring",
+    "e2e: local fake/fixture end-to-end workflow checks only",
+    "provider_gate: tests that verify provider/quota boundaries without real provider calls",
+    "control_artifact: Codex control artifact checks; not product evidence, citation, or answer support",
+    "browser: browser-adapter tests that must stay local/fake unless an explicit gate is lifted",
+]

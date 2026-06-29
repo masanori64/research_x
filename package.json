@@ -1,0 +1,14 @@
+{
+  "name": "research-x-presentation-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "presentation:preflight": "node scripts/presentation/preflight.mjs",
+    "presentation:render-d2": "node scripts/presentation/render-d2.mjs",
+    "presentation:build": "node scripts/presentation/build.mjs"
+  },
+  "devDependencies": {
+    "@marp-team/marp-cli": "4.4.0",
+    "@terrastruct/d2": "0.1.33"
+  }
+}

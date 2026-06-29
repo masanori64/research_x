@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, is_dataclass, replace
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from research_x.adapters import build_adapter
@@ -35,7 +37,6 @@ DEFAULT_CHAINS: dict[TargetKind, tuple[str, ...]] = {
         "masa_twitter_scraper",
         "playwright",
         "scrapling",
-        "crawl4ai",
         "camoufox",
         "patchright",
         "rebrowser_playwright",
@@ -49,7 +50,6 @@ DEFAULT_CHAINS: dict[TargetKind, tuple[str, ...]] = {
         "masa_twitter_scraper",
         "playwright",
         "scrapling",
-        "crawl4ai",
         "camoufox",
         "patchright",
         "rebrowser_playwright",
@@ -62,7 +62,6 @@ DEFAULT_CHAINS: dict[TargetKind, tuple[str, ...]] = {
         "masa_twitter_scraper",
         "playwright",
         "scrapling",
-        "crawl4ai",
         "camoufox",
         "patchright",
         "rebrowser_playwright",
@@ -77,7 +76,6 @@ DEFAULT_CHAINS: dict[TargetKind, tuple[str, ...]] = {
         "playwright_network_bookmarks",
         "playwright",
         "scrapling",
-        "crawl4ai",
         "camoufox",
         "patchright",
         "rebrowser_playwright",
@@ -118,9 +116,16 @@ def run_pipeline(
         for adapter in enabled_configs
     }
 
-    results: list[PipelineTargetResult] = []
     attempt_index = 0
-    for target in config.targets:
+    evidence_lock = Lock()
+
+    def write_evidence(outcome: FetchOutcome) -> Path:
+        nonlocal attempt_index
+        with evidence_lock:
+            attempt_index += 1
+            return evidence.write_attempt(attempt_index, outcome)
+
+    def run_target(target: AcquisitionTarget) -> PipelineTargetResult:
         chain = provider_chain_for(target.kind, configured_ids)
         merged: dict[str, XItem] = {}
         attempts: list[ProviderAttempt] = []
@@ -130,8 +135,7 @@ def run_pipeline(
             adapter_config = config_by_id.get(provider_id, AdapterConfig(provider_id))
             adapter = build_adapter(adapter_config)
             outcome = _safe_fetch(adapter, target)
-            attempt_index += 1
-            evidence_path = evidence.write_attempt(attempt_index, outcome)
+            evidence_path = write_evidence(outcome)
             attempt = ProviderAttempt(
                 provider_id=provider_id,
                 target=target,
@@ -156,28 +160,40 @@ def run_pipeline(
                 break
 
         items = tuple(list(merged.values())[: max(1, target.limit)])
-        if len(items) >= max(1, target.limit) or (ok_with_any_items and items):
+        provider_exhausted = any(_outcome_exhausted(attempt.outcome) for attempt in attempts)
+        if (
+            len(items) >= max(1, target.limit)
+            or (provider_exhausted and items)
+            or (ok_with_any_items and items)
+        ):
             status = PipelineStatus.OK
         elif items:
             status = PipelineStatus.PARTIAL
         else:
             status = PipelineStatus.FAILED
-        results.append(
-            PipelineTargetResult(
-                target=target,
-                status=status,
-                items=items,
-                attempts=tuple(attempts),
-                providers_used=tuple(successful_providers),
-                metadata={
-                    "chain": chain,
-                    "session": _session_metadata(artifacts),
-                    "min_successful_providers": min_successful_providers,
-                    "stop_after_first_success": stop_after_first_success,
-                    "ok_with_any_items": ok_with_any_items,
-                },
-            )
+        return PipelineTargetResult(
+            target=target,
+            status=status,
+            items=items,
+            attempts=tuple(attempts),
+            providers_used=tuple(successful_providers),
+            metadata={
+                "chain": chain,
+                "session": _session_metadata(artifacts),
+                "min_successful_providers": min_successful_providers,
+                "stop_after_first_success": stop_after_first_success,
+                "ok_with_any_items": ok_with_any_items,
+                "provider_exhausted": provider_exhausted,
+                "max_concurrency": max(1, config.max_concurrency),
+            },
         )
+
+    if len(config.targets) > 1 and config.max_concurrency > 1:
+        max_workers = min(len(config.targets), max(1, config.max_concurrency))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(executor.map(run_target, config.targets))
+    else:
+        results = [run_target(target) for target in config.targets]
 
     _write_pipeline_events(output_path / "pipeline_events.jsonl", results)
     _write_pipeline_items(output_path / "items.jsonl", results)
@@ -220,6 +236,17 @@ def classify_outcome(outcome: FetchOutcome) -> ProviderFailureKind:
     if "selector" in text or "locator" in text or "article" in text:
         return ProviderFailureKind.DOM_DRIFT
     return ProviderFailureKind.ERROR
+
+
+def _outcome_exhausted(outcome: FetchOutcome) -> bool:
+    if outcome.status != OutcomeStatus.OK:
+        return False
+    metadata = outcome.metadata or {}
+    return bool(
+        metadata.get("cursor_exhausted")
+        or metadata.get("timeline_exhausted")
+        or metadata.get("finished")
+    )
 
 
 def _safe_fetch(adapter, target: AcquisitionTarget) -> FetchOutcome:

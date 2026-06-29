@@ -1,0 +1,107 @@
+# artifact_kind=github_workflow_wrapper
+# control_artifact=true
+# not_project_evidence=true
+# not_research_evidence=true
+# not_citation=true
+# not_answer_support=true
+# generated_by=codex-hotl-implementation-pipeline
+# source_template=templates/github-workflows/codex-preview.template.yml
+# foundation_manifest_sha256=fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143
+name: Codex Preview Artifact
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-preview-artifact-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-preview-artifact:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build preview manifest
+        shell: bash
+        run: |
+          test -f docs/control/codex/dashboard/index.html
+          test -f docs/control/codex/dashboard/data/dashboard-state.json
+          test -f docs/control/codex/dashboard/data/preview-manifest.json
+          test -f docs/control/codex/dashboard/data/production-manifest.json
+          test -f docs/control/codex/dashboard/data/staging-manifest.json
+          test -f docs/control/codex/dashboard/data/subagent-policy.json
+          test -f docs/control/codex/dashboard/data/subagent-runtime-dry-run.json
+          test -f docs/control/codex/dashboard/data/control-artifact-audit.json
+          test -f docs/control/codex/dashboard/data/github-read-state.json
+          test -f docs/control/codex/dashboard/data/cost-guard.json
+          test -f docs/control/codex/dashboard/data/workflow-artifact-audit.json
+          test -f docs/control/codex/dashboard/data/workflow-smoke.json
+          test -f docs/control/codex/dashboard/data/e2e-completion-manifest.json
+          grep -q "control artifact / not evidence / not citation" docs/control/codex/dashboard/index.html
+          mkdir -p .codex-preview
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          committed = json.loads(
+              Path("docs/control/codex/dashboard/data/preview-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          runtime = dict(committed)
+          runtime.update(
+              {
+                  "preview_executed": True,
+                  "live_url": None,
+                  "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+                  "github_ref": os.environ.get("GITHUB_REF", ""),
+                  "github_sha": os.environ.get("GITHUB_SHA", ""),
+                  "artifact_name": "codex-preview-artifact",
+                  "smoke": {
+                      "status": "passed",
+                      "checks": [
+                          {"name": "dashboard_html_exists", "status": "passed"},
+                          {"name": "dashboard_state_exists", "status": "passed"},
+                          {"name": "not_evidence_notice", "status": "passed"},
+                      ],
+                  },
+              }
+          )
+          Path(".codex-preview/preview-manifest.json").write_text(
+              json.dumps(runtime, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Write preview summary
+        shell: bash
+        run: |
+          {
+            echo "## Codex Preview Artifact"
+            echo ""
+            echo "Artifact only. No Pages, live deployment, secrets, providers, or repository settings are used."
+            echo ""
+            echo "- Artifact: codex-preview-artifact"
+            echo "- Dashboard: docs/control/codex/dashboard/index.html"
+            echo "- Manifest: .codex-preview/preview-manifest.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: codex-preview-artifact
+          path: |
+            docs/control/codex/dashboard/
+            .codex-project/generated/
+            .codex-preview/preview-manifest.json
+          if-no-files-found: error
+          retention-days: 14

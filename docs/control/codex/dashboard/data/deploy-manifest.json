@@ -1,0 +1,49 @@
+{
+  "artifact_kind": "deploy_manifest",
+  "control_artifact": true,
+  "deploy_executed": true,
+  "environment": "dashboard",
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-29T06:17:10.057278+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "health": {
+    "checks": [
+      {
+        "name": "html_generation",
+        "status": "passed"
+      },
+      {
+        "name": "state_json_generation",
+        "status": "passed"
+      },
+      {
+        "name": "not_evidence_marker",
+        "status": "passed"
+      }
+    ],
+    "status": "passed"
+  },
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "phase": "completed_by_static_pages_cd",
+  "project_id": "research_x",
+  "schema_version": 1,
+  "side_effects": {
+    "db_migration": false,
+    "destructive_action": false,
+    "github_api_calls": false,
+    "production_deploy": false,
+    "provider_api_calls": false,
+    "secrets_changed": false
+  },
+  "target_type": "local_static_artifact"
+}

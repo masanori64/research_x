@@ -1,0 +1,3 @@
+.codex/context_offloads/*.md text eol=lf
+.codex/context_offloads/*.json text eol=lf
+tools/wbs_viewer/projects/*.json text eol=lf

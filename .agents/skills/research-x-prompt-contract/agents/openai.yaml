@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Prompt Contract"
+  short_description: "Treat prompts as schema-tested artifacts with allowed tools, forbidden tools, statuses, and injection cases."
+  default_prompt: "Use this when research_x work creates or changes prompts, MNP-like contracts, allowed or forbidden tool boundaries, provider policies in prompts, schema/status behavior, or prompt regression tests."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

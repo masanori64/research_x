@@ -1,0 +1,70 @@
+{
+  "artifact_kind": "staging_manifest",
+  "control_artifact": true,
+  "dry_run": true,
+  "environment_name": "staging",
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-29T06:17:10.063025+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "health": {
+    "checks": [
+      {
+        "name": "dashboard_html_exists",
+        "status": "planned"
+      },
+      {
+        "name": "dashboard_state_exists",
+        "status": "planned"
+      },
+      {
+        "name": "preview_manifest_exists",
+        "status": "planned"
+      },
+      {
+        "name": "not_evidence_notice",
+        "status": "passed"
+      },
+      {
+        "name": "staging_url_http_200",
+        "status": "not_executed"
+      }
+    ],
+    "status": "dry_run_plan"
+  },
+  "live_url": null,
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "previous_known_good": {
+    "pointer": null,
+    "resolved": false,
+    "strategy": "latest_successful_staging_pages_snapshot"
+  },
+  "project_id": "research_x",
+  "required_gates_before_execution": [
+    "secrets_credentials",
+    "production_external_side_effect"
+  ],
+  "schema_version": 1,
+  "side_effects": {
+    "environment_created": false,
+    "github_api_calls": false,
+    "pages_enabled": false,
+    "production_deploy": false,
+    "provider_api_calls": false,
+    "repository_settings_changed": false,
+    "rollback_executed": false,
+    "secrets_used": false,
+    "staging_live_deploy": false
+  },
+  "staging_deploy_executed": false,
+  "target_type": "safe_static_plan"
+}

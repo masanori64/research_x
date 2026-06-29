@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Provider Gate"
+  short_description: "Enforce no-quota provider freeze and budget-gated provider-facing workflow checks."
+  default_prompt: "Use this before embeddings, rerank, OCR, Reader, external search, LLM context, classifiers, answer engines, managed RAG, pricing, budget guard, or real API verification."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

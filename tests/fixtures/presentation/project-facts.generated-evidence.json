@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "research_x",
+    "one_liner": "Local X memory.",
+    "purpose": "Validate presentation facts.",
+    "audience": "engineers",
+    "scope": "fixture",
+    "evidence": ["PROJECT.md"]
+  },
+  "runtime_surfaces": {
+    "python": {
+      "requires": ">=3.11",
+      "package_manager": "uv",
+      "evidence": ["pyproject.toml"]
+    },
+    "node": {
+      "purpose": "presentation",
+      "package_surface": "package.json",
+      "scripts": [
+        "presentation:preflight",
+        "presentation:render-d2",
+        "presentation:build"
+      ],
+      "dependencies": ["@marp-team/marp-cli", "@terrastruct/d2"],
+      "evidence": ["package.json"]
+    }
+  },
+  "tech_stack": [{ "name": "Python", "evidence": ["pyproject.toml"] }],
+  "entrypoints": [
+    {
+      "name": "research-x",
+      "target": "research_x.cli:main",
+      "evidence": ["pyproject.toml"]
+    }
+  ],
+  "modules": [{ "name": "memory", "evidence": ["src/research_x/memory/schema.py"] }],
+  "boundaries": [{ "name": "provider freeze", "evidence": ["PROJECT.md"] }],
+  "data_stores": [{ "name": "sqlite", "evidence": ["src/research_x/x_store.py"] }],
+  "external_dependencies": [{ "name": "D2/Marp", "evidence": ["package.json"] }],
+  "key_flows": [
+    {
+      "name": "presentation",
+      "steps": ["validate facts"],
+      "source_files": ["src/research_x/presentation/facts.py"],
+      "evidence": ["src/research_x/presentation/facts.py"]
+    }
+  ],
+  "database": {
+    "exists": true,
+    "evidence": ["src/research_x/memory/schema.py"],
+    "tables": [{ "name": "memory_documents", "evidence": ["src/research_x/memory/schema.py"] }]
+  },
+  "claims": [
+    {
+      "id": "claim-generated",
+      "claim": "Generated assets cannot support claims.",
+      "evidence": ["docs/presentation/assets/generated.svg"],
+      "slide_candidate": true
+    }
+  ],
+  "unknowns": []
+}

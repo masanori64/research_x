@@ -166,7 +166,8 @@ class _BrowserVariantRunner:
         from camoufox import AsyncCamoufox
         from camoufox.addons import DefaultAddons
 
-        _patch_playwright_pageerror_location_guard()
+        if settings.patch_playwright_core:
+            _patch_playwright_pageerror_location_guard()
         items = []
         try:
             async with AsyncCamoufox(
@@ -203,6 +204,9 @@ class _BrowserVariantSettings:
         timeout_ms: float,
         viewport: dict[str, int],
         wait_until: str,
+        max_scroll_steps: int,
+        scroll_pause_ms: int,
+        patch_playwright_core: bool,
     ) -> None:
         self.storage_state = storage_state
         self.require_storage_state = require_storage_state
@@ -210,6 +214,9 @@ class _BrowserVariantSettings:
         self.timeout_ms = timeout_ms
         self.viewport = viewport
         self.wait_until = wait_until
+        self.max_scroll_steps = max_scroll_steps
+        self.scroll_pause_ms = scroll_pause_ms
+        self.patch_playwright_core = patch_playwright_core
 
     @classmethod
     def from_config(cls, config: AdapterConfig) -> _BrowserVariantSettings:
@@ -224,6 +231,9 @@ class _BrowserVariantSettings:
             timeout_ms=float(config.options.get("timeout_ms", 45000)),
             viewport={"width": width, "height": height},
             wait_until=str(config.options.get("wait_until", "domcontentloaded")),
+            max_scroll_steps=int(config.options.get("max_scroll_steps", 3)),
+            scroll_pause_ms=int(config.options.get("scroll_pause_ms", 1500)),
+            patch_playwright_core=bool(config.options.get("patch_playwright_core", False)),
         )
 
     def context_kwargs(self) -> dict[str, Any]:

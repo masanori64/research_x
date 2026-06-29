@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WBS Viewer</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI5LjYiIGZpbGw9IiMxZTJmNjMiLz48cmVjdCB4PSI0LjIiIHk9IjQuOCIgd2lkdGg9IjcuNSIgaGVpZ2h0PSIyLjciIHJ4PSIxIiBmaWxsPSIjN2RhNGY3Ii8+PHJlY3QgeD0iNiIgeT0iOC42IiB3aWR0aD0iOS4zIiBoZWlnaHQ9IjIuNyIgcng9IjEiIGZpbGw9IiNjZGQ5ZjUiLz48cmVjdCB4PSI0LjgiIHk9IjEyLjQiIHdpZHRoPSI1LjgiIGhlaWdodD0iMi43IiByeD0iMSIgZmlsbD0iIzdkYTRmNyIvPjxwb2x5bGluZSBwb2ludHM9IjEyLjgsMy4yIDkuOCw5LjYgMTMuOCwxMS4yIDEwLjgsMTYuOCIgc3Ryb2tlPSIjZTExZDQ4IiBzdHJva2Utd2lkdGg9IjEuOCIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==">
+<style>
+  :root{
+    --day-w:22px; --row-h:30px; --header-h:48px; --tab-h:22px; --pv-pad:14px;
+    --border:#d7dbe0; --btn-border:#9aa2ad; --grid:#eceef1; --line:#c5cad3; --weekend:#fbeef1;  /* line=表の区切り（縦横共通・青帯と色相で区別できるグレー）。--grid はガント日グリッド用 */  /* btn-border=操作物の輪郭（罫線より濃く・WCAG非テキスト3:1寄り） */
+    --text:#1f2430; --muted:#6b7280; --ym-fg:#11161f;  /* 年月ラベル: 日付の数字(--text)より一段濃い=月>日の階層 */
+    --actual:#2f6fed;  /* 実績は全階層で同色（親もリーフも同じ＝何のバーか一目で分かる・#65）。階層は行背景＋左表で表現 */
+    --proj:#93acdf; --proj-line:#3a5694; --lvl0:#b9cdf2; --lvl1:#e3ebfb;
+    --done-bg:#d4dae1; --done-fg:#5f6772; --accent:#2563eb; --edit-on:#16a34a;
+    --plan-edge:#4a6a9e; --pspan:#5b78bd; --head-bg:#eef0f3;  /* plan-edge=予定の枠線（4辺・前面・塗りなし）。遅延/完了を色分けしたので枠でもプログレスバー誤認しない・#65 */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;
+       color:var(--text);background:#f7f8fa;display:flex;flex-direction:column;font-size:12px}
+  #topbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:4px 12px;
+          background:#fff;flex-wrap:wrap}
+  #topbar .title{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px;line-height:1.15;cursor:pointer}  /* クリックで簡素表示トグル(#79) */
+  #topbar .tdiv{width:1px;align-self:stretch;margin:5px 2px;background:var(--border)} /* 呼称｜操作の区切り。上下を少し空けて柔らかく */
+  #topbar .title .ver{font-size:9px;color:var(--muted);font-weight:400}
+  body.plain #brandTitle .logo,body.plain #brandTitle .brand-x,body.plain #brandTitle .ver{display:none}  /* 簡素モード=ロゴ/版/“Viewer”を隠し「WBS」だけ。現場で“自作”と言える逃げ道(#79) */
+  #topbar button{font:inherit;padding:5px 10px;border:1px solid var(--btn-border);background:#fff;border-radius:6px;cursor:pointer;
+                 align-self:center} /* 指標ブロックが高くてもボタンは伸びない。操作3ボタンの高さは下の規則で統一 */
+  #topbar button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #openBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;padding:3px 12px}
+  #openBtn,#refreshBtn,#editBtn{height:40px} /* 操作3ボタンは同一高（2行の「開く」基準）。指標ブロックの高さに引きずられない */
+  #openBtn .sub{font-size:9px;opacity:.8}
+  #openBtn.over{background:#eef4ff!important;border:1px dashed var(--accent)!important;color:var(--accent)!important} /* ドラッグ中だけ「落とせる」点線合図 */
+  #topbar #langBtn{border-color:transparent;background:transparent;color:var(--muted)} /* 表示設定＝データ操作より弱く・右端 */
+  #topbar #langBtn:hover{border-color:var(--btn-border);background:#fff}
+  #stat{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;color:var(--muted);line-height:1.18}
+  #stat b{color:var(--text)}
+  #stat .mrows{display:inline-block;text-align:left;font-variant-numeric:tabular-nums}
+  #stat .mrow{font-size:12px;color:var(--text);cursor:help}
+  #stat .mrow .mk{color:var(--muted)} #stat .mrow .mv{display:inline-block;min-width:74px}
+  #stat .mrow .mev{color:var(--actual)} #stat .mrow .mdl{color:#e11d48;font-weight:700}
+  #stat .mrow .msub{color:var(--muted);font-size:11px}
+  #stat .mdrow .mv2{display:inline-block}  /* 遅延行：バッジ群は値列(.mv)と同じ開始位置に揃う（.mkが全行同幅） */
+  #stat .mdrow .dbadge{margin-right:6px;padding:1px 7px;border-radius:8px;background:#fdecea;color:#c01a2b;font-size:11px;font-weight:600;white-space:nowrap} /* 遅延件数バッジ（期限/進捗）。11pxの方が視認性が良い・件数0種別は非表示 */
+  #stat .mstat{font-size:11px;color:var(--muted);margin-top:1px;align-self:stretch;text-align:right;white-space:nowrap}
+  #stat .mstat span{cursor:help}
+  #main{flex:1 1 auto;display:flex;min-height:0;background:#fff}
+  #left{flex:0 0 auto;overflow-y:auto;overflow-x:hidden}   /* 左右の縦区切りはヘッダ＋行に引く（白帯=.htab-sp には引かない＝タブの上に線が突き出さない） */
+  #left::-webkit-scrollbar{display:none} #left{scrollbar-width:none}
+  #right{flex:1 1 auto;overflow:auto;position:relative}
+  #right.pview{overflow-x:hidden}   /* 進捗ビュー＝0-100%を幅に収めて全表示（横スクロール無し・左の折りたたみで幅が変われば追従） */
+  .head{height:var(--header-h);position:sticky;top:0;z-index:4;background:var(--head-bg);border-bottom:2px solid var(--border)}
+  #leftHead{display:flex}
+  #leftHead .h{padding:4px 5px;border-right:1px solid var(--border);font-weight:600;
+               display:flex;align-items:center;justify-content:center;height:var(--header-h);white-space:nowrap}
+  #leftHead .hg{height:var(--header-h);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  #leftHead .hgt{height:50%;display:flex;align-items:center;justify-content:center;font-weight:600;
+                 border-bottom:1px solid var(--border)}
+  #leftHead .hgb{height:50%;display:flex}
+  #leftHead .hsub{display:flex;align-items:center;justify-content:center;font-weight:600;
+                  white-space:nowrap;border-right:1px solid var(--border)}
+  #leftHead .hsub:last-child{border-right:none}
+  #leftHead .h.h2l{flex-direction:column;justify-content:flex-start;line-height:1.25;
+                   padding-top:calc(var(--header-h)/2 - .625em)} /* 1行目の中心=他の単行列名と同じ中央線（.625em=行高1.25の半分） */
+  #leftHead .h .unit{font-size:9px;color:var(--muted);margin-left:1px}
+  .lrow{display:flex;height:var(--row-h);border-bottom:1px solid var(--line)}
+  .lrow .c{padding:0 5px;border-right:1px solid var(--line);display:flex;align-items:center;
+           overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .lrow .c.r{justify-content:flex-end;font-variant-numeric:tabular-nums}
+  .lrow .c.num{justify-content:flex-end;color:var(--muted)}
+  .lrow .c.note{color:var(--muted)}
+  .lrow .c.note a{color:var(--accent)}
+  .lrow .c.prog{justify-content:center}
+  .lrow .c.stat{justify-content:flex-end}
+  .stp{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}   /* 進捗 ◀ N% ▶ ステッパー */
+  .stp .v{min-width:34px;text-align:right;font-size:12px}
+  .stp.auto .v{color:var(--muted)}                                              /* 親=自動集計（読み取り・連続値） */
+  .stp button{width:18px;height:18px;line-height:1;border:1px solid var(--btn-border);background:#f3f6fb;border-radius:4px;font-size:11px;color:#3a5694;padding:0;cursor:pointer}
+  .stp button:hover{background:#e6eefb}
+  .s-d{color:#e11d48;font-weight:700}.s-a{color:var(--actual)}.s-p{color:var(--text)}.s-x{color:var(--text)}  /* 状況: 遅=赤/実=青/予=黒(区切りも黒) */
+  .c.overdue{color:#e11d48;font-weight:600}                                     /* 予定終了の締切超過=赤 */
+  .prow{background:var(--proj);font-weight:700;border-top:3px solid var(--proj-line);border-bottom:2px solid var(--proj-line)}
+  .lvl0{background:var(--lvl0)} .lvl1{background:var(--lvl1)} .lvl2{background:#fff}
+  .lrow.lvl0{font-weight:700} .lrow.lvl1{font-weight:600}
+  .lrow.done{background:var(--done-bg);color:var(--done-fg)}
+  .lrow.done .nm{text-decoration:line-through}
+  .caret{display:inline-block;width:15px;color:#3b4654;user-select:none;text-align:center}
+  .caret-sp{display:inline-block;width:15px}
+  /* 編集モード */
+  #editBtn.on{background:var(--edit-on);color:#fff;border-color:var(--edit-on)}
+  #leftRows input{font:inherit;width:100%;min-width:0;box-sizing:border-box;border:1px solid #c3c9d2;
+                  border-radius:4px;padding:1px 3px;background:#fff;color:var(--text)}
+  #leftRows .c.r input{text-align:right}
+  .nm-wrap{display:flex;align-items:center;gap:2px;width:100%;min-width:0;align-self:stretch}
+  .nm-wrap .clk.caret{align-self:stretch;display:flex;align-items:center;justify-content:center;width:20px}  /* 編集時の折りたたみは caret のみ＝行高いっぱいにヒット領域を拡大 */
+  #leftRows input.nm-in{flex:1 1 auto;width:auto}  /* #leftRows input{width:100%} のID詳細度に勝つためセレクタで上書き（!important回避） */
+  .done-mark{color:var(--done-fg);flex:0 0 auto}
+  .donechk{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;flex:0 0 auto;  /* 完了トグル：既存の✓トーン(done-fg)を踏襲 */
+           margin-right:3px;padding:0;border:1px solid var(--btn-border);border-radius:3px;background:#fff;
+           cursor:pointer;font-size:11px;line-height:1;color:var(--done-fg)}
+  .donechk.on{border-color:var(--done-fg)}
+  .donechk:hover{border-color:var(--accent)}
+  .acts,.movegrp{display:inline-flex;gap:2px;flex:0 0 auto}
+  .movegrp{margin-right:3px}   /* 移動⬆⬇はチェックの前・横並び独立（穂先が大きく視認しやすい・＋✕と同サイズ） */
+  .acts button,.movegrp button{font:inherit;font-size:12px;line-height:1.3;padding:2px 6px;border:1px solid var(--btn-border);
+               background:#fff;border-radius:3px;cursor:pointer;color:#445;display:inline-flex;align-items:center;justify-content:center}
+  .movegrp button,.acts button[data-act="add"],.acts button[data-act="addchild"],.acts button[data-act="del"]{padding:2px 3px}  /* アイコンボタンは横を詰めて名前入力に幅を返す（＋タスクのテキストは据え置き）・#49 */
+  .ic{width:13px;height:13px;flex:0 0 auto}                 /* インラインSVGアイコン（currentColor）・#49 */
+  .acts .ic,.movegrp .ic{width:12px;height:12px}            /* 行内アイコンは少し小さく */
+  #stat .mstat .ic{width:12px;height:12px;vertical-align:-2px;margin-right:1px}  /* メタ行は文字に揃える */
+  .acts button:hover,.movegrp button:hover{background:#eef2ff;border-color:#9db4f0}
+  .acts button[data-act="del"]{margin-left:5px}   /* 破壊的操作の✕は少し離して誤クリック防止 */
+  .date-wrap{display:flex;align-items:center;gap:2px;width:100%;min-width:0}
+  #leftRows .date-wrap input[type="text"]{flex:1 1 auto;width:auto}  /* #leftRows input{width:100%} に勝つ詳細度（.nm-in と同じ理由） */
+  .cal-proxy{position:absolute;width:0;height:0;opacity:0;border:0;padding:0;margin:0;pointer-events:none}
+  .cal-btn{flex:0 0 auto;font-size:11px;line-height:1.2;padding:2px 3px;border:1px solid var(--btn-border);
+           background:#fff;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#445}
+  .clk{cursor:pointer}
+  #leftHead .h[title]{cursor:help}   /* 押せない説明ツールチップは ?（押せるボタンは pointer のまま）・#46 */
+  .msrow{height:var(--row-h);background:#fbfcfe}                              /* 編集モードのマイルストーン編集行 */
+  .ms-edit{display:flex;align-items:center;gap:3px;width:100%;padding:0 6px;min-width:0}
+  .ms-edit .ms-tag{color:#8a5a78;font-size:11px;font-weight:600;flex:0 0 auto;white-space:nowrap}  /* 行の種別＝マイルストーン */
+  .ms-edit .date-wrap{flex:0 0 auto;width:92px}
+  #leftRows input.ms-label{flex:0 0 auto;width:200px}                        /* #leftRows input{width:100%} のID詳細度に勝つ（nm-inと同じ理由）＝右の色/✕を画面外に押し出さない */
+  .ms-edit input{font:inherit;font-size:12px;border:1px solid var(--btn-border);border-radius:3px;padding:2px 4px;min-width:0;color:#445}
+  .ms-edit .ms-sws{display:inline-flex;gap:4px;align-items:center;flex:0 0 auto}  /* 色は5プリセットから選択（CUD安全） */
+  .ms-sw{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.25);cursor:pointer;padding:0;flex:0 0 auto}
+  .ms-sw.on{outline:2px solid #333;outline-offset:1px}
+  .ms-edit button[data-act="delms"]{flex:0 0 auto;border:1px solid var(--btn-border);background:#fff;border-radius:3px;cursor:pointer;color:#445;display:inline-flex;align-items:center;justify-content:center;padding:2px 3px}
+  #rightHead{position:sticky;top:0;z-index:4;background:var(--head-bg);border-bottom:2px solid var(--border)}
+  #ym{display:flex;height:18px;border-bottom:1px solid var(--border)}
+  #ym .seg{border-right:1px solid #c8ccd2;font-size:11px;white-space:nowrap;
+           display:flex;align-items:center;justify-content:center;background:#e9ebef;overflow:hidden;color:var(--ym-fg)}
+  #dates{display:flex;height:30px}
+  #dates .d{width:var(--day-w);border-right:1px solid var(--grid);text-align:center;line-height:1.05;padding-top:3px;font-size:10px}
+  #dates .d.sat,#dates .d.sun,#dates .d.hol{background:var(--weekend)}   /* 土日/祝日のヘッダ＝列(.we)と同じ薄ピンク＝列まるごと統一 */
+  #dates .d .dow{font-size:9px;color:var(--muted)}
+  #dates .d.sat .dow{color:var(--accent)}#dates .d.sun .dow{color:#dc2626}
+  #dates .d.hol{color:#dc2626}#dates .d.hol .dow{color:#dc2626}   /* 祝日=赤字（日付/曜日）。土=青字・日=赤字の慣習は維持 */
+  #dates .d.hl{background:#dbe7ff;font-weight:700}
+  #colHl{position:absolute;top:0;bottom:0;width:var(--day-w);pointer-events:none;display:none;z-index:3;
+         background:rgba(37,99,235,.08);border-left:1px solid rgba(37,99,235,.35);border-right:1px solid rgba(37,99,235,.35)}
+  #rowHl{position:absolute;left:0;right:0;height:var(--row-h);pointer-events:none;display:none;z-index:3;
+         background:rgba(37,99,235,.06);border-top:1px solid rgba(37,99,235,.30);border-bottom:1px solid rgba(37,99,235,.30)}
+  #leftRows .lrow.hl{box-shadow:inset 0 0 0 999px rgba(37,99,235,.06)}  /* 十字の横：対象行を薄く塗る（inset影で階層色の上に重ねる・ガント帯と同トーン） */
+  #leftRows{position:relative;border-right:2px solid var(--border)}
+  #leftColHl{position:absolute;top:0;bottom:0;pointer-events:none;display:none;z-index:3;  /* 十字の縦（左表側）：マウスがいるデータ列を薄く塗る */
+             background:rgba(37,99,235,.06);border-left:1px solid rgba(37,99,235,.30);border-right:1px solid rgba(37,99,235,.30)}
+  #rightBody{position:relative}
+  /* タブは白帯の中に置き、グレーのヘッダ（年月/罫線）の上に突き出す。左には同高の白スペーサで行を揃える＝灰色の広がりを出さない */
+  .htab-sp{height:var(--tab-h);position:sticky;top:0;z-index:5;background:#fff}  /* 列折りたたみ +/− の薄い1段（列ヘッダの真上・+/−は絶対配置） */
+  .htab-sp .ctglb{position:absolute;bottom:1px;transform:translateX(-50%);width:15px;height:15px;padding:0;line-height:12px;font-size:13px;font-weight:700;color:#666;background:#fff;border:1px solid #c3ccda;border-radius:3px;cursor:pointer}
+  .htab-sp .ctglb:hover{background:#eef2ff;border-color:#9db4f0;color:#2563eb}
+  #rtabs{position:sticky;top:0;left:0;z-index:6;height:var(--tab-h);display:flex;align-items:flex-end;gap:3px;padding-left:8px;background:#fff}
+  .rtab{padding:2px 16px 3px;font-size:12px;color:#8b94a3;background:#eceef2;border:1px solid #d4dae3;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;line-height:1.3} /* 非選択=灰で沈める */
+  .rtab.on{background:#fdf2cc;color:var(--text);font-weight:600;border-color:#ead9a0;box-shadow:inset 0 2px 0 #e0a82e} /* 選択=淡クリーム+アンバー上線（データの青/赤/灰と被らないUI専用色） */
+  #leftHead{top:var(--tab-h);border-right:2px solid var(--border)}
+  #rightHead{top:var(--tab-h)}
+  #rightHead.phead{height:var(--header-h)}
+  #pctaxis{position:relative;height:100%}
+  #pctaxis .pcta-in,#progbody .prw-bars{position:absolute;left:var(--pv-pad);right:var(--pv-pad);top:0;bottom:0}  /* 0/100%の両脇に余白（軸ラベル・バーを内側にインセット） */
+  #pctaxis .ptk{position:absolute;bottom:5px;font-size:11px;color:var(--ym-fg);transform:translateX(-50%)}   /* 文字サイズ・濃さを時間ビューの年月と同じに */
+  #pctaxis .ptk.e0{transform:none}                                              /* 0%は左端寄せ（見切れ防止） */
+  #pctaxis .ptk.e100{transform:translateX(-100%)}                               /* 100%は右端寄せ */
+  /* 進捗ビュー：青=実績(EV)／赤=予定への不足分(slip)。行背景は左と同じ（完了=灰色・階層色）。黒点線=目盛り */
+  #progbody{position:relative}
+  #pgrid{position:absolute;inset:0 var(--pv-pad);pointer-events:none;z-index:3}  /* 目盛りはバーの上（ルーラー）。両脇は余白に合わせてインセット */
+  #pgrid .pgl{position:absolute;top:0;bottom:0;width:0;border-left:1px dotted #555}  /* 黒点線の目盛り（25/50/75/100%） */
+  .prw{height:var(--row-h);position:relative;border-bottom:1px solid var(--grid)}
+  .prw.prow{background:var(--proj)} .prw.lvl0{background:var(--lvl0)} .prw.lvl1{background:var(--lvl1)}
+  .prw.done{background:var(--done-bg)}                                           /* 完了=灰色（左の行と同じ・後勝ちで階層色に優先） */
+  .ptrack{position:absolute;left:0;width:100%;top:8px;height:14px;background:#eef1f7;border:1px solid #cdd8ea;z-index:0} /* 0-100%の青グレー下地（無地）。直角＝角丸の時間ビューと形でも区別 */
+  .ptick{position:absolute;left:0;width:100%;top:8px;height:8px;z-index:2;pointer-events:none;
+         background:repeating-linear-gradient(to right,transparent 0,transparent calc(10% - 1px),#555 calc(10% - 1px),#555 10%,transparent 10%,transparent 20%)} /* 細目盛り＝主目盛り(20%点線)の中間 10/30/50/70/90% だけ（20%位置は点線と重ねない）。上端から6割の短い線・同色#555・バー前面 */
+  .prw.thin .ptick{top:11px;height:5px}
+  .prw.thin .ptrack{top:11px;height:8px}
+  .pbar{position:absolute;top:8px;height:14px;z-index:1}                         /* 子=太く（時間ビューの実績バーと同寸） */
+  .pbar.act{left:0;background:var(--actual)}                                     /* 直角（進捗ビューは角丸にしない） */
+  .pbar.short{background:#e11d48}
+  .prw.done .pbar.act{background:#8c98a6}                                        /* 完了=グレー（ガント実績バーと統一） */
+  .prw.thin .pbar{top:11px;height:8px}                                           /* 親=集計=細く（時間ビューの親サマリーバーと同寸） */
+  #ganttBg{position:absolute;top:0;left:0;z-index:0}   /* 月の区切り線(.mline)用。土日/祝日の列塗りは行背景に隠れるためオーバーレイ(#overlay rect)で全高に出す */
+  #ganttBg .mline{position:absolute;top:0;bottom:0;width:1px;background:#dfe2e6}
+  #grows{position:relative;z-index:1}
+  .grow{height:var(--row-h);border-bottom:1px solid var(--line);position:relative}
+  .grow.prow{background:var(--proj);border-top:3px solid var(--proj-line);border-bottom:2px solid var(--proj-line)}
+  .grow.lvl0{background:var(--lvl0)} .grow.lvl1{background:var(--lvl1)}
+  .grow.done{background:var(--done-bg)}
+  .bar{position:absolute;border-radius:3px}
+  /* 予定=薄い背景帯(ゾーン)／実績=塗りバー(前面)。枠＋塗り＝プログレスバー誤認を避ける(#65)。終了遅延=超過分を赤・着手遅れ=空きを薄赤 */
+  .bar.plan{top:5px;height:20px;background:transparent;border:2px solid var(--plan-edge);border-radius:4px;z-index:2}  /* 予定=塗りなしの枠（前面・4辺）。実績/遅延が枠を超える/空くで予実差が見える。色分け済みなのでプログレスバー誤認しない・#65 */
+  .bar.actual{top:8px;height:14px;background:var(--actual);z-index:1}
+  .bar.actual.cut{border-radius:3px 0 0 3px}                                 /* 超過がある時は右角を直角に（赤と連続させる） */
+  .bar.over{top:8px;height:14px;background:#e11d48;border-radius:0 3px 3px 0;z-index:1}                   /* 終了遅延=予定終了の超過分（枠の右を超える分・赤+N）。着手遅れは枠の左が空くことで表現＝専用バー不要 */
+  .delay{position:absolute;top:-4px;font-size:10px;font-weight:700;color:#e11d48;white-space:nowrap;z-index:4;line-height:16px}  /* バーの上に出す＝本日付近を走るイナズマ線と被らない。枠(z2)より前面 */
+  .grow.done .bar.actual{background:#8c98a6}  /* 完了=グレーのバー（青=進行中／グレー=完了 を一目で。状態の区別・色覚に依らない輝度差） */
+  .grow.done .bar.over{background:#b07480} .grow.done .delay{color:#b07480}  /* 完了済みの終了遅延=くすんだ赤（確定・過去）。進行中の鮮赤=まだ増える緊急、と区別 */
+  /* 親(集約)=細いサマリーバー（予定枠も実績も遅延も薄く）＝形で葉と区別・色は増やさない・CUD安全・全情報も保持 */
+  .grow.parent .bar.plan{top:9px;height:12px;border-width:1.5px} .grow.parent .bar.actual,.grow.parent .bar.over{top:11px;height:8px}  /* 細いサマリーだが実績の充填比率は子と同じ（枠12に対し上下2px余白＝子の20:14と同比率）。中心15 */
+  .pspan{position:absolute;top:12px;height:6px;border-radius:3px;background:var(--pspan)}
+  #overlay{position:absolute;top:0;left:0;z-index:2;pointer-events:none}
+  #empty{padding:40px;color:var(--muted);text-align:center;width:100%}
+  #notice{display:none;padding:6px 12px;background:#fff7d6;border-bottom:1px solid #e3d9a8;color:#6b5d1f;font-size:12px}
+  #notice.show{display:block}
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <span class="title" id="brandTitle"><svg class="logo" width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.6" fill="#1e2f63"/><rect x="4.2" y="4.8" width="7.5" height="2.7" rx="1" fill="#7da4f7"/><rect x="6" y="8.6" width="9.3" height="2.7" rx="1" fill="#cdd9f5"/><rect x="4.8" y="12.4" width="5.8" height="2.7" rx="1" fill="#7da4f7"/><polyline points="12.8,3.2 9.8,9.6 13.8,11.2 10.8,16.8" stroke="#e11d48" stroke-width="1.8" fill="none"/></svg><span style="display:flex;flex-direction:column"><span class="brand">WBS<span class="brand-x"> Viewer</span></span><span class="ver">v1.3.0</span></span></span>
+    <span class="tdiv"></span>
+    <button id="openBtn" class="primary">ファイルを開く<span class="sub">（ドラッグ&amp;ドロップ）</span></button>
+    <button id="refreshBtn">更新</button>
+    <button id="editBtn" title="インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します">編集</button>
+    <input id="fallbackInput" type="file" accept=".json,application/json" hidden>
+    <span id="stat">未読み込み</span>
+    <span class="tdiv"></span>
+    <button id="langBtn" title="Switch language">EN</button>
+  </div>
+  <div id="notice"></div>
+  <div id="main">
+    <div id="empty">「ファイルを開く」または D&amp;D で <b>wbs.json</b> を読み込んでください（Chrome）。</div>
+    <div id="left" style="display:none"><div class="htab-sp"></div><div id="leftHead" class="head"></div><div id="leftRows"></div></div>
+    <div id="right" style="display:none"><div id="rtabs"></div><div id="rightHead"></div><div id="rightBody"></div></div>
+  </div>
+
+<script>
+"use strict";
+(function(){
+  const DAY_W=22, ROW_H=30, DAY_MS=86400000;
+  const SAVE_DEBOUNCE_MS=400, RENDER_DEFER_MS=350, FOCUS_POLL_MS=400;  // 自動保存と遅延再描画の間隔
+  const SAVE_RETRY_DELAY_MS=250;  // InvalidStateError（同期/AVの横入り）時に1拍おいて1回だけ再試行する間隔
+  // アイコン＝単色インラインSVG（currentColorで文字色に追従・ロゴと同トーン・依存ゼロ・#49）。葉だけベタ塗り(案A)・他はライン基調
+  const ICN={
+    file:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3"/></svg>',
+    cal:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.2" y="3.2" width="11.6" height="10.6" rx="1.6"/><path d="M2.2 6.3h11.6" stroke-width="1.2"/><path d="M5 1.6v2.4M11 1.6v2.4" stroke-linecap="round"/></svg>',
+    refresh:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2"/><path d="M12.7 2.6V5.1H10.2" stroke-linejoin="round"/></svg>',
+    save:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M3 2.5h7.5L13.5 5.5V13.5H3z"/><path d="M5.2 2.5v3.3h4.6V2.5" stroke-width="1.1"/><rect x="5.2" y="9" width="5.6" height="4.3" stroke-width="1.1"/></svg>',
+    up:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5V4M4.5 7.5 8 4l3.5 3.5"/></svg>',
+    down:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5V12M4.5 8.5 8 12l3.5-3.5"/></svg>',
+    add:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 3.3v9.4M3.3 8h9.4"/></svg>',
+    del:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"/></svg>',
+    leaf:'<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.34 1.5.34C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>'
+  };
+  // マイルストーンの選べる色（GUIプリセット）。Okabe-Ito由来でCUD安全・実績(青)/遅延(赤)と被らない5色。JSON/AIは引き続き任意#hex可
+  const MS_COLORS=["#cc79a7","#e69f00","#009e73","#d55e00","#56b4e9"];
+  // ===== i18n（UI文言の単一ソース。データ(wbs.json)は翻訳しない） =====
+  const I18N={
+    ja:{
+      open:"ファイルを開く",openSub:"（ドラッグ&ドロップ）",reload:"更新",edit:"編集",langBtn:"EN",
+      allTipExpand:"ツリーが全部展開されます ※Ctrl+Z でクリック前の状態に戻ります",
+      allTipCollapse:"ツリーが全部折りたたまれます ※Ctrl+Z でクリック前の状態に戻ります",
+      colHide:"この列を畳む",colShow:"畳んだ列を開く",
+      editTitle:"インライン編集（自動保存）。ONにする時、書き込み許可のため保存ダイアログで wbs.json を選び直します",
+      notLoaded:"未読み込み",empty:"「ファイルを開く」または D&D で <b>wbs.json</b> を読み込んでください（Chrome）。",
+      colNo:"No.",colTask:"作業項目",colQty:"数量",colHrs:"時間",colWork:"工数",colWorkUnit:"(人日)",colWorkTip:"工数(人日) ＝ 数量 × 時間(h) ÷ 8h（所定労働時間）",colProg:"進捗",colProgTip:"進捗％。編集モードで ◀▶ で±10%。未着手0%・完了100%は自動。親は配下の加重平均",colStat:"状況",colStatTip:"状況＝遅れ/実績/予定（％）。遅れ=赤・実績=青・予定=黒。遅れてない行は実績のみ。予定=本日あるべき%（EVMのPV）・遅れ=予定−実績（SV）",statD:"遅れ",statA:"実績",statP:"予定",viewTime:"時間",viewProg:"進捗",colAsg:"担当",
+      colStart:"開始",colEnd:"終了",colNote:"備考",grpPlan:"予定",grpActual:"実績",
+      wd:["日","月","火","水","木","金","土"],locale:"ja-JP",active:"進行中",newTask:"新規作業",
+      addTask:"＋タスク",addTaskTip:"タスクを追加",up:"上へ",down:"下へ",addBelow:"下に作業を追加",del:"削除",
+      addChild:"子タスクを追加（入れ子にする）",addChildLabel:"＋子",
+      unsaved:"未保存の変更あり…",savedAt:"",saveFail:"保存失敗",savePending:"未保存（外部変更のため保留）",
+      calTip:"カレンダーから選択",addMs:"＋MS",addMsTip:"マイルストーンを追加",msLabelPh:"マイルストーン名",milestone:"マイルストーン",
+      startDelayTip:n=>`着手遅れ +${n}日`, endDelayTip:(n,act)=>`終了遅延 +${n}日${act?"・進行中":""}`,
+      doneTip:"完了/未完了を切替（チェックで実績終了＝今日。未着手なら着手も今日）",
+      ym:(y,m)=>`${y}年${m}月`,
+      stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="最早開始 - 最遅終了 ／ 残り＝本日→終了の営業日数（土日・祝日(holidays)を除外 #75）"><span class="mk">期間：</span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub">（残り：${d.biz}日）</span></div>`+`<div class="mrow" title="予定合計(人月)＝Σ(数量×時間÷8)÷20 ／ 残り＝予定−実績(EV)"><span class="mk">工数：</span><span class="mv">${d.planPM}人月</span><span class="msub">（残り：${d.restPM}人月）</span></div>`+`<div class="mrow" title="実際%（出来高EV/総） ／ 予定%（あるべきPV/総）｜ 遅れ%（予定−実際）"><span class="mk">進捗：</span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub">（予定：${d.plan}% ｜ 遅れ：<span class="mdl">${d.delay}%</span>）</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="遅れているタスク数。全体の遅れ%は前倒し分で相殺され0%でも、個別に遅れている件数（状況列の赤で詳細）"><span class="mk">遅延：</span><span class="mv2">${d.due?`<span class="dbadge" title="締切超過＝本日>予定終了かつ未完了">⚠ 期限${d.due}件</span>`:""}${d.slip?`<span class="dbadge" title="出来高遅れ＝予定(PV)>実績(EV)">⚠ 進捗${d.slip}件</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="開いているファイル">${ICN.file} ${esc(d.fname)}</span> ・ <span title="プロジェクト数">${d.pc}P</span> ・ <span title="本日（進捗・イナズマ線の基準日）">${ICN.cal} ${esc(mdSlash(d.today))}</span> ・ <span title="最後に更新（読込）した時刻">${ICN.refresh} ${esc(d.upd)}</span><span id="saveMsg" title="最後に保存した時刻（自動保存）">${d.save}</span></div>`,
+      confirmDel:name=>`「${name}」を削除します。よろしいですか？（配下も削除）`,
+      fileLabel:(name,size)=>`${name}・${size} byte`,
+      jsonFail:(label,msg)=>`JSON読み込み失敗${label?`（${label}）`:""}: ${msg}`,
+      cantSave:"保存できません。『ファイルを開く』で開き直してください。",
+      extChange:"wbs.json がツール外で変更されています。画面の内容で上書きしますか？\n（キャンセル後は「更新」で再読込できます）",
+      saveErr:"保存に失敗: ",permDenied:"書き込み権限が許可されませんでした。",
+      permUnavailable:"この環境では書き込み権限を取得できませんでした。",permErr:"書き込み権限を取得できませんでした: ",
+      pickerGuide:"📂 保存ダイアログが開きます。いま開いている wbs.json をそのまま選んで「保存（置換）」してください（編集の書き込み許可のため・Chrome 再起動ごとに1回）。",
+      pickerRetryCancel:"編集を有効にするには、もう一度「編集」を押してダイアログで wbs.json を選んでください。",
+      pickerRetryGesture:"もう一度「編集」ボタンを押してください。保存ダイアログが開くので、いま開いている wbs.json を選んで「保存（置換）」してください。",
+      diffFile:"選択されたファイルは現在開いているファイルと異なります。今後の保存先をそちらに切り替えますか？",
+      truncWarn:"注意：いま選択したファイルは Chrome の仕様で空にされている可能性があります。中身を確認してください。",
+      needHandle:"編集を保存するには、先に「ファイルを開く」か D&D で wbs.json を（ハンドル付きで）開いてください。",
+      legacyConvert:"旧フォーマットのファイルです。編集を有効にすると新フォーマット（projects 配列）に変換して保存されます。続行しますか？",
+      reloadErr:"更新失敗: ",loadFirst:"先に「ファイルを開く」または D&D で読み込んでください。",
+      dropFail:"ドロップされたファイルを読み取れませんでした。「ファイルを開く」をお試しください。",
+    },
+    en:{
+      open:"Open file",openSub:"(drag & drop)",reload:"Reload",edit:"Edit",langBtn:"日本語",
+      allTipExpand:"Expands the whole tree (Ctrl+Z restores the view before the click)",
+      allTipCollapse:"Collapses the whole tree (Ctrl+Z restores the view before the click)",
+      colHide:"Collapse this column",colShow:"Expand collapsed column",
+      editTitle:"Inline editing (autosave). When turning ON, re-select wbs.json in the save dialog to grant write permission",
+      notLoaded:"No file loaded",empty:"Load <b>wbs.json</b> via \"Open file\" or drag &amp; drop (Chrome).",
+      colNo:"No.",colTask:"Task",colQty:"Qty",colHrs:"Hours",colWork:"Effort",colWorkUnit:"(p-d)",colWorkTip:"Effort (person-days) = qty × time(h) ÷ 8h (standard working hours)",colProg:"Progress",colProgTip:"Progress %. In edit mode, ◀▶ steps ±10%. 0% (not started) and 100% (done) are automatic; parents are the weighted average",colStat:"Status",colStatTip:"Status = behind / actual / planned (%). Behind=red, actual=blue, planned=black. On-track rows show actual only. Planned = what should be done by today (EVM PV); behind = planned − actual (SV)",statD:"B",statA:"A",statP:"P",viewTime:"Time",viewProg:"Progress",colAsg:"Owner",
+      colStart:"Start",colEnd:"End",colNote:"Notes",grpPlan:"Plan",grpActual:"Actual",
+      wd:["Su","Mo","Tu","We","Th","Fr","Sa"],locale:"en-US",active:"active",newTask:"New task",
+      addTask:"+Task",addTaskTip:"Add a task",up:"Move up",down:"Move down",addBelow:"Add task below",del:"Delete",
+      addChild:"Add a child task (nest)",addChildLabel:"+sub",
+      unsaved:"Unsaved changes…",savedAt:"",saveFail:"Save failed",savePending:"Not saved (external change)",
+      calTip:"Pick a date",addMs:"+MS",addMsTip:"Add a milestone",msLabelPh:"name",milestone:"Milestone",
+      startDelayTip:n=>`Start delay +${n}d`, endDelayTip:(n,act)=>`Finish delay +${n}d${act?" (active)":""}`,
+      doneTip:"Toggle done (check = actual end today; also start if not yet started)",
+      ym:(y,m)=>`${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${y}`,
+      stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="Earliest start - latest end / Remaining = business days from today to end (excl. weekends & holidays #75)"><span class="mk">Period: </span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub"> (left: ${d.biz}d)</span></div>`+`<div class="mrow" title="Planned total (person-months) / Remaining = planned - actual(EV)"><span class="mk">Effort: </span><span class="mv">${d.planPM}pm</span><span class="msub"> (left: ${d.restPM}pm)</span></div>`+`<div class="mrow" title="Actual% (EV/total) / Planned% (PV/total) | Behind% (plan-actual)"><span class="mk">Progress: </span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub"> (plan: ${d.plan}% | behind: <span class="mdl">${d.delay}%</span>)</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="Tasks behind schedule. Even when the overall behind% is 0% (ahead-work offsets it), this many items are individually behind (see the red Status column)"><span class="mk">Behind: </span><span class="mv2">${d.due?`<span class="dbadge" title="Overdue = past planned end & not done">⚠ ${d.due} late</span>`:""}${d.slip?`<span class="dbadge" title="Behind on value = plan(PV) > actual(EV)">⚠ ${d.slip} EV</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="Open file">${ICN.file} ${esc(d.fname)}</span> ・ <span title="Projects">${d.pc}P</span> ・ <span title="Today (reference date)">${ICN.cal} ${esc(mdSlash(d.today))}</span> ・ <span title="Last refreshed">${ICN.refresh} ${esc(d.upd)}</span><span id="saveMsg" title="Last saved (autosave)">${d.save}</span></div>`,
+      confirmDel:name=>`Delete "${name}"? (children will also be deleted)`,
+      fileLabel:(name,size)=>`${name}, ${size} bytes`,
+      jsonFail:(label,msg)=>`Failed to load JSON${label?` (${label})`:""}: ${msg}`,
+      cantSave:'Cannot save. Re-open the file via "Open file".',
+      extChange:"wbs.json was modified outside this tool. Overwrite it with the current view?\n(After cancel, press Reload to re-read.)",
+      saveErr:"Save failed: ",permDenied:"Write permission was not granted.",
+      permUnavailable:"Could not obtain write permission in this environment.",permErr:"Could not obtain write permission: ",
+      pickerGuide:"📂 A save dialog will open. Select the currently open wbs.json and press Save (replace) — needed once per Chrome session to grant write permission.",
+      pickerRetryCancel:'To enable editing, press "Edit" again and select wbs.json in the dialog.',
+      pickerRetryGesture:'Press "Edit" once more — the save dialog will open; select the currently open wbs.json and press Save (replace).',
+      diffFile:"The selected file differs from the currently open file. Switch future saves to it?",
+      truncWarn:"Warning: the file you just selected may have been emptied by Chrome. Please check its contents.",
+      needHandle:'To save edits, first open wbs.json via "Open file" or drag & drop (with a file handle).',
+      legacyConvert:"This file uses the legacy format. Enabling edit will convert it to the projects[] format on save. Continue?",
+      reloadErr:"Reload failed: ",loadFirst:'Load a file first via "Open file" or drag & drop.',
+      dropFail:'Could not read the dropped file. Try "Open file" instead.',
+    },
+  };
+  let lang="ja";try{if(localStorage.getItem("wbsLang")==="en")lang="en";}catch(_){}   // 既定は日本語・明示切替のみ記憶
+  const t=k=>I18N[lang][k];
+  let fileHandle=null, lock=false, lastData=null, pendingCenter=true;
+  let editMode=false, curProjects=null, refreshTimer=null;                 // 編集モード関連
+  let activeView="time";try{if(localStorage.getItem("wbsView")==="progress")activeView="progress";}catch(_){}  // 右ペイン:時間(ガント)/進捗(完了率)。既定=時間
+  let leftColBounds=null;                                                  // 左表の列境界キャッシュ（render毎に無効化・mousemoveのreflow回避）
+  let dirty=false, saveTimer=null, saveChain=Promise.resolve(), fileMtime=0;  // 保存キュー（直列化＋外部変更検知）
+  let pickerNeeded=false;   // file://等：権限APIが使えず保存ピッカー方式が必要（セッション中記憶）
+  let saveMsg="",curFileName="";           // 保存状態の表示文言（未保存/保存済/保存失敗）
+  const collapsed=new Set();   // 折りたたみ状態（キー）
+  let collapseSnapshot=null;   // 全体caret実行前の折りたたみ状態（Ctrl+Zで復元・#52）
+
+  const parse=s=>new Date(s+"T00:00:00Z");
+  const diff=(a,b)=>Math.round((parse(b)-parse(a))/DAY_MS);
+  const isDate=s=>typeof s==="string"&&/^(19|20)\d{2}-\d{2}-\d{2}$/.test(s)&&!isNaN(parse(s).getTime());  // 年は1900-2099（範囲外はゴミ入力扱い・ガント爆発防止）
+  const addStr=(s,d)=>new Date(parse(s).getTime()+d*DAY_MS).toISOString().slice(0,10);
+  const minStr=a=>{a=a.filter(Boolean);return a.length?a.slice().sort()[0]:null;};
+  const maxStr=a=>{a=a.filter(Boolean);return a.length?a.slice().sort()[a.length-1]:null;};
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const mdSlash=s=>s?(parse(s).getUTCMonth()+1)+"/"+parse(s).getUTCDate():"";
+  const fmtLoad=v=>{const r=Math.round(v*10)/10;return Number.isInteger(r)?String(r):r.toFixed(1);};
+  const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+  // note内の http(s) URL のみリンク化（表示はURLのまま）。URL検出は生文字列・出力は全片esc()で
+  // javascript:/HTML注入は構造的に不可（^https?:固定・<>はURLに含めない・テキスト片は全てエスケープ）
+  const linkify=s=>String(s??"").split(/(https?:\/\/[^\s"<>]+)/g)
+    .map((part,i)=>i%2?`<a href="${esc(part)}" target="_blank" rel="noopener noreferrer">${esc(part)}</a>`:esc(part))
+    .join("");
+  const todayStr=()=>{const n=new Date();return new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())).toISOString().slice(0,10);};
+  // 編集欄の短縮表示：今年は MM-DD、他年は full ISO（年が"意外"な時だけ年を見せる・#59）
+  const shortDate=iso=>(iso&&isDate(iso)&&iso.slice(0,4)===todayStr().slice(0,4))?iso.slice(5):(iso||"");
+  // ショートハンド入力→full ISO。月日も年も緩く受ける（#59）：
+  //   611/0611/6-11/6/11=今年(or既存年)のMD ／ 270611/20270611=YY(YY)MMDD ／ 27-6-11/2027-6-11=年-月-日(2桁年は20YY)
+  //   年未指定は既存値→空なら今年で補完。無効はnull。
+  const expandDate=(val,curISO)=>{
+    val=String(val).trim().replace(/\//g,"-");
+    if(val==="")return "";                                                    // 空＝クリア
+    if(isDate(val))return val;                                                // 既に full ISO
+    const defYr=(curISO&&isDate(curISO))?curISO.slice(0,4):todayStr().slice(0,4);
+    const yr4=y=>y.length===2?"20"+y:y;                                       // 2桁年→20YY
+    let yr,m,d, parts=val.split("-"), g=val.replace(/\D/g,"");
+    if(parts.length===2&&/^\d{1,2}$/.test(parts[0])&&/^\d{1,2}$/.test(parts[1])){yr=defYr;[m,d]=parts;}            // M-D
+    else if(parts.length===3&&/^\d{2}(\d{2})?$/.test(parts[0])&&/^\d{1,2}$/.test(parts[1])&&/^\d{1,2}$/.test(parts[2])){yr=yr4(parts[0]);[,m,d]=parts;}  // Y-M-D
+    else if(g.length===3){yr=defYr;m=g.slice(0,1);d=g.slice(1);}              // MDD
+    else if(g.length===4){yr=defYr;m=g.slice(0,2);d=g.slice(2);}             // MMDD
+    else if(g.length===6){yr=yr4(g.slice(0,2));m=g.slice(2,4);d=g.slice(4);} // YYMMDD
+    else if(g.length===8){yr=g.slice(0,4);m=g.slice(4,6);d=g.slice(6);}      // YYYYMMDD
+    else return null;                                                        // 解釈不能
+    const iso=`${yr}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+    return isDate(iso)?iso:null;                                              // 範囲・妥当性チェック
+  };
+
+  // 列メタデータ（表示=view・編集=field/edit/get を1エントリに集約）。view(c,n,x) x={leaf,inProg}・get(c,n)。
+  // no/name は caret/✓/アクション等で特殊なため描画ループ側で個別処理（#16）。helper参照のためヘルパー定義の後ろに置く
+  const COLS=[
+    {key:"no",label:"colNo",w:48,cls:"num"},
+    {key:"name",label:"colTask",w:200,cls:"name"},
+    {key:"qty",label:"colQty",w:40,cls:"r",
+     view:(c,n,x)=>x.leaf?esc(n.qty):"", field:"qty",edit:"number",get:(c,n)=>n.qty},
+    {key:"hrs",label:"colHrs",w:50,cls:"r",
+     view:(c,n,x)=>x.leaf?esc(n.hours):"", field:"hours",edit:"number",get:(c,n)=>n.hours},
+    {key:"work",label:"colWork",sub:"colWorkUnit",tip:"colWorkTip",w:56,cls:"r",
+     view:c=>c.load?esc(fmtLoad(c.load)):""},                                  // 派生（編集不可）
+    {key:"prog",label:"colProg",tip:"colProgTip",w:80,cls:"prog",             // 進捗ステッパー（編集=±10%／表示=集計%）。独自ウィジェット（◀N%▶=最小80px）
+     view:(c,n,x)=>progStep(c.progress, editMode&&x.leaf, x.path)},
+    {key:"stat",label:"colStat",tip:"colStatTip",w:104,cls:"r stat",         // 状況=遅れ/実績/予定（工数と同じ作り：2段ヘッダ＋セル1行右寄せ）
+     view:c=>statusCell(c)},
+    {key:"asg",label:"colAsg",w:64,cls:"",
+     view:(c,n,x)=>x.leaf?esc(n.assignee||""):"", field:"assignee",edit:"text",get:(c,n)=>n.assignee||""},
+    {key:"ps",label:"colStart",group:"grpPlan",w:64,cls:"r",
+     view:c=>esc(mdSlash(c.planStart)), field:"ps",edit:"date",get:c=>shortDate(c.planStart)},
+    {key:"pe",label:"colEnd",group:"grpPlan",w:64,cls:"r",
+     view:c=>esc(mdSlash(c.planEnd)), field:"pe",edit:"date",get:c=>shortDate(c.planEnd)},
+    {key:"as",label:"colStart",group:"grpActual",w:64,cls:"r",
+     view:c=>esc(c.actualStart?mdSlash(c.actualStart):"—"), field:"as",edit:"date",get:c=>shortDate(c.actualStart)},
+    {key:"ae",label:"colEnd",group:"grpActual",w:64,cls:"r",
+     view:(c,n,x)=>esc(c.actualEnd?mdSlash(c.actualEnd):(x.inProg?t("active"):"—")), field:"ae",edit:"date",get:c=>shortDate(c.actualEnd)},
+    {key:"note",label:"colNote",w:200,cls:"note",
+     view:(c,n,x)=>x.leaf?linkify(n.note||""):"", field:"note",edit:"text",get:(c,n)=>n.note||""},
+  ];
+
+  // アウトライン式の列折りたたみ：列→折りたたみ単位の対応（No.・作業項目は対応なし＝常時表示）。数量+時間は工数の内訳でまとめる／工数は個別
+  const COL_CG={qty:"qh",hrs:"qh",work:"work",prog:"prog",stat:"stat",asg:"asg",ps:"plan",pe:"plan",as:"act",ae:"act",note:"note"};
+  let colCollapsed=new Set();
+  try{const s=JSON.parse(localStorage.getItem("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
+  function saveColCollapsed(){try{localStorage.setItem("wbsColCollapsed",JSON.stringify([...colCollapsed]));}catch(_){}}
+  function effCols(){return COLS.filter(c=>{const g=COL_CG[c.key];return !(g&&colCollapsed.has(g));});}  // 畳んだ列は完全に消す（隙間を作らない）。+/−はタブ帯の上に絶対配置
+
+  const isColor=s=>typeof s==="string"&&/^#[0-9a-fA-F]{3,8}$/.test(s);
+  function normalizeProjects(d){
+    if(!d||typeof d!=="object")return [];                         // null等の非オブジェクト→空
+    if(Array.isArray(d.projects))return d.projects.filter(p=>p&&typeof p==="object");
+    return [{name:d.project||"WBS",milestones:d.milestones||[],tasks:d.tasks||[]}];
+  }
+  function leavesOf(tasks){const out=[];(function c(ns){for(const n of ns){if(n._leaf)out.push(n);else c(n.children);}})(tasks||[]);return out;}
+  const quantProg=v=>{const n=Number(v);return Number.isFinite(n)?clamp(Math.round(n/10)*10,0,100):null;};
+  function bizDays(from,to,hol){if(!from||!to||to<from)return 0;let n=0;const tot=diff(from,to);for(let i=0;i<=tot;i++){const ds=addStr(from,i),w=parse(ds).getUTCDay();if(w!==0&&w!==6&&!(hol&&hol.has(ds)))n++;}return n;}  // 残り営業日＝土日＋祝日(hol)を除外(#75)  // _progress→0/10/…/100に量子化。未設定はnull
+  function progStep(pct,editable,path){   // 進捗の ◀ N% ▶ ステッパー。editable=編集モードのリーフ（±10%）／親は読み取り（連続値pct）
+    const v=`<span class="v">${Math.round(pct)}%</span>`;
+    return editable
+      ? `<span class="stp"><button type="button" data-act="prog-dec" data-path="${path}" title="−10%">◀</button>${v}<button type="button" data-act="prog-inc" data-path="${path}" title="+10%">▶</button></span>`
+      : `<span class="stp auto">${v}</span>`;
+  }
+  // 状況セル（遅れ赤/実績青/予定黒）。遅れ>0なら3つ・なければ実績のみ（静か）
+  function statusCell(c){
+    const ev=Math.round(c.progress), pv=Math.round(c.pv||0), slip=Math.round(c.slip||0);
+    return slip>0
+      ? `<span class="s-d">${slip}</span><span class="s-x"> / </span><span class="s-a">${ev}</span><span class="s-x"> / </span><span class="s-p">${pv}</span>`
+      : `<span class="s-a">${ev}</span>`;
+  }
+  const isOverdue=(c,today)=>!!(c.planEnd&&!c.allDone&&today>c.planEnd);   // 予定終了を過ぎても未完了＝締切超過（赤）
+  function progBarRow(c,thin,done,cls){   // 進捗軸の1行：青=実績(EV)／赤=予定への不足分(slip・右端がPV)。親=細いサマリー。clsは行背景(prow/lvl0/lvl1)
+    const ev=clamp(c.progress||0,0,100), pv=clamp(c.pv||0,0,100);
+    let inner=`<div class="ptrack"></div><div class="pbar act${done?" done":""}" style="width:${ev.toFixed(2)}%"></div>`;
+    if(pv>ev+0.5)inner+=`<div class="pbar short" style="left:${ev.toFixed(2)}%;width:${(pv-ev).toFixed(2)}%"></div>`;  // 不足分の右端＝あるべき(PV)
+    inner+=`<div class="ptick"></div>`;                                           // 目盛りは最前面（青/赤バーの上）に重ねる
+    return `<div class="prw ${cls}${thin?" thin":""}${done?" done":""}"><div class="prw-bars">${inner}</div></div>`;
+  }
+  function computeNode(n,TODAY){
+    if(n.children&&n.children.length){
+      const cs=n.children.map(c=>computeNode(c,TODAY));
+      const load=cs.reduce((s,c)=>s+c.load,0);
+      const progress=load?cs.reduce((s,c)=>s+c.progress*c.load,0)/load:0;
+      const pv=load?cs.reduce((s,c)=>s+(c.pv||0)*c.load,0)/load:0;            // 親PV=子の加重平均・slipは集約値から（EVMのSVはネット）
+      const calc={load,progress,pv,slip:Math.max(pv-progress,0),isLeaf:false,allDone:cs.every(c=>c.allDone),  // 全子が実完了
+        planStart:minStr(cs.map(c=>c.planStart)),planEnd:maxStr(cs.map(c=>c.planEnd)),
+        actualStart:minStr(cs.map(c=>c.actualStart)),actualEnd:maxStr(cs.map(c=>c.actualEnd)),
+        actualEndEff:maxStr(cs.map(c=>c.actualEndEff))};
+      n._calc=calc;n._leaf=false;return calc;
+    }
+    const p=n.plan||{},a=n.actual||{};
+    const ps=isDate(p.start)?p.start:null, pe=isDate(p.end)?p.end:null;     // 不正日付は無視
+    const as=isDate(a.start)?a.start:null, ae=isDate(a.end)?a.end:null;
+    const load=(Number(n.qty)||0)*(Number(n.hours)||0)/8;
+    let progress=0,actualEndEff=null;
+    const mp=quantProg(n._progress);                                         // 手動/AI査定の進捗（0/10/…/100）
+    if(as){actualEndEff=ae||TODAY;
+      if(ae)progress=100;
+      else if(mp!=null)progress=mp;                                          // _progressがあれば時間ベースより優先（進行中のみ）
+      else if(ps&&pe){let dur=diff(ps,pe);if(!(dur>=1))dur=1;progress=clamp(diff(as,TODAY)/dur*100,0,100);}
+      else progress=0;}                                                      // plan欠損の進行中→0%（NaN回避）
+    let pv=0;                                                                // PV=計画価値=本日あるべき%（時間ベース直線）。EVM: slip=遅れ=max(PV−EV,0)
+    if(ps&&pe){let dur=diff(ps,pe);if(!(dur>=1))dur=1;pv=clamp(diff(ps,TODAY)/dur*100,0,100);}
+    const slip=Math.max(pv-progress,0);
+    const calc={load,progress,pv,slip,isLeaf:true,allDone:!!ae,planStart:ps,planEnd:pe,  // 実績終了あり=完了
+      actualStart:as,actualEnd:ae,actualEndEff};
+    n._calc=calc;n._leaf=true;return calc;
+  }
+
+  function render(data){
+    clearTimeout(refreshTimer);                                              // 保留中の遅延再描画を破棄（二重描画防止）
+    const scrollKeep={left:document.getElementById("right").scrollLeft,
+                      top:document.getElementById("right").scrollTop};   // スクロール位置を保持
+    const TODAY=todayStr();
+    const projects=normalizeProjects(data);
+    curProjects=projects;                                                    // 編集ハンドラ用に保持
+    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:editMode&&c.key==="name"?c.w+72:editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目+72(操作ボタンぶん名前入力に幅確保)・数量/時間は▲▼を残し3桁見える52px
+    const ms=[], rows=[];
+    projects.forEach((proj,pi)=>{
+      (proj.tasks||[]).forEach(n=>computeNode(n,TODAY));
+      const lv=leavesOf(proj.tasks);
+      const load=lv.reduce((s,n)=>s+n._calc.load,0);
+      const prog=load?lv.reduce((s,n)=>s+n._calc.progress*n._calc.load,0)/load:0;
+      const pvAgg=load?lv.reduce((s,n)=>s+(n._calc.pv||0)*n._calc.load,0)/load:0;
+      const pkey="P|"+proj.name, pcol=collapsed.has(pkey);
+      rows.push({kind:"proj",name:proj.name,pi,load,prog,progress:prog,pv:pvAgg,slip:Math.max(pvAgg-prog,0),key:pkey,collapsible:true,collapsed:pcol,terminal:pcol,
+        planStart:minStr(lv.map(n=>n._calc.planStart)),planEnd:maxStr(lv.map(n=>n._calc.planEnd)),
+        actualStart:minStr(lv.map(n=>n._calc.actualStart)),actualEnd:maxStr(lv.map(n=>n._calc.actualEnd)),
+        allDone:lv.length>0&&lv.every(n=>n._calc.allDone)});                  // イナズマ線用（折りたたみ時の集約）
+      (proj.milestones||[]).forEach(m=>ms.push(m));
+      if(pcol)return;
+      (function walk(ns,depth,prefix){for(let ci=0;ci<ns.length;ci++){const n=ns[ci];const path=prefix+"/"+ci;
+        const hasCh=!!(n.children&&n.children.length), key="T|"+proj.name+"|"+n.id, col=hasCh&&collapsed.has(key);
+        rows.push({kind:"task",node:n,depth,key,collapsible:hasCh,collapsed:col,terminal:!hasCh||col,path});
+        if(hasCh&&!col)walk(n.children,depth+1,path);
+      }})(proj.tasks||[],0,String(pi));
+    });
+
+    // レンジ
+    const ds=[];
+    rows.forEach(r=>{const c=r.kind==="task"?r.node._calc:r;
+      [c.planStart,c.planEnd].forEach(d=>d&&ds.push(d));
+      if(r.kind==="task"){[c.actualStart,c.actualEndEff].forEach(d=>d&&ds.push(d));}});
+    ms.forEach(m=>isDate(m.date)&&ds.push(m.date)); ds.push(TODAY);
+    const rangeStart=minStr(ds)||TODAY, rangeEnd=maxStr(ds)||TODAY;
+    const totalDays=diff(rangeStart,rangeEnd)+1, ganttW=totalDays*DAY_W;
+    const xOf=d=>diff(rangeStart,d)*DAY_W, centerOf=d=>xOf(d)+DAY_W/2, barW=(s,e)=>(diff(s,e)+1)*DAY_W;
+    const xToday=centerOf(TODAY);
+
+    const allLeaves=[]; projects.forEach(p=>allLeaves.push(...leavesOf(p.tasks)));
+    const totalLoad=allLeaves.reduce((s,n)=>s+n._calc.load,0);
+
+    const eCols=effCols();
+    let lh="";                                                   // グループ列（予定/実績）は2段見出し
+    for(let i=0;i<eCols.length;i++){const c=eCols[i];
+      if(c.group){let sub="",w=0,j=i;
+        while(j<eCols.length&&eCols[j].group===c.group){sub+=`<div class="hsub" style="width:${cw(eCols[j])}px">${esc(t(eCols[j].label))}</div>`;w+=cw(eCols[j]);j++;}
+        lh+=`<div class="hg" style="width:${w}px"><div class="hgt">${esc(t(c.group))}</div><div class="hgb">${sub}</div></div>`;
+        i=j-1;
+      }else if(c.key==="name"){                                            // 作業項目ヘッダに全体caret（#52）
+        const anyCol=rows.some(r=>r.collapsed);
+        lh+=`<div class="h" style="width:${cw(c)}px"><span id="allCaret" class="clk caret" title="${esc(t(anyCol?"allTipExpand":"allTipCollapse"))}">${anyCol?"▶":"▼"}</span>${esc(t(c.label))}</div>`;
+      }else if(c.key==="stat"){                                            // 状況=2段見出し＋色分け凡例（遅赤/実青/予黒）＝そのまま凡例
+        const leg=`<span class="s-d">${esc(t("statD"))}</span><span class="s-x">/</span><span class="s-a">${esc(t("statA"))}</span><span class="s-x">/</span><span class="s-p">${esc(t("statP"))}</span>`;
+        lh+=`<div class="h h2l" style="width:${cw(c)}px" title="${esc(t(c.tip))}">${esc(t(c.label))}<span class="unit">${leg}</span></div>`;
+      }else if(c.sub){                                                       // 単位付き見出し：短い単位は同一行・長い単位は2行（いずれも小さく薄く）。tipは計算式等のhover表示
+        const tip=c.tip?` title="${esc(t(c.tip))}"`:"";
+        lh+=c.inline
+          ?`<div class="h" style="width:${cw(c)}px"${tip}><span>${esc(t(c.label))}<span class="unit">${esc(t(c.sub))}</span></span></div>`
+          :`<div class="h h2l" style="width:${cw(c)}px"${tip}>${esc(t(c.label))}<span class="unit">${esc(t(c.sub))}</span></div>`;
+      }else lh+=`<div class="h" style="width:${cw(c)}px">${esc(t(c.label))}</div>`;
+    }
+    let ym="",i=0;
+    while(i<totalDays){const key=addStr(rangeStart,i).slice(0,7);let j=i;
+      while(j<totalDays&&addStr(rangeStart,j).slice(0,7)===key)j++;
+      ym+=`<div class="seg" style="width:${(j-i)*DAY_W}px">${t("ym")(key.slice(0,4),parseInt(key.slice(5,7),10))}</div>`;i=j;}
+    // 祝日（top-level の holidays）。文字列"YYYY-MM-DD" or {date,name} を許容。日付ヘッダ=赤字／列=ピンク（土日と同じ.we）
+    const holMap=new Map();((data&&Array.isArray(data.holidays))?data.holidays:[]).forEach(h=>{const hd=typeof h==="string"?h:(h&&h.date);if(isDate(hd))holMap.set(hd,(h&&h.name)||"");});
+    let dc="";
+    for(let k=0;k<totalDays;k++){const dsx=addStr(rangeStart,k),dow=parse(dsx).getUTCDay(),hn=holMap.get(dsx);
+      const cls=(dow===0?"sun":dow===6?"sat":"")+(hn!==undefined?" hol":"");
+      dc+=`<div class="d ${cls}"${hn?` title="${esc(hn)}"`:""}><div>${parse(dsx).getUTCDate()}</div><div class="dow">${t("wd")[dow]}</div></div>`;}
+    let bg="",weX=[];
+    for(let k=0;k<totalDays;k++){const dsx=addStr(rangeStart,k),dow=parse(dsx).getUTCDay();
+      if(dow===0||dow===6||holMap.has(dsx))weX.push(k*DAY_W);   // 土日/祝日の列x。行背景に隠れるので #ganttBg ではなくオーバーレイ(行の上)で全高に塗る
+      if(dsx.slice(8,10)==="01"&&k>0)bg+=`<div class="mline" style="left:${k*DAY_W}px"></div>`;}
+
+    const sym=(r,tg)=>r.collapsible                                          // tg=true: caret自体をクリック可能に
+      ?`<span class="${tg?"clk ":""}caret"${tg?` data-collapse="${esc(r.key)}"`:""}>${r.collapsed?"▶":"▼"}</span>`
+      :`<span class="caret-sp"></span>`;
+
+    let lrows="",grows="",progRows="",pts=[[xToday,0]],yTop=0;
+    rows.forEach((r,idx)=>{
+      let extra=0;   // 編集モードでこの行の下に挿入されるMS編集行の高さ（オーバーレイ高さ/イナズマyに織り込む）
+      if(r.kind==="proj"){
+        let info="";
+        eCols.forEach(col=>{let v="";
+          if(col.key==="no")v="◆";
+          else if(col.key==="name"){
+            if(editMode)v=`<span class="nm-wrap">${sym(r,true)}`
+              +`<input class="nm-in" data-pname="${r.pi}" type="text" value="${esc(r.name)}" title="${esc(r.name)}">`
+              +`<span class="acts"><button data-act="addtask" data-proj="${r.pi}" title="${esc(t("addTaskTip"))}">${esc(t("addTask"))}</button>`
+              +`<button data-act="addms" data-proj="${r.pi}" title="${esc(t("addMsTip"))}">${esc(t("addMs"))}</button></span></span>`;
+            else v=`<span class="clk" data-collapse="${esc(r.key)}">${sym(r)}<b>${esc(r.name)}</b></span>`;
+          }
+          else if(col.key==="work")v=esc(fmtLoad(r.load));
+          else if(col.key==="prog")v=progStep(r.prog,false,"");                // プロジェクト行=集計進捗（読み取り・連続値）
+          else if(col.key==="stat")v=statusCell(r);
+          else if(col.key==="ps")v=esc(mdSlash(r.planStart));
+          else if(col.key==="pe")v=esc(mdSlash(r.planEnd));
+          const xc=(col.key==="pe"&&isOverdue(r,TODAY))?" overdue":"";        // 予定終了:本日超過かつ未完了=赤
+          info+=`<div class="c ${col.cls}${xc}" style="width:${cw(col)}px">${v}</div>`;});
+        lrows+=`<div class="lrow prow">${info}</div>`;
+        const span=r.planStart&&r.planEnd?`<div class="pspan" style="left:${xOf(r.planStart)}px;width:${barW(r.planStart,r.planEnd)}px"></div>`:"";
+        grows+=`<div class="grow prow">${span}</div>`;
+        progRows+=progBarRow(r,true,r.allDone,"prow");
+        if(editMode&&!r.collapsed){                                          // 編集モード:プロジェクト直下にMS編集行（GUIでMS追加/編集/削除）
+          const msArr=((curProjects[r.pi]||{}).milestones)||[]; extra=msArr.length*ROW_H;
+          msArr.forEach((m,mi)=>{const MP=r.pi+"/"+mi;
+            const cur=(isColor(m.color)?String(m.color):"#cc79a7").toLowerCase();
+            const inSet=MS_COLORS.includes(cur);
+            let sw=inSet?"":`<button class="ms-sw on" data-act="setmscolor" data-mpath="${MP}" data-color="${cur}" style="background:${cur}" title="${cur}"></button>`;  // 現在色がプリセット外でも先頭に「選択中」で表示
+            sw+=MS_COLORS.map(c=>`<button class="ms-sw${cur===c?" on":""}" data-act="setmscolor" data-mpath="${MP}" data-color="${c}" style="background:${c}" title="${c}"></button>`).join("");
+            lrows+=`<div class="lrow msrow"><span class="ms-edit"><span class="ms-tag">${esc(t("milestone"))}</span>`
+              +`<span class="date-wrap"><input data-mpath="${MP}" data-mfield="date" type="text" placeholder="MM-DD" value="${esc(m.date||"")}"><input type="date" class="cal-proxy" tabindex="-1" aria-hidden="true"><button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">${ICN.cal}</button></span>`
+              +`<input class="ms-label" data-mpath="${MP}" data-mfield="label" type="text" placeholder="${esc(t("msLabelPh"))}" value="${esc(m.label||"")}">`
+              +`<span class="ms-sws">${sw}</span>`
+              +`<button data-act="delms" data-mpath="${MP}" title="${esc(t("del"))}">${ICN.del}</button></span></div>`;
+            grows+=`<div class="grow msrow"></div>`; progRows+=`<div class="prw msrow"></div>`;});
+        }
+      }else{
+        const n=r.node,c=n._calc,leaf=n._leaf;
+        const inProg=leaf&&c.actualStart&&!c.actualEnd, done=c.allDone;  // 完了=実績終了あり（集計は全子完了）
+        const P=esc(r.path);
+        const x={leaf,inProg,path:P};
+        const inp=(f,val,type)=>type==="date"                                // 編集入力欄（型でテンプレ分岐）
+          ?`<span class="date-wrap"><input data-path="${P}" data-field="${f}" type="text" placeholder="MM-DD" value="${esc(val)}">`
+            +`<input type="date" class="cal-proxy" tabindex="-1" aria-hidden="true">`
+            +`<button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">${ICN.cal}</button></span>`
+          :`<input data-path="${P}" data-field="${f}" type="${type}"${type==="number"?' step="any"':""} value="${esc(val)}">`;
+        let info="";
+        eCols.forEach(col=>{let v="";
+          if(col.key==="no")v=editMode?inp("id",n.id,"text"):esc(n.id);
+          else if(col.key==="name"){
+            if(editMode){
+              const move=`<span class="movegrp"><button data-act="up" data-path="${P}" title="${esc(t("up"))}">${ICN.up}</button>`  // ⬆⬇=兄弟内移動（caretの三角と区別）・チェックの前
+                +`<button data-act="down" data-path="${P}" title="${esc(t("down"))}">${ICN.down}</button></span>`;
+              const acts=`<span class="acts"><button data-act="add" data-path="${P}" title="${esc(t("addBelow"))}">${ICN.add}</button>`
+                +(r.depth<2?`<button data-act="addchild" data-path="${P}" title="${esc(t("addChild"))}">${ICN.leaf}</button>`:"")  // ＋子=入れ子追加（葉アイコン・#49/#70）。3L(深さ2)は4L禁止のため出さない
+                +`<button data-act="del" data-path="${P}" title="${esc(t("del"))}">${ICN.del}</button></span>`;
+              const doneCtl=leaf                                              // リーフ=押せる完了チェック／集計ノード=読み取り✓のまま
+                ?`<button class="donechk${done?" on":""}" data-act="done" data-path="${P}" title="${esc(t("doneTip"))}">${done?"✓":""}</button>`
+                :(done?'<span class="done-mark">✓</span>':"");
+              v=`<span class="nm-wrap" style="padding-left:${r.depth*15}px">${sym(r,true)}${move}${doneCtl}`
+                +`<input class="nm-in" data-path="${P}" data-field="name" type="text" value="${esc(n.name)}" title="${esc(n.name)}">${acts}</span>`;
+            }else{
+              const body=`${sym(r)}${done?"✓ ":""}<span class="nm">${esc(n.name)}</span>`;
+              v=r.collapsible
+                ?`<span style="padding-left:${r.depth*15}px"><span class="clk" data-collapse="${esc(r.key)}">${body}</span></span>`
+                :`<span style="padding-left:${r.depth*15}px">${body}</span>`;
+            }
+          }
+          else{                                                              // メタデータ駆動：表示=view・編集=field/get（リーフのみ）
+            v=col.view?col.view(c,n,x):"";
+            if(editMode&&leaf&&col.field)v=inp(col.field,col.get(c,n),col.edit);
+          }
+          let tip="";
+          if(col.key==="name"&&!editMode)tip=` title="${esc(n.name)}"`;
+          else if(col.key==="note"&&leaf&&n.note&&!editMode)tip=` title="${esc(n.note)}"`;
+          const xc=(col.key==="pe"&&isOverdue(c,TODAY))?" overdue":"";        // 予定終了:本日超過かつ未完了=赤
+          info+=`<div class="c ${col.cls}${xc}" style="width:${cw(col)}px"${tip}>${v}</div>`;});
+        const lvl=`lvl${Math.min(r.depth,2)}`;
+        lrows+=`<div class="lrow ${leaf?"leaf":"parent"} ${lvl} ${done?"done":""}">${info}</div>`;
+        let bars="";
+        const ps=c.planStart,pe=c.planEnd,as=c.actualStart,ae=c.actualEnd,aeEff=c.actualEndEff;
+        const md=(a,b)=>`${mdSlash(a)}〜${b?mdSlash(b):t("active")}`;
+        const endDelay=(pe&&aeEff&&aeEff>pe)?diff(pe,aeEff):0;             // 終了遅延日数（進行中は本日までで計算）
+        const startDelay=(ps&&as&&as>ps)?diff(ps,as):0;                    // 着手遅れ日数
+        let bt=[ps&&pe?`${t("grpPlan")} ${md(ps,pe)}`:"", as?`${t("grpActual")} ${md(as,ae)}`:"",
+                startDelay?t("startDelayTip")(startDelay):"", endDelay?t("endDelayTip")(endDelay,!ae):""].filter(Boolean).join("&#10;");
+        if(bt)bt=` title="${bt}"`;
+        if(ps&&pe)bars+=`<div class="bar plan"${bt} style="left:${xOf(ps)}px;width:${barW(ps,pe)}px"></div>`;   // 予定=塗りなしの枠（前面）
+        // 着手遅れは枠の左が空くことで表現（専用バー無し）。精密値は startDelayTip でツールチップに残す
+        if(as&&aeEff){
+          const pxAS=xOf(as), pxAEend=xOf(aeEff)+DAY_W, pxPEend=pe?xOf(pe)+DAY_W:pxAEend;
+          const normalRight=endDelay?Math.min(pxAEend,pxPEend):pxAEend;
+          if(normalRight>pxAS)bars+=`<div class="bar actual${endDelay?" cut":""}"${bt} style="left:${pxAS}px;width:${normalRight-pxAS}px"></div>`;
+          if(endDelay){const ovL=Math.max(pxAS,pxPEend);
+            bars+=`<div class="bar over"${bt} style="left:${ovL}px;width:${pxAEend-ovL}px"></div>`;
+            // 遅延ラベルは一律「線の先」（実績終了の直後）。中央配置はイナズマの角度で隠れ得るため、被りは妥協し一貫性を優先
+            bars+=`<div class="delay" style="left:${pxAEend+3}px">+${endDelay}</div>`;}
+        }
+        grows+=`<div class="grow ${leaf?"leaf":"parent"} ${lvl} ${done?"done":""}">${bars}</div>`;
+        progRows+=progBarRow(c,!leaf,done,lvl);
+      }
+      // イナズマ点：terminal行（リーフ or 折りたたみ済ノード）。
+      //   完了=本日線 / 未着手で予定開始超過=予定開始日(左,着手遅延) /
+      //   期限超過で未完了=予定終了日(左,終了遅延) / 進行中(期限内)=本日線
+      if(r.terminal){
+        const c=r.kind==="task"?r.node._calc:r;
+        let px=xToday;
+        if(!c.allDone){
+          if(c.actualStart&&c.planEnd&&TODAY>c.planEnd)px=centerOf(c.planEnd);              // 終了遅延：期限超過で未完了
+          else if(!c.actualStart&&c.planStart&&TODAY>c.planStart)px=centerOf(c.planStart);  // 着手遅延：未着手で予定開始超過
+          // 進行中（期限内）は本日線（着手ズレは表示しない）
+        }
+        pts.push([clamp(px,0,ganttW),yTop+ROW_H/2]);
+      }
+      yTop+=ROW_H+extra;                                                     // この行＋（編集モードなら）MS編集行ぶんを進める
+    });
+    const rowsH=yTop;
+    pts.push([xToday,rowsH]);
+
+    // 土日/祝日の列を行の上に薄ピンクで重ねる（#ganttBg背景は不透明な行背景に隠れるため、オーバーレイで全高に効かせる）
+    // 半透明なのでバー/イナズマ/本日線は後段で上書きされ視認性を損なわない
+    let svg=weX.map(x=>`<rect class="we" x="${x}" y="0" width="${DAY_W}" height="${rowsH}" fill="#d94f72" opacity="0.10"></rect>`).join("");
+    // CSS変数(var(--x))はSVGのプレゼンテーション属性では解決されない → stroke/fill はリテラル色を書く
+    // 線は全高で重なってOK。ラベルだけ近接時に重ならないようレーン（縦段）に割り当てる
+    const mvis=ms.filter(m=>isDate(m.date)&&m.date>=rangeStart&&m.date<=rangeEnd)
+      .map(m=>({m,x:centerOf(m.date)})).sort((a,b)=>a.x-b.x);
+    const laneEnd=[];                                                    // 各レーンの直近ラベル右端x
+    mvis.forEach(({m,x})=>{
+      const col=isColor(m.color)?m.color:"#cc79a7";                     // 色は#hexのみ許可（注入防止）。既定=Okabe-Ito赤紫(青と安全に分離・#35）
+      const lbl=String(m.label??""), w=Math.max(28,lbl.length*11);      // label欠損でも落とさない
+      const lx=(x+2+w>ganttW)?Math.max(0,x-2-w):x+2;                    // 右端はみ出しならラベルを線の左側へ寄せる（見切れ防止・クランプ）
+      let lane=0; while(lane<laneEnd.length&&laneEnd[lane]>lx-3)lane++;  // 直近ラベルが終わってる最初のレーンへ
+      laneEnd[lane]=lx+w+3;
+      svg+=`<line x1="${x}" y1="0" x2="${x}" y2="${rowsH}" stroke="${col}" stroke-width="1.5" stroke-dasharray="4 3"></line>`
+         +`<rect x="${lx}" y="${1+lane*16}" width="${w}" height="14" rx="2" fill="${col}"></rect>`
+         +`<text x="${lx+3}" y="${12+lane*16}" font-size="10" fill="#fff">${esc(lbl)}</text>`;});
+    svg+=`<polyline points="${pts.map(p=>p[0].toFixed(1)+","+p[1]).join(" ")}" fill="none" stroke="#e11d48" stroke-width="1.8" stroke-linejoin="round"></polyline>`;
+    pts.slice(1,-1).forEach(p=>svg+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1]}" r="2.5" fill="#e11d48"></circle>`);
+
+    document.getElementById("leftHead").innerHTML=lh;
+    document.getElementById("leftRows").innerHTML=lrows+`<div id="leftColHl"></div>`; leftColBounds=null;  // 列幅が変わりうるので境界キャッシュを無効化
+    document.getElementById("left").style.width=eCols.reduce((s,c)=>s+cw(c),0)+"px";
+    let ctgl="",tx=0,lastCx=-99;                                               // 列折りたたみ +/−：畳んだ列は0幅＝隙間なし、+/−はタブ帯に絶対配置（アウトライン式）
+    for(let ci=0;ci<COLS.length;ci++){const c=COLS[ci];const g=COL_CG[c.key];
+      if(g){let j=ci;while(j<COLS.length&&COL_CG[COLS[j].key]===g)j++;
+        if(colCollapsed.has(g)){let bx=tx;if(bx-lastCx<16)bx=lastCx+16;        // 隣接で畳んだ時に + が重ならないよう少しずらす
+          ctgl+=`<button class="ctglb" style="left:${bx}px" data-colexp="${g}" title="${esc(t("colShow"))}">+</button>`;lastCx=bx;}
+        else{let w=0;for(let k=ci;k<j;k++)w+=cw(COLS[k]);
+          ctgl+=`<button class="ctglb" style="left:${tx+w/2}px" data-colcol="${g}" title="${esc(t("colHide"))}">−</button>`;tx+=w;}
+        ci=j-1;}
+      else tx+=cw(c);}
+    document.querySelector(".htab-sp").innerHTML=ctgl;
+    // 右ペインはタブで二択：アクティブな方"だけ"をDOM注入（非アクティブ側は文字列のまま捨てる＝重いDOM挿入は1ビューぶん）
+    const rh=document.getElementById("rightHead"); const rb=document.getElementById("rightBody");
+    document.getElementById("rtabs").innerHTML=
+      ["time","progress"].map(v=>`<button class="rtab${v===activeView?" on":""}" data-view="${v}">${esc(t(v==="time"?"viewTime":"viewProg"))}</button>`).join("");
+    document.getElementById("right").classList.toggle("pview",activeView==="progress");  // 進捗ビューは横スクロール無し＝幅に収めて全表示（左の折りたたみで幅が変われば追従）
+    if(activeView==="progress"){
+      rh.className="head phead"; rh.style.width="";
+      rh.innerHTML=`<div id="pctaxis"><div class="pcta-in">`+[0,20,40,60,80,100].map(p=>`<span class="ptk${p===0?" e0":p===100?" e100":""}" style="left:${p}%">${p}%</span>`).join("")+`</div></div>`;
+      rb.style.width=""; rb.style.height=rowsH+"px";
+      rb.innerHTML=`<div id="pgrid">`+[20,40,60,80,100].map(p=>`<div class="pgl" style="left:${p}%"></div>`).join("")+`</div>`
+        +`<div id="progbody">${progRows}</div><div id="colHl"></div><div id="rowHl"></div>`;
+    }else{
+      rh.className="head"; rh.style.width=ganttW+"px";
+      rh.innerHTML=`<div id="ym">${ym}</div><div id="dates">${dc}</div>`;
+      rb.style.width=ganttW+"px"; rb.style.height=rowsH+"px";
+      rb.innerHTML=`<div id="ganttBg" style="width:${ganttW}px;height:${rowsH}px">${bg}</div>`
+        +`<div id="grows">${grows}</div>`
+        +`<svg id="overlay" width="${ganttW}" height="${rowsH}" viewBox="0 0 ${ganttW} ${rowsH}">${svg}</svg>`
+        +`<div id="colHl"></div><div id="rowHl"></div>`;
+    }
+    document.getElementById("empty").style.display="none";
+    document.getElementById("left").style.display="block";
+    document.getElementById("right").style.display="block";
+    const _ps=allLeaves.map(n=>n._calc.planStart),_pe=allLeaves.map(n=>n._calc.planEnd);
+    const _ev=allLeaves.reduce((a,n)=>a+n._calc.load*((n._calc.progress||0)/100),0);
+    const _pv=allLeaves.reduce((a,n)=>a+n._calc.load*((n._calc.pv||0)/100),0);
+    const _behind=allLeaves.filter(n=>Math.round(n._calc.slip||0)>=1).length;  // 出来高遅れ＝予定(PV)>実績(EV)の葉数（全体は前倒し相殺で0%でも個別の遅れを見落とさない）
+    const _overdue=allLeaves.filter(n=>isOverdue(n._calc,TODAY)).length;        // 締切超過＝本日>予定終了かつ未完了の葉数（赤い予定終了・イナズマと同義）
+    const _pend=maxStr(_pe);
+    document.getElementById("stat").innerHTML=t("stat")({
+      pc:projects.length,ps:minStr(_ps),pe:_pend,due:_overdue,slip:_behind,
+      biz:(_pend&&_pend>=TODAY)?bizDays(TODAY,_pend,holMap):0,
+      planPM:(totalLoad/20).toFixed(1),restPM:(Math.max(totalLoad-_ev,0)/20).toFixed(1),
+      prog:Math.round(totalLoad?_ev/totalLoad*100:0),plan:Math.round(totalLoad?_pv/totalLoad*100:0),
+      delay:Math.round(totalLoad?Math.max((_pv-_ev)/totalLoad*100,0):0),
+      fname:(fileHandle&&fileHandle.name)||curFileName||"\u2014",today:TODAY,
+      upd:new Date().toLocaleTimeString(t("locale"),{hour:"2-digit",minute:"2-digit"}),
+      save:saveMsg?"・ "+ICN.save+" "+esc(saveMsg):""});
+    const rEl=document.getElementById("right"), lEl=document.getElementById("left");
+    const maxLeft=Math.max(0,ganttW-rEl.clientWidth);
+    // 初回/新規読込のみ本日へセンタリング。折りたたみ・更新ではスクロール位置を保持。進捗ビューは横スクロール無し（0固定）
+    rEl.scrollLeft=activeView!=="time"?0:(pendingCenter?clamp(xToday-rEl.clientWidth/2,0,maxLeft):Math.min(scrollKeep.left,maxLeft));
+    rEl.scrollTop=scrollKeep.top; lEl.scrollTop=rEl.scrollTop;
+    pendingCenter=false;
+  }
+  function applyData(data,isNew){
+    lastData=data;
+    if(isNew){collapsed.clear();collapseSnapshot=null;pendingCenter=true;exitEditMode();}   // 新規ファイルは折りたたみリセット＆センタリング＆編集OFF（#10）
+    render(data);
+  }
+  function loadText(txt,isNew,label){try{applyData(JSON.parse(txt),isNew);}catch(e){alert(t("jsonFail")(label,e.message));}}
+  function renderData(data){applyData(data,true);}      // 直接/テスト呼び出し＝新規扱い
+  window.renderData=renderData;
+
+  const left=document.getElementById("left"), right=document.getElementById("right");
+  right.addEventListener("scroll",()=>{if(lock)return;lock=true;left.scrollTop=right.scrollTop;lock=false;});
+  left.addEventListener("scroll",()=>{if(lock)return;lock=true;right.scrollTop=left.scrollTop;lock=false;});
+  // 右ペインのタブ切替（時間/進捗）
+  document.getElementById("rtabs").addEventListener("click",e=>{
+    const b=e.target.closest(".rtab"); if(!b)return;
+    const v=b.getAttribute("data-view"); if(v===activeView)return;
+    activeView=v; try{localStorage.setItem("wbsView",v);}catch(_){}
+    if(lastData)render(lastData);
+  });
+  // 折りたたみ（イベント委譲）
+  document.querySelector(".htab-sp").addEventListener("click",e=>{           // 列折りたたみ +/−（アウトライン式）
+    const b=e.target.closest("[data-colcol],[data-colexp]"); if(!b||!lastData)return;
+    const col=b.getAttribute("data-colcol"),exp=b.getAttribute("data-colexp");
+    if(col)colCollapsed.add(col); else colCollapsed.delete(exp);
+    saveColCollapsed(); render(lastData);
+  });
+  document.getElementById("leftRows").addEventListener("click",e=>{
+    const t=e.target.closest("[data-collapse]"); if(!t)return;
+    const k=t.getAttribute("data-collapse");
+    collapsed.has(k)?collapsed.delete(k):collapsed.add(k);
+    collapseSnapshot=null;   // 個別操作後の Ctrl+Z が古い状態へ巻き戻らないよう無効化（#52）
+    if(lastData)render(lastData);
+  });
+  // 全体caret: ▶=全展開 / ▼=全たたみ。実行前の状態をスナップショットし Ctrl+Z で復元（#52）
+  document.getElementById("leftHead").addEventListener("click",e=>{
+    if(e.target.id!=="allCaret"||!lastData)return;
+    collapseSnapshot=new Set(collapsed);
+    if(collapsed.size)collapsed.clear();                                     // どこか閉じている → 全展開
+    else normalizeProjects(lastData).forEach(p=>collapsed.add("P|"+p.name)); // 全部開いている → 全たたみ
+    render(lastData);
+  });
+  window.addEventListener("keydown",e=>{
+    if(!(e.ctrlKey||e.metaKey)||e.key!=="z"||collapseSnapshot===null)return;
+    const a=document.activeElement;
+    if(a&&a.tagName==="INPUT")return;                                        // テキストundoを妨げない（#36導入時に統合）
+    e.preventDefault();
+    collapsed.clear();collapseSnapshot.forEach(k=>collapsed.add(k));
+    collapseSnapshot=null;
+    if(lastData)render(lastData);
+  });
+
+  // ===== 編集モード（インライン編集・追加/削除/上下移動・自動保存） =====
+  // 設計：変異は同期で行い即 render（DOMのdata-pathを常に最新に保つ）。保存はデバウンス＋単一チェーンで直列化。
+  const DATE_FIELDS={ps:["plan","start"],pe:["plan","end"],as:["actual","start"],ae:["actual","end"]};
+  const newLeaf=id=>({id,name:t("newTask"),qty:1,hours:8,assignee:"",plan:{start:null,end:null},actual:{start:null,end:null},note:""});
+  const mintId=(arr,prefix)=>{const ids=new Set(arr.map(x=>String(x.id)));let nn=arr.length+1;while(ids.has(prefix+nn))nn++;return prefix+nn;};
+  function resolvePath(path){
+    const parts=path.split("/").map(Number), proj=curProjects&&curProjects[parts[0]];
+    if(!proj)return {}; let arr=proj.tasks||[], node=null;
+    for(let k=1;k<parts.length;k++){node=arr[parts[k]]; if(!node)return {proj}; if(k<parts.length-1)arr=node.children||[];}
+    return {proj,parentArray:arr,index:parts[parts.length-1],node};
+  }
+  function applyField(n,f,val){
+    if(f==="qty"||f==="hours")n[f]=val===""?0:(Number(val)||0);
+    else if(DATE_FIELDS[f]){
+      const[grp,key]=DATE_FIELDS[f];
+      const cur=(n[grp]&&typeof n[grp]==="object")?n[grp][key]:null;          // 既存値（年補完に使う）
+      const iso=expandDate(val,cur);                                          // 611/6-11/full等→full ISO・無効はnull
+      if(iso===null)return;                                                   // 解釈不能・範囲外は無視（ゴミを保存しない）
+      if(!n[grp]||typeof n[grp]!=="object")n[grp]={}; n[grp][key]=iso===""?null:iso;
+    }else n[f]=val;   // id, name, assignee, note
+  }
+  async function ensureWritable(){   // file:// では権限プロンプトが出せないため段階的にフォールバック（#17/#18/#19）
+    try{
+      if(fileHandle.queryPermission&&await fileHandle.queryPermission({mode:"readwrite"})==="granted")return true;
+    }catch(_){}
+    if(!pickerNeeded){                                                       // 2回目以降は前処理を全スキップ（ジェスチャー温存）
+      try{
+        if(fileHandle.requestPermission){
+          const r=await fileHandle.requestPermission({mode:"readwrite"});
+          if(r==="granted")return true;
+          if(r==="denied"){alert(t("permDenied"));return false;}
+        }
+      }catch(_){pickerNeeded=true;}                                          // file:// は例外 → 以後ピッカー方式
+      if(!pickerNeeded){
+        try{
+          const w=await fileHandle.createWritable({keepExistingData:true});  // 書込ストリームを開いて確認
+          await w.abort();                                                   // 中身は変更しない（swapを破棄）
+          return true;
+        }catch(_){pickerNeeded=true;}
+      }
+    }
+    // 保存ピッカーで選び直してもらう（選択自体が書き込み許可になる）。
+    // 注意：ジェスチャー失効を防ぐため、ここまで alert 等のダイアログは一切挟まない（#19）。案内はページ内バーで出す（#30）
+    if(!window.showSaveFilePicker){alert(t("permUnavailable"));return false;}
+    notice(t("pickerGuide"));
+    try{
+      const f=await fileHandle.getFile();
+      const h=await window.showSaveFilePicker({suggestedName:f.name,
+        types:[{description:"JSON",accept:{"application/json":[".json"]}}]});
+      try{
+        if(fileHandle.isSameEntry&&!await h.isSameEntry(fileHandle)&&
+           !confirm(t("diffFile"))){
+          notice("");
+          alert(t("truncWarn"));
+          return false;
+        }
+      }catch(_){}
+      fileHandle=h; fileMtime=0;                                             // 以後の保存先を書込可ハンドルに
+      saveChain=saveChain.then(writeNow); await saveChain;                   // ピッカーの「置換」は選択時点でファイルを切り詰めるため、即書込して空のまま残さない（#29）
+      notice("");
+      return true;
+    }catch(e){
+      if(e&&e.name==="AbortError"){                                          // ユーザーキャンセル
+        notice(t("pickerRetryCancel"));
+        return false;
+      }
+      if(/user gesture/i.test(e&&e.message||""))                             // ジェスチャー失効 → 再クリックで最短経路
+        notice(t("pickerRetryGesture"));
+      else{notice("");alert(t("permErr")+e.message);}
+      return false;
+    }
+  }
+  // 保存キュー：dirty → デバウンス → 単一チェーンで書込（並走書込・古いスナップショット後勝ちを防ぐ）
+  function setSaveMsg(m){saveMsg=m;const el=document.getElementById("saveMsg");if(el)el.innerHTML=m?"・ "+ICN.save+" "+esc(m):"";}
+  function notice(m){const el=document.getElementById("notice");el.textContent=m;el.classList.toggle("show",!!m);}  // ページ内の案内バー（alertと違いジェスチャーを消費しない）
+  function queueSave(){dirty=true;setSaveMsg(t("unsaved"));clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,SAVE_DEBOUNCE_MS);}
+  function flushSaves(){clearTimeout(saveTimer);if(dirty){dirty=false;saveChain=saveChain.then(()=>writeNow());}return saveChain;}
+  async function writeNow(retry){
+    if(!fileHandle||!fileHandle.createWritable){setSaveMsg(t("saveFail"));alert(t("cantSave"));return;}
+    try{
+      const cur=await fileHandle.getFile();                                  // 外部変更（AI編集等）の検知
+      if(fileMtime&&cur.lastModified!==fileMtime&&
+         !confirm(t("extChange"))){
+        setSaveMsg(t("savePending"));return;
+      }
+      const json=JSON.stringify(lastData,(k,v)=>(k==="_calc"||k==="_leaf")?undefined:v,2);  // 内部派生値のみ除外
+      const w=await fileHandle.createWritable(); await w.write(json); await w.close();
+      fileMtime=(await fileHandle.getFile()).lastModified;
+      setSaveMsg(t("savedAt")+new Date().toLocaleTimeString(t("locale")));
+    }catch(e){
+      // InvalidStateError＝同期/AV等の横入りでブラウザのスナップショットが陳腐化。1拍おいて1回だけ再試行（再getFileで更新）。createWritableが弾く＝書込前なので原本は無傷
+      if(e&&e.name==="InvalidStateError"&&!retry){await new Promise(r=>setTimeout(r,SAVE_RETRY_DELAY_MS));return writeNow(true);}
+      dirty=true;                                                            // 失敗を抱え落ちさせない（次のqueueSave／離脱警告で再保存。alertループは避けるため自動再キューはしない）
+      setSaveMsg(t("saveFail"));alert(t("saveErr")+e.message);
+    }
+  }
+  function deferRender(){   // 入力にフォーカス中は再描画を遅らせ、フォーカス喪失を防ぐ
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(function tick(){
+      const a=document.activeElement;
+      if(a&&a.tagName==="INPUT"&&a.closest&&a.closest("#leftRows")){refreshTimer=setTimeout(tick,FOCUS_POLL_MS);return;}
+      if(lastData)render(lastData);
+    },RENDER_DEFER_MS);
+  }
+  function exitEditMode(){   // 新規ファイル読込時などに編集状態を確実に解除
+    editMode=false;notice("");
+    document.getElementById("editBtn").classList.remove("on");
+    document.getElementById("leftRows").classList.remove("editing");
+  }
+  document.getElementById("editBtn").addEventListener("click",async()=>{
+    if(!editMode){
+      if(!fileHandle||!fileHandle.createWritable){alert(t("needHandle"));return;}
+      if(!await ensureWritable())return;
+      if(lastData&&!Array.isArray(lastData.projects)){                       // 旧フォーマット → 変換してから編集（#3）
+        if(!confirm(t("legacyConvert")))return;
+        lastData={projects:normalizeProjects(lastData)};
+      }
+      editMode=true;
+    }else{flushSaves();editMode=false;}
+    document.getElementById("editBtn").classList.toggle("on",editMode);
+    document.getElementById("leftRows").classList.toggle("editing",editMode);
+    if(lastData)render(lastData);
+  });
+  document.getElementById("leftRows").addEventListener("change",e=>{
+    const t=e.target; if(t.tagName!=="INPUT")return;
+    if(t.classList.contains("cal-proxy")){                                   // 📅の選択/クリアをテキスト入力へ反映（#33/#56）
+      const txt=t.closest(".date-wrap").querySelector("input[data-field],input[data-mfield]");
+      txt.value=t.value;                                                     // 空＝カレンダーの「クリア」もそのまま反映（→null保存）
+      txt.dispatchEvent(new Event("change",{bubbles:true}));
+      return;
+    }
+    if(t.hasAttribute("data-field")){
+      const r=resolvePath(t.getAttribute("data-path")); if(!r.node)return;
+      applyField(r.node,t.getAttribute("data-field"),t.value);
+    }else if(t.hasAttribute("data-pname")){
+      const pi=+t.getAttribute("data-pname"); if(!curProjects||!curProjects[pi])return;
+      curProjects[pi].name=t.value;
+    }else if(t.hasAttribute("data-mfield")){                                  // マイルストーン編集（GUI経路・#70補足）
+      const[pi,mi]=t.getAttribute("data-mpath").split("/").map(Number);
+      const m=curProjects&&curProjects[pi]&&curProjects[pi].milestones&&curProjects[pi].milestones[mi]; if(!m)return;
+      const f=t.getAttribute("data-mfield");
+      if(f==="date"){const iso=expandDate(t.value,m.date); if(iso===null)return; m.date=iso;}
+      else if(f==="label")m.label=t.value;
+    }else return;
+    queueSave(); deferRender();
+  });
+  document.getElementById("leftRows").addEventListener("click",e=>{
+    const cb=e.target.closest("button[data-cal]");                           // 📅 → ネイティブカレンダー（表示形式の制御不能を回避し、入力はISO固定 #33）
+    if(cb){
+      const w=cb.closest(".date-wrap"), txt=w.querySelector("input[data-field],input[data-mfield]"), px=w.querySelector(".cal-proxy");
+      px.value=isDate(txt.value)?txt.value:(expandDate(txt.value)||"");        // 短縮形"06-01"はfull ISOに展開してからnativeへ（空でないと現在日付/クリアが効かない・#59）
+      try{px.showPicker();}catch(_){}
+      return;
+    }
+    const b=e.target.closest("button[data-act]"); if(!b)return;
+    const act=b.getAttribute("data-act");
+    if(act==="addtask"){
+      const pi=+b.getAttribute("data-proj"), proj=curProjects&&curProjects[pi]; if(!proj)return;
+      proj.tasks=proj.tasks||[]; proj.tasks.push(newLeaf(mintId(proj.tasks,"")));
+      collapsed.delete("P|"+proj.name);                                      // 折りたたみ中でも追加が見えるように展開（#11）
+      queueSave(); render(lastData); return;
+    }
+    if(act==="addms"){                                                       // マイルストーン追加（既定:本日/空ラベル/既定色）
+      const pi=+b.getAttribute("data-proj"), proj=curProjects&&curProjects[pi]; if(!proj)return;
+      proj.milestones=proj.milestones||[]; proj.milestones.push({date:todayStr(),label:"",color:"#cc79a7"});
+      collapsed.delete("P|"+proj.name);
+      queueSave(); render(lastData); return;
+    }
+    if(act==="delms"){                                                       // マイルストーン削除
+      const[pi,mi]=b.getAttribute("data-mpath").split("/").map(Number);
+      const proj=curProjects&&curProjects[pi]; if(!proj||!proj.milestones)return;
+      proj.milestones.splice(mi,1);
+      queueSave(); render(lastData); return;
+    }
+    if(act==="setmscolor"){                                                  // 色プリセット選択（5色）
+      const[pi,mi]=b.getAttribute("data-mpath").split("/").map(Number);
+      const m=curProjects&&curProjects[pi]&&curProjects[pi].milestones&&curProjects[pi].milestones[mi]; if(!m)return;
+      m.color=b.getAttribute("data-color"); queueSave(); render(lastData); return;
+    }
+    const r=resolvePath(b.getAttribute("data-path")), arr=r.parentArray, i=r.index;
+    if(!arr||!r.node)return;
+    if(act==="up"){if(i<=0)return; const t=arr[i-1];arr[i-1]=arr[i];arr[i]=t;}
+    else if(act==="down"){if(i>=arr.length-1)return; const t=arr[i+1];arr[i+1]=arr[i];arr[i]=t;}
+    else if(act==="del"){
+      if(!confirm(t("confirmDel")(r.node.name||"")))return;
+      const removed=arr[i]; arr.splice(i,1);
+      if(arr.length===0){                                                    // 案Y降格(#70)：親集計の子が全部消えたら、最後の子の値を親へ戻しリーフ化（工数を消さない）
+        const pp=b.getAttribute("data-path").split("/");
+        if(pp.length>=3){const pr=resolvePath(pp.slice(0,-1).join("/"));
+          if(pr.node){delete pr.node.children;
+            for(const k in removed)if(k!=="id"&&k!=="children"&&k!=="_calc"&&k!=="_leaf")pr.node[k]=removed[k];}}
+      }
+    }
+    else if(act==="add"){
+      const base=String(r.node.id||""), dot=base.lastIndexOf("."), prefix=dot>=0?base.slice(0,dot+1):"";
+      arr.splice(i+1,0,newLeaf(mintId(arr,prefix)));
+    }
+    else if(act==="addchild"){                                               // ＋子=入れ子追加(#70)
+      const node=r.node;
+      if(node.children&&node.children.length){                               // 既存集計→末尾に空の子（総工数は増える）
+        node.children.push(newLeaf(mintId(node.children,String(node.id)+".")));
+      }else{                                                                  // リーフ→集計化：自分の値を子1へ移す（案A）。総工数・進捗は不変
+        const child={id:String(node.id)+".1",name:node.name};
+        for(const k in node)if(k!=="id"&&k!=="name"&&k!=="children"&&k!=="_calc"&&k!=="_leaf")child[k]=node[k];
+        Object.keys(node).forEach(k=>{if(k!=="id"&&k!=="name")delete node[k];});
+        node.children=[child];
+      }
+      collapsed.delete("T|"+r.proj.name+"|"+node.id);                         // 折りたたみ中でも追加が見えるよう展開
+    }
+    else if(act==="done"){                                                   // 完了トグル：チェックで実績終了=今日（未着手なら着手も今日）・解除でnull
+      const a=r.node.actual=r.node.actual&&typeof r.node.actual==="object"?r.node.actual:{};
+      if(a.end)a.end=null; else{a.end=todayStr(); if(!a.start)a.start=todayStr();}
+    }
+    else if(act==="prog-inc"||act==="prog-dec"){                              // 進捗ステッパー ±10%（表示値を基点に増減）
+      const cur=quantProg(r.node._progress);
+      const base=(cur!=null)?cur:Math.round(((r.node._calc&&r.node._calc.progress)||0)/10)*10;
+      const tgt=clamp(base+(act==="prog-inc"?10:-10),0,100);
+      r.node._progress=tgt; r.node._progressAt=new Date().toISOString(); r.node._progressBy="manual";
+      if(tgt>=10){const a=r.node.actual=r.node.actual&&typeof r.node.actual==="object"?r.node.actual:{}; if(!a.start)a.start=todayStr();}
+      // 0%に戻しても着手日(actual.start)は残す（決定A・日付の無言削除はしない）
+    }else return;
+    queueSave(); render(lastData);                                           // 変異→即render（stale path防止 #5/#8）
+  });
+  document.getElementById("leftRows").addEventListener("wheel",e=>{
+    const t=e.target; if(t.tagName==="INPUT"&&t.type==="number")t.blur();    // ホイールでの誤変更防止（#13）
+  },{passive:true});
+  window.addEventListener("beforeunload",e=>{
+    if(!editMode)return;
+    const a=document.activeElement;
+    if(a&&a.tagName==="INPUT"&&a.closest&&a.closest("#leftRows"))a.blur();   // 未確定入力をコミット（changeが同期発火）
+    if(dirty){flushSaves();e.preventDefault();}                              // 書込完了前の離脱に警告（#15）
+  });
+
+  async function loadFromHandle(h,isNew){
+    const f=await h.getFile(), txt=await f.text();
+    let data; try{data=JSON.parse(txt);}
+    catch(e){alert(t("jsonFail")(t("fileLabel")(f.name,f.size),e.message));return;}  // 失敗時はハンドルを差し替えない（#1：別ファイル上書き破壊の防止）
+    fileHandle=h; fileMtime=f.lastModified; curFileName=f.name; applyData(data,isNew);
+  }
+  async function openPicker(){
+    if(window.showOpenFilePicker){
+      try{const[h]=await window.showOpenFilePicker({types:[{description:"JSON",accept:{"application/json":[".json"]}}]});await loadFromHandle(h,true);}
+      catch(e){if(e&&e.name!=="AbortError")alert("読み込み失敗: "+e.message);}
+    }else document.getElementById("fallbackInput").click();
+  }
+  async function refresh(){
+    if(fileHandle){try{await flushSaves();await loadFromHandle(fileHandle,false);}catch(e){alert(t("reloadErr")+e.message);}}  // 保存を流してから再読込（#6）。折りたたみ/位置は維持
+    else alert(t("loadFirst"));
+  }
+  document.getElementById("openBtn").addEventListener("click",openPicker);
+  document.getElementById("refreshBtn").addEventListener("click",refresh);
+  // ガントの十字ハイライト（マウスのある日の列＋行に帯＋ヘッダ強調）。
+  // オーバーレイ2枚の移動のみ＝行数×日数に比例する仕事は増やさない（描画パス予算）
+  {
+    const right=document.getElementById("right"), left=document.getElementById("left"), main=document.getElementById("main");
+    let hlIdx=-1, rowIdx=-1, leftColIdx=-1;
+    const clearCol=()=>{const d=document.querySelectorAll("#dates .d")[hlIdx];if(d)d.classList.remove("hl");
+      const col=document.getElementById("colHl");if(col)col.style.display="none";hlIdx=-1;};
+    const clearRow=()=>{const lr=document.querySelectorAll("#leftRows .lrow")[rowIdx];if(lr)lr.classList.remove("hl");
+      const row=document.getElementById("rowHl");if(row)row.style.display="none";rowIdx=-1;};
+    const clearLeftCol=()=>{const band=document.getElementById("leftColHl");if(band)band.style.display="none";leftColIdx=-1;};
+    const setLeftCol=clientX=>{                                               // 縦：左表のデータ列。境界はrender毎に1回だけ実測しキャッシュ（mousemoveでのreflow回避）
+      const band=document.getElementById("leftColHl"),rowsEl=document.getElementById("leftRows");
+      const row=rowsEl&&rowsEl.querySelector(".lrow"); if(!band||!row)return;
+      if(!leftColBounds){
+        const rowsLeft=rowsEl.getBoundingClientRect().left;
+        leftColBounds=[...row.querySelectorAll(".c")].map(c=>{const r=c.getBoundingClientRect();return{l:r.left,rt:r.right,rel:r.left-rowsLeft,w:r.width};});
+        leftColIdx=-1;                                                       // 再構築時はindexもリセット（render後に古い位置で早期リターンしない）
+      }
+      const idx=leftColBounds.findIndex(b=>clientX>=b.l&&clientX<b.rt);
+      if(idx===leftColIdx)return;                                            // 列が変わった時だけ動かす（数値比較のみ・reflow無し）
+      leftColIdx=idx;
+      if(idx<0){band.style.display="none";return;}
+      const b=leftColBounds[idx]; band.style.left=b.rel+"px";band.style.width=b.w+"px";band.style.display="block";
+    };
+    const setCol=clientX=>{                                                   // 縦：日付列（ガント領域のみ）
+      const col=document.getElementById("colHl"); if(!col)return;
+      const idx=Math.floor((clientX-right.getBoundingClientRect().left+right.scrollLeft)/DAY_W);
+      const days=document.querySelectorAll("#dates .d");
+      if(idx<0||idx>=days.length){clearCol();return;}
+      if(idx===hlIdx)return;
+      const prev=days[hlIdx];if(prev)prev.classList.remove("hl");
+      hlIdx=idx;days[idx].classList.add("hl"); col.style.left=(idx*DAY_W)+"px";col.style.display="block";
+    };
+    const setRow=clientY=>{                                                   // 横：行＝タスク（左表＋ガント連続）
+      const row=document.getElementById("rowHl"),grows=document.getElementById("grows"); if(!row||!grows)return;
+      const ri=Math.floor((clientY-grows.getBoundingClientRect().top)/ROW_H);
+      if(ri===rowIdx)return;
+      if(ri<0||ri*ROW_H>=grows.offsetHeight){clearRow();return;}
+      const leftRows=document.querySelectorAll("#leftRows .lrow");
+      const prevL=leftRows[rowIdx];if(prevL)prevL.classList.remove("hl");
+      rowIdx=ri;row.style.top=(ri*ROW_H)+"px";row.style.display="block"; const lr=leftRows[ri];if(lr)lr.classList.add("hl");
+    };
+    right.addEventListener("mousemove",e=>{clearLeftCol();setCol(e.clientX);setRow(e.clientY);}); // ガント＝縦(日付列)＋横
+    left.addEventListener("mousemove",e=>{clearCol();setLeftCol(e.clientX);setRow(e.clientY);});  // 作業項目＝縦(データ列)＋横。縦は今いるペインの列に切替
+    main.addEventListener("mouseleave",()=>{clearCol();clearLeftCol();clearRow();});               // 表全体を出たら消す（左右間の移動では消さない）
+  }
+  document.getElementById("fallbackInput").addEventListener("change",async e=>{
+    const f=e.target.files[0];if(f){fileHandle=null;fileMtime=0;curFileName=f.name;loadText(await f.text(),true,t("fileLabel")(f.name,f.size));}});
+  const drop=document.getElementById("openBtn");   // 開くボタン自体がD&D受け口（クリック=ピッカー／ドロップ=読込）
+  ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+  document.addEventListener("dragover",e=>e.preventDefault());
+  document.addEventListener("drop",e=>e.preventDefault());
+  drop.addEventListener("drop",async e=>{
+    const it=e.dataTransfer.items&&e.dataTransfer.items[0];
+    const fb=e.dataTransfer.files[0]||null;       // await後はdataTransferが無効化され得るため同期的に確保
+    if(it&&it.getAsFileSystemHandle){
+      try{
+        const h=await it.getAsFileSystemHandle();
+        if(h&&h.kind==="file"){
+          const f=await h.getFile();
+          if(f.size>0||!fb||fb.size===0){await loadFromHandle(h,true);return;}  // ハンドル読みが空でフォールバックに中身がある時だけ切替
+        }
+      }catch(_){}
+    }
+    if(fb){fileHandle=null;fileMtime=0;loadText(await fb.text(),true,t("fileLabel")(fb.name,fb.size));}
+    else alert(t("dropFail"));
+  });
+
+  // ===== 言語切替（既定:日本語。選択は localStorage に記憶） =====
+  function applyLang(){
+    document.documentElement.lang=lang;
+    document.getElementById("openBtn").innerHTML=`${esc(t("open"))}<span class="sub">${esc(t("openSub"))}</span>`;
+    [["refreshBtn","reload"],
+     ["editBtn","edit"],["langBtn","langBtn"]].forEach(([id,k])=>{document.getElementById(id).textContent=t(k);});
+    document.getElementById("editBtn").title=t("editTitle");
+    document.getElementById("empty").innerHTML=t("empty");
+    if(!lastData)document.getElementById("stat").textContent=t("notLoaded");
+  }
+  document.getElementById("langBtn").addEventListener("click",()=>{
+    lang=lang==="ja"?"en":"ja";
+    try{localStorage.setItem("wbsLang",lang);}catch(_){}
+    applyLang(); if(lastData)render(lastData);
+  });
+  applyLang();
+  // 簡素表示トグル(#79)：ロゴ/版/“Viewer”/タブ名を隠し「WBS」だけに。現場で“自作”と言える逃げ道。クリックで切替・localStorage記憶
+  function applyPlain(){const on=(()=>{try{return localStorage.getItem("wbsPlain")==="1";}catch(_){return false;}})();
+    document.body.classList.toggle("plain",on); document.title=on?"WBS":"WBS Viewer";}
+  document.getElementById("brandTitle").addEventListener("click",()=>{
+    const on=!document.body.classList.contains("plain");
+    try{localStorage.setItem("wbsPlain",on?"1":"0");}catch(_){}
+    applyPlain();
+  });
+  applyPlain();
+})();
+</script>
+</body>
+</html>

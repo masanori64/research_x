@@ -1,0 +1,17 @@
+direction: right
+
+dev: "開発者 / SI事業者"
+agent: "AIエージェント"
+system: "research_x\nMemory/Search System"
+xstore: "既存XコレクションDB\nSQLite"
+provider: "外部Provider/API\n承認ゲート"
+deck: "資料生成レーン\nD2 / Marp"
+
+dev -> system
+agent -> system
+system -> xstore
+system -> deck
+system -> provider {
+  style.stroke: "#dc2626"
+  style.stroke-dash: 4
+}

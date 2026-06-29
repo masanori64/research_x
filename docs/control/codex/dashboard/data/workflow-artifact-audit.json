@@ -1,0 +1,104 @@
+{
+  "artifact_kind": "workflow_artifact_audit",
+  "artifact_only_static_smoke": false,
+  "control_artifact": true,
+  "deploy_executed": false,
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-29T06:17:10.081332+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "github_actions_artifact_storage_created_by_this_smoke": false,
+  "github_actions_minutes_consumed_by_this_smoke": false,
+  "github_api_write_executed": false,
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "pages_enabled": false,
+  "paid_usage_detected": false,
+  "reason": "This smoke validates artifact-only workflow wrappers locally and reads existing remote artifact metadata when available. It does not dispatch a workflow.",
+  "remote_artifacts": {
+    "artifact_only_smoke_present": true,
+    "items": [
+      {
+        "created_at": "2026-06-26T13:51:11Z",
+        "expired": false,
+        "expires_at": "2026-07-03T13:51:10Z",
+        "id": 7907160432,
+        "name": "codex-artifact-smoke",
+        "size_in_bytes": 56737,
+        "workflow_run": {
+          "head_branch": "codex/context-and-design-import-20260609",
+          "head_sha": "7be9f900a9eca578a612c5e53f15d091ac72ae51",
+          "id": 28242394275,
+          "repository_id": 1248952319
+        }
+      }
+    ],
+    "sample_count": 1,
+    "status": "passed",
+    "total_count": 1
+  },
+  "repository_settings_changed": false,
+  "schema_version": 1,
+  "secrets_used": false,
+  "status": "failed",
+  "validation_errors": [
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-ci.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml: wrapper must upload an artifact",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml: preview wrapper missing 'actions/upload-artifact@v4'",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml: wrapper must upload an artifact"
+  ],
+  "workflow_dispatch_executed": false,
+  "workflow_files": [
+    {
+      "artifact_upload": false,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-ci.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": false,
+      "workflow_dispatch_declared": true
+    },
+    {
+      "artifact_upload": false,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": false,
+      "workflow_dispatch_declared": true
+    },
+    {
+      "artifact_upload": false,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": false,
+      "workflow_dispatch_declared": true
+    },
+    {
+      "artifact_upload": false,
+      "exists": true,
+      "forbidden_live_deploy_markers": [],
+      "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml",
+      "permissions_contents_read": true,
+      "pull_request_declared": true,
+      "push_declared": true,
+      "workflow_dispatch_declared": false
+    }
+  ]
+}

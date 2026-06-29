@@ -9,6 +9,10 @@ from research_x.adapters.bookmark_adapters import (
     _write_netscape_cookies,
     _XWebGraphQLBookmarkSettings,
 )
+from research_x.bookmarks import (
+    EXHAUSTIVE_BOOKMARK_MAX_PAGES,
+    _bookmark_adapters,
+)
 from research_x.contracts import AcquisitionTarget, AdapterConfig, OutcomeStatus, TargetKind
 
 
@@ -154,6 +158,43 @@ def test_gallery_dl_items_marks_quoted_leaf_as_non_root_bookmark() -> None:
     assert items[1].raw["bookmark_relation"] == "quoted_tweet"
 
 
+def test_bookmark_exhaustive_adapters_do_not_use_smoke_limits(tmp_path) -> None:
+    adapters = _bookmark_adapters(
+        storage_state=tmp_path / "state.json",
+        output_path=tmp_path / "out",
+        headless=True,
+        timeout_ms=45000,
+        max_scroll_steps=1000,
+        limit=1_000_000_000,
+        exhaustive=True,
+    )
+    by_id = {adapter.adapter_id: adapter for adapter in adapters}
+
+    assert by_id["twscrape_raw"].options["max_pages"] == EXHAUSTIVE_BOOKMARK_MAX_PAGES
+    assert by_id["x_web_graphql_bookmarks"].options["max_pages"] == (
+        EXHAUSTIVE_BOOKMARK_MAX_PAGES
+    )
+    assert by_id["gallery_dl_bookmarks"].options["exhaustive"] is True
+    assert tuple(adapter.adapter_id for adapter in adapters) == (
+        "twscrape_raw",
+        "twikit",
+        "x_web_graphql_bookmarks",
+        "gallery_dl_bookmarks",
+        "playwright_network_bookmarks",
+        "playwright",
+        "scrapling",
+        "camoufox",
+        "patchright",
+        "rebrowser_playwright",
+        "rebrowser_patches",
+        "scrapy",
+    )
+    assert by_id["camoufox"].options["max_scroll_steps"] == 1000
+    assert by_id["patchright"].options["max_scroll_steps"] == 1000
+    assert by_id["rebrowser_playwright"].options["max_scroll_steps"] == 1000
+    assert by_id["scrapy"].options["max_scroll_steps"] == 1000
+
+
 def test_write_netscape_cookies_from_playwright_state(tmp_path) -> None:
     state = tmp_path / "state.json"
     output = tmp_path / "cookies.txt"
@@ -178,6 +219,45 @@ def test_write_netscape_cookies_from_playwright_state(tmp_path) -> None:
     _write_netscape_cookies(state, output)
 
     assert "auth_token" in output.read_text(encoding="utf-8")
+
+
+def test_write_netscape_cookies_skips_empty_and_expired_values(tmp_path) -> None:
+    state = tmp_path / "state.json"
+    output = tmp_path / "cookies.txt"
+    state.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "auth_token",
+                        "value": "",
+                        "domain": ".x.com",
+                        "expires": 2000000000,
+                    },
+                    {
+                        "name": "ct0",
+                        "value": "expired",
+                        "domain": ".x.com",
+                        "expires": 1,
+                    },
+                    {
+                        "name": "auth_token",
+                        "value": "fresh",
+                        "domain": ".x.com",
+                        "expires": 2000000000,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _write_netscape_cookies(state, output)
+
+    content = output.read_text(encoding="utf-8")
+    assert "fresh" in content
+    assert "expired" not in content
+    assert "\t\t" not in content
 
 
 def test_x_web_graphql_bookmarks_persists_raw_pages_and_cursor_state(tmp_path) -> None:

@@ -1,0 +1,143 @@
+lockfile_version = 1
+created_at = "2026-06-10"
+owner = "research_x"
+purpose = "Lock enabled repo-local Skills only; external source decisions live in control/vendor_sources.lock.md and the Codex foundation registry."
+generated_from = [
+  "C:/Users/maasa/.codex/foundation/project_reviews/research_x-codex-inbox-inventory-20260610.md",
+  "_codex_inbox/extracted/design_package/codex_design_package_20260609_1826/07_skill_registry_and_installation_policy.md",
+  "_codex_inbox/extracted/design_package/codex_design_package_20260609_1826/source_inventory.json",
+  "_codex_inbox/extracted/20260611_addendum/design_package/20260611_complete_design_package/03_DECISION_LOCK.md",
+  "_codex_inbox/extracted/20260611_addendum/design_package/20260611_complete_design_package/research_x/08_research_x_manifest_docs_tests.md",
+]
+
+[policy]
+external_entries_allowed = false
+repo_skills_path = ".agents/skills"
+
+[[entries]]
+name = "research-x-decision-loop"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-decision-loop/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Existing repo skill for research/review/audit loops."
+
+[[entries]]
+name = "research-x-doc-governance"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-doc-governance/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Existing repo skill for Markdown placement and archive drift control."
+
+[[entries]]
+name = "research-x-memory-workflow"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-memory-workflow/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Existing repo skill for memory-search implementation invariants."
+
+[[entries]]
+name = "research-x-observability-review"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-observability-review/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Existing repo skill for app/CLI/workflow trace visibility."
+
+[[entries]]
+name = "research-x-provider-gate"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-provider-gate/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Existing repo skill for no-quota and provider-facing lane checks."
+
+[[entries]]
+name = "research-x-research-intake"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-research-intake/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for source candidate classification, provenance, risk flags, and source-bundle intake handoff."
+
+[[entries]]
+name = "research-x-prompt-contract"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-prompt-contract/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for prompt contracts, schema/status behavior, allowed/forbidden tools, and prompt regression cases."
+
+[[entries]]
+name = "research-x-implementation-plan-flow"
+entry_type = "repo_skill"
+source = ".agents/skills/research-x-implementation-plan-flow/SKILL.md"
+source_ref = "repo"
+scope = "project_research_x"
+decision = "enabled_repo_local"
+enabled = true
+implicit_invocation = true
+review_status = "repo_owned"
+risk = "low"
+allowed_scripts = "repo_policy"
+commit = ""
+negative_trigger_tests = "repo_policy"
+notes = "Repo skill for converting research_x candidate sets into gated local-first implementation priority flows."

@@ -1,0 +1,30 @@
+schema_version: 1
+project_id: research_x
+codex_foundation: C:/Users/maasa/.codex
+github:
+  mode: public_repo_pages_static_cd
+  api_enabled: public_read
+  repository: masanori64/research_x
+  default_branch: main
+outputs:
+  dashboard_dir: docs/control/codex/dashboard
+  generated_dir: .codex-project/generated
+  mermaid_dir: docs/control/codex/dashboard/mermaid
+workflow:
+  phase: static_pages_cd_final
+  cd_execution_enabled: true
+  rollback_execution_enabled: safe_static_only
+  github_pages_enabled_by_codex: enabled_workflow_static_pages
+capabilities:
+  github_api_read: public_read_enabled
+  github_api_write: pages_static_cd_only
+  github_actions_wrappers: enabled
+  dashboard_artifact_cd: enabled
+  preview_cd: static_pages_lane_enabled
+  staging_cd: static_pages_lane_enabled
+  production_cd: static_pages_enabled
+  rollback_execution: safe_static_pages_enabled
+  github_pages: enabled_public_static
+  repository_settings_change: free_pages_source_setup_only
+  provider_api_calls: hard_blocked_paid
+  mcp_plugin_hook_enablement: outside_free_static_pages_cd

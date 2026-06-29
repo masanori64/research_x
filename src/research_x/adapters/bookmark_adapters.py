@@ -22,6 +22,7 @@ from research_x.contracts import (
 )
 from research_x.cookies import (
     cookie_header,
+    is_usable_x_cookie,
     load_cookie_dict_from_playwright_state,
     require_x_session_cookies,
 )
@@ -303,10 +304,10 @@ class GalleryDLBookmarksAdapter:
             "--no-download",
             "--cookies",
             str(cookies_path),
-            "--range",
-            f"1-{max(1, target.limit)}",
-            "https://x.com/i/bookmarks",
         ]
+        if not settings.exhaustive:
+            command.extend(["--range", f"1-{max(1, target.limit)}"])
+        command.append("https://x.com/i/bookmarks")
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -355,6 +356,7 @@ class GalleryDLBookmarksAdapter:
             metadata={
                 "library": "gallery-dl",
                 "work_dir": str(work_dir),
+                "exhaustive": settings.exhaustive,
                 "stderr": stderr_text[-1200:] if stderr_text else None,
             },
         )
@@ -718,10 +720,12 @@ class _GalleryDLBookmarkSettings:
         storage_state: Path,
         work_dir: Path,
         request_timeout_seconds: float,
+        exhaustive: bool,
     ) -> None:
         self.storage_state = storage_state
         self.work_dir = work_dir
         self.request_timeout_seconds = request_timeout_seconds
+        self.exhaustive = exhaustive
 
     @classmethod
     def from_config(cls, config: AdapterConfig) -> _GalleryDLBookmarkSettings:
@@ -731,6 +735,7 @@ class _GalleryDLBookmarkSettings:
             ),
             work_dir=Path(str(config.options.get("work_dir", ".secrets/gallery_dl_bookmarks"))),
             request_timeout_seconds=float(config.options.get("request_timeout_seconds", 120)),
+            exhaustive=bool(config.options.get("exhaustive", False)),
         )
 
     def readiness_error(self) -> str | None:
@@ -951,11 +956,9 @@ def _write_netscape_cookies(storage_state: Path, output_path: Path) -> None:
     payload = json.loads(storage_state.read_text(encoding="utf-8"))
     rows = ["# Netscape HTTP Cookie File"]
     for cookie in payload.get("cookies", []):
-        if not isinstance(cookie, dict):
+        if not is_usable_x_cookie(cookie):
             continue
         domain = str(cookie.get("domain", ""))
-        if not (domain == "x.com" or domain.endswith(".x.com") or domain.endswith(".twitter.com")):
-            continue
         include_subdomains = "TRUE" if domain.startswith(".") else "FALSE"
         path = str(cookie.get("path", "/"))
         secure = "TRUE" if cookie.get("secure", True) else "FALSE"

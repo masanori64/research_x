@@ -53,6 +53,23 @@ def test_storage_state_has_x_auth_cookies(tmp_path) -> None:
     assert storage_state_has_x_auth_cookies(path)
 
 
+def test_storage_state_has_x_auth_cookies_rejects_empty_or_expired(tmp_path) -> None:
+    path = tmp_path / "state.json"
+    path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {"name": "auth_token", "value": "", "domain": ".x.com"},
+                    {"name": "ct0", "value": "c", "domain": ".x.com", "expires": 1},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert not storage_state_has_x_auth_cookies(path)
+
+
 def test_credentials_auth_requires_env_values(tmp_path, monkeypatch) -> None:
     monkeypatch.delenv("RESEARCH_X_X_USERNAME", raising=False)
     monkeypatch.delenv("RESEARCH_X_X_PASSWORD", raising=False)

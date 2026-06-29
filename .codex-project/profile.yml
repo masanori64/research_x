@@ -1,0 +1,49 @@
+schema_version: 1
+project:
+  id: research_x
+  name: research_x
+  root: C:/Users/maasa/research_x
+  domain: ai_callable_x_memory_search
+commands:
+  sync: uv sync
+  test: uv run pytest
+  lint: uv run ruff check src\research_x tests scripts
+constraints:
+  use_uv: true
+  no_quota_provider_freeze: true
+  forbid_control_artifacts_as_evidence: true
+  evidence_boundary: raw source != searchable document != search result != source bundle != context chunk != citation != answer
+  forbidden_external_actions:
+    - provider_api_quota
+    - secrets_credentials
+    - mcp_plugin_hook_enablement
+    - destructive_action
+    - irreversible_db_migration
+capabilities:
+  github_api_read: public_read_enabled
+  github_api_write: pages_static_cd_only
+  github_actions_wrappers: enabled
+  dashboard_artifact_cd: enabled
+  preview_cd: static_pages_lane_enabled
+  staging_cd: static_pages_lane_enabled
+  production_cd: static_pages_enabled
+  rollback_execution: safe_static_pages_enabled
+  github_pages: enabled_public_static
+  repository_settings_change: free_pages_source_setup_only
+  provider_api_calls: hard_blocked_paid
+  mcp_plugin_hook_enablement: outside_free_static_pages_cd
+control_artifacts:
+  output_root: docs/control/codex
+  generated_root: .codex-project/generated
+  not_evidence: true
+  not_research_evidence: true
+  not_citation: true
+  not_answer_support: true
+subagents:
+  owner: C:/Users/maasa/.codex
+  raw_log_in_project: false
+  allowed_roles:
+    - impact_mapper
+    - pr_reviewer
+    - ci_log_auditor
+    - release_auditor

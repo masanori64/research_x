@@ -30,6 +30,27 @@ def test_load_cookie_dict_from_playwright_state(tmp_path) -> None:
     assert cookie_header(cookies) == "auth_token=a; ct0=c"
 
 
+def test_load_cookie_dict_ignores_empty_and_expired_x_cookies(tmp_path) -> None:
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {"name": "auth_token", "value": "", "domain": ".x.com"},
+                    {"name": "ct0", "value": "expired", "domain": ".x.com", "expires": 1},
+                    {"name": "auth_token", "value": "fresh", "domain": ".x.com"},
+                    {"name": "ct0", "value": "fresh-ct0", "domain": ".x.com", "expires": -1},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cookies = load_cookie_dict_from_playwright_state(state_path)
+
+    assert cookies == {"auth_token": "fresh", "ct0": "fresh-ct0"}
+
+
 def test_write_cookie_dict(tmp_path) -> None:
     path = tmp_path / "cookies.json"
 

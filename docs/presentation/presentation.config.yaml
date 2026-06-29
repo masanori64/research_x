@@ -1,0 +1,22 @@
+audience: engineers
+language: ja
+max_slides: 12
+tone: technical-business
+purpose: "Explain the research_x project purpose, evidence pipeline, main workflow, risks, and roadmap."
+diagram_source: d2
+slide_renderer: marp
+facts_source: docs/presentation/project-facts.json
+facts_schema: docs/presentation/project-facts.schema.json
+slides_source: docs/presentation/slides.md
+diagram_dir: docs/presentation/diagrams
+asset_dir: docs/presentation/assets
+dist_dir: docs/presentation/dist
+claim_marker: "<!-- claim: claim-id -->"
+must_include:
+  - problem
+  - solution
+  - architecture
+  - main_flow
+  - data_model_if_exists
+  - risks
+  - roadmap

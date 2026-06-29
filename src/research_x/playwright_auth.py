@@ -15,6 +15,13 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
+from research_x.cookies import (
+    REQUIRED_X_SESSION_COOKIES,
+    load_cookie_dict_from_playwright_state,
+    require_x_session_cookies,
+    usable_x_cookie_names,
+)
+
 
 def capture_playwright_storage_state(
     *,
@@ -42,16 +49,11 @@ def storage_state_has_x_auth_cookies(storage_state: str | Path) -> bool:
     if not path.exists():
         return False
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        cookies = load_cookie_dict_from_playwright_state(path)
+        require_x_session_cookies(cookies)
+    except (OSError, json.JSONDecodeError, ValueError):
         return False
-    names = {
-        cookie.get("name")
-        for cookie in payload.get("cookies", [])
-        if isinstance(cookie, dict)
-        and str(cookie.get("domain", "")).endswith(("x.com", "twitter.com"))
-    }
-    return {"auth_token", "ct0"}.issubset(names)
+    return True
 
 
 def capture_storage_state_with_credentials(
@@ -841,8 +843,8 @@ async def _wait_for_x_auth_cookies(context, timeout_seconds: float) -> bool:
 
 async def _has_x_auth_cookies(context) -> bool:
     cookies = await context.cookies("https://x.com")
-    names = {cookie.get("name") for cookie in cookies}
-    return {"auth_token", "ct0"}.issubset(names)
+    names = usable_x_cookie_names(cookies)
+    return set(REQUIRED_X_SESSION_COOKIES).issubset(names)
 
 
 async def _first_visible_locator(page, selectors: tuple[str, ...], timeout_seconds: float):
@@ -865,19 +867,6 @@ async def _first_visible_locator(page, selectors: tuple[str, ...], timeout_secon
 
 async def _has_visible_locator(page, selectors: tuple[str, ...]) -> bool:
     return await _first_visible_locator(page, selectors, 0.5) is not None
-
-
-async def _fill_first_visible(
-    page,
-    selectors: tuple[str, ...],
-    value: str,
-    description: str,
-) -> None:
-    locator = await _first_visible_locator(page, selectors, 12)
-    if locator is None:
-        await _raise_if_hard_challenge(page)
-        raise RuntimeError(f"Could not find visible X login {description} field.")
-    await locator.fill(value)
 
 
 async def _set_first_visible_input(

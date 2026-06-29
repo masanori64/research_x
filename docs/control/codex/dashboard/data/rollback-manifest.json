@@ -1,0 +1,81 @@
+{
+  "artifact_kind": "rollback_manifest",
+  "blocked_execution_gates": [
+    "production_external_side_effect",
+    "secrets_credentials",
+    "destructive_action",
+    "irreversible_db_migration",
+    "repository_settings_change"
+  ],
+  "control_artifact": true,
+  "drill": {
+    "health": {
+      "checks": [
+        {
+          "name": "static_artifact_exists",
+          "status": "planned"
+        },
+        {
+          "name": "not_evidence_notice",
+          "status": "passed"
+        },
+        {
+          "name": "no_database_restore",
+          "status": "passed"
+        }
+      ],
+      "status": "planned"
+    },
+    "restore_executed": false,
+    "status": "dry_run_plan",
+    "would_restore_paths": [
+      "docs/control/codex/dashboard/",
+      ".codex-project/generated/"
+    ]
+  },
+  "dry_run": true,
+  "environment": "production",
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-29T06:17:10.061620+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "project_id": "research_x",
+  "refused_rollback_classes": [
+    "destructive_action",
+    "db_restore",
+    "provider_api_quota",
+    "secrets_credentials",
+    "external_cloud_deploy",
+    "research_evidence_write"
+  ],
+  "rollback_executed": false,
+  "schema_version": 1,
+  "scope": "safe_static_artifacts_only",
+  "side_effects": {
+    "db_migration": false,
+    "db_restore": false,
+    "destructive_action": false,
+    "files_mutated": false,
+    "production_deploy": false,
+    "provider_api_calls": false,
+    "rollback_execution": false,
+    "secrets_changed": false
+  },
+  "target": {
+    "artifact_pointer": "docs/control/codex/dashboard/index.html",
+    "reason": "Rollback is restricted to static Pages control artifacts and refuses provider, secret, DB, destructive, and evidence paths.",
+    "resolved": false,
+    "selection_mode": "safe_static_pages",
+    "strategy": "previous_known_good_static_pages_snapshot"
+  }
+}

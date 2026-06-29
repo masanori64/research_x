@@ -1,0 +1,346 @@
+# artifact_kind=github_workflow_wrapper
+# control_artifact=true
+# not_project_evidence=true
+# not_research_evidence=true
+# not_citation=true
+# not_answer_support=true
+# generated_by=codex-hotl-implementation-pipeline
+# source_template=templates/github-workflows/codex-ci.template.yml
+# foundation_manifest_sha256=fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143
+name: Codex Control Artifact CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-control-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-control-artifacts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Validate committed Codex control artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          required_json = [
+              Path(".codex-project/generated/effective-dashboard-state.json"),
+              Path(".codex-project/generated/effective-control-artifact-audit.json"),
+              Path(".codex-project/generated/effective-github-collection.json"),
+              Path(".codex-project/generated/effective-github-read-state.json"),
+              Path(".codex-project/generated/effective-cost-guard.json"),
+              Path(".codex-project/generated/effective-workflow-artifact-audit.json"),
+              Path(".codex-project/generated/effective-workflow-smoke.json"),
+              Path(".codex-project/generated/effective-e2e-completion-manifest.json"),
+              Path(".codex-project/generated/effective-subagent-runtime-dry-run.json"),
+              Path("docs/control/codex/dashboard/data/control-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/cost-guard.json"),
+              Path("docs/control/codex/dashboard/data/e2e-completion-manifest.json"),
+              Path("docs/control/codex/dashboard/data/dashboard-state.json"),
+              Path("docs/control/codex/dashboard/data/deploy-manifest.json"),
+              Path("docs/control/codex/dashboard/data/github-collection.json"),
+              Path("docs/control/codex/dashboard/data/github-read-state.json"),
+              Path("docs/control/codex/dashboard/data/preview-manifest.json"),
+              Path("docs/control/codex/dashboard/data/production-manifest.json"),
+              Path("docs/control/codex/dashboard/data/rollback-manifest.json"),
+              Path("docs/control/codex/dashboard/data/staging-manifest.json"),
+              Path("docs/control/codex/dashboard/data/subagent-policy.json"),
+              Path("docs/control/codex/dashboard/data/subagent-runtime-dry-run.json"),
+              Path("docs/control/codex/dashboard/data/workflow-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/workflow-smoke.json"),
+              Path(".codex-project/generated/effective-preview-manifest.json"),
+              Path(".codex-project/generated/effective-production-manifest.json"),
+              Path(".codex-project/generated/effective-staging-manifest.json"),
+              Path(".codex-project/generated/effective-subagent-policy.json"),
+          ]
+          markers = [
+              "control_artifact",
+              "not_project_evidence",
+              "not_research_evidence",
+              "not_citation",
+              "not_answer_support",
+          ]
+          failures = []
+          for path in required_json:
+              if not path.exists():
+                  failures.append(f"{path}: missing")
+                  continue
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              for marker in markers:
+                  if payload.get(marker) is not True:
+                      failures.append(f"{path}: {marker} must be true")
+          audit_paths = [
+              Path(".codex-project/generated/effective-control-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/control-artifact-audit.json"),
+          ]
+          for path in audit_paths:
+              audit = json.loads(path.read_text(encoding="utf-8"))
+              if audit.get("status") != "passed":
+                  failures.append(f"{path}: status must be passed")
+              if audit.get("errors") != []:
+                  failures.append(f"{path}: errors must be []")
+              blocked = set(audit.get("blocked_control_sources", []))
+              for source in (
+                  "chatgpt_output",
+                  "dashboard",
+                  "mermaid",
+                  "subagent_summary",
+                  "wbs",
+              ):
+                  if source not in blocked:
+                      failures.append(f"{path}: must block {source}")
+          collection_paths = [
+              Path(".codex-project/generated/effective-github-collection.json"),
+              Path("docs/control/codex/dashboard/data/github-collection.json"),
+          ]
+          for path in collection_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("api_calls_executed") is not False:
+                  failures.append(f"{path}: api_calls_executed must be false")
+              if payload.get("write_operations_available") is not False:
+                  failures.append(f"{path}: write_operations_available must be false")
+              if payload.get("mutation_methods_available") != []:
+                  failures.append(f"{path}: mutation_methods_available must be []")
+          github_read_paths = [
+              Path(".codex-project/generated/effective-github-read-state.json"),
+              Path("docs/control/codex/dashboard/data/github-read-state.json"),
+          ]
+          for path in github_read_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("authentication") != "none":
+                  failures.append(f"{path}: authentication must be none")
+              if payload.get("token_used") is not False:
+                  failures.append(f"{path}: token_used must be false")
+              if payload.get("write_operations_available") is not False:
+                  failures.append(f"{path}: write_operations_available must be false")
+              if payload.get("mutation_methods_available") != []:
+                  failures.append(f"{path}: mutation_methods_available must be []")
+              if payload.get("paid_usage_detected") is not False:
+                  failures.append(f"{path}: paid_usage_detected must be false")
+              for method in payload.get("request_methods_used", []):
+                  if method != "GET":
+                      failures.append(f"{path}: only GET methods are allowed")
+          cost_guard_paths = [
+              Path(".codex-project/generated/effective-cost-guard.json"),
+              Path("docs/control/codex/dashboard/data/cost-guard.json"),
+          ]
+          for path in cost_guard_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              policy = payload.get("cost_policy", {})
+              if policy.get("paid_usage_detected") is not False:
+                  failures.append(f"{path}: paid_usage_detected must be false")
+              if policy.get("pipeline_contains_paid_execution") is not False:
+                  failures.append(f"{path}: pipeline_contains_paid_execution must be false")
+              if payload.get("answer", {}).get("has_paid_execution_in_current_pipeline") is not False:
+                  failures.append(f"{path}: current pipeline must not have paid execution")
+          workflow_audit_paths = [
+              Path(".codex-project/generated/effective-workflow-artifact-audit.json"),
+              Path("docs/control/codex/dashboard/data/workflow-artifact-audit.json"),
+              Path(".codex-project/generated/effective-workflow-smoke.json"),
+              Path("docs/control/codex/dashboard/data/workflow-smoke.json"),
+              Path(".codex-project/generated/effective-e2e-completion-manifest.json"),
+              Path("docs/control/codex/dashboard/data/e2e-completion-manifest.json"),
+          ]
+          for path in workflow_audit_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              for key in (
+                  "workflow_dispatch_executed",
+                  "github_actions_minutes_consumed_by_this_smoke",
+                  "github_actions_artifact_storage_created_by_this_smoke",
+                  "github_api_write_executed",
+                  "deploy_executed",
+                  "pages_enabled",
+                  "repository_settings_changed",
+                  "secrets_used",
+                  "paid_usage_detected",
+                  "provider_api_calls",
+                  "provider_quota_used",
+              ):
+                  if key in payload and payload.get(key) is not False:
+                      failures.append(f"{path}: {key} must be false")
+              if path.name in {
+                  "workflow-smoke.json",
+                  "effective-workflow-smoke.json",
+              }:
+                  if payload.get("trigger_policy", {}).get("workflow_dispatch_enabled") is not False:
+                      failures.append(f"{path}: workflow_dispatch_enabled must be false")
+          preview = json.loads(
+              Path("docs/control/codex/dashboard/data/preview-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if preview.get("target_type") != "artifact_only":
+              failures.append("preview-manifest target_type must be artifact_only")
+          if preview.get("live_url") is not None:
+              failures.append("preview-manifest live_url must be null")
+          side_effects = preview.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_used",
+              "github_api_calls",
+              "pages_enabled",
+              "repository_settings_changed",
+              "preview_live_deploy",
+              "staging_deploy",
+              "production_deploy",
+              "rollback_executed",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"preview-manifest side_effects.{key} must be false")
+          staging = json.loads(
+              Path("docs/control/codex/dashboard/data/staging-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if staging.get("target_type") != "safe_static_plan":
+              failures.append("staging-manifest target_type must be safe_static_plan")
+          if staging.get("dry_run") is not True:
+              failures.append("staging-manifest dry_run must be true")
+          if staging.get("staging_deploy_executed") is not False:
+              failures.append("staging-manifest staging_deploy_executed must be false")
+          if staging.get("live_url") is not None:
+              failures.append("staging-manifest live_url must be null")
+          side_effects = staging.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_used",
+              "github_api_calls",
+              "pages_enabled",
+              "repository_settings_changed",
+              "environment_created",
+              "staging_live_deploy",
+              "production_deploy",
+              "rollback_executed",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"staging-manifest side_effects.{key} must be false")
+          production = json.loads(
+              Path("docs/control/codex/dashboard/data/production-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if production.get("target_type") != "production_plan":
+              failures.append("production-manifest target_type must be production_plan")
+          if production.get("execution_enabled") is not False:
+              failures.append("production-manifest execution_enabled must be false")
+          if production.get("production_deploy_executed") is not False:
+              failures.append("production-manifest production_deploy_executed must be false")
+          if production.get("live_url") is not None:
+              failures.append("production-manifest live_url must be null")
+          side_effects = production.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_used",
+              "github_api_calls",
+              "pages_enabled",
+              "repository_settings_changed",
+              "environment_created",
+              "staging_deploy",
+              "production_live_deploy",
+              "rollback_executed",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"production-manifest side_effects.{key} must be false")
+          rollback = json.loads(
+              Path("docs/control/codex/dashboard/data/rollback-manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if rollback.get("dry_run") is not True:
+              failures.append("rollback-manifest dry_run must be true")
+          if rollback.get("rollback_executed") is not False:
+              failures.append("rollback-manifest rollback_executed must be false")
+          if rollback.get("scope") != "safe_static_artifacts_only":
+              failures.append("rollback-manifest scope must be safe_static_artifacts_only")
+          if rollback.get("drill", {}).get("restore_executed") is not False:
+              failures.append("rollback-manifest drill.restore_executed must be false")
+          refused = set(rollback.get("refused_rollback_classes", []))
+          for item in (
+              "destructive_action",
+              "db_restore",
+              "provider_api_quota",
+              "secrets_credentials",
+          ):
+              if item not in refused:
+                  failures.append(f"rollback-manifest must refuse {item}")
+          side_effects = rollback.get("side_effects", {})
+          for key in (
+              "provider_api_calls",
+              "secrets_changed",
+              "db_migration",
+              "db_restore",
+              "destructive_action",
+              "files_mutated",
+              "production_deploy",
+              "rollback_execution",
+          ):
+              if side_effects.get(key) is not False:
+                  failures.append(f"rollback-manifest side_effects.{key} must be false")
+          subagents = json.loads(
+              Path("docs/control/codex/dashboard/data/subagent-policy.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if subagents.get("raw_log_in_project") is not False:
+              failures.append("subagent-policy raw_log_in_project must be false")
+          if subagents.get("lifecycle", {}).get("mode") != "read_only":
+              failures.append("subagent-policy lifecycle.mode must be read_only")
+          if subagents.get("lifecycle", {}).get("spawned_by_default") is not False:
+              failures.append("subagent-policy spawned_by_default must be false")
+          for item in (
+              "commit",
+              "push",
+              "deploy",
+              "github_api_mutation",
+              "provider_api_quota",
+              "secret_access",
+              "create_project_evidence",
+          ):
+              if item not in subagents.get("forbidden_actions", []):
+                  failures.append(f"subagent-policy must forbid {item}")
+          subagent_dry_run_paths = [
+              Path(".codex-project/generated/effective-subagent-runtime-dry-run.json"),
+              Path("docs/control/codex/dashboard/data/subagent-runtime-dry-run.json"),
+          ]
+          for path in subagent_dry_run_paths:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("subagents_spawned") is not False:
+                  failures.append(f"{path}: subagents_spawned must be false")
+              if payload.get("model_runner_started") is not False:
+                  failures.append(f"{path}: model_runner_started must be false")
+              if payload.get("provider_api_calls") is not False:
+                  failures.append(f"{path}: provider_api_calls must be false")
+              if payload.get("paid_usage_detected") is not False:
+                  failures.append(f"{path}: paid_usage_detected must be false")
+          html = Path("docs/control/codex/dashboard/index.html")
+          if not html.exists():
+              failures.append(f"{html}: missing")
+          elif "control artifact / not evidence / not citation" not in html.read_text(encoding="utf-8"):
+              failures.append(f"{html}: missing control-artifact notice")
+          for path in Path("docs/control/codex/dashboard/mermaid").glob("*.mmd"):
+              text = path.read_text(encoding="utf-8")
+              for marker in (
+                  "%% control_artifact=true",
+                  "%% not_research_evidence=true",
+                  "%% not_citation=true",
+                  "%% not_answer_support=true",
+              ):
+                  if marker not in text:
+                      failures.append(f"{path}: missing {marker}")
+          if failures:
+              raise SystemExit("\n".join(failures))
+          print("Codex control artifacts validated")
+          PY

@@ -1,0 +1,165 @@
+{
+  "active_completion_blockers": [],
+  "allowed_no_cost_actions": [
+    {
+      "action_id": "local_static_validation",
+      "cost_class": "local_only",
+      "reason": "Runs on this machine only and does not call providers.",
+      "status": "allowed"
+    },
+    {
+      "action_id": "github_rest_public_read_unauthenticated",
+      "cost_class": "rate_limit_only",
+      "reason": "Uses unauthenticated GET requests for public repository metadata only.",
+      "status": "allowed_when_public_data_is_accessible"
+    },
+    {
+      "action_id": "github_actions_artifact_static_audit",
+      "cost_class": "local_only",
+      "reason": "Validates committed workflow wrappers without dispatching a run.",
+      "status": "allowed"
+    },
+    {
+      "action_id": "github_actions_artifact_push_smoke_public_repo",
+      "cost_class": "public_repo_standard_runner",
+      "reason": "The repository is public and the workflow is restricted to standard artifact-only GitHub-hosted runner usage.",
+      "status": "allowed_public_standard_runner_artifact_only"
+    },
+    {
+      "action_id": "github_actions_workflow_dispatch_public_repo",
+      "cost_class": "public_repo_standard_runner",
+      "reason": "GitHub documents public-repository standard runner usage as no direct charge, but dispatching a workflow is still a GitHub write and creates Actions usage.",
+      "status": "not_executed_public_standard_runner_is_no_direct_charge_but_dispatch_is_write"
+    },
+    {
+      "action_id": "github_pages_public_repo_static_cd",
+      "cost_class": "github_free_public_repo_pages",
+      "reason": "GitHub Pages is available for public repositories on GitHub Free, and standard GitHub-hosted runner usage for public repositories is free.",
+      "status": "allowed_public_repo_github_pages_static_cd"
+    },
+    {
+      "action_id": "pages_static_preview_staging_production_lanes",
+      "cost_class": "github_free_public_repo_pages",
+      "reason": "Path-based preview/staging/production lanes use the same public GitHub Pages project site.",
+      "status": "allowed_public_repo_github_pages_static_cd"
+    },
+    {
+      "action_id": "safe_static_pages_rollback",
+      "cost_class": "github_free_public_repo_pages",
+      "reason": "Rollback redeploys a previous static Pages snapshot and does not touch providers, DBs, or secrets.",
+      "status": "allowed_public_repo_github_pages_static_cd"
+    },
+    {
+      "action_id": "subagent_runtime_dry_run",
+      "cost_class": "local_only",
+      "reason": "Checks the subagent contract without spawning workers or model runners.",
+      "status": "allowed"
+    }
+  ],
+  "allowed_no_cost_smokes": [
+    "local_static_validation",
+    "github_rest_public_read_unauthenticated",
+    "github_actions_artifact_static_audit",
+    "github_actions_artifact_push_smoke_public_repo",
+    "subagent_runtime_dry_run"
+  ],
+  "answer": {
+    "has_billing_sensitive_plan_lanes": false,
+    "has_paid_execution_in_current_pipeline": false,
+    "plain_language": "The free static Pages CD pipeline is complete. It used public GitHub Actions standard runners and GitHub Pages, and it did not use paid provider quota, secrets, external cloud deploys, model runners, or DB migrations. Paid/quota provider paths remain hard blocked; secrets, DB, destructive, external-cloud, MCP, plugin, and hook paths are not used and outside this pipeline, not active completion blockers."
+  },
+  "artifact_kind": "cost_guard",
+  "control_artifact": true,
+  "cost_policy": {
+    "db_migration_allowed": false,
+    "free_tier_quota_consumption_allowed": false,
+    "install_allowed_when_no_paid_quota": true,
+    "mcp_plugin_hook_allowed": false,
+    "paid_usage_detected": false,
+    "pipeline_contains_paid_execution": false,
+    "provider_api_quota_allowed": false,
+    "repository_settings_change_allowed": true,
+    "repository_settings_change_scope": "free_pages_source_setup_only",
+    "safe_static_rollback_allowed": true,
+    "secrets_or_pat_allowed": false,
+    "static_pages_deploy_allowed": true
+  },
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-06-29T06:17:10.076501+00:00",
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "hard_blocked_paid": [
+    {
+      "action_id": "paid_provider_api_quota",
+      "cost_class": "paid_or_quota_provider",
+      "reason": "Paid or quota-consuming provider/API use is outside the completed free static Pages CD pipeline.",
+      "status": "hard_blocked_paid"
+    },
+    {
+      "action_id": "paid_cloud",
+      "cost_class": "paid_cloud",
+      "reason": "Paid cloud deploys are not part of the free GitHub Pages CD path.",
+      "status": "hard_blocked_paid"
+    },
+    {
+      "action_id": "paid_model_runner",
+      "cost_class": "paid_or_quota_model_runner",
+      "reason": "Model runners can consume paid/quota resources and are not used here.",
+      "status": "hard_blocked_paid"
+    }
+  ],
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "not_used_outside_free_static_pages_cd": [
+    {
+      "action_id": "secrets_pat_deploy_key_environment_secret",
+      "cost_class": "credential_gate",
+      "reason": "The completed free static Pages CD pipeline does not require secrets, PATs, deploy keys, or environment secrets.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "db_migration",
+      "cost_class": "stateful_data_change",
+      "reason": "Static Pages CD publishes control artifacts and performs no DB migration.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "destructive_action",
+      "cost_class": "destructive_state_change",
+      "reason": "Static Pages CD does not require destructive or irreversible actions.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "external_cloud_deploy",
+      "cost_class": "external_cloud",
+      "reason": "The deployment target is GitHub Pages, not an external cloud service.",
+      "status": "not_used_outside_free_static_pages_cd"
+    },
+    {
+      "action_id": "mcp_plugin_hook_changes",
+      "cost_class": "external_or_stateful_setup",
+      "reason": "MCP, plugin, and hook configuration changes are not required by the completed free static Pages CD pipeline.",
+      "status": "outside_scope_for_this_pipeline"
+    }
+  ],
+  "paid_or_quota_lanes_present": [
+    "provider_api_quota",
+    "paid_cloud",
+    "model_runner"
+  ],
+  "project_id": "research_x",
+  "repository": {
+    "bridge_repository": "masanori64/research_x",
+    "observed_repository": "masanori64/research_x",
+    "visibility": "public"
+  },
+  "schema_version": 1
+}

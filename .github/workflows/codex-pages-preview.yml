@@ -1,0 +1,80 @@
+name: Codex Pages Preview CD
+
+# control_artifact=true
+# not_project_evidence=true
+# not_research_evidence=true
+# not_citation=true
+# not_answer_support=true
+# generated_by=codex-hotl-implementation-pipeline
+# foundation_manifest_sha256=fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143
+# source_template=templates/github-workflows/codex-pages-preview.template.yml
+# provider_api_calls=false
+# paid_usage_detected=false
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: codex-pages-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v5
+      - name: Build preview Pages lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="_codex_pages_site"
+          PREVIEW_REF="${GITHUB_REF_NAME//\//-}"
+          PREVIEW_PATH="previews/${PREVIEW_REF}/latest"
+          PREVIEW_COMMIT_PATH="previews/${PREVIEW_REF}/${GITHUB_SHA}"
+          rm -rf "$SITE"
+          mkdir -p "$SITE/dashboard" "$SITE/production/latest" "$SITE/staging/latest" "$SITE/rollback/latest" "$SITE/$PREVIEW_PATH" "$SITE/$PREVIEW_COMMIT_PATH"
+          cp -R docs/control/codex/dashboard/. "$SITE/dashboard/"
+          cp -R docs/control/codex/dashboard/. "$SITE/production/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/staging/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/rollback/latest/"
+          cp -R docs/control/codex/dashboard/. "$SITE/$PREVIEW_PATH/"
+          cp -R docs/control/codex/dashboard/. "$SITE/$PREVIEW_COMMIT_PATH/"
+          cat > "$SITE/index.html" <<'HTML'
+          <!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=dashboard/"><a href="dashboard/">Codex dashboard</a>
+          HTML
+          cat > "$SITE/codex-pages-manifest.json" <<JSON
+          {
+            "control_artifact": true,
+            "not_research_evidence": true,
+            "not_citation": true,
+            "not_answer_support": true,
+            "lane": "preview",
+            "preview_path": "${PREVIEW_PATH}",
+            "preview_commit_path": "${PREVIEW_COMMIT_PATH}",
+            "commit": "${GITHUB_SHA}",
+            "ref": "${GITHUB_REF_NAME}",
+            "provider_api_calls": false,
+            "paid_usage_detected": false
+          }
+          JSON
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _codex_pages_site
+      - id: deployment
+        uses: actions/deploy-pages@v4

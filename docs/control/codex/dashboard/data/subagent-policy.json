@@ -1,0 +1,53 @@
+{
+  "allowed_roles": [
+    "impact_mapper",
+    "pr_reviewer",
+    "ci_log_auditor",
+    "release_auditor"
+  ],
+  "artifact_kind": "subagent_policy",
+  "control_artifact": true,
+  "forbidden_actions": [
+    "commit",
+    "push",
+    "deploy",
+    "rollback_execution",
+    "github_api_mutation",
+    "provider_api_quota",
+    "secret_access",
+    "mcp_plugin_hook_enablement",
+    "destructive_action",
+    "create_project_evidence"
+  ],
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "lifecycle": {
+    "mode": "read_only",
+    "parent_integrates_outputs": true,
+    "short_lived": true,
+    "spawned_by_default": false
+  },
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "owner": "Codex foundation",
+  "raw_log_in_project": false,
+  "schema_version": 1,
+  "summaries": [],
+  "summary_contract": {
+    "control_artifact": true,
+    "not_citation": true,
+    "not_evidence": true,
+    "raw_logs_allowed": false,
+    "sanitized_summary_required": true,
+    "schema": "schema/subagent-report.schema.json"
+  }
+}

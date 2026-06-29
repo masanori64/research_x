@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from research_x.accounts import resolve_account_paths, write_account_profile
 from research_x.adapters import catalog_entries, known_adapter_ids
@@ -23,6 +25,230 @@ from research_x.playwright_auth import (
 )
 from research_x.runner import run_experiment
 from research_x.tweets import run_tweet_job, run_tweet_stage_job
+
+MEMORY_EMBEDDING_PROVIDER_CHOICES = [
+    "auto",
+    "local_hash",
+    "openai",
+    "gemini",
+    "voyage",
+    "cohere",
+    "mistral",
+    "jina",
+    "openai_compatible",
+]
+MEMORY_EMBEDDING_PROVIDER_OR_LATEST_CHOICES = [
+    "latest",
+    *MEMORY_EMBEDDING_PROVIDER_CHOICES,
+]
+MEMORY_EMBEDDING_EXECUTION_STAGE_CHOICES = [
+    "auto",
+    "technical-canary",
+    "eval-slice",
+    "production-scope",
+]
+MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES = [
+    "auto",
+    "sequential",
+    "doc-type-round-robin",
+]
+MEMORY_SEMANTIC_BACKEND_CHOICES = ["sqlite", "projection"]
+MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES = ["numpy", "turbovec"]
+MEMORY_VECTOR_BENCHMARK_BACKEND_CHOICES = ["numpy", "turbovec", "zvec"]
+MEMORY_VECTOR_BENCHMARK_PROVIDER_CHOICES = ["local_hash"]
+
+
+def _add_api_budget_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--api-budget-policy",
+        default="default",
+        help="API budget policy id used for future provider calls",
+    )
+    parser.add_argument(
+        "--api-run-id",
+        default=None,
+        help="run id used to group API usage ledger events",
+    )
+    parser.add_argument(
+        "--max-run-usd",
+        type=float,
+        default=None,
+        help="temporary run-level USD cap override for this command",
+    )
+    parser.add_argument(
+        "--allow-unpriced-api",
+        action="store_true",
+        help="allow provider calls without a local price row after the no-quota freeze is lifted",
+    )
+
+
+def _add_provider_quota_gate_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--allow-provider-quota",
+        action="store_true",
+        help=(
+            "allow provider/quota execution only after the no-quota freeze is explicitly "
+            "lifted for this command"
+        ),
+    )
+    _add_provider_quota_approval_options(parser)
+
+
+def _add_provider_quota_approval_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--provider-quota-approval-id",
+        default=None,
+        help="scoped provider quota approval id required with --allow-provider-quota",
+    )
+    parser.add_argument(
+        "--provider-quota-provider",
+        default=None,
+        help="provider covered by the scoped approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-model",
+        default=None,
+        help="model covered by the scoped approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-operation",
+        default=None,
+        help="operation covered by the scoped approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-max-calls",
+        type=int,
+        default=None,
+        help="maximum provider call count covered by the approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-max-cost-usd",
+        type=float,
+        default=None,
+        help="maximum estimated USD cost covered by the approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-price-source",
+        default=None,
+        help="price source reviewed for the approval object",
+    )
+    parser.add_argument(
+        "--provider-quota-approved-scope",
+        default=None,
+        help="scope covered by the approval object, or *",
+    )
+    parser.add_argument(
+        "--provider-quota-approved-at",
+        default=None,
+        help="ISO-8601 approval timestamp with timezone",
+    )
+    parser.add_argument("--provider-quota-approved-by", default=None)
+    parser.add_argument("--provider-quota-expires-at", default=None)
+
+
+def _add_context_budget_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--context-budget-max-chars",
+        type=int,
+        default=None,
+        help="maximum JSON payload chars before context chunk text is offloaded",
+    )
+    parser.add_argument(
+        "--context-budget-chunk-chars",
+        type=int,
+        default=None,
+        help="maximum inline chars for each context chunk text",
+    )
+    parser.add_argument(
+        "--context-budget-preview-chars",
+        type=int,
+        default=None,
+        help="preview chars kept inline for offloaded context chunk text",
+    )
+    parser.add_argument(
+        "--context-offload-dir",
+        type=Path,
+        default=None,
+        help="directory for local context offload pointer artifacts",
+    )
+
+
+def _api_budget_for_args(args: argparse.Namespace):
+    if not hasattr(args, "api_budget_policy"):
+        return contextlib.nullcontext()
+    db_path = getattr(args, "db", None) or "runs/x_data.sqlite3"
+    from research_x.memory.api_budget import api_budget_context
+
+    provider_quota_approval = _provider_quota_approval_payload_for_args(
+        args,
+        require_when_allowed=True,
+    )
+    provider_quota_current_scope = _provider_quota_current_scope_for_args(args)
+    metadata = {
+        "cli_command": getattr(args, "command", None),
+        "memory_command": getattr(args, "memory_command", None),
+    }
+    if provider_quota_approval:
+        metadata["provider_quota_approval_id"] = provider_quota_approval.get(
+            "provider_quota_approval_id"
+        )
+    return api_budget_context(
+        db_path=db_path,
+        policy_id=args.api_budget_policy,
+        run_id=args.api_run_id,
+        max_run_usd_override=args.max_run_usd,
+        allow_unpriced_api=args.allow_unpriced_api,
+        metadata=metadata,
+        provider_quota_approval=provider_quota_approval,
+        provider_quota_current_scope=provider_quota_current_scope,
+    )
+
+
+def _provider_quota_approval_payload_for_args(
+    args: argparse.Namespace,
+    *,
+    require_when_allowed: bool = False,
+) -> dict[str, Any] | None:
+    payload = {
+        "provider_quota_approval_id": getattr(args, "provider_quota_approval_id", None),
+        "provider": getattr(args, "provider_quota_provider", None),
+        "model": getattr(args, "provider_quota_model", None),
+        "operation": getattr(args, "provider_quota_operation", None),
+        "max_calls": getattr(args, "provider_quota_max_calls", None),
+        "max_cost_usd": getattr(args, "provider_quota_max_cost_usd", None),
+        "price_source": getattr(args, "provider_quota_price_source", None),
+        "approved_scope": getattr(args, "provider_quota_approved_scope", None),
+        "approved_at": getattr(args, "provider_quota_approved_at", None),
+        "approved_by": getattr(args, "provider_quota_approved_by", None),
+        "expires_at": getattr(args, "provider_quota_expires_at", None),
+    }
+    if any(value not in (None, "") for value in payload.values()):
+        return payload
+    if require_when_allowed and bool(getattr(args, "allow_provider_quota", False)):
+        return payload
+    return None
+
+
+def _provider_quota_current_scope_for_args(args: argparse.Namespace) -> str | None:
+    if not hasattr(args, "provider_quota_approval_id"):
+        return None
+    if getattr(args, "api_run_id", None):
+        return str(args.api_run_id)
+    if getattr(args, "memory_command", None):
+        return f"memory:{args.memory_command}"
+    return getattr(args, "command", None)
+
+
+def _provider_quota_units_for_args(args: argparse.Namespace) -> dict[str, int | float]:
+    calls = getattr(args, "calls", None) or getattr(args, "limit", None) or 1
+    return {
+        "calls": calls,
+        "input_tokens": getattr(args, "input_tokens", 0),
+        "output_tokens": getattr(args, "output_tokens", 0),
+        "media_bytes": getattr(args, "media_bytes", 0),
+        "documents": getattr(args, "documents", 0),
+        "pages": getattr(args, "pages", 0),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -182,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         default=False,
         help="finish the job immediately when the classifier returns quota/rate-limit 429",
     )
+    _add_api_budget_options(label_existing_parser)
 
     app_parser = subparsers.add_parser(
         "app",
@@ -223,6 +450,25 @@ def main(argv: list[str] | None = None) -> int:
         help="return non-zero if no notification method succeeds",
     )
 
+    adoption_parser = subparsers.add_parser(
+        "adoption",
+        help="audit source adoption boundaries for research_x and Codex foundation bridge",
+    )
+    adoption_subparsers = adoption_parser.add_subparsers(
+        dest="adoption_command",
+        required=True,
+    )
+    adoption_audit_parser = adoption_subparsers.add_parser(
+        "audit",
+        help="validate control/adoption_registry.toml",
+    )
+    adoption_audit_parser.add_argument(
+        "--registry",
+        type=Path,
+        default=Path("control/adoption_registry.toml"),
+    )
+    adoption_audit_parser.add_argument("--json", action="store_true")
+
     progress_parser = subparsers.add_parser(
         "progress",
         help="serve a live progress page for an output directory",
@@ -236,6 +482,1803 @@ def main(argv: list[str] | None = None) -> int:
         default=True,
         help="open the progress page in the default browser",
     )
+
+    test_diagnose_parser = subparsers.add_parser(
+        "test-diagnose",
+        help="run pytest in bounded units to identify slow or hanging tests",
+    )
+    test_diagnose_parser.add_argument(
+        "targets",
+        nargs="*",
+        help="pytest target files or nodeids; default is tests",
+    )
+    test_diagnose_parser.add_argument(
+        "--mode",
+        choices=["files", "tests"],
+        default="files",
+        help="run each target as a file/unit, or collect and run each test nodeid separately",
+    )
+    test_diagnose_parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=120.0,
+        help="maximum seconds for each diagnostic pytest unit",
+    )
+    test_diagnose_parser.add_argument(
+        "--collect-timeout-seconds",
+        type=float,
+        default=60.0,
+        help="maximum seconds for pytest collection in --mode tests",
+    )
+    test_diagnose_parser.add_argument(
+        "--pytest-arg",
+        action="append",
+        default=[],
+        help="extra argument appended to each pytest unit; repeatable",
+    )
+    test_diagnose_parser.add_argument(
+        "--max-output-chars",
+        type=int,
+        default=4000,
+        help="stdout/stderr tail kept for each non-passing unit",
+    )
+    test_diagnose_parser.add_argument(
+        "--stop-on-fail",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="stop after the first failed or timed-out unit",
+    )
+    test_diagnose_parser.add_argument("--json", action="store_true")
+
+    presentation_parser = subparsers.add_parser(
+        "presentation",
+        help="validate local presentation facts and build inputs",
+    )
+    presentation_subparsers = presentation_parser.add_subparsers(
+        dest="presentation_command",
+        required=True,
+    )
+    presentation_validate_parser = presentation_subparsers.add_parser(
+        "validate-facts",
+        help="validate docs/presentation/project-facts.json",
+    )
+    presentation_validate_parser.add_argument(
+        "--facts",
+        type=Path,
+        default=Path("docs/presentation/project-facts.json"),
+        help="presentation facts JSON path",
+    )
+    presentation_validate_parser.add_argument("--json", action="store_true")
+    presentation_slides_parser = presentation_subparsers.add_parser(
+        "validate-slides",
+        help="validate docs/presentation/slides.md against project facts",
+    )
+    presentation_slides_parser.add_argument(
+        "--facts",
+        type=Path,
+        default=Path("docs/presentation/project-facts.json"),
+        help="presentation facts JSON path",
+    )
+    presentation_slides_parser.add_argument(
+        "--slides",
+        type=Path,
+        default=Path("docs/presentation/slides.md"),
+        help="presentation slides Markdown path",
+    )
+    presentation_slides_parser.add_argument(
+        "--allow-missing-assets",
+        action="store_true",
+        help="allow diagram assets that have not been rendered yet",
+    )
+    presentation_slides_parser.add_argument("--json", action="store_true")
+
+    memory_parser = subparsers.add_parser(
+        "memory",
+        help="build and query the local AI-callable memory search layer",
+    )
+    memory_subparsers = memory_parser.add_subparsers(dest="memory_command", required=True)
+    memory_api_budget_parser = memory_subparsers.add_parser(
+        "api-budget",
+        help="inspect or change local API budget guard settings",
+    )
+    memory_api_budget_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_subparsers = memory_api_budget_parser.add_subparsers(
+        dest="api_budget_command",
+        required=True,
+    )
+    memory_api_budget_status_parser = memory_api_budget_subparsers.add_parser(
+        "status",
+        help="show API budget policy, usage, and recent events",
+    )
+    memory_api_budget_status_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_status_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_status_parser.add_argument("--run-id", default=None)
+    memory_api_budget_status_parser.add_argument("--json", action="store_true")
+    memory_api_budget_set_parser = memory_api_budget_subparsers.add_parser(
+        "set",
+        help="set API budget caps for a policy",
+    )
+    memory_api_budget_set_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_set_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_set_parser.add_argument("--enabled", action=argparse.BooleanOptionalAction)
+    memory_api_budget_set_parser.add_argument("--max-run-usd", type=float, default=None)
+    memory_api_budget_set_parser.add_argument("--max-day-usd", type=float, default=None)
+    memory_api_budget_set_parser.add_argument("--max-month-usd", type=float, default=None)
+    memory_api_budget_set_parser.add_argument("--max-run-calls", type=int, default=None)
+    memory_api_budget_set_parser.add_argument("--max-day-calls", type=int, default=None)
+    memory_api_budget_set_parser.add_argument("--max-run-input-tokens", type=int, default=None)
+    memory_api_budget_set_parser.add_argument("--max-run-media-bytes", type=int, default=None)
+    memory_api_budget_set_parser.add_argument(
+        "--unknown-price-action",
+        choices=["block", "allow"],
+        default=None,
+    )
+    memory_api_budget_set_parser.add_argument("--json", action="store_true")
+    memory_api_budget_stop_parser = memory_api_budget_subparsers.add_parser(
+        "stop",
+        help="enable kill switch for new provider API calls",
+    )
+    memory_api_budget_stop_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_stop_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_stop_parser.add_argument("--json", action="store_true")
+    memory_api_budget_resume_parser = memory_api_budget_subparsers.add_parser(
+        "resume",
+        help="disable kill switch for new provider API calls",
+    )
+    memory_api_budget_resume_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_resume_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_resume_parser.add_argument("--json", action="store_true")
+    memory_api_budget_price_parser = memory_api_budget_subparsers.add_parser(
+        "price-set",
+        help="register a checked provider/model price row used by budget estimates",
+    )
+    memory_api_budget_price_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_price_parser.add_argument("--provider", required=True)
+    memory_api_budget_price_parser.add_argument("--model", required=True)
+    memory_api_budget_price_parser.add_argument("--operation", required=True)
+    memory_api_budget_price_parser.add_argument(
+        "--unit",
+        required=True,
+        choices=[
+            "input_token",
+            "input_tokens",
+            "output_token",
+            "output_tokens",
+            "media_byte",
+            "media_bytes",
+            "document",
+            "documents",
+            "page",
+            "pages",
+            "call",
+            "calls",
+        ],
+    )
+    memory_api_budget_price_parser.add_argument("--usd-per-unit", type=float, required=True)
+    memory_api_budget_price_parser.add_argument("--source-url", default=None)
+    memory_api_budget_price_parser.add_argument("--checked-at", default=None)
+    memory_api_budget_price_parser.add_argument("--notes", default=None)
+    memory_api_budget_seed_prices_parser = memory_api_budget_subparsers.add_parser(
+        "seed-default-prices",
+        help="register checked default provider/model price rows used before future provider runs",
+    )
+    memory_api_budget_seed_prices_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_preflight_parser = memory_api_budget_subparsers.add_parser(
+        "preflight",
+        help="dry-run validate scoped provider quota approval and API budget guard",
+    )
+    memory_api_budget_preflight_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_budget_preflight_parser.add_argument("--policy-id", default="default")
+    memory_api_budget_preflight_parser.add_argument("--run-id", default=None)
+    memory_api_budget_preflight_parser.add_argument("--provider", required=True)
+    memory_api_budget_preflight_parser.add_argument("--model", required=True)
+    memory_api_budget_preflight_parser.add_argument("--operation", required=True)
+    memory_api_budget_preflight_parser.add_argument("--provider-role", default="provider")
+    memory_api_budget_preflight_parser.add_argument(
+        "--limit",
+        type=int,
+        default=1,
+        help="planned provider call count for this dry-run preflight",
+    )
+    memory_api_budget_preflight_parser.add_argument("--calls", type=int, default=None)
+    memory_api_budget_preflight_parser.add_argument("--input-tokens", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--output-tokens", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--media-bytes", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--documents", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--pages", type=int, default=0)
+    memory_api_budget_preflight_parser.add_argument("--max-run-usd", type=float, default=None)
+    memory_api_budget_preflight_parser.add_argument("--allow-unpriced-api", action="store_true")
+    memory_api_budget_preflight_parser.add_argument(
+        "--current-scope",
+        default=None,
+        help="scope being checked against the approval object",
+    )
+    _add_provider_quota_approval_options(memory_api_budget_preflight_parser)
+    memory_api_budget_preflight_parser.add_argument("--json", action="store_true")
+
+    memory_api_usage_parser = memory_subparsers.add_parser(
+        "api-usage",
+        help="show API usage ledger rows and totals",
+    )
+    memory_api_usage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_usage_parser.add_argument("--run-id", default=None)
+    memory_api_usage_parser.add_argument("--today", action="store_true")
+    memory_api_usage_parser.add_argument("--month", action="store_true")
+    memory_api_usage_parser.add_argument("--limit", type=int, default=100)
+    memory_api_usage_parser.add_argument("--json", action="store_true")
+
+    memory_api_watch_parser = memory_subparsers.add_parser(
+        "api-watch",
+        help="serve a lightweight live API budget monitor for a DB",
+    )
+    memory_api_watch_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_watch_parser.add_argument("--host", default="127.0.0.1")
+    memory_api_watch_parser.add_argument("--port", type=int, default=8767)
+    memory_api_watch_parser.add_argument(
+        "--open-browser",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    memory_api_lane_estimate_parser = memory_subparsers.add_parser(
+        "api-lane-estimate",
+        help="estimate planned provider lanes without making provider API calls",
+    )
+    memory_api_lane_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_api_lane_estimate_parser.add_argument(
+        "--include-reference-managed-rag",
+        action="store_true",
+        help="show managed RAG reference rows as enabled reference lanes",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--include-latest-ocr",
+        action="store_true",
+        help="also estimate mistral-ocr-latest; default estimates the fixed OCR model only",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--ocr-scope",
+        choices=["none", "sample", "candidate-set", "all"],
+        default="sample",
+        help="OCR cost scope; candidate-set estimates routed media candidates, all is expensive",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--ocr-limit",
+        type=int,
+        default=100,
+        help="media item cap used when --ocr-scope sample or candidate-set",
+    )
+    memory_api_lane_estimate_parser.add_argument("--reader-url-limit", type=int, default=100)
+    memory_api_lane_estimate_parser.add_argument("--reader-max-chars", type=int, default=4000)
+    memory_api_lane_estimate_parser.add_argument("--rerank-query-count", type=int, default=5)
+    memory_api_lane_estimate_parser.add_argument("--rerank-candidate-limit", type=int, default=20)
+    memory_api_lane_estimate_parser.add_argument(
+        "--rerank-avg-candidate-tokens",
+        type=int,
+        default=250,
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--external-search-query-count",
+        type=int,
+        default=1,
+        help="successful Serper external-search calls to estimate; set 0 to skip",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--external-search-result-limit",
+        type=int,
+        default=10,
+        help="results requested per Serper call; affects returned documents, not call pricing",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--llm-context-query-count",
+        type=int,
+        default=1,
+        help="Brave LLM Context calls to estimate; set 0 to skip",
+    )
+    memory_api_lane_estimate_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_api_lane_estimate_parser.add_argument("--json", action="store_true")
+    memory_build_parser = memory_subparsers.add_parser(
+        "build-corpus",
+        help="build memory_documents and FTS index from the canonical X store",
+    )
+    memory_build_parser.add_argument(
+        "--db",
+        default="runs/x_data.sqlite3",
+        help="SQLite database path",
+    )
+    memory_derived_parser = memory_subparsers.add_parser(
+        "build-derived",
+        help="build derived place, author, ticker-event, and topic-thread documents",
+    )
+    memory_derived_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_derived_parser.add_argument(
+        "--kind",
+        action="append",
+        choices=["place_card", "author_profile", "ticker_event", "topic_thread"],
+        default=None,
+        help="derived document kind to rebuild; repeat to select multiple",
+    )
+    memory_derived_parser.add_argument(
+        "--max-source-docs-per-card",
+        type=int,
+        default=8,
+        help="maximum source documents quoted in each derived card",
+    )
+    memory_derived_parser.add_argument(
+        "--min-author-docs",
+        type=int,
+        default=1,
+        help="minimum source documents required for an author_profile",
+    )
+    memory_derived_parser.add_argument(
+        "--min-topic-docs",
+        type=int,
+        default=2,
+        help="minimum source documents required for a topic_thread",
+    )
+    memory_audit_parser = memory_subparsers.add_parser(
+        "audit",
+        help="audit memory indexes and fail in strict mode when production readiness is missing",
+    )
+    memory_audit_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_audit_parser.add_argument("--json", action="store_true")
+    memory_audit_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return a non-zero exit code when audit warnings are present",
+    )
+    memory_embedding_parser = memory_subparsers.add_parser(
+        "build-embeddings",
+        help="build semantic embedding index over memory_documents",
+    )
+    memory_embedding_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_parser.add_argument(
+        "--provider",
+        default="auto",
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_embedding_parser.add_argument("--model", default=None)
+    memory_embedding_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_parser.add_argument("--embedding-profile", default="general_memory")
+    memory_embedding_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_embedding_parser.add_argument("--api-key-env", default=None)
+    memory_embedding_parser.add_argument("--base-url", default=None)
+    memory_embedding_parser.add_argument("--batch-size", type=int, default=64)
+    memory_embedding_parser.add_argument("--limit", type=int, default=None)
+    memory_embedding_parser.add_argument(
+        "--execution-stage",
+        choices=MEMORY_EMBEDDING_EXECUTION_STAGE_CHOICES,
+        default="auto",
+        help=(
+            "embedding build intent; limited auto builds are technical canaries, "
+            "production-scope must not use --limit"
+        ),
+    )
+    memory_embedding_parser.add_argument(
+        "--selection-policy",
+        choices=MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES,
+        default="auto",
+        help="document selection policy for limited canary/eval-slice builds",
+    )
+    memory_embedding_parser.add_argument("--rebuild", action="store_true")
+    memory_embedding_parser.add_argument("--progress-every", type=int, default=1000)
+    _add_api_budget_options(memory_embedding_parser)
+    memory_embedding_estimate_parser = memory_subparsers.add_parser(
+        "embedding-estimate",
+        help="estimate documents, API batches, tokens, and optional cost for embedding builds",
+    )
+    memory_embedding_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_estimate_parser.add_argument(
+        "--provider",
+        default="auto",
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_embedding_estimate_parser.add_argument("--model", default=None)
+    memory_embedding_estimate_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_estimate_parser.add_argument("--embedding-profile", default="general_memory")
+    memory_embedding_estimate_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_embedding_estimate_parser.add_argument("--api-key-env", default=None)
+    memory_embedding_estimate_parser.add_argument("--base-url", default=None)
+    memory_embedding_estimate_parser.add_argument("--batch-size", type=int, default=64)
+    memory_embedding_estimate_parser.add_argument("--limit", type=int, default=None)
+    memory_embedding_estimate_parser.add_argument(
+        "--execution-stage",
+        choices=MEMORY_EMBEDDING_EXECUTION_STAGE_CHOICES,
+        default="auto",
+        help=(
+            "embedding estimate intent; limited auto estimates are technical canaries, "
+            "production-scope must not use --limit"
+        ),
+    )
+    memory_embedding_estimate_parser.add_argument(
+        "--selection-policy",
+        choices=MEMORY_EMBEDDING_SELECTION_POLICY_CHOICES,
+        default="auto",
+        help="document selection policy for limited canary/eval-slice estimates",
+    )
+    memory_embedding_estimate_parser.add_argument("--rebuild", action="store_true")
+    memory_embedding_estimate_parser.add_argument(
+        "--price-per-million-input-tokens",
+        type=float,
+        default=None,
+        help="optional provider price used only for a rough input-cost estimate",
+    )
+    memory_embedding_estimate_parser.add_argument("--json", action="store_true")
+    memory_specs_parser = memory_subparsers.add_parser(
+        "embedding-specs",
+        help="list available embedding indexes in the DB",
+    )
+    memory_specs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_coverage_parser = memory_subparsers.add_parser(
+        "embedding-coverage",
+        help="show embedding coverage and staleness by memory document type",
+    )
+    memory_embedding_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_embedding_coverage_parser.add_argument(
+        "--provider",
+        default="latest",
+        choices=MEMORY_EMBEDDING_PROVIDER_OR_LATEST_CHOICES,
+        help="embedding provider to inspect; latest uses the newest existing index",
+    )
+    memory_embedding_coverage_parser.add_argument("--model", default=None)
+    memory_embedding_coverage_parser.add_argument("--dimensions", type=int, default=None)
+    memory_embedding_coverage_parser.add_argument("--embedding-profile", default=None)
+    memory_embedding_coverage_parser.add_argument("--text-template-version", default=None)
+    memory_embedding_coverage_parser.add_argument("--json", action="store_true")
+    memory_vector_projection_parser = memory_subparsers.add_parser(
+        "build-vector-projection",
+        help="build a local vector projection file from one current memory_embeddings scope",
+    )
+    memory_vector_projection_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_vector_projection_parser.add_argument(
+        "--provider",
+        required=True,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES[1:],
+    )
+    memory_vector_projection_parser.add_argument("--model", default=None)
+    memory_vector_projection_parser.add_argument("--dimensions", type=int, default=None)
+    memory_vector_projection_parser.add_argument("--embedding-profile", default="general_memory")
+    memory_vector_projection_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_vector_projection_parser.add_argument(
+        "--backend",
+        default="numpy",
+        choices=MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES,
+    )
+    memory_vector_projection_parser.add_argument("--bit-width", type=int, default=4)
+    memory_vector_projection_parser.add_argument("--out-dir", default=None)
+    memory_vector_projection_parser.add_argument("--doc-type", default=None)
+    memory_vector_projection_parser.add_argument("--account", default=None)
+    memory_vector_projection_parser.add_argument("--json", action="store_true")
+    memory_vector_projection_coverage_parser = memory_subparsers.add_parser(
+        "vector-projection-coverage",
+        help="show local vector projection coverage, staleness, and artifact status",
+    )
+    memory_vector_projection_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_vector_projection_coverage_parser.add_argument("--generation-id", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--provider", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--model", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--dimensions", type=int, default=None)
+    memory_vector_projection_coverage_parser.add_argument("--embedding-profile", default=None)
+    memory_vector_projection_coverage_parser.add_argument("--text-template-version", default=None)
+    memory_vector_projection_coverage_parser.add_argument(
+        "--backend",
+        default=None,
+        choices=MEMORY_VECTOR_PROJECTION_BACKEND_CHOICES,
+    )
+    memory_vector_projection_coverage_parser.add_argument("--json", action="store_true")
+    memory_vector_backend_benchmark_parser = memory_subparsers.add_parser(
+        "vector-backend-benchmark",
+        help="benchmark local vector projection candidates without installing new backends",
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--provider",
+        required=True,
+        choices=MEMORY_VECTOR_BENCHMARK_PROVIDER_CHOICES,
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--model", default=None)
+    memory_vector_backend_benchmark_parser.add_argument("--dimensions", type=int, default=None)
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--embedding-profile",
+        default="general_memory",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--text-template-version",
+        default="memory-doc-embedding-v1",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--backend",
+        action="append",
+        default=[],
+        choices=MEMORY_VECTOR_BENCHMARK_BACKEND_CHOICES,
+        help="backend to include; repeat for multiple backends",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--query",
+        action="append",
+        default=[],
+        help="benchmark query; repeat for multiple queries",
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--limit", type=int, default=5)
+    memory_vector_backend_benchmark_parser.add_argument("--out-dir", default=None)
+    memory_vector_backend_benchmark_parser.add_argument("--doc-type", default=None)
+    memory_vector_backend_benchmark_parser.add_argument("--account", default=None)
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-build-seconds",
+        type=float,
+        default=5.0,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-avg-search-seconds",
+        type=float,
+        default=0.5,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-cold-start-seconds",
+        type=float,
+        default=1.0,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--min-recall-at-limit",
+        type=float,
+        default=1.0,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-disk-bytes-per-vector",
+        type=int,
+        default=16_384,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--max-memory-bytes-per-vector",
+        type=int,
+        default=None,
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--require-update-delete",
+        action="store_true",
+    )
+    memory_vector_backend_benchmark_parser.add_argument(
+        "--no-require-source-restoration",
+        action="store_true",
+    )
+    memory_vector_backend_benchmark_parser.add_argument("--json", action="store_true")
+    memory_media_embedding_estimate_parser = memory_subparsers.add_parser(
+        "media-embedding-estimate",
+        help="estimate saved media files, staleness, skips, and calls for native media embeddings",
+    )
+    memory_media_embedding_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_embedding_estimate_parser.add_argument("--provider", default="gemini")
+    memory_media_embedding_estimate_parser.add_argument("--model", default=None)
+    memory_media_embedding_estimate_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_embedding_estimate_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_embedding_estimate_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_embedding_estimate_parser.add_argument("--api-key-env", default=None)
+    memory_media_embedding_estimate_parser.add_argument("--base-url", default=None)
+    memory_media_embedding_estimate_parser.add_argument("--limit", type=int, default=None)
+    memory_media_embedding_estimate_parser.add_argument("--rebuild", action="store_true")
+    memory_media_embedding_estimate_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_media_embedding_estimate_parser.add_argument(
+        "--mime-type",
+        action="append",
+        default=[],
+    )
+    memory_media_embedding_estimate_parser.add_argument("--json", action="store_true")
+    memory_media_embedding_parser = memory_subparsers.add_parser(
+        "build-media-embeddings",
+        help="build native media embeddings over saved local image/PDF media files",
+    )
+    memory_media_embedding_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_embedding_parser.add_argument("--provider", default="gemini")
+    memory_media_embedding_parser.add_argument("--model", default=None)
+    memory_media_embedding_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_embedding_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_embedding_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_embedding_parser.add_argument("--api-key-env", default=None)
+    memory_media_embedding_parser.add_argument("--base-url", default=None)
+    memory_media_embedding_parser.add_argument("--limit", type=int, default=None)
+    memory_media_embedding_parser.add_argument("--rebuild", action="store_true")
+    memory_media_embedding_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_media_embedding_parser.add_argument("--mime-type", action="append", default=[])
+    memory_media_embedding_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    _add_provider_quota_gate_option(memory_media_embedding_parser)
+    _add_api_budget_options(memory_media_embedding_parser)
+    memory_media_embedding_coverage_parser = memory_subparsers.add_parser(
+        "media-embedding-coverage",
+        help="show native media embedding coverage/staleness by mime and skipped reason",
+    )
+    memory_media_embedding_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_embedding_coverage_parser.add_argument("--provider", default="gemini")
+    memory_media_embedding_coverage_parser.add_argument("--model", default=None)
+    memory_media_embedding_coverage_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_embedding_coverage_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_embedding_coverage_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_embedding_coverage_parser.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_media_embedding_coverage_parser.add_argument("--mime-type", action="append", default=[])
+    memory_media_embedding_coverage_parser.add_argument("--json", action="store_true")
+    memory_media_search_parser = memory_subparsers.add_parser(
+        "media-search",
+        help="search native media embeddings and restore tweet/media source bundles",
+    )
+    memory_media_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_search_parser.add_argument("--query", required=True)
+    memory_media_search_parser.add_argument("--provider", default="gemini")
+    memory_media_search_parser.add_argument("--model", default=None)
+    memory_media_search_parser.add_argument("--dimensions", type=int, default=None)
+    memory_media_search_parser.add_argument(
+        "--embedding-profile",
+        default="native_multimodal_media",
+    )
+    memory_media_search_parser.add_argument(
+        "--input-template-version",
+        default="gemini-media-input-v1",
+    )
+    memory_media_search_parser.add_argument("--api-key-env", default=None)
+    memory_media_search_parser.add_argument("--base-url", default=None)
+    memory_media_search_parser.add_argument("--limit", type=int, default=10)
+    memory_media_search_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_media_search_parser.add_argument("--json", action="store_true")
+    _add_provider_quota_gate_option(memory_media_search_parser)
+    _add_api_budget_options(memory_media_search_parser)
+    memory_ocr_estimate_parser = memory_subparsers.add_parser(
+        "ocr-estimate",
+        help="estimate stratified OCR evidence candidates without calling provider OCR APIs",
+    )
+    memory_ocr_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_estimate_parser.add_argument("--sample-policy", default="stratified")
+    memory_ocr_estimate_parser.add_argument("--limit", type=int, default=100)
+    memory_ocr_estimate_parser.add_argument("--max-file-bytes", type=int, default=20 * 1024 * 1024)
+    memory_ocr_estimate_parser.add_argument("--media-id", action="append", default=[])
+    memory_ocr_estimate_parser.add_argument("--tweet-id", action="append", default=[])
+    memory_ocr_estimate_parser.add_argument("--engine-route", action="append", default=[])
+    memory_ocr_estimate_parser.add_argument("--json", action="store_true")
+    memory_media_role_estimate_parser = memory_subparsers.add_parser(
+        "media-role-estimate",
+        help="estimate local media roles and evidence actions without writing the database",
+    )
+    memory_media_role_estimate_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_role_estimate_parser.add_argument("--limit", type=int, default=100)
+    memory_media_role_estimate_parser.add_argument("--json", action="store_true")
+    memory_media_role_build_parser = memory_subparsers.add_parser(
+        "media-role-build",
+        help="store local media role annotations for OCR/caption routing",
+    )
+    memory_media_role_build_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_role_build_parser.add_argument("--limit", type=int, default=100)
+    memory_media_role_build_parser.add_argument("--json", action="store_true")
+    memory_media_role_coverage_parser = memory_subparsers.add_parser(
+        "media-role-coverage",
+        help="show stored local media role annotations",
+    )
+    memory_media_role_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_role_coverage_parser.add_argument("--json", action="store_true")
+    memory_ocr_build_parser = memory_subparsers.add_parser(
+        "build-ocr-evidence",
+        help="build OCR evidence rows and promote citation-ready OCR chunks",
+    )
+    memory_ocr_build_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_build_parser.add_argument(
+        "--provider",
+        choices=["fake", "mistral"],
+        default="fake",
+        help=(
+            "fake is allowed during the no-quota freeze; mistral requires provider quota permission"
+        ),
+    )
+    memory_ocr_build_parser.add_argument("--model", default="mistral-ocr-2512")
+    memory_ocr_build_parser.add_argument("--ocr-profile", default="ocr-evidence-v1")
+    memory_ocr_build_parser.add_argument("--sample-policy", default="stratified")
+    memory_ocr_build_parser.add_argument("--limit", type=int, default=100)
+    memory_ocr_build_parser.add_argument("--max-file-bytes", type=int, default=20 * 1024 * 1024)
+    memory_ocr_build_parser.add_argument("--media-id", action="append", default=[])
+    memory_ocr_build_parser.add_argument("--tweet-id", action="append", default=[])
+    memory_ocr_build_parser.add_argument("--engine-route", action="append", default=[])
+    memory_ocr_build_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_ocr_build_parser.add_argument("--api-key-env", default=None)
+    memory_ocr_build_parser.add_argument("--base-url", default=None)
+    memory_ocr_build_parser.add_argument(
+        "--no-promote-chunks",
+        action="store_true",
+        help="store raw OCR rows without creating context chunks/citations",
+    )
+    memory_ocr_build_parser.add_argument(
+        "--allow-real-api",
+        action="store_true",
+        help="reserved for future provider OCR runs after the no-quota freeze is lifted",
+    )
+    memory_ocr_build_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_ocr_build_parser)
+    memory_ocr_coverage_parser = memory_subparsers.add_parser(
+        "ocr-coverage",
+        help="show OCR evidence rows and promoted OCR context chunks",
+    )
+    memory_ocr_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_coverage_parser.add_argument("--json", action="store_true")
+    memory_ocr_promote_parser = memory_subparsers.add_parser(
+        "ocr-promote-chunks",
+        help="promote stored OCR text rows into citation-ready context chunks",
+    )
+    memory_ocr_promote_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_promote_parser.add_argument("--limit", type=int, default=None)
+    memory_ocr_promote_parser.add_argument(
+        "--include-corrected",
+        action="store_true",
+        help="also promote corrected_text helper profiles as inference chunks",
+    )
+    memory_ocr_promote_parser.add_argument("--json", action="store_true")
+    memory_ocr_second_pass_parser = memory_subparsers.add_parser(
+        "ocr-second-pass",
+        help="mark local OCR second-pass candidates and create local corrected profiles",
+    )
+    memory_ocr_second_pass_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_second_pass_parser.add_argument("--confidence-threshold", type=float, default=0.45)
+    memory_ocr_second_pass_parser.add_argument("--limit", type=int, default=None)
+    memory_ocr_second_pass_parser.add_argument(
+        "--no-corrected-profile",
+        action="store_true",
+        help="mark candidates without creating corrected_text profiles",
+    )
+    memory_ocr_second_pass_parser.add_argument("--json", action="store_true")
+    memory_media_observation_add_parser = memory_subparsers.add_parser(
+        "media-observation-add",
+        help="store a Codex/VLM media observation as an inference annotation",
+    )
+    memory_media_observation_add_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_observation_add_parser.add_argument("--media-id", required=True)
+    memory_media_observation_add_parser.add_argument("--text-file", required=True)
+    memory_media_observation_add_parser.add_argument(
+        "--observation-kind",
+        default="codex_interpretation",
+    )
+    memory_media_observation_add_parser.add_argument("--provider", default="codex_interactive")
+    memory_media_observation_add_parser.add_argument("--model", default="gpt-5.5")
+    memory_media_observation_add_parser.add_argument("--confidence", type=float, default=0.7)
+    memory_media_observation_add_parser.add_argument("--prompt", default=None)
+    memory_media_observation_add_parser.add_argument("--session-id", default=None)
+    memory_media_observation_add_parser.add_argument(
+        "--no-promote-chunks",
+        action="store_true",
+        help="store observation text without creating inference context chunks",
+    )
+    memory_media_observation_add_parser.add_argument("--json", action="store_true")
+    memory_media_observation_import_parser = memory_subparsers.add_parser(
+        "media-observation-import",
+        help="import Codex/VLM media observations from JSONL",
+    )
+    memory_media_observation_import_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_observation_import_parser.add_argument("--jsonl", required=True)
+    memory_media_observation_import_parser.add_argument(
+        "--no-promote-chunks",
+        action="store_true",
+    )
+    memory_media_observation_import_parser.add_argument("--json", action="store_true")
+    memory_media_observation_coverage_parser = memory_subparsers.add_parser(
+        "media-observation-coverage",
+        help="show stored Codex/VLM media observations",
+    )
+    memory_media_observation_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_media_observation_coverage_parser.add_argument("--json", action="store_true")
+    memory_ocr_search_parser = memory_subparsers.add_parser(
+        "ocr-search",
+        help="search stored OCR evidence text and restore media bundles",
+    )
+    memory_ocr_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_ocr_search_parser.add_argument("--query", required=True)
+    memory_ocr_search_parser.add_argument("--limit", type=int, default=10)
+    memory_ocr_search_parser.add_argument("--json", action="store_true")
+    memory_relations_build_parser = memory_subparsers.add_parser(
+        "build-relations",
+        help="build relation edges over memory_documents",
+    )
+    memory_relations_build_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_relations_parser = memory_subparsers.add_parser(
+        "relations",
+        help="show relation edges for a memory document",
+    )
+    memory_relations_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_relations_parser.add_argument("--doc-id", required=True)
+    memory_relations_parser.add_argument("--limit", type=int, default=20)
+    memory_relations_parser.add_argument("--json", action="store_true")
+    memory_judge_relations_parser = memory_subparsers.add_parser(
+        "judge-relations",
+        help="judge supports/contradicts relation edges from freshness candidates",
+    )
+    memory_judge_relations_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_judge_relations_parser.add_argument(
+        "--provider",
+        choices=["fake", "gemini", "openai_chat", "openai_compatible"],
+        default="fake",
+        help="relation judge; fake is deterministic and no-network",
+    )
+    memory_judge_relations_parser.add_argument("--model", default=None)
+    memory_judge_relations_parser.add_argument("--api-key-env", default=None)
+    memory_judge_relations_parser.add_argument("--base-url", default=None)
+    memory_judge_relations_parser.add_argument(
+        "--candidate-relation-type",
+        action="append",
+        default=None,
+        help=(
+            "candidate relation type to judge, e.g. obsolete_candidate; "
+            "repeat to select multiple"
+        ),
+    )
+    memory_judge_relations_parser.add_argument("--limit", type=int, default=50)
+    memory_judge_relations_parser.add_argument("--batch-size", type=int, default=10)
+    memory_judge_relations_parser.add_argument("--min-confidence", type=float, default=0.55)
+    memory_judge_relations_parser.add_argument(
+        "--prompt-version",
+        default="memory-relation-judge-v1",
+    )
+    memory_judge_relations_parser.add_argument("--timeout-seconds", type=float, default=90.0)
+    memory_judge_relations_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store judged supports/contradicts edges and tool-call audit rows; "
+            "defaults to no-store for fake providers"
+        ),
+    )
+    memory_judge_relations_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    memory_judge_relations_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_judge_relations_parser)
+    memory_search_parser = memory_subparsers.add_parser(
+        "search",
+        help=(
+            "search memory_documents with lexical, metadata, relation, "
+            "and optional semantic ranking"
+        ),
+    )
+    memory_search_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_search_parser.add_argument("--query", required=True)
+    memory_search_parser.add_argument("--limit", type=int, default=10)
+    memory_search_parser.add_argument("--doc-type", default=None)
+    memory_search_parser.add_argument("--account", default=None)
+    memory_search_parser.add_argument("--json", action="store_true")
+    memory_search_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+        help=(
+            "optional semantic provider: auto, local_hash, openai, gemini, voyage, "
+            "cohere, mistral, jina, or openai_compatible"
+        ),
+    )
+    memory_search_parser.add_argument("--semantic-model", default=None)
+    memory_search_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_search_parser.add_argument("--semantic-profile", default=None)
+    memory_search_parser.add_argument("--semantic-template-version", default=None)
+    memory_search_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_search_parser.add_argument("--semantic-base-url", default=None)
+    memory_search_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_search_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_search_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+        help="semantic scoring backend: sqlite matrix scan or local vector projection",
+    )
+    _add_api_budget_options(memory_search_parser)
+    memory_plan_parser = memory_subparsers.add_parser(
+        "plan",
+        help="explain how a natural-language memory query will be interpreted",
+    )
+    memory_plan_parser.add_argument("--query", required=True)
+    memory_evidence_parser = memory_subparsers.add_parser(
+        "evidence",
+        help="return compact evidence bundle JSON for an AI caller",
+    )
+    memory_evidence_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_evidence_parser.add_argument("--query", required=True)
+    memory_evidence_parser.add_argument("--limit", type=int, default=5)
+    memory_evidence_parser.add_argument("--doc-type", default=None)
+    memory_evidence_parser.add_argument("--account", default=None)
+    memory_evidence_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_evidence_parser.add_argument("--semantic-model", default=None)
+    memory_evidence_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_evidence_parser.add_argument("--semantic-profile", default=None)
+    memory_evidence_parser.add_argument("--semantic-template-version", default=None)
+    memory_evidence_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_evidence_parser.add_argument("--semantic-base-url", default=None)
+    memory_evidence_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_evidence_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_evidence_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
+    _add_api_budget_options(memory_evidence_parser)
+    memory_context_parser = memory_subparsers.add_parser(
+        "context",
+        help="build LLM-ready context chunks and citation-ready metadata for a memory query",
+    )
+    memory_context_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_context_parser.add_argument("--query", required=True)
+    memory_context_parser.add_argument("--limit", type=int, default=5)
+    memory_context_parser.add_argument("--doc-type", default=None)
+    memory_context_parser.add_argument("--account", default=None)
+    memory_context_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_context_parser.add_argument("--semantic-model", default=None)
+    memory_context_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_context_parser.add_argument("--semantic-profile", default=None)
+    memory_context_parser.add_argument("--semantic-template-version", default=None)
+    memory_context_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_context_parser.add_argument("--semantic-base-url", default=None)
+    memory_context_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_context_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_context_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
+    memory_context_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="also extract URLs from this external-search run into the same context bundle",
+    )
+    memory_context_parser.add_argument(
+        "--external-provider",
+        choices=["fake", "http", "jina"],
+        default="fake",
+        help="reader/extract provider for --external-run-id",
+    )
+    memory_context_parser.add_argument("--external-limit", type=int, default=5)
+    memory_context_parser.add_argument("--external-max-chars", type=int, default=4000)
+    memory_context_parser.add_argument("--external-timeout-seconds", type=float, default=30.0)
+    memory_context_parser.add_argument("--external-user-agent", default="research-x/0.1")
+    memory_context_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
+    memory_context_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store the search run, context chunks, and citation annotations; "
+            "defaults to no-store when a fake external provider is used"
+        ),
+    )
+    memory_context_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    _add_context_budget_options(memory_context_parser)
+    _add_api_budget_options(memory_context_parser)
+    memory_answer_parser = memory_subparsers.add_parser(
+        "answer",
+        help="build context chunks and generate a cited answer artifact",
+    )
+    memory_answer_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_answer_parser.add_argument("--query", required=True)
+    memory_answer_parser.add_argument("--limit", type=int, default=5)
+    memory_answer_parser.add_argument("--doc-type", default=None)
+    memory_answer_parser.add_argument("--account", default=None)
+    memory_answer_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_answer_parser.add_argument("--semantic-model", default=None)
+    memory_answer_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_answer_parser.add_argument("--semantic-profile", default=None)
+    memory_answer_parser.add_argument("--semantic-template-version", default=None)
+    memory_answer_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_answer_parser.add_argument("--semantic-base-url", default=None)
+    memory_answer_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_answer_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_answer_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
+    memory_answer_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="also extract URLs from this external-search run into the answer context",
+    )
+    memory_answer_parser.add_argument(
+        "--external-provider",
+        choices=["fake", "http", "jina"],
+        default="fake",
+        help="reader/extract provider for --external-run-id",
+    )
+    memory_answer_parser.add_argument("--external-limit", type=int, default=5)
+    memory_answer_parser.add_argument("--external-max-chars", type=int, default=4000)
+    memory_answer_parser.add_argument("--external-timeout-seconds", type=float, default=30.0)
+    memory_answer_parser.add_argument("--external-user-agent", default="research-x/0.1")
+    memory_answer_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
+    memory_answer_parser.add_argument(
+        "--answer-provider",
+        choices=["fake", "gemini", "openai_chat", "openai_compatible"],
+        default="fake",
+        help="answer engine; fake is deterministic and no-network",
+    )
+    memory_answer_parser.add_argument("--answer-model", default=None)
+    memory_answer_parser.add_argument("--answer-api-key-env", default=None)
+    memory_answer_parser.add_argument("--answer-base-url", default=None)
+    memory_answer_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
+    memory_answer_parser.add_argument("--prompt-version", default="memory-answer-v1")
+    memory_answer_parser.add_argument("--max-context-chunks", type=int, default=8)
+    memory_answer_parser.add_argument("--max-context-chars", type=int, default=12_000)
+    memory_answer_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store the search run, context chunks, answer, and answer citations; "
+            "defaults to no-store for fake providers"
+        ),
+    )
+    memory_answer_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    _add_context_budget_options(memory_answer_parser)
+    _add_api_budget_options(memory_answer_parser)
+    memory_workflow_parser = memory_subparsers.add_parser(
+        "workflow",
+        help="run a bounded memory workflow with route, steps, and stop reason",
+    )
+    memory_workflow_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_workflow_parser.add_argument("--query", required=True)
+    memory_workflow_parser.add_argument("--route", default="auto")
+    memory_workflow_parser.add_argument("--limit", type=int, default=5)
+    memory_workflow_parser.add_argument("--doc-type", default=None)
+    memory_workflow_parser.add_argument("--account", default=None)
+    memory_workflow_parser.add_argument("--json", action="store_true")
+    memory_workflow_parser.add_argument(
+        "--tool-json",
+        action="store_true",
+        help=(
+            "emit the stable AI-callable research_x tool contract instead of "
+            "internal workflow JSON"
+        ),
+    )
+    memory_workflow_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_workflow_parser.add_argument("--semantic-model", default=None)
+    memory_workflow_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_workflow_parser.add_argument("--semantic-profile", default=None)
+    memory_workflow_parser.add_argument("--semantic-template-version", default=None)
+    memory_workflow_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_workflow_parser.add_argument("--semantic-base-url", default=None)
+    memory_workflow_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_workflow_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_workflow_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
+    memory_workflow_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="also extract URLs from this external-search run into the workflow context",
+    )
+    memory_workflow_parser.add_argument(
+        "--external-provider",
+        choices=["fake", "http", "jina"],
+        default="http",
+        help="reader/extract provider for --external-run-id",
+    )
+    memory_workflow_parser.add_argument("--external-limit", type=int, default=5)
+    memory_workflow_parser.add_argument("--external-max-chars", type=int, default=4000)
+    memory_workflow_parser.add_argument("--external-timeout-seconds", type=float, default=30.0)
+    memory_workflow_parser.add_argument("--external-user-agent", default="research-x/0.1")
+    memory_workflow_parser.add_argument("--external-max-bytes", type=int, default=2_000_000)
+    memory_workflow_parser.add_argument(
+        "--llm-context-provider",
+        choices=["none", "fake", "brave"],
+        default="none",
+        help="optional LLM-context provider to add external grounding to the workflow context",
+    )
+    memory_workflow_parser.add_argument(
+        "--llm-context-api-key-env",
+        default="BRAVE_SEARCH_API_KEY",
+    )
+    memory_workflow_parser.add_argument("--llm-context-endpoint", default=None)
+    memory_workflow_parser.add_argument("--llm-context-country", default=None)
+    memory_workflow_parser.add_argument("--llm-context-search-lang", default=None)
+    memory_workflow_parser.add_argument("--llm-context-count", type=int, default=20)
+    memory_workflow_parser.add_argument("--llm-context-max-urls", type=int, default=20)
+    memory_workflow_parser.add_argument("--llm-context-max-tokens", type=int, default=8192)
+    memory_workflow_parser.add_argument("--llm-context-max-snippets", type=int, default=50)
+    memory_workflow_parser.add_argument("--llm-context-threshold-mode", default="balanced")
+    memory_workflow_parser.add_argument(
+        "--llm-context-max-tokens-per-url",
+        type=int,
+        default=4096,
+    )
+    memory_workflow_parser.add_argument(
+        "--llm-context-max-snippets-per-url",
+        type=int,
+        default=50,
+    )
+    memory_workflow_parser.add_argument("--llm-context-freshness", default=None)
+    memory_workflow_parser.add_argument(
+        "--llm-context-enable-local",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    memory_workflow_parser.add_argument("--llm-context-goggles", default=None)
+    memory_workflow_parser.add_argument(
+        "--llm-context-max-chars-per-source",
+        type=int,
+        default=6000,
+    )
+    memory_workflow_parser.add_argument("--llm-context-timeout-seconds", type=float, default=30.0)
+    memory_workflow_parser.add_argument(
+        "--answer-provider",
+        choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
+        default="none",
+        help="optional answer engine; none only builds workflow context",
+    )
+    memory_workflow_parser.add_argument("--answer-model", default=None)
+    memory_workflow_parser.add_argument("--answer-api-key-env", default=None)
+    memory_workflow_parser.add_argument("--answer-base-url", default=None)
+    memory_workflow_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
+    memory_workflow_parser.add_argument("--prompt-version", default="memory-answer-v1")
+    memory_workflow_parser.add_argument("--max-context-chunks", type=int, default=8)
+    memory_workflow_parser.add_argument("--max-context-chars", type=int, default=12_000)
+    memory_workflow_parser.add_argument("--max-steps", type=int, default=4)
+    memory_workflow_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store workflow run, steps, context, and optional answer artifacts; "
+            "defaults to no-store for fake providers"
+        ),
+    )
+    memory_workflow_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    _add_context_budget_options(memory_workflow_parser)
+    _add_api_budget_options(memory_workflow_parser)
+    memory_external_parser = memory_subparsers.add_parser(
+        "external-search",
+        help="run an external URL-discovery provider and store normalized results",
+    )
+    memory_external_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_external_parser.add_argument("--query", required=True)
+    memory_external_parser.add_argument(
+        "--provider",
+        choices=["fake", "serper"],
+        default="fake",
+        help="external discovery provider; fake is deterministic and no-network",
+    )
+    memory_external_parser.add_argument("--limit", type=int, default=5)
+    memory_external_parser.add_argument("--api-key-env", default="SERPER_API_KEY")
+    memory_external_parser.add_argument("--endpoint", default=None)
+    memory_external_parser.add_argument("--country", default=None)
+    memory_external_parser.add_argument("--language", default=None)
+    memory_external_parser.add_argument("--location", default=None)
+    memory_external_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    memory_external_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store the normalized external run/items in the memory DB; "
+            "defaults to no-store for fake providers"
+        ),
+    )
+    memory_external_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    _add_api_budget_options(memory_external_parser)
+    memory_extract_parser = memory_subparsers.add_parser(
+        "extract-url",
+        help="extract readable text from a URL or external-search run into context chunks",
+    )
+    memory_extract_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_extract_parser.add_argument("--url", default=None, help="single URL to extract")
+    memory_extract_parser.add_argument(
+        "--external-run-id",
+        default=None,
+        help="extract URLs from a stored memory external-search run",
+    )
+    memory_extract_parser.add_argument(
+        "--provider",
+        choices=["fake", "http", "jina"],
+        default="fake",
+        help="reader/extract provider; fake is deterministic and no-network",
+    )
+    memory_extract_parser.add_argument("--query", default=None)
+    memory_extract_parser.add_argument("--title", default=None)
+    memory_extract_parser.add_argument("--limit", type=int, default=5)
+    memory_extract_parser.add_argument("--max-chars", type=int, default=4000)
+    memory_extract_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    memory_extract_parser.add_argument("--user-agent", default="research-x/0.1")
+    memory_extract_parser.add_argument("--max-bytes", type=int, default=2_000_000)
+    memory_extract_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store tool call, context chunk, and citation annotation rows; "
+            "defaults to no-store for fake providers"
+        ),
+    )
+    memory_extract_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    _add_api_budget_options(memory_extract_parser)
+    memory_llm_context_parser = memory_subparsers.add_parser(
+        "llm-context",
+        help="fetch pre-extracted Web context for LLM grounding",
+    )
+    memory_llm_context_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_llm_context_parser.add_argument("--query", required=True)
+    memory_llm_context_parser.add_argument(
+        "--provider",
+        choices=["fake", "brave"],
+        default="brave",
+        help="LLM-context provider; brave calls Brave Search LLM Context",
+    )
+    memory_llm_context_parser.add_argument("--api-key-env", default="BRAVE_SEARCH_API_KEY")
+    memory_llm_context_parser.add_argument("--endpoint", default=None)
+    memory_llm_context_parser.add_argument("--country", default=None)
+    memory_llm_context_parser.add_argument("--search-lang", default=None)
+    memory_llm_context_parser.add_argument("--count", type=int, default=20)
+    memory_llm_context_parser.add_argument("--max-urls", type=int, default=20)
+    memory_llm_context_parser.add_argument("--max-tokens", type=int, default=8192)
+    memory_llm_context_parser.add_argument("--max-snippets", type=int, default=50)
+    memory_llm_context_parser.add_argument("--threshold-mode", default="balanced")
+    memory_llm_context_parser.add_argument("--max-tokens-per-url", type=int, default=4096)
+    memory_llm_context_parser.add_argument("--max-snippets-per-url", type=int, default=50)
+    memory_llm_context_parser.add_argument("--freshness", default=None)
+    memory_llm_context_parser.add_argument(
+        "--enable-local",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    memory_llm_context_parser.add_argument("--goggles", default=None)
+    memory_llm_context_parser.add_argument("--max-chars-per-source", type=int, default=6000)
+    memory_llm_context_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    memory_llm_context_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "store tool call, external context chunks, and citation annotations; "
+            "defaults to no-store for fake providers"
+        ),
+    )
+    memory_llm_context_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    _add_api_budget_options(memory_llm_context_parser)
+    memory_feedback_parser = memory_subparsers.add_parser(
+        "feedback",
+        help="record search-result feedback for later ranking improvements",
+    )
+    memory_feedback_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_feedback_parser.add_argument("--query", required=True)
+    memory_feedback_parser.add_argument("--doc-id", required=True)
+    memory_feedback_parser.add_argument(
+        "--label",
+        required=True,
+        choices=[
+            "useful",
+            "not_useful",
+            "wrong_topic",
+            "too_old",
+            "missing_context",
+            "good_for_skill",
+            "bad_skill_route",
+        ],
+    )
+    memory_feedback_parser.add_argument("--note", default=None)
+    memory_feedback_parser.add_argument(
+        "--route",
+        default=None,
+        help="optional workflow route this feedback applies to",
+    )
+    memory_governance_parser = memory_subparsers.add_parser(
+        "governance",
+        help="manage source-backed memory governance records",
+    )
+    memory_governance_subparsers = memory_governance_parser.add_subparsers(
+        dest="governance_command",
+        required=True,
+    )
+    governance_add_parser = memory_governance_subparsers.add_parser(
+        "add",
+        help="add a source-backed governance record",
+    )
+    governance_add_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_add_parser.add_argument(
+        "--type",
+        required=True,
+        choices=["profile", "contradiction", "retention", "forgetting"],
+    )
+    governance_add_parser.add_argument("--subject-kind", required=True)
+    governance_add_parser.add_argument("--subject-id", required=True)
+    governance_add_parser.add_argument("--statement", required=True)
+    governance_add_parser.add_argument("--source-kind", required=True)
+    governance_add_parser.add_argument("--source-id", required=True)
+    governance_add_parser.add_argument("--source-url", default=None)
+    governance_add_parser.add_argument("--source-hash", default=None)
+    governance_add_parser.add_argument("--source-anchor", action="append", default=[])
+    governance_add_parser.add_argument("--metadata", action="append", default=[])
+    governance_add_parser.add_argument("--confidence", type=float, default=1.0)
+    governance_add_parser.add_argument("--retention-policy", default="source_lifetime")
+    governance_add_parser.add_argument("--expires-at", default=None)
+    governance_add_parser.add_argument("--json", action="store_true")
+    governance_tombstone_parser = memory_governance_subparsers.add_parser(
+        "tombstone",
+        help="add an active tombstone for a local artifact",
+    )
+    governance_tombstone_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_tombstone_parser.add_argument("--artifact-kind", required=True)
+    governance_tombstone_parser.add_argument("--artifact-id", required=True)
+    governance_tombstone_parser.add_argument("--reason", required=True)
+    governance_tombstone_parser.add_argument("--source-kind", required=True)
+    governance_tombstone_parser.add_argument("--source-id", required=True)
+    governance_tombstone_parser.add_argument("--source-url", default=None)
+    governance_tombstone_parser.add_argument("--source-hash", default=None)
+    governance_tombstone_parser.add_argument("--source-anchor", action="append", default=[])
+    governance_tombstone_parser.add_argument("--metadata", action="append", default=[])
+    governance_tombstone_parser.add_argument(
+        "--retention-policy",
+        default="suppress_until_restored",
+    )
+    governance_tombstone_parser.add_argument("--json", action="store_true")
+    governance_restore_parser = memory_governance_subparsers.add_parser(
+        "restore",
+        help="restore a tombstone/governance record by marking it inactive",
+    )
+    governance_restore_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_restore_parser.add_argument("--record-id", required=True)
+    governance_restore_parser.add_argument("--reason", required=True)
+    governance_restore_parser.add_argument("--json", action="store_true")
+    governance_list_parser = memory_governance_subparsers.add_parser(
+        "list",
+        help="list source-backed governance records",
+    )
+    governance_list_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_list_parser.add_argument(
+        "--type",
+        choices=["profile", "contradiction", "retention", "forgetting", "tombstone"],
+        default=None,
+    )
+    governance_list_parser.add_argument("--subject-kind", default=None)
+    governance_list_parser.add_argument("--subject-id", default=None)
+    governance_list_parser.add_argument("--include-inactive", action="store_true")
+    governance_list_parser.add_argument("--limit", type=int, default=50)
+    governance_list_parser.add_argument("--json", action="store_true")
+    governance_check_parser = memory_governance_subparsers.add_parser(
+        "check",
+        help="check whether an artifact is actively tombstoned",
+    )
+    governance_check_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    governance_check_parser.add_argument("--artifact-kind", required=True)
+    governance_check_parser.add_argument("--artifact-id", required=True)
+    governance_check_parser.add_argument("--json", action="store_true")
+    memory_export_parser = memory_subparsers.add_parser(
+        "export-corpus2skill",
+        help="export memory_documents to Corpus2Skill-compatible JSONL",
+    )
+    memory_export_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_export_parser.add_argument("--out", default=None)
+    memory_export_parser.add_argument(
+        "--doc-type",
+        action="append",
+        default=[],
+        help="limit export to this memory_documents.doc_type; repeatable",
+    )
+    memory_export_parser.add_argument(
+        "--bundle-dir",
+        default=None,
+        help="write corpus.jsonl plus manifest.json for the official Corpus2Skill compiler",
+    )
+    memory_export_parser.add_argument(
+        "--openai-agent-yaml",
+        action="store_true",
+        help="include advisory agents/openai.yaml metadata in the bundle",
+    )
+    memory_export_parser.add_argument(
+        "--hook-advisory",
+        action="store_true",
+        help="include an inert hook advisory note in the bundle",
+    )
+    memory_export_parser.add_argument(
+        "--openai-agent-name",
+        default=None,
+        help="skill-style name referenced by the advisory OpenAI agent metadata",
+    )
+    memory_export_parser.add_argument("--limit", type=int, default=None)
+    memory_eval_parser = memory_subparsers.add_parser(
+        "eval",
+        help="run fixed evaluation queries against the memory search layer",
+    )
+    memory_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_parser.add_argument(
+        "--cases",
+        default=None,
+        help="optional JSON/JSONL eval cases file; omit to use built-in route cases",
+    )
+    memory_eval_parser.add_argument("--limit", type=int, default=3)
+    memory_eval_parser.add_argument(
+        "--semantic-provider",
+        default=None,
+        choices=MEMORY_EMBEDDING_PROVIDER_CHOICES,
+    )
+    memory_eval_parser.add_argument("--semantic-model", default=None)
+    memory_eval_parser.add_argument("--semantic-dimensions", type=int, default=None)
+    memory_eval_parser.add_argument("--semantic-profile", default=None)
+    memory_eval_parser.add_argument("--semantic-template-version", default=None)
+    memory_eval_parser.add_argument("--semantic-api-key-env", default=None)
+    memory_eval_parser.add_argument("--semantic-base-url", default=None)
+    memory_eval_parser.add_argument("--semantic-weight", type=float, default=3.0)
+    memory_eval_parser.add_argument("--semantic-candidates", type=int, default=80)
+    memory_eval_parser.add_argument(
+        "--semantic-backend",
+        default="sqlite",
+        choices=MEMORY_SEMANTIC_BACKEND_CHOICES,
+    )
+    memory_eval_parser.add_argument(
+        "--answer-provider",
+        choices=["none", "fake", "gemini", "openai_chat", "openai_compatible"],
+        default="fake",
+        help="no-store answer wiring check for eval cases",
+    )
+    memory_eval_parser.add_argument("--answer-model", default=None)
+    memory_eval_parser.add_argument("--answer-api-key-env", default=None)
+    memory_eval_parser.add_argument("--answer-base-url", default=None)
+    memory_eval_parser.add_argument("--answer-timeout-seconds", type=float, default=90.0)
+    memory_eval_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="store eval run/results for later comparison",
+    )
+    memory_eval_parser.add_argument("--json", action="store_true")
+    memory_eval_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return a non-zero exit code when any eval case is not ok",
+    )
+    _add_api_budget_options(memory_eval_parser)
+    memory_portfolio_eval_parser = memory_subparsers.add_parser(
+        "portfolio-eval",
+        help=(
+            "compare lexical, source-bundle, workflow, and candidate semantic arms "
+            "without promoting multi-provider search to production"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_portfolio_eval_parser.add_argument(
+        "--cases",
+        default=None,
+        help="optional JSON/JSONL eval cases file; omit to use built-in route cases",
+    )
+    memory_portfolio_eval_parser.add_argument("--limit", type=int, default=5)
+    memory_portfolio_eval_parser.add_argument(
+        "--case-limit",
+        type=int,
+        default=None,
+        help="optional maximum number of eval cases to run; useful for bounded preflight",
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="run a lightweight local-arm subset for quick offline preflight",
+    )
+    memory_portfolio_eval_parser.add_argument("--arm-limit", type=int, default=20)
+    memory_portfolio_eval_parser.add_argument("--rrf-k", type=float, default=60.0)
+    memory_portfolio_eval_parser.add_argument(
+        "--fusion-mode",
+        choices=["guarded_rrf", "rrf"],
+        default="guarded_rrf",
+        help="guarded_rrf preserves lexical/multi-arm agreement before raw RRF-only candidates",
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--min-agreement",
+        type=int,
+        default=2,
+        help="minimum distinct arms needed for non-lexical candidates in guarded_rrf",
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--semantic-spec",
+        action="append",
+        default=[],
+        help=(
+            "candidate semantic arm as key=value CSV, e.g. "
+            "provider=gemini,model=gemini-embedding-2,dimensions=768,"
+            "profile=general_memory,name=gemini_general,mode=semantic_only,"
+            "weight=1.0; repeatable"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--reranker-spec",
+        action="append",
+        default=[],
+        help=(
+            "candidate rerank arm as key=value CSV, e.g. "
+            "provider=cohere,model=rerank-v4.0-pro,name=cohere_v4,top_n=5,"
+            "candidate_limit=20; repeatable"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help=(
+            "add candidate semantic arms from a named retrieval/evidence strategy, "
+            "for example api_embedding_portfolio, general_memory, jp_multilingual, "
+            "learning_long, code_technical, or media_text_bridge; repeatable. "
+            "Non-semantic strategies such as corpus2skill_navigation and "
+            "bounded_workflow_orchestration intentionally add no semantic arms"
+        ),
+    )
+    memory_portfolio_eval_parser.add_argument("--json", action="store_true")
+    memory_portfolio_eval_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "return a non-zero exit code when cases fail, candidate arms error, "
+            "or promotion blockers remain"
+        ),
+    )
+    _add_api_budget_options(memory_portfolio_eval_parser)
+    memory_eval_runs_parser = memory_subparsers.add_parser(
+        "eval-runs",
+        help="list stored memory eval runs",
+    )
+    memory_eval_runs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_runs_parser.add_argument("--limit", type=int, default=20)
+    memory_eval_runs_parser.add_argument("--json", action="store_true")
+    memory_eval_show_parser = memory_subparsers.add_parser(
+        "eval-show",
+        help="show one stored memory eval run and its case results",
+    )
+    memory_eval_show_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_eval_show_parser.add_argument("--run-id", required=True)
+    memory_eval_show_parser.add_argument("--json", action="store_true")
+    memory_research_runs_parser = memory_subparsers.add_parser(
+        "research-runs",
+        help="list recent search, workflow, and objective route traces",
+    )
+    memory_research_runs_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_research_runs_parser.add_argument(
+        "--kind",
+        choices=["all", "objective", "workflow", "search"],
+        default="all",
+    )
+    memory_research_runs_parser.add_argument("--limit", type=int, default=20)
+    memory_research_runs_parser.add_argument("--json", action="store_true")
+    memory_show_run_parser = memory_subparsers.add_parser(
+        "show-run",
+        help="show one stored search/workflow/objective trace with gaps and source state",
+    )
+    memory_show_run_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_show_run_parser.add_argument("--run-id", required=True)
+    memory_show_run_parser.add_argument(
+        "--kind",
+        choices=["auto", "objective", "workflow", "search"],
+        default="auto",
+    )
+    memory_show_run_parser.add_argument("--json", action="store_true")
+    memory_question_types_parser = memory_subparsers.add_parser(
+        "question-types",
+        help="list memory-search question types used to broaden eval coverage",
+    )
+    memory_question_types_parser.add_argument("--json", action="store_true")
+    memory_objective_routes_parser = memory_subparsers.add_parser(
+        "objective-routes",
+        help="plan primary, fallback, and escalation routes for one objective query",
+    )
+    memory_objective_routes_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_objective_routes_parser.add_argument("--query", required=True)
+    memory_objective_routes_parser.add_argument("--route", default="auto")
+    memory_objective_routes_parser.add_argument("--budget-policy", default="default")
+    memory_objective_routes_parser.add_argument("--store", action="store_true")
+    memory_objective_routes_parser.add_argument("--json", action="store_true")
+    memory_objective_execute_parser = memory_subparsers.add_parser(
+        "objective-execute",
+        help="execute ObjectiveRoutePlan over no-spend local evidence arms",
+    )
+    memory_objective_execute_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_objective_execute_parser.add_argument("--query", required=True)
+    memory_objective_execute_parser.add_argument("--route", default="auto")
+    memory_objective_execute_parser.add_argument("--budget-policy", default="default")
+    memory_objective_execute_parser.add_argument("--limit", type=int, default=5)
+    memory_objective_execute_parser.add_argument("--account", default=None)
+    memory_objective_execute_parser.add_argument("--max-route-arms", type=int, default=4)
+    memory_objective_execute_parser.add_argument(
+        "--ocr-mode",
+        choices=["off", "stored", "fake"],
+        default="stored",
+        help="media route OCR handling; fake runs no-network candidate-set OCR explicitly",
+    )
+    memory_objective_execute_parser.add_argument("--ocr-limit", type=int, default=10)
+    memory_objective_execute_parser.add_argument(
+        "--ocr-sample-policy",
+        default="candidate_set",
+    )
+    memory_objective_execute_parser.add_argument(
+        "--ocr-max-file-bytes",
+        type=int,
+        default=20 * 1024 * 1024,
+    )
+    memory_objective_execute_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store objective route run/step trace rows",
+    )
+    memory_objective_execute_parser.add_argument("--json", action="store_true")
+    memory_final_skeleton_parser = memory_subparsers.add_parser(
+        "final-skeleton-preflight",
+        help="write no-spend final skeleton artifacts up to the provider-quota gate",
+    )
+    memory_final_skeleton_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_final_skeleton_parser.add_argument("--query", required=True)
+    memory_final_skeleton_parser.add_argument("--route", default="auto")
+    memory_final_skeleton_parser.add_argument("--limit", type=int, default=10)
+    memory_final_skeleton_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store no-spend final skeleton preflight artifacts",
+    )
+    memory_final_skeleton_parser.add_argument("--json", action="store_true")
+    memory_retrieval_text_parser = memory_subparsers.add_parser(
+        "build-retrieval-text",
+        help="build no-spend retrieval-text projections for FTS recall",
+    )
+    memory_retrieval_text_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_retrieval_text_parser.add_argument(
+        "--profile",
+        action="append",
+        default=[],
+        choices=["raw_compact", "contextual_bm25"],
+        help="retrieval text profile to build; repeatable",
+    )
+    memory_retrieval_text_parser.add_argument("--limit", type=int, default=None)
+    memory_retrieval_text_parser.add_argument(
+        "--rebuild",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="replace existing rows for the selected profiles before rebuilding",
+    )
+    memory_retrieval_text_parser.add_argument("--json", action="store_true")
+    memory_retrieval_text_coverage_parser = memory_subparsers.add_parser(
+        "retrieval-text-coverage",
+        help="show retrieval-text projection coverage and staleness",
+    )
+    memory_retrieval_text_coverage_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_retrieval_text_coverage_parser.add_argument("--json", action="store_true")
+    memory_retrieval_strategies_parser = memory_subparsers.add_parser(
+        "retrieval-strategies",
+        help="list route/retrieval/evidence strategies for portfolio experiments",
+    )
+    memory_retrieval_strategies_parser.add_argument("--query", default=None)
+    memory_retrieval_strategies_parser.add_argument(
+        "--question-type",
+        action="append",
+        default=[],
+        help="filter/recommend strategies by question type; repeatable",
+    )
+    memory_retrieval_strategies_parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help="show specific strategy id; repeatable",
+    )
+    memory_retrieval_strategies_parser.add_argument("--json", action="store_true")
+    memory_embedding_strategies_parser = memory_subparsers.add_parser(
+        "embedding-strategies",
+        help="deprecated alias of retrieval-strategies",
+    )
+    memory_embedding_strategies_parser.add_argument("--query", default=None)
+    memory_embedding_strategies_parser.add_argument(
+        "--question-type",
+        action="append",
+        default=[],
+        help="filter/recommend strategies by question type; repeatable",
+    )
+    memory_embedding_strategies_parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help="show specific strategy id; repeatable",
+    )
+    memory_embedding_strategies_parser.add_argument("--json", action="store_true")
+    memory_rerank_parser = memory_subparsers.add_parser(
+        "rerank",
+        help="rerank restored evidence-bundle candidates with fake or real reranker providers",
+    )
+    memory_rerank_parser.add_argument("--db", default="runs/x_data.sqlite3")
+    memory_rerank_parser.add_argument("--query", required=True)
+    memory_rerank_parser.add_argument("--limit", type=int, default=20)
+    memory_rerank_parser.add_argument("--top-n", type=int, default=5)
+    memory_rerank_parser.add_argument(
+        "--provider",
+        choices=["fake", "voyage", "cohere", "jina"],
+        default="fake",
+    )
+    memory_rerank_parser.add_argument("--model", default=None)
+    memory_rerank_parser.add_argument("--api-key-env", default=None)
+    memory_rerank_parser.add_argument("--base-url", default=None)
+    memory_rerank_parser.add_argument("--timeout-seconds", type=float, default=60.0)
+    memory_rerank_parser.add_argument(
+        "--store",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="store reranker tool-call metadata; defaults to no-store for fake providers",
+    )
+    memory_rerank_parser.add_argument(
+        "--allow-fixture-provider",
+        action="store_true",
+        help="allow storing deterministic fake provider output for tests only",
+    )
+    memory_rerank_parser.add_argument("--json", action="store_true")
+    _add_api_budget_options(memory_rerank_parser)
 
     adapters_parser = subparsers.add_parser("adapters", help="list known adapter ids")
     adapters_parser.add_argument(
@@ -356,6 +2399,7 @@ def main(argv: list[str] | None = None) -> int:
         default=30.0,
         help="timeout for each media download",
     )
+    _add_api_budget_options(bookmarks_parser)
 
     tweets_parser = subparsers.add_parser(
         "tweets",
@@ -406,6 +2450,7 @@ def main(argv: list[str] | None = None) -> int:
     tweets_parser.add_argument("--categories", default=None)
     tweets_parser.add_argument("--batch-size", type=int, default=20)
     tweets_parser.add_argument("--reasoning-effort", default=None)
+    _add_api_budget_options(tweets_parser)
 
     stages_parser = subparsers.add_parser(
         "tweet-stages",
@@ -734,26 +2779,27 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "label-existing":
         limit = None if args.all else max(1, args.limit)
-        report, classification = label_existing_items(
-            db_path=args.db,
-            account=args.account,
-            kind=args.kind,
-            limit=limit,
-            include_labeled=args.include_labeled,
-            out_dir=args.out,
-            model=args.model,
-            api_key_env=args.api_key_env,
-            categories_path=args.categories or None,
-            batch_size=args.batch_size,
-            classifier_provider=args.classifier_provider,
-            api_base_url=args.api_base_url,
-            retry_attempts=args.retry_attempts,
-            retry_base_seconds=args.retry_base_seconds,
-            request_timeout_seconds=args.request_timeout_seconds,
-            reasoning_effort=args.reasoning_effort,
-            min_request_interval_seconds=args.min_request_interval_seconds,
-            stop_on_rate_limit=args.stop_on_rate_limit,
-        )
+        with _api_budget_for_args(args):
+            report, classification = label_existing_items(
+                db_path=args.db,
+                account=args.account,
+                kind=args.kind,
+                limit=limit,
+                include_labeled=args.include_labeled,
+                out_dir=args.out,
+                model=args.model,
+                api_key_env=args.api_key_env,
+                categories_path=args.categories or None,
+                batch_size=args.batch_size,
+                classifier_provider=args.classifier_provider,
+                api_base_url=args.api_base_url,
+                retry_attempts=args.retry_attempts,
+                retry_base_seconds=args.retry_base_seconds,
+                request_timeout_seconds=args.request_timeout_seconds,
+                reasoning_effort=args.reasoning_effort,
+                min_request_interval_seconds=args.min_request_interval_seconds,
+                stop_on_rate_limit=args.stop_on_rate_limit,
+            )
         print(
             "label-existing: "
             f"{report.status} selected={report.selected_items} "
@@ -784,6 +2830,18 @@ def main(argv: list[str] | None = None) -> int:
         if result.errors:
             print("notification warnings: " + "; ".join(result.errors), file=sys.stderr)
         return 0 if result.ok or not args.strict else 1
+    if args.command == "adoption":
+        from research_x.adoption_registry import adoption_audit, format_adoption_audit
+
+        if args.adoption_command == "audit":
+            audit = adoption_audit(args.registry)
+            print(
+                json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_adoption_audit(args.registry)
+            )
+            return 0 if audit["status"] == "ok" else 2
+        raise AssertionError(f"unhandled adoption command {args.adoption_command}")
     if args.command == "progress":
         from research_x.progress import serve_progress_monitor
 
@@ -794,6 +2852,67 @@ def main(argv: list[str] | None = None) -> int:
             open_browser=args.open_browser,
         )
         return 0
+    if args.command == "test-diagnose":
+        from research_x.test_diagnostics import (
+            diagnose_pytest,
+            format_test_diagnostic_results,
+            normalize_targets,
+            test_diagnostic_results_json,
+        )
+
+        results = diagnose_pytest(
+            targets=normalize_targets(args.targets),
+            mode=args.mode,
+            timeout_seconds=args.timeout_seconds,
+            collect_timeout_seconds=args.collect_timeout_seconds,
+            pytest_args=tuple(args.pytest_arg),
+            max_output_chars=args.max_output_chars,
+            stop_on_fail=args.stop_on_fail,
+        )
+        print(
+            test_diagnostic_results_json(results)
+            if args.json
+            else format_test_diagnostic_results(results)
+        )
+        return 0 if all(result.status == "passed" for result in results) else 2
+    if args.command == "presentation":
+        from research_x.presentation import (
+            format_presentation_facts_validation,
+            validate_presentation_facts,
+        )
+
+        if args.presentation_command == "validate-facts":
+            result = validate_presentation_facts(args.facts)
+            print(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_presentation_facts_validation(result)
+            )
+            return 0 if result.ok else 2
+        if args.presentation_command == "validate-slides":
+            from research_x.presentation import (
+                format_presentation_slides_validation,
+                validate_presentation_slides,
+            )
+
+            result = validate_presentation_slides(
+                args.slides,
+                facts_path=args.facts,
+                allow_missing_assets=args.allow_missing_assets,
+            )
+            print(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_presentation_slides_validation(result)
+            )
+            return 0 if result.ok else 2
+        raise AssertionError(f"unhandled presentation command {args.presentation_command}")
+    if args.command == "memory":
+        try:
+            return _handle_memory_command(args)
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
     if args.command == "accounts":
         if args.accounts_command == "add":
             profile = write_account_profile(
@@ -934,30 +3053,31 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if ok else 1
         raise AssertionError(f"unhandled auth command {args.auth_command}")
     if args.command == "bookmarks":
-        limit = 100000 if args.all else args.limit
+        limit = args.limit
         max_scroll_steps = max(args.max_scroll_steps, 1000) if args.all else args.max_scroll_steps
-        result, classification = run_bookmark_job(
-            out_dir=Path(args.out),
-            account=args.account,
-            storage_state=args.storage_state,
-            limit=limit,
-            headless=args.headless,
-            timeout_ms=args.timeout_ms,
-            max_scroll_steps=max_scroll_steps,
-            classify=args.classify,
-            model=args.model,
-            api_key_env=args.api_key_env,
-            categories_path=args.categories,
-            batch_size=args.batch_size,
-            min_successful_providers=args.min_successful_providers,
-            download_media=args.download_media,
-            media_timeout_seconds=args.media_timeout_seconds,
-            classifier_provider=args.classifier_provider,
-            api_base_url=args.api_base_url,
-            db_path=args.db,
-            exhaustive=args.all,
-            reasoning_effort=args.reasoning_effort,
-        )
+        with _api_budget_for_args(args):
+            result, classification = run_bookmark_job(
+                out_dir=Path(args.out),
+                account=args.account,
+                storage_state=args.storage_state,
+                limit=limit,
+                headless=args.headless,
+                timeout_ms=args.timeout_ms,
+                max_scroll_steps=max_scroll_steps,
+                classify=args.classify,
+                model=args.model,
+                api_key_env=args.api_key_env,
+                categories_path=args.categories,
+                batch_size=args.batch_size,
+                min_successful_providers=args.min_successful_providers,
+                download_media=args.download_media,
+                media_timeout_seconds=args.media_timeout_seconds,
+                classifier_provider=args.classifier_provider,
+                api_base_url=args.api_base_url,
+                db_path=args.db,
+                exhaustive=args.all,
+                reasoning_effort=args.reasoning_effort,
+            )
         providers = ",".join(result.providers_used) or "-"
         print(
             f"bookmarks: {result.status.value} items={len(result.items)} "
@@ -967,29 +3087,30 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         return 1
     if args.command == "tweets":
-        result, store_summary, classification = run_tweet_job(
-            out_dir=Path(args.out),
-            kind=args.kind,
-            value=args.value,
-            account=args.account,
-            storage_state=args.storage_state,
-            limit=args.limit,
-            headless=args.headless,
-            timeout_ms=args.timeout_ms,
-            max_scroll_steps=args.max_scroll_steps,
-            min_successful_providers=args.min_successful_providers,
-            download_media=args.download_media,
-            media_timeout_seconds=args.media_timeout_seconds,
-            db_path=args.db,
-            classify=args.classify,
-            model=args.model,
-            api_key_env=args.api_key_env,
-            categories_path=args.categories,
-            batch_size=args.batch_size,
-            classifier_provider=args.classifier_provider,
-            api_base_url=args.api_base_url,
-            reasoning_effort=args.reasoning_effort,
-        )
+        with _api_budget_for_args(args):
+            result, store_summary, classification = run_tweet_job(
+                out_dir=Path(args.out),
+                kind=args.kind,
+                value=args.value,
+                account=args.account,
+                storage_state=args.storage_state,
+                limit=args.limit,
+                headless=args.headless,
+                timeout_ms=args.timeout_ms,
+                max_scroll_steps=args.max_scroll_steps,
+                min_successful_providers=args.min_successful_providers,
+                download_media=args.download_media,
+                media_timeout_seconds=args.media_timeout_seconds,
+                db_path=args.db,
+                classify=args.classify,
+                model=args.model,
+                api_key_env=args.api_key_env,
+                categories_path=args.categories,
+                batch_size=args.batch_size,
+                classifier_provider=args.classifier_provider,
+                api_base_url=args.api_base_url,
+                reasoning_effort=args.reasoning_effort,
+            )
         providers = ",".join(result.providers_used) or "-"
         db_text = f" db={store_summary.db_path}" if store_summary else ""
         print(
@@ -1056,6 +3177,1518 @@ def main(argv: list[str] | None = None) -> int:
             )
         return 0
     raise AssertionError(f"unhandled command {args.command}")
+
+
+def _handle_memory_command(args: argparse.Namespace) -> int:
+    if hasattr(args, "api_budget_policy") and not getattr(args, "_api_budget_active", False):
+        args._api_budget_active = True
+        with _api_budget_for_args(args):
+            return _handle_memory_command(args)
+    if args.memory_command == "api-budget":
+        from research_x.memory.api_budget import (
+            api_budget_status,
+            format_api_budget_status,
+            format_provider_quota_preflight,
+            provider_quota_preflight,
+            set_api_budget_policy,
+            set_api_kill_switch,
+            upsert_api_price,
+        )
+
+        if args.api_budget_command == "status":
+            status = api_budget_status(args.db, policy_id=args.policy_id, run_id=args.run_id)
+            print(
+                json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_api_budget_status(status)
+            )
+            return 0
+        if args.api_budget_command == "set":
+            status = set_api_budget_policy(
+                args.db,
+                policy_id=args.policy_id,
+                enabled=args.enabled,
+                max_run_usd=args.max_run_usd,
+                max_day_usd=args.max_day_usd,
+                max_month_usd=args.max_month_usd,
+                max_run_calls=args.max_run_calls,
+                max_day_calls=args.max_day_calls,
+                max_run_input_tokens=args.max_run_input_tokens,
+                max_run_media_bytes=args.max_run_media_bytes,
+                unknown_price_action=args.unknown_price_action,
+            )
+            print(
+                json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_api_budget_status(status)
+            )
+            return 0
+        if args.api_budget_command in {"stop", "resume"}:
+            status = set_api_kill_switch(
+                args.db,
+                policy_id=args.policy_id,
+                enabled=args.api_budget_command == "stop",
+            )
+            print(
+                json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_api_budget_status(status)
+            )
+            return 0
+        if args.api_budget_command == "price-set":
+            upsert_api_price(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                operation=args.operation,
+                unit=args.unit,
+                usd_per_unit=args.usd_per_unit,
+                source_url=args.source_url,
+                checked_at=args.checked_at,
+                notes=args.notes,
+            )
+            print(
+                "api price set: "
+                f"{args.provider}/{args.model} {args.operation} "
+                f"{args.unit}=${args.usd_per_unit}"
+            )
+            return 0
+        if args.api_budget_command == "seed-default-prices":
+            from research_x.memory.api_lane_estimate import seed_default_api_price_catalog
+
+            count = seed_default_api_price_catalog(args.db)
+            print(f"seeded default API prices: {count}")
+            return 0
+        if args.api_budget_command == "preflight":
+            report = provider_quota_preflight(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                operation=args.operation,
+                provider_role=args.provider_role,
+                units=_provider_quota_units_for_args(args),
+                approval=_provider_quota_approval_payload_for_args(args),
+                policy_id=args.policy_id,
+                run_id=args.run_id,
+                approved_scope=args.current_scope,
+                max_run_usd_override=args.max_run_usd,
+                allow_unpriced_api=args.allow_unpriced_api,
+            )
+            print(
+                json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else format_provider_quota_preflight(report)
+            )
+            return 0
+        raise AssertionError(f"unhandled api-budget command {args.api_budget_command}")
+    if args.memory_command == "api-usage":
+        from research_x.memory.api_budget import api_usage_report, format_api_usage_report
+
+        report = api_usage_report(
+            args.db,
+            run_id=args.run_id,
+            today=args.today,
+            month=args.month,
+            limit=args.limit,
+        )
+        print(
+            json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
+            if args.json
+            else format_api_usage_report(report)
+        )
+        return 0
+    if args.memory_command == "api-watch":
+        from research_x.memory.api_budget import serve_api_watch
+
+        serve_api_watch(
+            db_path=args.db,
+            host=args.host,
+            port=args.port,
+            open_browser=args.open_browser,
+        )
+        return 0
+    if args.memory_command == "api-lane-estimate":
+        from research_x.memory.api_lane_estimate import (
+            api_lane_estimate_json,
+            build_api_lane_estimate_report,
+            format_api_lane_estimate,
+        )
+
+        report = build_api_lane_estimate_report(
+            args.db,
+            include_reference_managed_rag=args.include_reference_managed_rag,
+            include_latest_ocr=args.include_latest_ocr,
+            ocr_scope=args.ocr_scope,
+            ocr_limit=args.ocr_limit,
+            reader_url_limit=args.reader_url_limit,
+            reader_max_chars=args.reader_max_chars,
+            rerank_query_count=args.rerank_query_count,
+            rerank_candidate_limit=args.rerank_candidate_limit,
+            rerank_avg_candidate_tokens=args.rerank_avg_candidate_tokens,
+            external_search_query_count=args.external_search_query_count,
+            external_search_result_limit=args.external_search_result_limit,
+            llm_context_query_count=args.llm_context_query_count,
+            max_file_bytes=args.max_file_bytes,
+        )
+        print(api_lane_estimate_json(report) if args.json else format_api_lane_estimate(report))
+        return 0
+    if args.memory_command == "build-corpus":
+        from research_x.memory.corpus import build_memory_corpus, summary_as_dict
+
+        summary = build_memory_corpus(args.db)
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "build-derived":
+        from research_x.memory.derived import build_derived_documents, summary_as_dict
+
+        summary = build_derived_documents(
+            args.db,
+            kinds=tuple(args.kind) if args.kind else None,
+            max_source_docs_per_card=args.max_source_docs_per_card,
+            min_author_docs=args.min_author_docs,
+            min_topic_docs=args.min_topic_docs,
+        )
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "audit":
+        from research_x.memory.audit import (
+            audit_memory_db,
+            audit_report_json,
+            format_audit_report,
+        )
+
+        report = audit_memory_db(args.db)
+        print(audit_report_json(report) if args.json else format_audit_report(report))
+        return 2 if args.strict and report.warnings else 0
+    if args.memory_command == "build-embeddings":
+        from research_x.memory.embeddings import build_memory_embeddings, summary_as_dict
+
+        summary = build_memory_embeddings(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            batch_size=args.batch_size,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            progress_every=args.progress_every,
+            execution_stage=args.execution_stage,
+            selection_policy=args.selection_policy,
+        )
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "embedding-estimate":
+        from research_x.memory.embeddings import (
+            embedding_estimate_json,
+            estimate_memory_embedding_build,
+            format_embedding_estimate,
+        )
+
+        estimate = estimate_memory_embedding_build(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            batch_size=args.batch_size,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            price_per_million_input_tokens=args.price_per_million_input_tokens,
+            execution_stage=args.execution_stage,
+            selection_policy=args.selection_policy,
+        )
+        output = (
+            embedding_estimate_json(estimate)
+            if args.json
+            else format_embedding_estimate(estimate)
+        )
+        print(output)
+        return 0
+    if args.memory_command == "embedding-specs":
+        from research_x.memory.embeddings import available_embedding_specs
+
+        specs = [spec.__dict__ for spec in available_embedding_specs(args.db)]
+        print(json.dumps(specs, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if args.memory_command == "embedding-coverage":
+        from research_x.memory.embeddings import (
+            embedding_coverage_json,
+            embedding_coverage_report,
+            format_embedding_coverage,
+        )
+
+        report = embedding_coverage_report(
+            args.db,
+            provider=None if args.provider == "latest" else args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+        )
+        print(embedding_coverage_json(report) if args.json else format_embedding_coverage(report))
+        return 0
+    if args.memory_command == "build-vector-projection":
+        from research_x.memory.vector_projection import (
+            build_vector_projection,
+            format_vector_projection_summary,
+            summary_json,
+        )
+
+        summary = build_vector_projection(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            backend=args.backend,
+            bit_width=args.bit_width,
+            out_dir=args.out_dir,
+            doc_type=args.doc_type,
+            account=args.account,
+        )
+        print(summary_json(summary) if args.json else format_vector_projection_summary(summary))
+        return 0
+    if args.memory_command == "vector-projection-coverage":
+        from research_x.memory.vector_projection import (
+            coverage_json,
+            format_vector_projection_coverage,
+            vector_projection_coverage,
+        )
+
+        report = vector_projection_coverage(
+            args.db,
+            generation_id=args.generation_id,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            backend=args.backend,
+        )
+        print(coverage_json(report) if args.json else format_vector_projection_coverage(report))
+        return 0
+    if args.memory_command == "vector-backend-benchmark":
+        from research_x.memory.vector_projection import (
+            VectorBackendBenchmarkThresholds,
+            benchmark_json,
+            benchmark_vector_backends,
+            format_vector_backend_benchmark,
+        )
+
+        report = benchmark_vector_backends(
+            args.db,
+            backends=tuple(args.backend) or ("numpy",),
+            queries=tuple(args.query) or ("robot paper",),
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            text_template_version=args.text_template_version,
+            limit=args.limit,
+            out_dir=args.out_dir,
+            doc_type=args.doc_type,
+            account=args.account,
+            thresholds=VectorBackendBenchmarkThresholds(
+                max_build_seconds=args.max_build_seconds,
+                max_avg_search_seconds=args.max_avg_search_seconds,
+                max_cold_start_seconds=args.max_cold_start_seconds,
+                min_recall_at_limit=args.min_recall_at_limit,
+                max_disk_bytes_per_vector=args.max_disk_bytes_per_vector,
+                max_memory_bytes_per_vector=args.max_memory_bytes_per_vector,
+                require_update_delete=args.require_update_delete,
+                require_source_restoration=not args.no_require_source_restoration,
+            ),
+        )
+        print(benchmark_json(report) if args.json else format_vector_backend_benchmark(report))
+        return 0
+    if args.memory_command == "media-embedding-estimate":
+        from research_x.memory.media_embeddings import (
+            estimate_media_embedding_build,
+            format_media_embedding_estimate,
+            media_embedding_estimate_json,
+        )
+
+        estimate = estimate_media_embedding_build(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            max_file_bytes=args.max_file_bytes,
+            mime_types=tuple(args.mime_type),
+        )
+        print(
+            media_embedding_estimate_json(estimate)
+            if args.json
+            else format_media_embedding_estimate(estimate)
+        )
+        return 0
+    if args.memory_command == "build-media-embeddings":
+        from research_x.memory.media_embeddings import build_media_embeddings, summary_as_dict
+
+        summary = build_media_embeddings(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            limit=args.limit,
+            rebuild=args.rebuild,
+            max_file_bytes=args.max_file_bytes,
+            mime_types=tuple(args.mime_type),
+            timeout_seconds=args.timeout_seconds,
+            allow_provider_quota=args.allow_provider_quota,
+        )
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "media-embedding-coverage":
+        from research_x.memory.media_embeddings import (
+            format_media_embedding_coverage,
+            media_embedding_coverage_json,
+            media_embedding_coverage_report,
+        )
+
+        report = media_embedding_coverage_report(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            max_file_bytes=args.max_file_bytes,
+            mime_types=tuple(args.mime_type),
+        )
+        print(
+            media_embedding_coverage_json(report)
+            if args.json
+            else format_media_embedding_coverage(report)
+        )
+        return 0
+    if args.memory_command == "media-search":
+        from research_x.memory.media_embeddings import (
+            format_media_search,
+            media_search_json,
+            search_media_embeddings,
+        )
+
+        hits = search_media_embeddings(
+            args.db,
+            args.query,
+            provider=args.provider,
+            model=args.model,
+            dimensions=args.dimensions,
+            embedding_profile=args.embedding_profile,
+            input_template_version=args.input_template_version,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            limit=args.limit,
+            timeout_seconds=args.timeout_seconds,
+            allow_provider_quota=args.allow_provider_quota,
+        )
+        print(media_search_json(hits) if args.json else format_media_search(hits))
+        return 0
+    if args.memory_command == "ocr-estimate":
+        from research_x.memory.ocr import estimate_json, estimate_ocr_evidence, format_estimate
+
+        estimate = estimate_ocr_evidence(
+            args.db,
+            sample_policy=args.sample_policy,
+            limit=args.limit,
+            max_file_bytes=args.max_file_bytes,
+            media_ids=tuple(args.media_id),
+            tweet_ids=tuple(args.tweet_id),
+            engine_routes=tuple(args.engine_route),
+        )
+        print(estimate_json(estimate) if args.json else format_estimate(estimate))
+        return 0
+    if args.memory_command == "media-role-estimate":
+        from research_x.memory.media_roles import (
+            estimate_media_roles,
+            format_media_role_summary,
+            media_role_summary_json,
+        )
+
+        summary = estimate_media_roles(args.db, limit=args.limit)
+        print(media_role_summary_json(summary) if args.json else format_media_role_summary(summary))
+        return 0
+    if args.memory_command == "media-role-build":
+        from research_x.memory.media_roles import (
+            build_media_roles,
+            format_media_role_summary,
+            media_role_summary_json,
+        )
+
+        summary = build_media_roles(args.db, limit=args.limit)
+        print(media_role_summary_json(summary) if args.json else format_media_role_summary(summary))
+        return 0
+    if args.memory_command == "media-role-coverage":
+        from research_x.memory.media_roles import (
+            format_media_role_summary,
+            media_role_coverage,
+            media_role_summary_json,
+        )
+
+        coverage = media_role_coverage(args.db)
+        print(
+            media_role_summary_json(coverage)
+            if args.json
+            else format_media_role_summary(coverage)
+        )
+        return 0
+    if args.memory_command == "build-ocr-evidence":
+        from research_x.memory.ocr import build_ocr_evidence, format_summary, summary_json
+
+        if args.provider != "fake" and not args.allow_real_api:
+            raise RuntimeError(
+                "provider OCR API use is frozen, including paid, free-tier, trial-credit, and "
+                "zero-dollar quota calls. Re-run with provider=fake unless the user explicitly "
+                "lifts the no-quota freeze in this conversation."
+            )
+        if args.provider != "fake" and args.allow_real_api:
+            raise RuntimeError(
+                "--allow-real-api does not override the current no-quota provider freeze. "
+                "External OCR calls remain blocked until the user explicitly permits provider "
+                "quota use, including free-tier or trial-credit usage."
+            )
+        with _api_budget_for_args(args):
+            summary = build_ocr_evidence(
+                args.db,
+                provider=args.provider,
+                model=args.model,
+                ocr_profile=args.ocr_profile,
+                sample_policy=args.sample_policy,
+                limit=args.limit,
+                max_file_bytes=args.max_file_bytes,
+                timeout_seconds=args.timeout_seconds,
+                promote_chunks=not args.no_promote_chunks,
+                api_key_env=args.api_key_env,
+                base_url=args.base_url,
+                media_ids=tuple(args.media_id),
+                tweet_ids=tuple(args.tweet_id),
+                engine_routes=tuple(args.engine_route),
+            )
+        print(summary_json(summary) if args.json else format_summary(summary))
+        return 0
+    if args.memory_command == "ocr-coverage":
+        from research_x.memory.ocr import coverage_json, format_coverage, ocr_coverage
+
+        coverage = ocr_coverage(args.db)
+        print(coverage_json(coverage) if args.json else format_coverage(coverage))
+        return 0
+    if args.memory_command == "ocr-promote-chunks":
+        from research_x.memory.ocr import (
+            format_promotion,
+            promote_ocr_chunks,
+            promotion_json,
+        )
+
+        profiles = ("raw_ocr", "caption", "vlm_caption", "codex_observation")
+        if args.include_corrected:
+            profiles = (*profiles, "corrected_text")
+        summary = promote_ocr_chunks(args.db, limit=args.limit, include_profiles=profiles)
+        print(promotion_json(summary) if args.json else format_promotion(summary))
+        return 0
+    if args.memory_command == "ocr-second-pass":
+        from research_x.memory.ocr import (
+            format_second_pass,
+            mark_ocr_second_pass_candidates,
+            second_pass_json,
+        )
+
+        summary = mark_ocr_second_pass_candidates(
+            args.db,
+            confidence_threshold=args.confidence_threshold,
+            limit=args.limit,
+            create_corrected_profile=not args.no_corrected_profile,
+        )
+        print(second_pass_json(summary) if args.json else format_second_pass(summary))
+        return 0
+    if args.memory_command == "media-observation-add":
+        from research_x.memory.ocr import (
+            add_media_observation,
+            format_media_observation_summary,
+            media_observation_summary_json,
+        )
+
+        text = Path(args.text_file).read_text(encoding="utf-8")
+        summary = add_media_observation(
+            args.db,
+            media_id=args.media_id,
+            observation_text=text,
+            observation_kind=args.observation_kind,
+            provider=args.provider,
+            model=args.model,
+            confidence=args.confidence,
+            prompt=args.prompt,
+            session_id=args.session_id,
+            promote_chunks=not args.no_promote_chunks,
+        )
+        print(
+            media_observation_summary_json(summary)
+            if args.json
+            else format_media_observation_summary(summary)
+        )
+        return 0
+    if args.memory_command == "media-observation-import":
+        from research_x.memory.ocr import (
+            format_media_observation_summary,
+            import_media_observations,
+            media_observation_summary_json,
+        )
+
+        summary = import_media_observations(
+            args.db,
+            args.jsonl,
+            promote_chunks=not args.no_promote_chunks,
+        )
+        print(
+            media_observation_summary_json(summary)
+            if args.json
+            else format_media_observation_summary(summary)
+        )
+        return 0
+    if args.memory_command == "media-observation-coverage":
+        from research_x.memory.ocr import (
+            format_media_observation_summary,
+            media_observation_coverage,
+            media_observation_summary_json,
+        )
+
+        coverage = media_observation_coverage(args.db)
+        print(
+            media_observation_summary_json(coverage)
+            if args.json
+            else format_media_observation_summary(coverage)
+        )
+        return 0
+    if args.memory_command == "ocr-search":
+        from research_x.memory.ocr import format_search, ocr_search, search_json
+
+        hits = ocr_search(args.db, args.query, limit=args.limit)
+        print(search_json(hits) if args.json else format_search(hits))
+        return 0
+    if args.memory_command == "build-relations":
+        from research_x.memory.relations import build_memory_relations, summary_as_dict
+
+        summary = build_memory_relations(args.db)
+        print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+        return 0
+    if args.memory_command == "relations":
+        from research_x.memory.relations import format_relations, relations_for_doc
+
+        relations = relations_for_doc(args.db, args.doc_id, limit=args.limit)
+        print(format_relations(relations, json_output=args.json))
+        return 0
+    if args.memory_command == "judge-relations":
+        from research_x.memory.judge_relations import (
+            format_relation_judge_summary,
+            judge_memory_relations,
+            relation_judge_summary_json,
+        )
+
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="relation judge",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        summary = judge_memory_relations(
+            args.db,
+            provider=args.provider,
+            model=args.model,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            candidate_relation_types=(
+                tuple(args.candidate_relation_type) if args.candidate_relation_type else None
+            ),
+            limit=args.limit,
+            batch_size=args.batch_size,
+            min_confidence=args.min_confidence,
+            prompt_version=args.prompt_version,
+            timeout_seconds=args.timeout_seconds,
+            store=store,
+        )
+        print(
+            relation_judge_summary_json(summary)
+            if args.json
+            else format_relation_judge_summary(summary)
+        )
+        return 0
+    if args.memory_command == "search":
+        from research_x.memory.search import format_search_results, search_memory
+
+        results = search_memory(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
+        )
+        print(format_search_results(results, json_output=args.json))
+        return 0
+    if args.memory_command == "plan":
+        from research_x.memory.query import build_query_plan, query_plan_json
+
+        print(query_plan_json(build_query_plan(args.query)))
+        return 0
+    if args.memory_command == "evidence":
+        from research_x.memory.evidence import build_evidence_bundle, evidence_bundle_json
+
+        bundle = build_evidence_bundle(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
+        )
+        print(evidence_bundle_json(bundle))
+        return 0
+    if args.memory_command == "context":
+        from research_x.memory.context import build_context_bundle, context_bundle_json
+
+        store = _resolve_fixture_sensitive_store(
+            args.store,
+            args.external_provider if args.external_run_id else None,
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.external_provider if args.external_run_id else None,
+            role="reader/extract",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        bundle = build_context_bundle(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
+            external_run_id=args.external_run_id,
+            external_reader_provider=args.external_provider,
+            external_limit=args.external_limit,
+            external_max_chars=args.external_max_chars,
+            external_timeout_seconds=args.external_timeout_seconds,
+            external_user_agent=args.external_user_agent,
+            external_max_bytes=args.external_max_bytes,
+            store=store,
+        )
+        print(context_bundle_json(bundle, budget_policy=_context_budget_policy_for_args(args)))
+        return 0
+    if args.memory_command == "answer":
+        from research_x.memory.answer import answer_json, build_memory_answer
+
+        store = _resolve_fixture_sensitive_store(
+            args.store,
+            args.answer_provider,
+            args.external_provider if args.external_run_id else None,
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.answer_provider,
+            role="answer",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.external_provider if args.external_run_id else None,
+            role="reader/extract",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        answer = build_memory_answer(
+            args.db,
+            args.query,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
+            external_run_id=args.external_run_id,
+            external_reader_provider=args.external_provider,
+            external_limit=args.external_limit,
+            external_max_chars=args.external_max_chars,
+            external_timeout_seconds=args.external_timeout_seconds,
+            external_user_agent=args.external_user_agent,
+            external_max_bytes=args.external_max_bytes,
+            answer_provider=args.answer_provider,
+            answer_model=args.answer_model,
+            answer_api_key_env=args.answer_api_key_env,
+            answer_base_url=args.answer_base_url,
+            answer_timeout_seconds=args.answer_timeout_seconds,
+            prompt_version=args.prompt_version,
+            max_context_chunks=args.max_context_chunks,
+            max_context_chars=args.max_context_chars,
+            store=store,
+        )
+        print(answer_json(answer, budget_policy=_context_budget_policy_for_args(args)))
+        return 0
+    if args.memory_command == "workflow":
+        from research_x.memory.workflow import (
+            format_workflow,
+            run_memory_workflow,
+            workflow_json,
+        )
+        from research_x.tool_interface.memory_tool_contract import workflow_tool_output_json
+
+        store = _resolve_fixture_sensitive_store(
+            args.store,
+            args.answer_provider if args.answer_provider != "none" else None,
+            args.external_provider if args.external_run_id else None,
+            (
+                args.llm_context_provider
+                if args.llm_context_provider != "none"
+                else None
+            ),
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.answer_provider if args.answer_provider != "none" else None,
+            role="answer",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        _require_fixture_provider_opt_in(
+            provider=args.external_provider if args.external_run_id else None,
+            role="reader/extract",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        _require_fixture_provider_opt_in(
+            provider=(
+                args.llm_context_provider
+                if args.llm_context_provider != "none"
+                else None
+            ),
+            role="llm-context",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        workflow = run_memory_workflow(
+            args.db,
+            args.query,
+            route=args.route,
+            limit=args.limit,
+            doc_type=args.doc_type,
+            account=args.account,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
+            external_run_id=args.external_run_id,
+            external_reader_provider=args.external_provider,
+            external_limit=args.external_limit,
+            external_max_chars=args.external_max_chars,
+            external_timeout_seconds=args.external_timeout_seconds,
+            external_user_agent=args.external_user_agent,
+            external_max_bytes=args.external_max_bytes,
+            llm_context_provider=args.llm_context_provider,
+            llm_context_api_key_env=args.llm_context_api_key_env,
+            llm_context_endpoint=args.llm_context_endpoint,
+            llm_context_country=args.llm_context_country,
+            llm_context_search_lang=args.llm_context_search_lang,
+            llm_context_count=args.llm_context_count,
+            llm_context_max_urls=args.llm_context_max_urls,
+            llm_context_max_tokens=args.llm_context_max_tokens,
+            llm_context_max_snippets=args.llm_context_max_snippets,
+            llm_context_threshold_mode=args.llm_context_threshold_mode,
+            llm_context_max_tokens_per_url=args.llm_context_max_tokens_per_url,
+            llm_context_max_snippets_per_url=args.llm_context_max_snippets_per_url,
+            llm_context_freshness=args.llm_context_freshness,
+            llm_context_enable_local=args.llm_context_enable_local,
+            llm_context_goggles=args.llm_context_goggles,
+            llm_context_max_chars_per_source=args.llm_context_max_chars_per_source,
+            llm_context_timeout_seconds=args.llm_context_timeout_seconds,
+            answer_provider=args.answer_provider,
+            answer_model=args.answer_model,
+            answer_api_key_env=args.answer_api_key_env,
+            answer_base_url=args.answer_base_url,
+            answer_timeout_seconds=args.answer_timeout_seconds,
+            prompt_version=args.prompt_version,
+            max_context_chunks=args.max_context_chunks,
+            max_context_chars=args.max_context_chars,
+            max_steps=args.max_steps,
+            store=store,
+        )
+        if args.tool_json:
+            print(workflow_tool_output_json(workflow, db_path=args.db))
+        elif args.json:
+            print(workflow_json(workflow, budget_policy=_context_budget_policy_for_args(args)))
+        else:
+            print(format_workflow(workflow))
+        return 1 if workflow.status == "error" else 0
+    if args.memory_command == "external-search":
+        from research_x.memory.external import external_evidence_json, search_external_evidence
+
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="external-search",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        bundle = search_external_evidence(
+            args.db,
+            args.query,
+            provider=args.provider,
+            limit=args.limit,
+            api_key_env=args.api_key_env,
+            endpoint=args.endpoint,
+            country=args.country,
+            language=args.language,
+            location=args.location,
+            timeout_seconds=args.timeout_seconds,
+            store=store,
+        )
+        print(external_evidence_json(bundle))
+        return 0
+    if args.memory_command == "extract-url":
+        from research_x.memory.reader import (
+            extract_external_run_to_context,
+            extract_url_to_context,
+            reader_context_json,
+        )
+
+        if not args.url and not args.external_run_id:
+            raise ValueError("pass --url or --external-run-id")
+        if args.url and args.external_run_id:
+            raise ValueError("pass only one of --url or --external-run-id")
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="reader/extract",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        if args.external_run_id:
+            bundles = extract_external_run_to_context(
+                args.db,
+                args.external_run_id,
+                provider=args.provider,
+                limit=args.limit,
+                query=args.query,
+                max_chars=args.max_chars,
+                timeout_seconds=args.timeout_seconds,
+                user_agent=args.user_agent,
+                max_bytes=args.max_bytes,
+                store=store,
+            )
+            print(reader_context_json(bundles))
+            return 0
+        bundle = extract_url_to_context(
+            args.db,
+            args.url,
+            provider=args.provider,
+            query=args.query,
+            title=args.title,
+            max_chars=args.max_chars,
+            timeout_seconds=args.timeout_seconds,
+            user_agent=args.user_agent,
+            max_bytes=args.max_bytes,
+            store=store,
+        )
+        print(reader_context_json(bundle))
+        return 0
+    if args.memory_command == "llm-context":
+        from research_x.memory.llm_context import fetch_llm_context_to_context, llm_context_json
+
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="llm-context",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        bundle = fetch_llm_context_to_context(
+            args.db,
+            args.query,
+            provider=args.provider,
+            api_key_env=args.api_key_env,
+            endpoint=args.endpoint,
+            country=args.country,
+            search_lang=args.search_lang,
+            count=args.count,
+            maximum_number_of_urls=args.max_urls,
+            maximum_number_of_tokens=args.max_tokens,
+            maximum_number_of_snippets=args.max_snippets,
+            context_threshold_mode=args.threshold_mode,
+            maximum_number_of_tokens_per_url=args.max_tokens_per_url,
+            maximum_number_of_snippets_per_url=args.max_snippets_per_url,
+            freshness=args.freshness,
+            enable_local=args.enable_local,
+            goggles=args.goggles,
+            max_chars_per_source=args.max_chars_per_source,
+            timeout_seconds=args.timeout_seconds,
+            store=store,
+        )
+        print(llm_context_json(bundle))
+        return 0
+    if args.memory_command == "feedback":
+        from research_x.memory.feedback import add_feedback
+
+        feedback_id = add_feedback(
+            args.db,
+            query=args.query,
+            doc_id=args.doc_id,
+            label=args.label,
+            route=args.route,
+            note=args.note,
+        )
+        print(f"feedback: {feedback_id}")
+        return 0
+    if args.memory_command == "governance":
+        from research_x.memory.governance import (
+            add_governance_record,
+            add_tombstone,
+            format_governance_records,
+            governance_records_json,
+            is_artifact_tombstoned,
+            list_governance_records,
+            restore_governance_record,
+        )
+
+        if args.governance_command == "add":
+            record = add_governance_record(
+                args.db,
+                governance_type=args.type,
+                subject_kind=args.subject_kind,
+                subject_id=args.subject_id,
+                statement=args.statement,
+                source_kind=args.source_kind,
+                source_id=args.source_id,
+                source_url=args.source_url,
+                source_hash=args.source_hash,
+                source_anchor=_parse_key_value_pairs(args.source_anchor),
+                confidence=args.confidence,
+                retention_policy=args.retention_policy,
+                expires_at=args.expires_at,
+                metadata=_parse_key_value_pairs(args.metadata),
+            )
+            print(
+                json.dumps(record.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"governance: {record.record_id}"
+            )
+            return 0
+        if args.governance_command == "tombstone":
+            record = add_tombstone(
+                args.db,
+                artifact_kind=args.artifact_kind,
+                artifact_id=args.artifact_id,
+                reason=args.reason,
+                source_kind=args.source_kind,
+                source_id=args.source_id,
+                source_url=args.source_url,
+                source_hash=args.source_hash,
+                source_anchor=_parse_key_value_pairs(args.source_anchor),
+                retention_policy=args.retention_policy,
+                metadata=_parse_key_value_pairs(args.metadata),
+            )
+            print(
+                json.dumps(record.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"governance tombstone: {record.record_id}"
+            )
+            return 0
+        if args.governance_command == "restore":
+            record = restore_governance_record(
+                args.db,
+                record_id=args.record_id,
+                reason=args.reason,
+            )
+            print(
+                json.dumps(record.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"governance restored: {record.record_id}"
+            )
+            return 0
+        if args.governance_command == "list":
+            records = list_governance_records(
+                args.db,
+                governance_type=args.type,
+                subject_kind=args.subject_kind,
+                subject_id=args.subject_id,
+                include_inactive=args.include_inactive,
+                limit=args.limit,
+            )
+            print(
+                governance_records_json(records)
+                if args.json
+                else format_governance_records(records)
+            )
+            return 0
+        if args.governance_command == "check":
+            tombstoned = is_artifact_tombstoned(
+                args.db,
+                artifact_kind=args.artifact_kind,
+                artifact_id=args.artifact_id,
+            )
+            payload = {
+                "artifact_kind": args.artifact_kind,
+                "artifact_id": args.artifact_id,
+                "tombstoned": tombstoned,
+            }
+            print(
+                json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+                if args.json
+                else f"tombstoned={str(tombstoned).lower()}"
+            )
+            return 0
+        raise AssertionError(f"unhandled governance command {args.governance_command}")
+    if args.memory_command == "export-corpus2skill":
+        from research_x.memory.corpus import (
+            export_corpus2skill_bundle,
+            export_corpus2skill_jsonl,
+            summary_as_dict,
+        )
+
+        if args.openai_agent_name and not (args.openai_agent_yaml or args.hook_advisory):
+            raise ValueError(
+                "pass --openai-agent-yaml or --hook-advisory when using --openai-agent-name"
+            )
+        if args.bundle_dir:
+            summary = export_corpus2skill_bundle(
+                args.db,
+                args.bundle_dir,
+                limit=args.limit,
+                doc_types=tuple(args.doc_type),
+                include_openai_agent=args.openai_agent_yaml,
+                include_hook_advisory=args.hook_advisory,
+                openai_agent_name=args.openai_agent_name or "research-x-memory-navigation",
+            )
+            print(json.dumps(summary_as_dict(summary), ensure_ascii=False, indent=2))
+            return 0
+        if args.openai_agent_yaml or args.hook_advisory:
+            raise ValueError("pass --bundle-dir when using advisory agent export options")
+        if not args.out:
+            raise ValueError("pass --out for JSONL export or --bundle-dir for bundle export")
+        count = export_corpus2skill_jsonl(
+            args.db,
+            args.out,
+            limit=args.limit,
+            doc_types=tuple(args.doc_type),
+        )
+        print(f"corpus2skill-export: rows={count} out={args.out}")
+        return 0
+    if args.memory_command == "eval":
+        from research_x.memory.evals import (
+            eval_results_json,
+            format_eval_results,
+            load_eval_cases,
+            run_memory_eval,
+            store_memory_eval_results,
+        )
+
+        cases = load_eval_cases(args.cases) if args.cases else None
+        results = run_memory_eval(
+            args.db,
+            cases=cases,
+            limit=args.limit,
+            semantic_provider=args.semantic_provider,
+            semantic_model=args.semantic_model,
+            semantic_dimensions=args.semantic_dimensions,
+            semantic_profile=args.semantic_profile,
+            semantic_template_version=args.semantic_template_version,
+            semantic_api_key_env=args.semantic_api_key_env,
+            semantic_base_url=args.semantic_base_url,
+            semantic_weight=args.semantic_weight,
+            semantic_candidates=args.semantic_candidates,
+            semantic_backend=args.semantic_backend,
+            answer_provider=args.answer_provider,
+            answer_model=args.answer_model,
+            answer_api_key_env=args.answer_api_key_env,
+            answer_base_url=args.answer_base_url,
+            answer_timeout_seconds=args.answer_timeout_seconds,
+        )
+        stored_run_id = None
+        if args.store:
+            stored_run_id = store_memory_eval_results(
+                args.db,
+                results,
+                cases_path=args.cases,
+                parameters={
+                    "limit": args.limit,
+                    "case_count": len(cases) if cases is not None else None,
+                    "semantic_provider": args.semantic_provider,
+                    "semantic_model": args.semantic_model,
+                    "semantic_dimensions": args.semantic_dimensions,
+                    "semantic_profile": args.semantic_profile,
+                    "semantic_template_version": args.semantic_template_version,
+                    "semantic_weight": args.semantic_weight,
+                    "semantic_candidates": args.semantic_candidates,
+                    "answer_provider": args.answer_provider,
+                    "answer_model": args.answer_model,
+                },
+            )
+        if args.json:
+            if stored_run_id:
+                print(
+                    json.dumps(
+                        {
+                            "run_id": stored_run_id,
+                            "results": [result.__dict__ for result in results],
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+            else:
+                print(eval_results_json(results))
+        else:
+            output = format_eval_results(results)
+            if stored_run_id:
+                output = f"{output}\nstored eval run: {stored_run_id}"
+            print(output)
+        return 2 if args.strict and any(not result.ok for result in results) else 0
+    if args.memory_command == "portfolio-eval":
+        from research_x.memory.evals import load_eval_cases
+        from research_x.memory.portfolio import (
+            format_portfolio_eval,
+            parse_portfolio_reranker_specs,
+            parse_portfolio_semantic_specs,
+            portfolio_eval_json,
+            run_portfolio_eval,
+        )
+        from research_x.memory.retrieval_strategy import (
+            reranker_spec_strings_for_strategies,
+            semantic_spec_strings_for_strategies,
+        )
+
+        cases = load_eval_cases(args.cases) if args.cases else None
+        semantic_spec_values = [
+            *args.semantic_spec,
+            *semantic_spec_strings_for_strategies(tuple(args.strategy)),
+        ]
+        reranker_spec_values = [
+            *args.reranker_spec,
+            *reranker_spec_strings_for_strategies(tuple(args.strategy)),
+        ]
+        report = run_portfolio_eval(
+            args.db,
+            cases=cases,
+            case_limit=args.case_limit,
+            fast=args.fast,
+            semantic_specs=parse_portfolio_semantic_specs(semantic_spec_values),
+            reranker_specs=parse_portfolio_reranker_specs(reranker_spec_values),
+            limit=args.limit,
+            arm_limit=args.arm_limit,
+            rrf_k=args.rrf_k,
+            fusion_mode=args.fusion_mode,
+            min_agreement=args.min_agreement,
+        )
+        print(portfolio_eval_json(report) if args.json else format_portfolio_eval(report))
+        strict_failed = any(case.status != "ok" for case in report.cases) or bool(
+            report.verdict.blockers
+        )
+        return 2 if args.strict and strict_failed else 0
+    if args.memory_command == "rerank":
+        from research_x.memory.rerank import (
+            format_rerank_report,
+            rerank_evidence_query,
+            rerank_report_json,
+        )
+
+        store = _resolve_fixture_sensitive_store(args.store, args.provider)
+        _require_fixture_provider_opt_in(
+            provider=args.provider,
+            role="reranker",
+            store=store,
+            allow=args.allow_fixture_provider,
+        )
+        report = rerank_evidence_query(
+            args.db,
+            args.query,
+            provider=args.provider,
+            model=args.model,
+            limit=args.limit,
+            top_n=args.top_n,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            timeout_seconds=args.timeout_seconds,
+            store=store,
+        )
+        print(rerank_report_json(report) if args.json else format_rerank_report(report))
+        return 0
+    if args.memory_command == "eval-runs":
+        from research_x.memory.evals import eval_runs_json, format_eval_runs, list_memory_eval_runs
+
+        runs = list_memory_eval_runs(args.db, limit=args.limit)
+        print(eval_runs_json(runs) if args.json else format_eval_runs(runs))
+        return 0
+    if args.memory_command == "eval-show":
+        from research_x.memory.evals import (
+            eval_run_json,
+            format_eval_run,
+            load_memory_eval_run,
+        )
+
+        payload = load_memory_eval_run(args.db, args.run_id)
+        print(eval_run_json(payload) if args.json else format_eval_run(payload))
+        return 0
+    if args.memory_command == "research-runs":
+        from research_x.memory.observability import (
+            format_research_runs,
+            list_research_runs,
+            research_runs_json,
+        )
+
+        runs = list_research_runs(args.db, run_kind=args.kind, limit=args.limit)
+        print(research_runs_json(runs) if args.json else format_research_runs(runs))
+        return 0
+    if args.memory_command == "show-run":
+        from research_x.memory.observability import (
+            format_research_run,
+            research_run_json,
+            show_research_run,
+        )
+
+        detail = show_research_run(args.db, args.run_id, run_kind=args.kind)
+        print(research_run_json(detail) if args.json else format_research_run(detail))
+        return 0
+    if args.memory_command == "question-types":
+        from research_x.memory.question_types import format_question_types, question_types_json
+
+        print(question_types_json() if args.json else format_question_types())
+        return 0
+    if args.memory_command == "objective-routes":
+        from research_x.memory.objective_routes import (
+            format_objective_route_plan,
+            objective_route_plan_json,
+            plan_objective_routes,
+            store_objective_route_plan,
+        )
+
+        plan = plan_objective_routes(
+            args.query,
+            requested_route=args.route,
+            budget_policy=args.budget_policy,
+        )
+        if args.store:
+            store_objective_route_plan(args.db, plan)
+        print(objective_route_plan_json(plan) if args.json else format_objective_route_plan(plan))
+        return 0
+    if args.memory_command == "objective-execute":
+        from research_x.memory.objective_executor import (
+            format_objective_route_execution,
+            objective_route_execution_json,
+            run_objective_route_execution,
+        )
+
+        execution = run_objective_route_execution(
+            args.db,
+            args.query,
+            route=args.route,
+            budget_policy=args.budget_policy,
+            limit=args.limit,
+            account=args.account,
+            max_route_arms=args.max_route_arms,
+            ocr_mode=args.ocr_mode,
+            ocr_limit=args.ocr_limit,
+            ocr_sample_policy=args.ocr_sample_policy,
+            ocr_max_file_bytes=args.ocr_max_file_bytes,
+            store=args.store,
+        )
+        print(
+            objective_route_execution_json(execution)
+            if args.json
+            else format_objective_route_execution(execution)
+        )
+        return 0
+    if args.memory_command == "final-skeleton-preflight":
+        from research_x.memory.final_skeleton import (
+            final_skeleton_preflight_json,
+            format_final_skeleton_preflight,
+            run_final_skeleton_preflight,
+        )
+
+        report = run_final_skeleton_preflight(
+            args.db,
+            args.query,
+            route=args.route,
+            limit=args.limit,
+            store=args.store,
+        )
+        print(
+            final_skeleton_preflight_json(report)
+            if args.json
+            else format_final_skeleton_preflight(report)
+        )
+        return 0
+    if args.memory_command == "build-retrieval-text":
+        from research_x.memory.retrieval_text import (
+            build_retrieval_text_profiles,
+            format_retrieval_text_summary,
+            retrieval_text_summary_json,
+        )
+
+        summary = build_retrieval_text_profiles(
+            args.db,
+            profiles=tuple(args.profile) if args.profile else ("raw_compact", "contextual_bm25"),
+            limit=args.limit,
+            rebuild=args.rebuild,
+        )
+        print(
+            retrieval_text_summary_json(summary)
+            if args.json
+            else format_retrieval_text_summary(summary)
+        )
+        return 0
+    if args.memory_command == "retrieval-text-coverage":
+        from research_x.memory.retrieval_text import (
+            format_retrieval_text_summary,
+            retrieval_text_coverage,
+            retrieval_text_summary_json,
+        )
+
+        coverage = retrieval_text_coverage(args.db)
+        print(
+            retrieval_text_summary_json(coverage)
+            if args.json
+            else format_retrieval_text_summary(coverage)
+        )
+        return 0
+    if args.memory_command in {"retrieval-strategies", "embedding-strategies"}:
+        from research_x.memory.retrieval_strategy import (
+            format_retrieval_strategies,
+            retrieval_strategies_json,
+        )
+
+        kwargs = {
+            "query": args.query,
+            "question_types": tuple(args.question_type),
+            "strategy_ids": tuple(args.strategy),
+        }
+        print(
+            retrieval_strategies_json(**kwargs)
+            if args.json
+            else format_retrieval_strategies(**kwargs)
+        )
+        return 0
+    raise AssertionError(f"unhandled memory command {args.memory_command}")
+
+
+def _require_fixture_provider_opt_in(
+    *,
+    provider: str | None,
+    role: str,
+    store: bool,
+    allow: bool,
+) -> None:
+    if provider != "fake" or not store or allow:
+        return
+    raise ValueError(
+        f"{role} provider 'fake' is diagnostic-only. "
+        "Pass --no-store for a dry wiring check, or pass --allow-fixture-provider "
+        "when intentionally writing fixture rows to a test DB."
+    )
+
+
+def _context_budget_policy_for_args(args: argparse.Namespace):
+    if not hasattr(args, "context_budget_max_chars"):
+        return None
+    values = (
+        args.context_budget_max_chars,
+        args.context_budget_chunk_chars,
+        args.context_budget_preview_chars,
+        args.context_offload_dir,
+    )
+    if all(value is None for value in values):
+        return None
+
+    from research_x.memory.context_budget import (
+        DEFAULT_CONTEXT_OFFLOAD_DIR,
+        ContextBudgetPolicy,
+    )
+
+    defaults = ContextBudgetPolicy()
+    return ContextBudgetPolicy(
+        max_output_chars=args.context_budget_max_chars or defaults.max_output_chars,
+        max_inline_chunk_chars=(
+            args.context_budget_chunk_chars or defaults.max_inline_chunk_chars
+        ),
+        preview_chars=args.context_budget_preview_chars or defaults.preview_chars,
+        offload_dir=args.context_offload_dir or DEFAULT_CONTEXT_OFFLOAD_DIR,
+    )
+
+
+def _parse_key_value_pairs(values: list[str]) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError(f"expected key=value: {value}")
+        key, raw = value.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"empty key in key=value pair: {value}")
+        parsed[key] = raw
+    return parsed
+
+
+def _resolve_fixture_sensitive_store(
+    raw_store: bool | None,
+    *providers: str | None,
+) -> bool:
+    if raw_store is not None:
+        return raw_store
+    return not any(provider == "fake" for provider in providers if provider)
 
 
 def _configure_stdio() -> None:

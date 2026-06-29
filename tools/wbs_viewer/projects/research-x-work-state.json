@@ -1,0 +1,594 @@
+{
+  "holidays": [
+    {
+      "date": "2026-01-01",
+      "name": "元日"
+    },
+    {
+      "date": "2026-01-12",
+      "name": "成人の日"
+    },
+    {
+      "date": "2026-02-11",
+      "name": "建国記念の日"
+    },
+    {
+      "date": "2026-02-23",
+      "name": "天皇誕生日"
+    },
+    {
+      "date": "2026-03-20",
+      "name": "春分の日"
+    },
+    {
+      "date": "2026-04-29",
+      "name": "昭和の日"
+    },
+    {
+      "date": "2026-05-03",
+      "name": "憲法記念日"
+    },
+    {
+      "date": "2026-05-04",
+      "name": "みどりの日"
+    },
+    {
+      "date": "2026-05-05",
+      "name": "こどもの日"
+    },
+    {
+      "date": "2026-05-06",
+      "name": "振替休日"
+    },
+    {
+      "date": "2026-07-20",
+      "name": "海の日"
+    },
+    {
+      "date": "2026-08-11",
+      "name": "山の日"
+    },
+    {
+      "date": "2026-09-21",
+      "name": "敬老の日"
+    },
+    {
+      "date": "2026-09-22",
+      "name": "国民の休日"
+    },
+    {
+      "date": "2026-09-23",
+      "name": "秋分の日"
+    },
+    {
+      "date": "2026-10-12",
+      "name": "スポーツの日"
+    },
+    {
+      "date": "2026-11-03",
+      "name": "文化の日"
+    },
+    {
+      "date": "2026-11-23",
+      "name": "勤労感謝の日"
+    }
+  ],
+  "projects": [
+    {
+      "name": "research_x Runtime Work State",
+      "milestones": [
+        {
+          "date": "2026-06-25",
+          "label": "Codex boundary split and 4-layer WBS active",
+          "color": "#16a34a"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "1",
+          "name": "Source Layer",
+          "children": [
+            {
+              "id": "1.1",
+              "name": "Raw X source store baseline",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Raw X tables and restore identifiers remain the provenance base.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "source",
+                "artifact_layer": "raw_source_store",
+                "decision_band": "implemented_baseline",
+                "gate": "local_only_no_provider",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/x_store.py",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if raw source state is replaced by summaries, labels, vectors, or answer text.",
+                "next_action": "Keep acquisition/source changes tied to restore IDs and source hashes."
+              }
+            },
+            {
+              "id": "1.2",
+              "name": "Research intake local source registry",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Local/fake source discovery is separated from Codex AI-tool profiles.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "source",
+                "artifact_layer": "source_candidate_registry",
+                "decision_band": "implemented_dry_run",
+                "gate": "no_network_no_provider",
+                "status": "complete",
+                "artifact_pointer": "control/research_intake/source_registry.toml",
+                "owner_doc": "control/research_intake/research_x_sources.profile.toml",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if source-intake dry runs execute network, provider, or browser fetches.",
+                "next_action": "Use only metadata/local/fake discovery until an explicit provider gate is lifted."
+              }
+            },
+            {
+              "id": "1.3",
+              "name": "External source provider lanes",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Tavily, Exa, Perplexity, Serper, Brave, Jina, and Firecrawl remain candidates only.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "source",
+                "artifact_layer": "external_source_candidate",
+                "decision_band": "provider_gated",
+                "gate": "provider_api_quota_freeze",
+                "status": "provider_gated",
+                "artifact_pointer": "control/adoption_registry.toml",
+                "owner_doc": "control/vendor_sources.lock.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before any provider, API, network, Reader, free-tier, trial-credit, zero-dollar, or keyless call.",
+                "next_action": "Run budget guard and source restoration review only after explicit approval."
+              }
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "name": "Evidence Layer",
+          "children": [
+            {
+              "id": "2.1",
+              "name": "Source bundle and context chunk contract",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Restored source bundles and bounded context chunks remain separate from search hits.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "evidence",
+                "artifact_layer": "source_bundle_context_chunk",
+                "decision_band": "implemented_baseline",
+                "gate": "evidence_invariant",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/memory/context.py",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if search results, summaries, diagrams, or consultation notes are treated as citations.",
+                "next_action": "Keep every answer route restorable to source bundle and context chunk IDs."
+              }
+            },
+            {
+              "id": "2.2",
+              "name": "Citation and answer support boundary",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Answers require citation-ready support or return abstain/needs_review/citation_missing.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "evidence",
+                "artifact_layer": "citation_answer_support",
+                "decision_band": "implemented_baseline",
+                "gate": "citation_required_for_answer",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/memory/answer.py",
+                "owner_doc": "src/research_x/tool_interface/memory_tool_contract.py",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if answer status is emitted without citation-ready evidence and citations.",
+                "next_action": "Preserve answer/abstain/needs_review/provider_gated statuses in tool output."
+              }
+            },
+            {
+              "id": "2.3",
+              "name": "Media evidence preparation lanes",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "OCR/VLM/media embedding candidates are staged and cannot become evidence directly.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "evidence",
+                "artifact_layer": "ocr_media_preparation",
+                "decision_band": "dependency_and_model_gate",
+                "gate": "local_dependency_or_provider_gate",
+                "status": "staging",
+                "artifact_pointer": "src/research_x/memory/ocr.py",
+                "owner_doc": "control/adoption_registry.toml",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before dependency install, model download, provider OCR, or media embedding calls.",
+                "next_action": "Use fake/local fixtures only; keep raw OCR, corrected text, captions, and VLM observations separate."
+              }
+            },
+            {
+              "id": "2.4",
+              "name": "Context budget output offload boundary",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Large workflow outputs may offload to pointers without mutating evidence inputs.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "evidence",
+                "artifact_layer": "context_budget_trace",
+                "decision_band": "implemented_baseline",
+                "gate": "offload_pointer_not_evidence",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/memory/context_budget.py",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if offload previews replace context chunks, citation anchors, or raw source state.",
+                "next_action": "Keep pointer hashes current when offloaded artifacts change."
+              }
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "name": "Retrieval-Eval Layer",
+          "children": [
+            {
+              "id": "3.1",
+              "name": "SQLite FTS metadata relation baseline",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Local lexical, metadata, and relation routes remain the default baseline.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "retrieval_eval",
+                "artifact_layer": "local_retrieval_baseline",
+                "decision_band": "implemented_baseline",
+                "gate": "local_only_no_provider",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/memory/search.py",
+                "owner_doc": "src/research_x/memory/retrieval_strategy.py",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if optional provider/vector routes replace exact/source-restorable baseline routes.",
+                "next_action": "Compare every candidate backend against restoration and citation integrity."
+              }
+            },
+            {
+              "id": "3.2",
+              "name": "Retrieval quality local fixture gate",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-27",
+                "end": "2026-06-27"
+              },
+              "note": "Local fixtures cover answerability, conflict, support, stop, dedup, stale, and preview boundaries.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "retrieval_eval",
+                "artifact_layer": "retrieval_quality_local_fixture_gate",
+                "decision_band": "implemented_local_gate",
+                "gate": "local_fixture_not_model_quality",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/memory/evals.py",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if local fixture pass is described as real provider or model quality.",
+                "next_action": "Keep fixtures boundary-focused and leave real model/provider quality gated."
+              }
+            },
+            {
+              "id": "3.3",
+              "name": "Vector backend comparison gate",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Zvec/Turbovec remain benchmark candidates, not default runtime backends.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "retrieval_eval",
+                "artifact_layer": "vector_backend_benchmark",
+                "decision_band": "staging",
+                "gate": "dependency_review_before_install",
+                "status": "staging",
+                "artifact_pointer": "src/research_x/memory/vector_projection.py",
+                "owner_doc": "control/adoption_registry.toml",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before dependency install or default-route promotion until local benchmark gates pass.",
+                "next_action": "Keep local_hash diagnostic vectors as wiring checks only."
+              }
+            },
+            {
+              "id": "3.4",
+              "name": "Provider-backed retrieval and rerank lanes",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Embeddings, rerank, LLM context, classifiers, and answer providers are blocked by no-quota freeze.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "retrieval_eval",
+                "artifact_layer": "provider_retrieval_rerank_llm",
+                "decision_band": "provider_gated",
+                "gate": "provider_api_quota_freeze",
+                "status": "provider_gated",
+                "artifact_pointer": "src/research_x/memory/api_budget.py",
+                "owner_doc": "docs/pipeline.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before any paid, free-tier, trial-credit, zero-dollar, or keyless provider call.",
+                "next_action": "Run offline estimates first if the user explicitly lifts the provider gate."
+              }
+            },
+            {
+              "id": "3.5",
+              "name": "Retrieval real model quality gate",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": null,
+                "end": null
+              },
+              "note": "Provider-free fixtures do not prove embedding, rerank, OCR, VLM, or answer model quality.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "retrieval_eval",
+                "artifact_layer": "retrieval_quality_real_model_provider_quality_gate",
+                "decision_band": "provider_gated",
+                "gate": "provider_model_quality_gate",
+                "status": "provider_gated",
+                "artifact_pointer": "src/research_x/memory/api_budget.py",
+                "owner_doc": "docs/memory-pipeline-v2.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop before any real provider/model quality eval or quota-backed benchmark.",
+                "next_action": "Run budget guard and smallest-limit eval only after explicit approval."
+              }
+            }
+          ]
+        },
+        {
+          "id": "4",
+          "name": "Tool Interface Layer",
+          "children": [
+            {
+              "id": "4.1",
+              "name": "AI-callable memory tool contract",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Stable JSON exposes status, evidence_level, citations, and trace.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "tool_interface",
+                "artifact_layer": "ai_tool_json_contract",
+                "decision_band": "implemented_baseline",
+                "gate": "schema_contract",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/tool_interface/memory_tool_contract.py",
+                "owner_doc": "README.codex.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if internal workflow JSON leaks as the AI-facing contract.",
+                "next_action": "Prefer memory workflow --tool-json for AI-callable output."
+              }
+            },
+            {
+              "id": "4.2",
+              "name": "Thin Codex bridge contract",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Only query, objective, context budget, and reviewed source candidate cross into research_x.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "tool_interface",
+                "artifact_layer": "codex_bridge",
+                "decision_band": "bridge_only",
+                "gate": "no_codex_foundation_ownership",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/tool_interface/codex_bridge.py",
+                "owner_doc": "control/adoption_registry.toml",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if transcripts, Skill mutation authority, provider execution permission, or root instructions cross the bridge.",
+                "next_action": "Return evidence status, citations, answer/abstain/provider_gated, and audit trace only."
+              }
+            },
+            {
+              "id": "4.3",
+              "name": "Adoption and source-lock audit surface",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Adoption audit checks owner surface, source refs, stop conditions, and enabled gates.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "tool_interface",
+                "artifact_layer": "governance_audit",
+                "decision_band": "implemented_baseline",
+                "gate": "registry_audit_required",
+                "status": "complete",
+                "artifact_pointer": "src/research_x/adoption_registry.py",
+                "owner_doc": "control/adoption_registry.toml",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if source locks, adoption shapes, or enabled/provider flags diverge.",
+                "next_action": "Run research-x adoption audit after registry/source-lock changes."
+              }
+            },
+            {
+              "id": "4.4",
+              "name": "Local WBS viewer control surface",
+              "qty": 1,
+              "hours": 1,
+              "assignee": "Codex",
+              "plan": {
+                "start": null,
+                "end": null
+              },
+              "actual": {
+                "start": "2026-06-25",
+                "end": "2026-06-25"
+              },
+              "note": "Vendored v1.3.0 viewer inspects the current 4-layer WBS with holiday-aware calendar display.",
+              "_research_x": {
+                "owner_plane": "wbs",
+                "runtime_layer": "tool_interface",
+                "artifact_layer": "work_state_viewer",
+                "decision_band": "implemented_baseline",
+                "gate": "control_artifact_not_evidence",
+                "status": "complete",
+                "artifact_pointer": "tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html",
+                "owner_doc": "control/vendor_sources.lock.md",
+                "evidence_status": "not_evidence",
+                "answer_support_allowed": false,
+                "stop_condition": "Stop if WBS or rendered views are used as evidence, citations, or answer support.",
+                "next_action": "Keep historical candidate lists and rendered calendar views outside evidence."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

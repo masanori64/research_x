@@ -21,6 +21,9 @@ from research_x.pipeline import run_pipeline
 from research_x.pipeline_contracts import PipelineTargetResult
 from research_x.x_store import write_label_store_outputs, write_x_store_outputs
 
+EXHAUSTIVE_BOOKMARK_LIMIT = 1_000_000_000
+EXHAUSTIVE_BOOKMARK_MAX_PAGES = 100_000
+
 
 def run_bookmark_job(
     *,
@@ -51,7 +54,8 @@ def run_bookmark_job(
     paths = resolve_account_paths(account, storage_state=storage_state)
     profile = read_account_profile(account)
 
-    target = AcquisitionTarget(TargetKind.BOOKMARKS, "me", limit=max(1, limit))
+    resolved_limit = EXHAUSTIVE_BOOKMARK_LIMIT if exhaustive else max(1, limit)
+    target = AcquisitionTarget(TargetKind.BOOKMARKS, "me", limit=resolved_limit)
     config = ExperimentConfig(
         name="x-bookmarks",
         targets=(target,),
@@ -62,6 +66,7 @@ def run_bookmark_job(
             timeout_ms=timeout_ms,
             max_scroll_steps=max_scroll_steps,
             limit=target.limit,
+            exhaustive=exhaustive,
         ),
         timeout_seconds=180,
         max_concurrency=1,
@@ -75,8 +80,8 @@ def run_bookmark_job(
         masa_cookies_file=paths.masa_cookies_file,
         twscrape_accounts_db=paths.twscrape_accounts_db,
         min_successful_providers=min_successful_providers,
-        stop_after_first_success=exhaustive,
-        ok_with_any_items=exhaustive,
+        stop_after_first_success=False,
+        ok_with_any_items=False,
     )
     target_result = result[0]
     store_summary = write_x_store_outputs(
@@ -144,15 +149,26 @@ def _bookmark_adapters(
     timeout_ms: float,
     max_scroll_steps: int,
     limit: int,
+    exhaustive: bool,
 ) -> tuple[AdapterConfig, ...]:
     storage_state_text = str(storage_state)
+    cursor_max_pages = (
+        EXHAUSTIVE_BOOKMARK_MAX_PAGES
+        if exhaustive
+        else max(20, (max(1, limit) + 99) // 100 + 5)
+    )
+    direct_max_pages = (
+        EXHAUSTIVE_BOOKMARK_MAX_PAGES
+        if exhaustive
+        else max(3, (max(1, limit) + 99) // 100 + 1)
+    )
     return (
         AdapterConfig(
             "twscrape_raw",
             options={
                 "playwright_storage_state": storage_state_text,
                 "direct_graphql": True,
-                "max_pages": max(3, (max(1, limit) + 99) // 100 + 1),
+                "max_pages": direct_max_pages,
                 "request_timeout_seconds": 90,
             },
         ),
@@ -171,7 +187,7 @@ def _bookmark_adapters(
                 "storage_state": storage_state_text,
                 "page_size": 100,
                 "request_timeout_seconds": 90,
-                "max_pages": max(20, (max(1, limit) + 99) // 100 + 5),
+                "max_pages": cursor_max_pages,
                 "raw_pages_dir": str(output_path / "bookmark_pages" / "x_web_graphql"),
                 "cursor_state_file": str(
                     output_path / "bookmark_pages" / "x_web_graphql_cursor_state.json"
@@ -185,6 +201,7 @@ def _bookmark_adapters(
                 "storage_state": storage_state_text,
                 "work_dir": str(output_path / "_gallery_dl"),
                 "request_timeout_seconds": 180,
+                "exhaustive": exhaustive,
             },
         ),
         AdapterConfig(
@@ -215,10 +232,46 @@ def _bookmark_adapters(
             },
         ),
         AdapterConfig(
-            "crawl4ai",
+            "camoufox",
             options={
                 "storage_state": storage_state_text,
                 "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "patchright",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "rebrowser_playwright",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "rebrowser_patches",
+            options={
+                "storage_state": storage_state_text,
+                "headless": headless,
+                "timeout_ms": timeout_ms,
+                "max_scroll_steps": max_scroll_steps,
+            },
+        ),
+        AdapterConfig(
+            "scrapy",
+            options={
+                "storage_state": storage_state_text,
+                "render_fallback": True,
                 "request_timeout_seconds": 45,
                 "max_scroll_steps": max_scroll_steps,
             },

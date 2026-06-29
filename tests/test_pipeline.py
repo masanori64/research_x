@@ -1,7 +1,16 @@
 import json
 
 from research_x.config import parse_config
-from research_x.contracts import FetchOutcome, OutcomeStatus, TargetKind, utc_now
+from research_x.contracts import (
+    AcquisitionTarget,
+    AdapterConfig,
+    ExperimentConfig,
+    FetchOutcome,
+    OutcomeStatus,
+    TargetKind,
+    XItem,
+    utc_now,
+)
 from research_x.pipeline import (
     _items_for_target,
     classify_outcome,
@@ -30,7 +39,11 @@ def test_bookmarks_chain_uses_non_official_cursor_providers_first() -> None:
             "twscrape_raw",
             "x_web_graphql_bookmarks",
             "gallery_dl_bookmarks",
-            "crawl4ai",
+            "playwright_network_bookmarks",
+            "camoufox",
+            "patchright",
+            "rebrowser_playwright",
+            "rebrowser_patches",
         ),
     )
 
@@ -39,10 +52,23 @@ def test_bookmarks_chain_uses_non_official_cursor_providers_first() -> None:
         "twikit",
         "x_web_graphql_bookmarks",
         "gallery_dl_bookmarks",
+        "playwright_network_bookmarks",
         "playwright",
-        "crawl4ai",
+        "camoufox",
+        "patchright",
+        "rebrowser_playwright",
+        "rebrowser_patches",
         "scrapy",
     )
+
+
+def test_explicit_security_gated_optional_provider_is_tried_after_defaults() -> None:
+    chain = provider_chain_for(
+        TargetKind.URL,
+        ("playwright", "scrapling", "crawl4ai", "scrapy"),
+    )
+
+    assert chain == ("playwright", "scrapling", "scrapy", "crawl4ai")
 
 
 def test_run_pipeline_with_synthetic_provider(tmp_path) -> None:
@@ -90,6 +116,83 @@ def test_run_pipeline_can_stop_after_first_success_even_under_limit(tmp_path) ->
 
     assert results[0].status == PipelineStatus.OK
     assert len(results[0].items) == 20
+
+
+def test_run_pipeline_uses_target_level_max_concurrency(tmp_path) -> None:
+    config = parse_config(
+        {
+            "experiment": {"name": "pipeline-concurrent-targets"},
+            "run": {"max_concurrency": 2},
+            "targets": [
+                {"kind": "search", "value": "hello", "limit": 1},
+                {"kind": "profile", "value": "@alice", "limit": 1},
+            ],
+            "adapters": [{"id": "synthetic", "enabled": True, "count": 2}],
+        }
+    )
+
+    results = run_pipeline(
+        config,
+        tmp_path / "run",
+        storage_state=tmp_path / "missing_state.json",
+        min_successful_providers=1,
+    )
+
+    assert [result.target.value for result in results] == ["hello", "@alice"]
+    assert [result.metadata["max_concurrency"] for result in results] == [2, 2]
+    evidence_files = sorted((tmp_path / "run" / "evidence").glob("*.json"))
+    assert len(evidence_files) == 2
+
+
+def test_run_pipeline_treats_cursor_exhaustion_as_complete(tmp_path, monkeypatch) -> None:
+    now = utc_now()
+
+    class CursorExhaustedAdapter:
+        adapter_id = "cursor"
+
+        def __init__(self, _config: AdapterConfig) -> None:
+            pass
+
+        def fetch(self, target: AcquisitionTarget) -> FetchOutcome:
+            return FetchOutcome(
+                adapter_id=self.adapter_id,
+                target=target,
+                status=OutcomeStatus.OK,
+                started_at=now,
+                finished_at=utc_now(),
+                items=(
+                    XItem(
+                        source_id="1",
+                        url=None,
+                        author=None,
+                        text="only available item",
+                        created_at=None,
+                        observed_at=now,
+                        raw={"bookmark_root": True},
+                    ),
+                ),
+                metadata={"cursor_exhausted": True},
+            )
+
+    monkeypatch.setattr(
+        "research_x.pipeline.build_adapter",
+        lambda config: CursorExhaustedAdapter(config),
+    )
+    config = ExperimentConfig(
+        name="cursor-complete",
+        targets=(AcquisitionTarget(TargetKind.BOOKMARKS, "me", limit=1000),),
+        adapters=(AdapterConfig("cursor"),),
+    )
+
+    results = run_pipeline(
+        config,
+        tmp_path / "run",
+        storage_state=tmp_path / "missing_state.json",
+        min_successful_providers=1,
+    )
+
+    assert results[0].status == PipelineStatus.OK
+    assert results[0].metadata["provider_exhausted"] is True
 
 
 def test_bookmark_pipeline_filters_non_root_items() -> None:

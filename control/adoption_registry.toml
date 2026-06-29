@@ -1,0 +1,504 @@
+registry_version = 1
+owner = "research_x"
+purpose = "Machine-readable adoption boundary for research_x as an AI-callable X memory-search tool."
+
+[policy]
+provider_api_only_hard_block = true
+research_x_is_codex_foundation = false
+codex_foundation_home = "C:/Users/maasa/.codex"
+
+[[candidates]]
+name = "research_x_tool_contract"
+category = "tool_interface"
+owner_surface = "research_x_tool"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "repo"
+source_url = "src/research_x/tool_interface/memory_tool_contract.py"
+active_artifact = "src/research_x/tool_interface/memory_tool_contract.py"
+first_local_step = "Run memory workflow with --tool-json using fake/local providers."
+promotion_gate = "Tool JSON validates status, evidence_level, citations, and trace."
+stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
+provider_or_quota = false
+enabled = true
+notes = "Stable AI-facing contract; not the internal workflow JSON."
+
+[[candidates]]
+name = "research_x_codex_bridge_contract"
+category = "tool_interface"
+owner_surface = "research_x_bridge"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "repo"
+source_url = "src/research_x/tool_interface/codex_bridge.py"
+active_artifact = "src/research_x/tool_interface/codex_bridge.py"
+first_local_step = "Validate Codex-to-research_x and research_x-to-Codex payloads locally."
+promotion_gate = "Forbidden transcript, root instruction, provider permission, and Skill auto-edit fields are rejected."
+stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
+provider_or_quota = false
+enabled = true
+notes = "Thin bridge contract shared by tool trace and boundary tests."
+
+[[candidates]]
+name = "wbs_viewer"
+category = "control_artifact"
+owner_surface = "research_x_tool"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "S33"
+source_url = "https://github.com/piguo45/single-file-wbs"
+active_artifact = "tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html"
+first_local_step = "Load project-owned WBS JSON locally and inspect operational state with holiday-aware calendar display."
+promotion_gate = "WBS tests prove rendered/state artifacts are not evidence or answer support."
+stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
+provider_or_quota = false
+enabled = true
+notes = "Pinned local control artifact for the current 4-layer WBS only; holidays are viewer display config, and historical candidate lists stay outside current WBS."
+
+[[candidates]]
+name = "d2_marp_presentation_boundary"
+category = "control_artifact"
+owner_surface = "research_x_tool"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "docs"
+source_url = "C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md"
+active_artifact = "src/research_x/presentation/facts.py"
+first_local_step = "Use presentation facts before diagrams or slides."
+promotion_gate = "Presentation boundary tests keep generated assets outside evidence."
+stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
+provider_or_quota = false
+enabled = true
+notes = "Presentation/control artifact lane; not a citation lane."
+
+[[candidates]]
+name = "yaml_to_html_structure_view"
+category = "control_artifact"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "docs"
+source_url = "tests/fixtures/control_artifacts/structure_view.valid.json"
+active_artifact = "tests/fixtures/control_artifacts/structure_view.valid.json"
+first_local_step = "Keep structure/view fixtures separate from evidence fixtures."
+promotion_gate = "Schema and boundary tests pass before any renderer adoption."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Artifact pattern staged through local schema fixtures."
+
+[[candidates]]
+name = "archify"
+category = "control_artifact"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S10"
+source_url = "https://github.com/tt-a1i/archify"
+active_artifact = "C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-next-wave-33-5-24-10.md"
+first_local_step = "Compare deterministic diagram/report shape against current D2/Marp boundary."
+promotion_gate = "Source review plus local renderer fixture; no generated diagram becomes evidence."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Reference/staging for workflow diagram aid."
+
+[[candidates]]
+name = "pdgkit"
+category = "historical"
+owner_surface = "historical"
+adoption_shape = "historical"
+status = "historical"
+source_ref = "S34"
+source_url = "https://github.com/shibayamalicht/pdgkit"
+active_artifact = "control/vendor_sources.lock.md"
+first_local_step = "Keep only source-lock/history; do not restore active lane."
+promotion_gate = "No active docs/tools/dependencies reference pdgkit as an implementation route."
+stop_condition = "Stop if any active route, dependency, tool entry, or generated artifact attempts to use this historical source."
+provider_or_quota = false
+enabled = false
+notes = "User requested complete deletion except historical source-lock/provenance."
+
+[[candidates]]
+name = "firecrawl"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "S01"
+source_url = "https://www.firecrawl.dev/"
+active_artifact = "src/research_x/memory/external.py"
+first_local_step = "Represent as external source candidate lane without network calls."
+promotion_gate = "Provider gate, budget guard, storage-rights review, and source restoration path."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Produces candidates only; never evidence by itself."
+
+[[candidates]]
+name = "jina_reader"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "docs"
+source_url = "src/research_x/memory/reader.py"
+active_artifact = "src/research_x/memory/reader.py"
+first_local_step = "Keep fake/local reader tests and estimates separate from real provider calls."
+promotion_gate = "Provider gate and citation-ready source bundle restoration."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Reader extraction can create source candidates, not direct answer support."
+
+[[candidates]]
+name = "brave_llm_context"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "docs"
+source_url = "src/research_x/memory/llm_context.py"
+active_artifact = "src/research_x/memory/llm_context.py"
+first_local_step = "Use estimate/report paths only under no-quota freeze."
+promotion_gate = "Provider gate plus answerability/citation support checks."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Current-context lane; provider output is not evidence without restoration."
+
+[[candidates]]
+name = "serper"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "S21"
+source_url = "https://serper.dev"
+active_artifact = "src/research_x/memory/external.py"
+first_local_step = "Keep Serper as a disabled provider lane and estimate-only route."
+promotion_gate = "Provider gate, budget guard, and search-result-to-source-bundle restoration."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Search result discovery candidate only; not evidence by itself."
+
+[[candidates]]
+name = "searxng"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S24"
+source_url = "https://docs.searxng.org/"
+active_artifact = "control/research_intake/source_registry.toml"
+first_local_step = "Add a metadata-only source candidate fixture; do not fetch network results."
+promotion_gate = "Local self-host/dependency review plus source candidate restoration tests."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Local discovery candidate, still staged behind dependency/network review."
+
+[[candidates]]
+name = "tavily"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "S35"
+source_url = "https://docs.tavily.com/documentation/api-reference/introduction"
+active_artifact = "control/adoption_registry.toml"
+first_local_step = "Source-lock and classify as source-candidate provider before any code path."
+promotion_gate = "Provider gate and restoration tests."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Future provider source candidate lane only; not evidence by itself."
+
+[[candidates]]
+name = "exa"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "S36"
+source_url = "https://exa.ai/docs/reference/search-api-guide"
+active_artifact = "control/adoption_registry.toml"
+first_local_step = "Source-lock and classify as source-candidate provider before any code path."
+promotion_gate = "Provider gate and restoration tests."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Future provider source candidate lane only; not evidence by itself."
+
+[[candidates]]
+name = "perplexity"
+category = "external_source_candidate"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "S37"
+source_url = "https://docs.perplexity.ai/docs/search/quickstart"
+active_artifact = "control/adoption_registry.toml"
+first_local_step = "Source-lock and classify as answer/search provider before any code path."
+promotion_gate = "Provider gate; output remains candidate until restored."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Future provider source candidate lane only; not evidence by itself."
+
+[[candidates]]
+name = "occ_rag"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S07"
+source_url = "https://github.com/optimal-cognitive-core/OCC-RAG"
+active_artifact = "tests/test_memory.py"
+first_local_step = "Keep answerable, unanswerable, and conflict fixtures local/fake."
+promotion_gate = "Answerability tests keep abstain and conflict separate from answer."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Eval shape, not imported runtime."
+
+[[candidates]]
+name = "llm_oriented_ir"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S38"
+source_url = "https://arxiv.org/abs/2605.00505"
+active_artifact = "src/research_x/memory/retrieval_strategy.py"
+first_local_step = "Map candidate principles to local route/eval report fields."
+promotion_gate = "Source-bundle restoration, exact-route preservation, and local eval coverage."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Design/eval candidate only until source restored."
+
+[[candidates]]
+name = "saas_stop_condition"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S17"
+source_url = "https://github.com/XMUDeepLIT/SAAS"
+active_artifact = "src/research_x/memory/workflow.py"
+first_local_step = "Track redundant-search and searched-after-sufficient-evidence audit fields."
+promotion_gate = "Stop-condition fixtures prove excessive search is visible."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Eval gate pattern, not runtime import."
+
+[[candidates]]
+name = "stale_masking"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "docs"
+source_url = "src/research_x/memory/relevance.py"
+active_artifact = "src/research_x/memory/relevance.py"
+first_local_step = "Expose stale/dated observations as eval warnings rather than hidden filters."
+promotion_gate = "Fixtures distinguish stale hints from current citation-ready evidence."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Quality gate for temporal evidence."
+
+[[candidates]]
+name = "bosun"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S39"
+source_url = "https://huggingface.co/blog/Hanno-Labs/bosun"
+active_artifact = "src/research_x/memory/evals.py"
+first_local_step = "Add relevance/citation-support/dedup/conflict fixtures."
+promotion_gate = "Local eval reports support, dedup, and conflict separately."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Eval candidate only."
+
+[[candidates]]
+name = "warrantbench"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S40"
+source_url = "https://github.com/Hanno-Labs/warrantbench"
+active_artifact = "src/research_x/memory/evals.py"
+first_local_step = "Source-lock benchmark and map it to source-support fixtures."
+promotion_gate = "Claims require citation support and unsupported claims abstain."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Benchmark candidate only."
+
+[[candidates]]
+name = "zvec"
+category = "local_backend"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S16"
+source_url = "https://github.com/alibaba/zvec"
+active_artifact = "src/research_x/memory/vector_projection.py"
+first_local_step = "Benchmark against SQLite/FTS/local_hash without adding dependency."
+promotion_gate = "Benchmark proves restoration rate and exact-route preservation."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Local backend candidate; dependency review before install."
+
+[[candidates]]
+name = "turbovec"
+category = "local_backend"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "docs"
+source_url = "pyproject.toml"
+active_artifact = "pyproject.toml"
+first_local_step = "Use optional dependency benchmark gate only."
+promotion_gate = "Optional backend comparison passes without becoming default by accident."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Already optional dependency group; not default runtime."
+
+[[candidates]]
+name = "sqlite_fts"
+category = "local_backend"
+owner_surface = "research_x_tool"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "repo"
+source_url = "src/research_x/memory/search.py"
+active_artifact = "src/research_x/memory/search.py"
+first_local_step = "Use lexical/source-bundle routes as local baseline."
+promotion_gate = "All candidate backends compare against SQLite/FTS baseline."
+stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
+provider_or_quota = false
+enabled = true
+notes = "Current local baseline."
+
+[[candidates]]
+name = "vector_projection"
+category = "local_backend"
+owner_surface = "research_x_tool"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "repo"
+source_url = "src/research_x/memory/vector_projection.py"
+active_artifact = "src/research_x/memory/vector_projection.py"
+first_local_step = "Use local_hash projection for wiring and benchmark reports only."
+promotion_gate = "Diagnostic vectors are never treated as production evidence."
+stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
+provider_or_quota = false
+enabled = true
+notes = "Local benchmark harness."
+
+[[candidates]]
+name = "mistral_ocr"
+category = "media_evidence"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "docs"
+source_url = "src/research_x/memory/ocr.py"
+active_artifact = "src/research_x/memory/ocr.py"
+first_local_step = "Use OCR estimates and fake/local fixtures under no-quota freeze."
+promotion_gate = "Provider gate plus raw/corrected/caption text separation."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "OCR provider candidate."
+
+[[candidates]]
+name = "paddleocr"
+category = "media_evidence"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S41"
+source_url = "https://github.com/PaddlePaddle/PaddleOCR"
+active_artifact = "src/research_x/memory/ocr.py"
+first_local_step = "Source-lock and dependency-review local OCR before install."
+promotion_gate = "OCR coverage keeps raw OCR, corrected text, caption, and VLM text separate."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Local OCR candidate."
+
+[[candidates]]
+name = "paddleocr_vl"
+category = "media_evidence"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S42"
+source_url = "https://huggingface.co/PaddlePaddle/PaddleOCR-VL"
+active_artifact = "src/research_x/memory/ocr.py"
+first_local_step = "Source-lock and dependency-review local VLM/OCR before install."
+promotion_gate = "VLM observations do not become image-content evidence without citations."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Local media evidence candidate."
+
+[[candidates]]
+name = "manga_ocr"
+category = "media_evidence"
+owner_surface = "research_x_tool"
+adoption_shape = "staging"
+status = "staged"
+source_ref = "S43"
+source_url = "https://github.com/kha-white/manga-ocr"
+active_artifact = "src/research_x/memory/ocr.py"
+first_local_step = "Source-lock and create local fixture before dependency adoption."
+promotion_gate = "Domain OCR output stays raw/corrected text until citation-ready context."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until the local fixture/eval gate passes."
+provider_or_quota = false
+enabled = false
+notes = "Specialist OCR candidate."
+
+[[candidates]]
+name = "gemini_media_embedding"
+category = "media_evidence"
+owner_surface = "research_x_tool"
+adoption_shape = "provider_gated"
+status = "provider_gated"
+source_ref = "docs"
+source_url = "src/research_x/memory/media_embeddings.py"
+active_artifact = "src/research_x/memory/media_embeddings.py"
+first_local_step = "Keep media embedding estimates and restoration contracts visible."
+promotion_gate = "Provider gate plus media_id to source bundle restoration."
+stop_condition = "Stop before any real provider, API, network, quota, or paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
+provider_or_quota = true
+enabled = false
+notes = "Raw media vector match remains a candidate signal."
+
+[[candidates]]
+name = "codex_foundation_registry_bridge"
+category = "codex_foundation_bridge"
+owner_surface = "codex_foundation"
+adoption_shape = "bridge"
+status = "external_owned"
+source_ref = "codex_foundation"
+source_url = "C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml"
+active_artifact = "src/research_x/tool_interface/codex_bridge.py"
+first_local_step = "Keep only the stable research_x bridge contract and emit search-quality signals when needed."
+promotion_gate = ".codex registry owns Codex Skills, memory, route memory, self-improvement, and output helpers."
+stop_condition = "Stop if Codex transcripts, Skill mutation authority, provider execution permission, or foundation ownership would cross into research_x."
+provider_or_quota = false
+enabled = false
+notes = "Thin registry pointer only; do not duplicate Codex foundation candidate families inside research_x."

@@ -1,0 +1,22 @@
+%% control_artifact=true
+%% not_research_evidence=true
+%% not_citation=true
+%% not_answer_support=true
+%% generated_by=codex-hotl-implementation-pipeline
+%% foundation_manifest_sha256=7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566
+flowchart TD
+  local_validation["Local Validation\nautomatic=true"]
+  dashboard["Dashboard Generation\nautomatic=true"]
+  local_validation --> dashboard
+  pages_dashboard["Pages Dashboard CD\nautomatic=true"]
+  dashboard --> pages_dashboard
+  preview["Preview Static CD\nautomatic=true"]
+  pages_dashboard --> preview
+  staging["Staging Static CD\nautomatic=true"]
+  preview --> staging
+  production["Production Static CD\nautomatic=true"]
+  staging --> production
+  rollback["Safe Static Rollback\nautomatic=false"]
+  production --> rollback
+  paid_gate["paid provider/API/quota boundary\nnot part of free CD"]
+  production -. outside free static CD .-> paid_gate

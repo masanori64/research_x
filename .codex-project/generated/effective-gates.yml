@@ -1,0 +1,95 @@
+schema_version: 1
+control_artifact: true
+not_evidence: true
+not_project_evidence: true
+not_research_evidence: true
+not_citation: true
+not_answer_support: true
+generated_by: codex-hotl-implementation-pipeline
+foundation_manifest:
+  id: codex-hotl-implementation-pipeline
+  version: 0.1.0
+  path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
+  sha256: 7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566
+  exists: true
+artifact_kind: effective_gates
+gates:
+  - gate_id: provider_api_quota
+    status: requires_explicit_user_gate
+    severity: blocking
+    reason: Provider/API/quota use, including paid, free-tier, trial-credit, or zero-dollar quota.
+    allowed_without_gate: false
+  - gate_id: secrets_credentials
+    status: requires_explicit_user_gate
+    severity: blocking
+    reason: Secrets, credentials, PATs, deploy keys, environment secrets, or account login.
+    allowed_without_gate: false
+  - gate_id: mcp_plugin_hook_enablement
+    status: requires_explicit_user_gate
+    severity: blocking
+    reason: MCP, plugin, connector, or hook enablement/change.
+    allowed_without_gate: false
+  - gate_id: destructive_action
+    status: requires_explicit_user_gate
+    severity: blocking
+    reason: Delete, purge, force-push, irreversible overwrite, or destructive data action.
+    allowed_without_gate: false
+  - gate_id: irreversible_db_migration
+    status: requires_explicit_user_gate
+    severity: blocking
+    reason: DB migration or data mutation that cannot be rolled back automatically.
+    allowed_without_gate: false
+  - gate_id: production_external_side_effect
+    status: requires_explicit_user_gate
+    severity: blocking
+    reason: Production action with external side effects beyond safe static deploy.
+    allowed_without_gate: false
+capabilities:
+  - capability_id: github_api_read
+    status: public_read_enabled
+    allowed_without_gate: true
+    reason: Capability github_api_read is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: github_api_write
+    status: pages_static_cd_only
+    allowed_without_gate: true
+    reason: Capability github_api_write is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: github_actions_wrappers
+    status: enabled
+    allowed_without_gate: true
+    reason: Capability github_actions_wrappers is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: dashboard_artifact_cd
+    status: enabled
+    allowed_without_gate: true
+    reason: Capability dashboard_artifact_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: preview_cd
+    status: static_pages_lane_enabled
+    allowed_without_gate: true
+    reason: Capability preview_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: staging_cd
+    status: static_pages_lane_enabled
+    allowed_without_gate: true
+    reason: Capability staging_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: production_cd
+    status: static_pages_enabled
+    allowed_without_gate: true
+    reason: Capability production_cd is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: rollback_execution
+    status: safe_static_pages_enabled
+    allowed_without_gate: true
+    reason: Capability rollback_execution is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: github_pages
+    status: enabled_public_static
+    allowed_without_gate: true
+    reason: Capability github_pages is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: repository_settings_change
+    status: free_pages_source_setup_only
+    allowed_without_gate: true
+    reason: Capability repository_settings_change is allowed for free public static Pages CD; paid/provider/secret/DB paths remain forbidden.
+  - capability_id: provider_api_calls
+    status: hard_blocked_paid
+    allowed_without_gate: false
+    reason: Capability provider_api_calls is a paid/quota boundary and is not part of the completed free static Pages CD pipeline.
+  - capability_id: mcp_plugin_hook_enablement
+    status: outside_free_static_pages_cd
+    allowed_without_gate: false
+    reason: Capability mcp_plugin_hook_enablement is not used by the completed free static Pages CD pipeline and is not an active completion blocker.

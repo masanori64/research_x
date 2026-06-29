@@ -2,6 +2,56 @@
 
 This mode uses the adapters as cooperating providers instead of selecting one winner.
 
+Adapter source URLs, readiness notes, blockers, and source-backed evidence live in
+`src/research_x/adapters/catalog.py`. Keep this file focused on operational provider chaining,
+auth/session handling, shared store behavior, and current smoke expectations.
+
+Memory-search architecture belongs in `docs/memory-pipeline-v2.md`. Historical memory-search
+decisions live in `docs/memory-pipeline-archive.md`; use the archive index and read only targeted
+sections when prior research is needed. Acquisition output is raw evidence for that pipeline: do not
+replace stored tweets, bookmarks, media, quote edges, provider runs, or raw payloads with labels,
+summaries, embeddings, or answers.
+
+For native media recall, acquisition remains responsible only for preserving media provenance:
+`media_id`, `tweet_id`, `url`, `local_path`, `download_status`, and raw downloadable media when
+available. Gemini Embedding 2 media vectors are built later by the memory pipeline from saved local
+files and must restore back to the original tweet/media source bundle before they can be used as
+evidence.
+
+Provider-chain decisions use the same decision quality rule as memory-search decisions. Inspect the
+repo state first; when the answer is uncertain, check primary sources before secondary/community
+sources, treat search results as evidence inputs rather than automatic truth, compare alternatives
+against the user's goal and local data shape, and loop again when the evaluation exposes a new
+uncertainty.
+
+## External Research Intake Boundary
+
+The 2026-06-10 `_codex_inbox` research-intake design maps to this file only for acquisition,
+fetching, auth, storage-rights, and network/provider policy. The memory/search object model and
+evidence contract stay in `docs/memory-pipeline-v2.md`.
+
+Future automated intake must keep these boundaries:
+
+- Local corpus lookup, manual URL registration, and fake/local dry-runs are the default no-provider
+  path.
+- The first implemented intake lane is dry-run only: `InterestProfile` + `SourceRegistry`
+  configuration can produce normalized candidates, deterministic scores, metadata-only snapshots,
+  and a review `ResearchBrief`, but it must not fetch URLs, call provider search, call Reader/LLM
+  extraction, or write citation-ready evidence.
+- Public network fetches require explicit fetch policy, content hash, fetched-at timestamp,
+  source-kind metadata, storage-rights notes, and prompt-injection handling before they can feed
+  context chunks.
+- Provider-backed search or extraction such as Serper, Brave, Jina, OpenAI, Gemini, Voyage, Cohere,
+  or Mistral remains blocked by the no-quota freeze unless the user explicitly lifts it in the
+  current conversation and the API Budget Guard preflight passes.
+- Proxy-backed collection such as Webshare is rejected by default until legal/ToS/rate-limit,
+  account, privacy, and security review is complete.
+- ChatGPT conversation import must use official export data or explicit user-provided files, not
+  unofficial backend endpoints.
+- Discovery ranks, snippets, community comments, AI summaries, and generated research briefs are
+  candidate or review signals. They are not evidence until the source is fetched/restored, chunked,
+  and cited through the memory pipeline.
+
 ## Provider Roles
 
 | Provider | Pipeline role |
@@ -12,7 +62,7 @@ This mode uses the adapters as cooperating providers instead of selecting one wi
 | `masa_twitter_scraper` | Independent Go sidecar fallback for Python-library/schema failures. |
 | `playwright` | Session source, browser/network evidence provider, and DOM fallback. |
 | `scrapling` | Scrapling static fetch first, then PlayWrightFetcher rendered fallback. |
-| `crawl4ai` | Browser crawler fallback that extracts status URLs from authorized rendered HTML, then shared browser fallback if needed. |
+| `crawl4ai` | Security-gated optional browser crawler boundary. It is not installed or scheduled by default while upstream releases require vulnerable transitive packages. |
 | `scrapy` | Static HTTP fetch first, then Scrapy selector parsing over rendered HTML. |
 | `camoufox`, `patchright`, `rebrowser-*` | Browser variants when normal Playwright launch/runtime behavior is the blocker. |
 
@@ -21,27 +71,35 @@ This mode uses the adapters as cooperating providers instead of selecting one wi
 ```text
 profile:
   twscrape_raw -> scweet -> twikit -> masa_twitter_scraper -> playwright
-  -> scrapling -> crawl4ai -> camoufox -> patchright -> rebrowser_playwright
-  -> rebrowser_patches -> scrapy
+  -> scrapling -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches
+  -> scrapy
 
 search:
   scweet -> twscrape_raw -> twikit -> masa_twitter_scraper -> playwright
-  -> scrapling -> crawl4ai -> camoufox -> patchright -> rebrowser_playwright
-  -> rebrowser_patches -> scrapy
+  -> scrapling -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches
+  -> scrapy
 
 url:
   twscrape_raw -> twikit -> masa_twitter_scraper -> playwright
-  -> scrapling -> crawl4ai -> camoufox -> patchright -> rebrowser_playwright
-  -> rebrowser_patches -> scrapy
+  -> scrapling -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches
+  -> scrapy
 
 bookmarks:
   twscrape_raw -> twikit -> x_web_graphql_bookmarks -> gallery_dl_bookmarks
-  -> playwright_network_bookmarks -> playwright -> scrapling -> crawl4ai
-  -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches -> scrapy
+  -> playwright_network_bookmarks -> playwright -> scrapling -> camoufox -> patchright
+  -> rebrowser_playwright -> rebrowser_patches -> scrapy
 ```
 
+Explicit configs can still name `crawl4ai`; in that case the adapter returns `not_configured`
+unless the package is installed outside the default dependency surface. Do not add it back to the
+default lock until the advisory path allows `lxml >=6.1.0` and removes or patches the vulnerable
+`nltk` dependency.
+
 The chain stops when the target has enough deduped items and the configured minimum number of
-successful providers has been reached.
+successful providers has been reached. For cursor-based full bookmark runs, a provider that reaches
+cursor exhaustion is also treated as a complete target even when the item count is below the
+internal high-water limit. The pipeline should not use "any items were found" as the success signal
+for `--all`.
 
 ## Session Broker
 
@@ -149,12 +207,17 @@ edge from the quoting tweet. The automatic routes are:
 | `x_web_graphql_bookmarks` | Direct Web GraphQL `Bookmarks` / `BookmarkFolderTimeline` replay. |
 | `gallery_dl_bookmarks` | gallery-dl `TwitterBookmarkExtractor` with Netscape cookies. |
 | `playwright_network_bookmarks` | Browser opens `/i/bookmarks` and captures GraphQL JSON responses. |
-| `playwright`, `scrapling`, `crawl4ai` | Rendered fallback extraction. |
+| `playwright`, `scrapling` | Rendered fallback extraction. |
 
 ```powershell
 uv run python -m research_x bookmarks --out runs\bookmarks --limit 100 --no-classify
 uv run python -m research_x bookmarks --out runs\bookmarks --limit 100 --classify --model gpt-4o-mini
+uv run python -m research_x bookmarks --out runs\bookmarks_full --all --no-classify --db runs\x_data.sqlite3
 ```
+
+`--all` raises cursor-provider page budgets and removes the normal `gallery-dl --range` cap. The
+run should finish because the bookmark cursor is exhausted, rate limited, canceled, or failed, not
+because one provider returned a small partial batch.
 
 The command also writes DB-friendly files:
 
@@ -198,7 +261,7 @@ uv run python -m research_x pipeline --config examples\x_pipeline.toml --out run
 Observed result:
 
 ```text
-profile:@target_user: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,crawl4ai,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
+profile:@target_user: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
 ```
 
 Final full-chain provider states:
@@ -211,7 +274,6 @@ Final full-chain provider states:
 | `masa_twitter_scraper` | `ok` | 5 |
 | `playwright` | `ok` | 5 |
 | `scrapling` | `ok` | 5 |
-| `crawl4ai` | `ok` | 5 |
 | `camoufox` | `ok` | 5 |
 | `patchright` | `ok` | 5 |
 | `rebrowser_playwright` | `ok` | 5 |

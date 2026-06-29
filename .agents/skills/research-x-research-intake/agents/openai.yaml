@@ -1,0 +1,10 @@
+interface:
+  display_name: "research_x Research Intake"
+  short_description: "Classify source candidates before source-bundle intake, preserving provenance, risk, and no-network gates."
+  default_prompt: "Use this when research_x work needs external or internal source candidates classified for source review, dry-run discovery, source registry updates, community signals, papers, repositories, articles, docs, exports, or source-bundle handoff."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []

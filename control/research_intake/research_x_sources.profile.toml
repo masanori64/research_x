@@ -1,0 +1,30 @@
+profile_id = "research_x_sources"
+title = "research_x source candidate intake"
+include_topics = [
+  "external search",
+  "source candidates",
+  "reader",
+  "source extraction",
+  "local discovery",
+]
+exclude_topics = [
+  "unofficial backend API",
+  "proxy scraping",
+]
+preferred_sources = [
+  "local_research_x_evidence_architecture",
+  "local_x_store_schema",
+  "fake_x_source_candidate_discovery",
+  "future_serper_external_search",
+  "future_brave_llm_context",
+  "future_jina_reader",
+  "future_firecrawl",
+  "future_tavily",
+  "future_exa",
+  "future_perplexity",
+  "future_searxng_local",
+]
+recency_half_life_days = 45
+minimum_source_quality = "unknown"
+privacy_boundary = "project_local_only"
+network_mode = "dry-run"

@@ -1,0 +1,48 @@
+{
+  "api_calls_executed": false,
+  "artifact_kind": "github_state",
+  "collection_mode": "public_read_state_available",
+  "control_artifact": true,
+  "default_branch": "main",
+  "forbidden_mutation_methods": [
+    "create_issue",
+    "create_pull_request",
+    "update_repository_settings",
+    "enable_pages",
+    "create_deployment",
+    "rerun_workflow",
+    "cancel_workflow",
+    "delete_artifact"
+  ],
+  "foundation_manifest": {
+    "exists": true,
+    "id": "codex-hotl-implementation-pipeline",
+    "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
+    "version": "0.1.0"
+  },
+  "generated_by": "codex-hotl-implementation-pipeline",
+  "github_api_enabled": true,
+  "github_api_mode": "public_read",
+  "items": [],
+  "mode": "public_repo_pages_static_cd",
+  "mutation_methods_available": [],
+  "not_answer_support": true,
+  "not_citation": true,
+  "not_evidence": true,
+  "not_project_evidence": true,
+  "not_research_evidence": true,
+  "read_methods_available": [
+    "list_workflow_runs",
+    "list_workflow_jobs",
+    "list_workflow_artifacts",
+    "get_pull_request_metadata",
+    "get_commit_status"
+  ],
+  "reason": "Public read-only GitHub collection is represented by github_read_state; mutation methods remain unavailable.",
+  "repository": "masanori64/research_x",
+  "schema_version": 1,
+  "status": "public_read_enabled",
+  "token_used": false,
+  "write_operations_available": false
+}

@@ -3,6 +3,7 @@ import sqlite3
 
 from research_x.accounts import AccountProfile
 from research_x.contracts import AcquisitionTarget, TargetKind, XItem, utc_now
+from research_x.memory.corpus import build_memory_corpus
 from research_x.x_store import write_x_store_outputs
 
 
@@ -51,6 +52,15 @@ def test_x_store_dedupes_bookmarks_and_profile_tweets_in_same_db(tmp_path) -> No
         assert conn.execute("SELECT COUNT(*) FROM tweets").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM account_bookmarks").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM collection_items").fetchone()[0] == 2
+
+    build_memory_corpus(db_path)
+    with sqlite3.connect(db_path) as conn:
+        metadata = json.loads(
+            conn.execute(
+                "SELECT metadata_json FROM memory_documents WHERE doc_id = 'tweet:1'"
+            ).fetchone()[0]
+        )
+    assert metadata["collection_kinds"] == ["bookmarks", "profile"]
 
 
 def test_x_store_writes_db_friendly_jsonl_outputs(tmp_path) -> None:

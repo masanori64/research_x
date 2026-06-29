@@ -1,0 +1,1527 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import sqlite3
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from research_x.memory.context import CitationAnnotation
+from research_x.memory.dedup_policy import (
+    DEDUP_CONFLICT_VARIANT_POLICY,
+    DEDUP_LINEAGE_POLICY_SCOPE,
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+)
+from research_x.memory.evidence_invariants import (
+    citation_is_citation_ready,
+    citation_is_not_evidence,
+    citation_is_stale,
+    citation_preserves_duplicate_provenance,
+    duplicate_evidence_count,
+    unique_evidence_count,
+)
+from research_x.memory.question_types import known_question_type_ids
+from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.workflow import MemoryWorkflow, run_memory_workflow
+
+ALLOWED_ANSWERABILITY_STATUSES = {
+    "answerable",
+    "citation_missing",
+    "conflicting",
+    "partially_supported",
+    "stale_only",
+    "unanswerable",
+}
+
+_ALLOWED_DEDUP_LINEAGE_POLICY_ACTIONS = {
+    "no_lineage_variant",
+    DEDUP_SOURCE_HASH_VARIANT_POLICY,
+    DEDUP_STALE_VARIANT_POLICY,
+    DEDUP_CONFLICT_VARIANT_POLICY,
+}
+
+
+@dataclass(frozen=True)
+class EvalCase:
+    query: str
+    required_any_terms: tuple[str, ...]
+    question_type: str = "single_fact_conditioned"
+    fixture_family: str | None = None
+    preferred_doc_types: tuple[str, ...] = ()
+    required_feature: str | None = None
+    expected_route: str | None = None
+    expected_stop_reasons: tuple[str, ...] = ()
+    expected_answerability_status: str | None = None
+    min_answer_citations: int | None = None
+    required_source_kinds: tuple[str, ...] = ()
+    require_citation_ready: bool = False
+    allow_search_after_sufficient_evidence: bool = True
+    max_redundant_search_count: int | None = None
+    expected_unique_evidence_count: int | None = None
+    max_duplicate_support_count: int | None = None
+    require_provenance_preserved: bool = False
+    forbid_duplicate_citation_support: bool = False
+    forbid_stale_evidence_support: bool = False
+    forbid_not_evidence_support: bool = True
+    provider_free_fixture: bool = False
+    quality_scope: str | None = None
+    expected_dedup_lineage_policy: str | None = None
+    min_hit_score: float = 1.0
+
+
+DEFAULT_EVAL_CASES = (
+    EvalCase(
+        query="あとで行きたくて保存したカフェ系を出して",
+        required_any_terms=("カフェ", "喫茶", "居酒屋", "レストラン", "グルメ", "店"),
+        question_type="set_recall",
+        preferred_doc_types=("bookmark_doc",),
+        required_feature="bookmark_context",
+        expected_route="place_recall",
+    ),
+    EvalCase(
+        query="最近保存した強化学習とロボット系の情報を古いものを除いて出して",
+        required_any_terms=("強化学習", "ロボット", "機械学習", "AI"),
+        question_type="temporal_freshness",
+        preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
+        required_feature="recent",
+        expected_route="learning_map",
+    ),
+    EvalCase(
+        query="5/29のキオクシアの株価急騰について保存している人たちの見方から分析して",
+        required_any_terms=("5/29", "キオクシア", "株価", "急騰", "分析"),
+        question_type="multi_hop_evidence",
+        preferred_doc_types=("ticker_event", "author_profile", "bookmark_doc", "tweet_doc"),
+        expected_route="company_event",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="成人向け漫画の公式リンク誘導っぽいブクマを作品名つきで出して",
+        required_any_terms=("成人", "エロ", "R18", "漫画", "同人", "DLsite", "FANZA", "公式"),
+        question_type="single_fact_conditioned",
+        preferred_doc_types=("bookmark_doc", "media_doc"),
+        expected_route="adult_comic",
+    ),
+    EvalCase(
+        query="この作者をなぜ何度も保存しているか説明して",
+        required_any_terms=("作者", "author", "@"),
+        question_type="personal_preference",
+        preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        expected_route="author_stance",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="引用元を見ないと意味が変わる投稿を根拠付きで出して",
+        required_any_terms=("引用", "引用元", "quoted", "quote"),
+        question_type="multi_hop_evidence",
+        preferred_doc_types=("quote_tree_doc",),
+        required_feature="quote_context",
+        expected_route="quote_context",
+    ),
+    EvalCase(
+        query="根拠tweetと引用元を明示して説明して",
+        required_any_terms=("根拠", "tweet", "引用元", "引用", "quote"),
+        question_type="citation_required",
+        preferred_doc_types=("quote_tree_doc", "bookmark_doc", "tweet_doc"),
+        required_feature="quote_context",
+        expected_route="quote_context",
+        expected_answerability_status="answerable",
+        min_answer_citations=1,
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="AさんとBさんのAI観の違いを保存投稿の見解から比較して",
+        required_any_terms=("AI", "違い", "比較", "見解", "発言"),
+        question_type="comparison",
+        preferred_doc_types=("author_profile", "bookmark_doc", "tweet_doc"),
+        expected_route="author_stance",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="同じ話で反対意見や矛盾している保存投稿はある？",
+        required_any_terms=("反対", "矛盾", "同じ話", "contradict", "support"),
+        question_type="contradiction_support",
+        preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        expected_route="current_fact_check",
+        expected_stop_reasons=(
+            "external_context_needed",
+            "no_local_evidence",
+            "enough_evidence",
+        ),
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="同じテーマで古くなった情報と新しい情報を比較して",
+        required_any_terms=("古い", "新しい", "最近", "更新"),
+        question_type="temporal_freshness",
+        preferred_doc_types=("tweet_doc", "bookmark_doc"),
+        required_feature="freshness",
+        expected_route="current_fact_check",
+        expected_stop_reasons=("external_context_needed", "no_local_evidence"),
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="画像付きで保存した技術資料っぽい投稿を出して",
+        required_any_terms=("画像", "資料", "技術", "media", "photo"),
+        question_type="media_grounded",
+        preferred_doc_types=("media_doc", "bookmark_doc"),
+        required_feature="media_context",
+        expected_route="media_context",
+    ),
+    EvalCase(
+        query="alt_textがない保存画像でも元tweetと一緒に候補として出して",
+        required_any_terms=("画像", "tweet", "media", "photo"),
+        question_type="media_grounded",
+        preferred_doc_types=("media_doc", "bookmark_doc", "tweet_doc"),
+        required_feature="media_context",
+        expected_route="media_context",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="引用tweetの中にある画像付き投稿を引用関係ごと出して",
+        required_any_terms=("引用", "画像", "quote", "media"),
+        question_type="media_grounded",
+        preferred_doc_types=("media_doc", "quote_tree_doc", "bookmark_doc"),
+        required_feature="media_context",
+        expected_route="media_context",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="複数アカウントで重複保存している画像付き投稿を出して",
+        required_any_terms=("重複", "複数", "画像", "media"),
+        question_type="media_grounded",
+        preferred_doc_types=("media_doc", "bookmark_doc"),
+        required_feature="media_context",
+        expected_route="media_context",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="画像hitはあるがOCRやcaptionがないなら内容を断定せず候補として出して",
+        required_any_terms=("画像", "OCR", "caption", "候補", "media"),
+        question_type="media_grounded",
+        preferred_doc_types=("media_doc", "bookmark_doc"),
+        required_feature="media_context",
+        expected_route="media_context",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="日本語で聞くけど保存した英語論文や公式docsから強化学習の資料を出して",
+        required_any_terms=("English", "paper", "docs", "強化学習", "資料"),
+        question_type="multilingual_source",
+        preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
+        expected_route="learning_map",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="イベント系で日付が近いものだけ出して",
+        required_any_terms=("イベント", "開催", "日付", "期限", "予約"),
+        question_type="single_fact_conditioned",
+        preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        required_feature="event_dates",
+        expected_route="event_recall",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="複数アカウントで重複して保存しているテーマを出して",
+        required_any_terms=("重複", "複数", "アカウント"),
+        question_type="aggregation_count_rank",
+        preferred_doc_types=("bookmark_doc", "tweet_doc"),
+        required_feature="cross_account",
+        expected_route="cross_account",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="DB 全体で最近増えている関心領域を出して",
+        required_any_terms=("関心", "領域", "最近", "保存"),
+        question_type="aggregation_count_rank",
+        preferred_doc_types=("tweet_doc", "bookmark_doc"),
+        required_feature="recent",
+        expected_route="learning_map",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="強化学習、ロボット、ネットワークを勉強順に整理して",
+        required_any_terms=("強化学習", "ロボット", "ネットワーク", "勉強", "整理"),
+        question_type="exploratory_map",
+        preferred_doc_types=("topic_thread", "bookmark_doc", "tweet_doc"),
+        expected_route="learning_map",
+        min_hit_score=0.5,
+    ),
+    EvalCase(
+        query="保存したはずのZZZ_NO_SUCH_TOPIC_6f3aを出して。なければないと言って",
+        required_any_terms=("ZZZ_NO_SUCH_TOPIC_6f3a",),
+        question_type="abstention_false_premise",
+        expected_route="local_memory_search",
+        expected_stop_reasons=("no_local_evidence",),
+        expected_answerability_status="unanswerable",
+        min_answer_citations=0,
+        min_hit_score=0.0,
+    ),
+)
+
+
+def load_eval_cases(path: str | Path) -> tuple[EvalCase, ...]:
+    case_path = Path(path)
+    text = case_path.read_text(encoding="utf-8")
+    if case_path.suffix.lower() == ".jsonl":
+        records = [
+            json.loads(line)
+            for line in text.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    else:
+        payload = json.loads(text)
+        records = payload.get("cases", payload) if isinstance(payload, dict) else payload
+    if not isinstance(records, list):
+        raise ValueError("eval cases file must contain a JSON list or an object with a cases list")
+    return tuple(_eval_case_from_mapping(record) for record in records)
+
+
+@dataclass(frozen=True)
+class MemoryEvalResult:
+    query: str
+    question_type: str
+    fixture_family: str | None
+    status: str
+    route: str
+    expected_route: str | None
+    stop_reason: str
+    hits: int
+    context_chunks: int
+    first_doc_id: str | None
+    best_score: float
+    matched_terms: tuple[str, ...]
+    retrieval_engines: tuple[str, ...]
+    source_kinds: tuple[str, ...]
+    answer_status: str | None
+    answerability_status: str | None
+    answer_citations: int
+    searched_after_sufficient_evidence: bool
+    redundant_search_count: int
+    unique_evidence_count: int
+    duplicate_support_count: int
+    stale_support_count: int
+    not_evidence_support_count: int
+    non_ready_citation_count: int
+    dedup_lineage_policy_violation_count: int
+    dedup_lineage_policy_actions: tuple[str, ...]
+    provider_free_fixture: bool
+    quality_scope: str | None
+    notes: tuple[str, ...]
+
+    @property
+    def ok(self) -> bool:
+        return self.status == "ok"
+
+
+def run_memory_eval(
+    db_path: str | Path,
+    *,
+    cases: tuple[EvalCase, ...] | None = None,
+    limit: int = 3,
+    semantic_provider: str | None = None,
+    semantic_model: str | None = None,
+    semantic_dimensions: int | None = None,
+    semantic_profile: str | None = None,
+    semantic_template_version: str | None = None,
+    semantic_api_key_env: str | None = None,
+    semantic_base_url: str | None = None,
+    semantic_weight: float = 3.0,
+    semantic_candidates: int = 80,
+    semantic_backend: str = "sqlite",
+    answer_provider: str = "fake",
+    answer_model: str | None = None,
+    answer_api_key_env: str | None = None,
+    answer_base_url: str | None = None,
+    answer_timeout_seconds: float = 90.0,
+) -> tuple[MemoryEvalResult, ...]:
+    results = []
+    for case in cases or DEFAULT_EVAL_CASES:
+        workflow = run_memory_workflow(
+            db_path,
+            case.query,
+            limit=limit,
+            semantic_provider=semantic_provider,
+            semantic_model=semantic_model,
+            semantic_dimensions=semantic_dimensions,
+            semantic_profile=semantic_profile,
+            semantic_template_version=semantic_template_version,
+            semantic_api_key_env=semantic_api_key_env,
+            semantic_base_url=semantic_base_url,
+            semantic_weight=semantic_weight,
+            semantic_candidates=semantic_candidates,
+            semantic_backend=semantic_backend,
+            answer_provider=answer_provider,
+            answer_model=answer_model,
+            answer_api_key_env=answer_api_key_env,
+            answer_base_url=answer_base_url,
+            answer_timeout_seconds=answer_timeout_seconds,
+            store=False,
+        )
+        hits = workflow.context_bundle.retrieved_hits if workflow.context_bundle else []
+        results.append(_evaluate_case(case, workflow, hits))
+    return tuple(results)
+
+
+def eval_results_json(results: tuple[MemoryEvalResult, ...]) -> str:
+    return json.dumps(
+        [asdict(result) for result in results],
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+
+
+def store_memory_eval_results(
+    db_path: str | Path,
+    results: tuple[MemoryEvalResult, ...],
+    *,
+    parameters: dict[str, Any],
+    cases_path: str | None = None,
+    run_id: str | None = None,
+) -> str:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    now = _utc_now()
+    resolved_run_id = run_id or _eval_run_id(results, parameters, now)
+    counts = {
+        "ok": sum(1 for result in results if result.status == "ok"),
+        "needs_review": sum(1 for result in results if result.status == "needs_review"),
+        "fail": sum(1 for result in results if result.status == "fail"),
+    }
+    status = "fail" if counts["fail"] else "needs_review" if counts["needs_review"] else "ok"
+    with sqlite3.connect(path, timeout=60) as conn:
+        ensure_memory_schema(conn)
+        conn.execute(
+            """
+            INSERT INTO memory_eval_runs (
+                run_id, cases_path, case_count, parameters_json, status,
+                ok_count, needs_review_count, fail_count, started_at, finished_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+                parameters_json=excluded.parameters_json,
+                status=excluded.status,
+                ok_count=excluded.ok_count,
+                needs_review_count=excluded.needs_review_count,
+                fail_count=excluded.fail_count,
+                finished_at=excluded.finished_at
+            """,
+            (
+                resolved_run_id,
+                cases_path,
+                len(results),
+                json.dumps(parameters, ensure_ascii=False, sort_keys=True),
+                status,
+                counts["ok"],
+                counts["needs_review"],
+                counts["fail"],
+                now,
+                now,
+            ),
+        )
+        conn.execute("DELETE FROM memory_eval_results WHERE run_id = ?", (resolved_run_id,))
+        for index, result in enumerate(results):
+            conn.execute(
+                """
+                INSERT INTO memory_eval_results (
+                    result_id, run_id, case_index, query, status, route,
+                    expected_route, stop_reason, hits, context_chunks, first_doc_id,
+                    best_score, matched_terms_json, retrieval_engines_json,
+                    source_kinds_json, answer_status, answer_citations,
+                    notes_json, metadata_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    _eval_result_id(resolved_run_id, index, result),
+                    resolved_run_id,
+                    index,
+                    result.query,
+                    result.status,
+                    result.route,
+                    result.expected_route,
+                    result.stop_reason,
+                    result.hits,
+                    result.context_chunks,
+                    result.first_doc_id,
+                    result.best_score,
+                    json.dumps(result.matched_terms, ensure_ascii=False),
+                    json.dumps(result.retrieval_engines, ensure_ascii=False),
+                    json.dumps(result.source_kinds, ensure_ascii=False),
+                    result.answer_status,
+                    result.answer_citations,
+                    json.dumps(result.notes, ensure_ascii=False),
+                    json.dumps(asdict(result), ensure_ascii=False, sort_keys=True),
+                    now,
+                ),
+            )
+    return resolved_run_id
+
+
+def list_memory_eval_runs(db_path: str | Path, *, limit: int = 20) -> tuple[dict[str, Any], ...]:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        rows = conn.execute(
+            """
+            SELECT
+                run_id, cases_path, case_count, status,
+                ok_count, needs_review_count, fail_count,
+                started_at, finished_at, parameters_json
+            FROM memory_eval_runs
+            ORDER BY finished_at DESC, run_id DESC
+            LIMIT ?
+            """,
+            (max(1, limit),),
+        ).fetchall()
+    return tuple(_eval_run_row(row) for row in rows)
+
+
+def load_memory_eval_run(db_path: str | Path, run_id: str) -> dict[str, Any]:
+    path = Path(db_path)
+    if not path.exists():
+        raise FileNotFoundError(f"database not found: {path}")
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_memory_schema(conn)
+        run = conn.execute(
+            """
+            SELECT
+                run_id, cases_path, case_count, status,
+                ok_count, needs_review_count, fail_count,
+                started_at, finished_at, parameters_json
+            FROM memory_eval_runs
+            WHERE run_id = ?
+            """,
+            (run_id,),
+        ).fetchone()
+        if run is None:
+            raise RuntimeError(f"memory eval run not found: {run_id}")
+        results = conn.execute(
+            """
+            SELECT
+                case_index, query, status, route, expected_route, stop_reason,
+                hits, context_chunks, first_doc_id, best_score,
+                matched_terms_json, retrieval_engines_json, source_kinds_json,
+                answer_status, answer_citations, notes_json, metadata_json, created_at
+            FROM memory_eval_results
+            WHERE run_id = ?
+            ORDER BY case_index
+            """,
+            (run_id,),
+        ).fetchall()
+    return {
+        "run": _eval_run_row(run),
+        "results": [_eval_result_row(row) for row in results],
+    }
+
+
+def eval_runs_json(runs: tuple[dict[str, Any], ...]) -> str:
+    return json.dumps(list(runs), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def eval_run_json(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def format_eval_runs(runs: tuple[dict[str, Any], ...]) -> str:
+    if not runs:
+        return "(no stored memory eval runs)"
+    lines = []
+    for run in runs:
+        lines.append(
+            " ".join(
+                [
+                    run["run_id"],
+                    f"status={run['status']}",
+                    f"cases={run['case_count']}",
+                    f"ok={run['ok_count']}",
+                    f"review={run['needs_review_count']}",
+                    f"fail={run['fail_count']}",
+                    f"finished={run['finished_at']}",
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
+def format_eval_run(payload: dict[str, Any]) -> str:
+    run = payload["run"]
+    lines = [
+        (
+            f"run: {run['run_id']} status={run['status']} cases={run['case_count']} "
+            f"ok={run['ok_count']} review={run['needs_review_count']} fail={run['fail_count']}"
+        ),
+        f"finished: {run['finished_at']}",
+        f"cases_path: {run.get('cases_path') or '-'}",
+        "results:",
+    ]
+    for result in payload["results"]:
+        notes = "; ".join(result["notes"]) if result["notes"] else "-"
+        lines.append(
+            "  "
+            f"#{result['case_index']} {result['status']} route={result['route']} "
+            f"type={result.get('question_type') or '-'} "
+            f"answerability={result.get('answerability_status') or '-'} "
+            f"redundant_search={result.get('redundant_search_count', 0)} "
+            f"unique_evidence={result.get('unique_evidence_count', 0)} "
+            f"duplicate_support={result.get('duplicate_support_count', 0)} "
+            f"dedup_policy_violations="
+            f"{result.get('dedup_lineage_policy_violation_count', 0)} "
+            f"stop={result['stop_reason']} best={result['best_score']:.2f} "
+            f"first={result.get('first_doc_id') or '-'} notes={notes}"
+        )
+    return "\n".join(lines)
+
+
+def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
+    lines = []
+    for result in results:
+        notes = f" notes={'; '.join(result.notes)}" if result.notes else ""
+        terms = ",".join(result.matched_terms[:6]) if result.matched_terms else "-"
+        lines.append(
+            f"{result.status}: route={result.route} stop={result.stop_reason} "
+            f"type={result.question_type} "
+            f"hits={result.hits} chunks={result.context_chunks} best={result.best_score:.2f} "
+            f"answer={result.answer_status or '-'} "
+            f"answerability={result.answerability_status or '-'} "
+            f"citations={result.answer_citations} "
+            f"redundant_search={result.redundant_search_count} "
+            f"unique_evidence={result.unique_evidence_count} "
+            f"duplicate_support={result.duplicate_support_count} "
+            f"stale_support={result.stale_support_count} "
+            f"not_evidence={result.not_evidence_support_count} "
+            f"dedup_policy_violations={result.dedup_lineage_policy_violation_count} "
+            f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
+        )
+    return "\n".join(lines)
+
+
+def _eval_case_from_mapping(record: Any) -> EvalCase:
+    if not isinstance(record, dict):
+        raise ValueError("each eval case must be a JSON object")
+    query = record.get("query")
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("each eval case requires a non-empty query")
+    question_type = str(record.get("question_type") or "single_fact_conditioned")
+    if question_type not in known_question_type_ids():
+        raise ValueError(f"unknown question_type: {question_type}")
+    return EvalCase(
+        query=query,
+        required_any_terms=_tuple_field(record, "required_any_terms"),
+        question_type=question_type,
+        fixture_family=_optional_string(record.get("fixture_family")),
+        preferred_doc_types=_tuple_field(record, "preferred_doc_types"),
+        required_feature=_optional_string(record.get("required_feature")),
+        expected_route=_optional_string(record.get("expected_route")),
+        expected_stop_reasons=_tuple_field(record, "expected_stop_reasons"),
+        expected_answerability_status=_expected_answerability_status(record),
+        min_answer_citations=_optional_non_negative_int(record, "min_answer_citations"),
+        required_source_kinds=_tuple_field(record, "required_source_kinds"),
+        require_citation_ready=_optional_bool(
+            record,
+            "require_citation_ready",
+            default=False,
+        ),
+        allow_search_after_sufficient_evidence=_optional_bool(
+            record,
+            "allow_search_after_sufficient_evidence",
+            default=True,
+        ),
+        max_redundant_search_count=_optional_non_negative_int(
+            record,
+            "max_redundant_search_count",
+        ),
+        expected_unique_evidence_count=_optional_non_negative_int(
+            record,
+            "expected_unique_evidence_count",
+        ),
+        max_duplicate_support_count=_optional_non_negative_int(
+            record,
+            "max_duplicate_support_count",
+        ),
+        require_provenance_preserved=_optional_bool(
+            record,
+            "require_provenance_preserved",
+            default=False,
+        ),
+        forbid_duplicate_citation_support=_optional_bool(
+            record,
+            "forbid_duplicate_citation_support",
+            default=False,
+        ),
+        forbid_stale_evidence_support=_optional_bool(
+            record,
+            "forbid_stale_evidence_support",
+            default=False,
+        ),
+        forbid_not_evidence_support=_optional_bool(
+            record,
+            "forbid_not_evidence_support",
+            default=True,
+        ),
+        provider_free_fixture=_optional_bool(
+            record,
+            "provider_free_fixture",
+            default=False,
+        ),
+        quality_scope=_optional_string(record.get("quality_scope")),
+        expected_dedup_lineage_policy=_optional_string(
+            record.get("expected_dedup_lineage_policy")
+        ),
+        min_hit_score=float(record.get("min_hit_score", 1.0)),
+    )
+
+
+def _eval_run_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "run_id": row["run_id"],
+        "cases_path": row["cases_path"],
+        "case_count": int(row["case_count"]),
+        "status": row["status"],
+        "ok_count": int(row["ok_count"]),
+        "needs_review_count": int(row["needs_review_count"]),
+        "fail_count": int(row["fail_count"]),
+        "started_at": row["started_at"],
+        "finished_at": row["finished_at"],
+        "parameters": _loads_json(row["parameters_json"]),
+    }
+
+
+def _eval_result_row(row: sqlite3.Row) -> dict[str, Any]:
+    metadata = _loads_json(row["metadata_json"])
+    return {
+        "case_index": int(row["case_index"]),
+        "query": row["query"],
+        "question_type": metadata.get(
+            "question_type",
+            "single_fact_conditioned",
+        ),
+        "fixture_family": metadata.get("fixture_family"),
+        "status": row["status"],
+        "route": row["route"],
+        "expected_route": row["expected_route"],
+        "stop_reason": row["stop_reason"],
+        "hits": int(row["hits"]),
+        "context_chunks": int(row["context_chunks"]),
+        "first_doc_id": row["first_doc_id"],
+        "best_score": float(row["best_score"]),
+        "matched_terms": _loads_json_array(row["matched_terms_json"]),
+        "retrieval_engines": _loads_json_array(row["retrieval_engines_json"]),
+        "source_kinds": _loads_json_array(row["source_kinds_json"]),
+        "answer_status": row["answer_status"],
+        "answerability_status": metadata.get("answerability_status"),
+        "answer_citations": int(row["answer_citations"]),
+        "searched_after_sufficient_evidence": bool(
+            metadata.get("searched_after_sufficient_evidence")
+        ),
+        "redundant_search_count": int(
+            metadata.get("redundant_search_count") or 0
+        ),
+        "unique_evidence_count": int(metadata.get("unique_evidence_count") or 0),
+        "duplicate_support_count": int(metadata.get("duplicate_support_count") or 0),
+        "stale_support_count": int(metadata.get("stale_support_count") or 0),
+        "not_evidence_support_count": int(
+            metadata.get("not_evidence_support_count") or 0
+        ),
+        "non_ready_citation_count": int(metadata.get("non_ready_citation_count") or 0),
+        "dedup_lineage_policy_violation_count": int(
+            metadata.get("dedup_lineage_policy_violation_count") or 0
+        ),
+        "dedup_lineage_policy_actions": _json_array_from_value(
+            metadata.get("dedup_lineage_policy_actions")
+        ),
+        "provider_free_fixture": bool(metadata.get("provider_free_fixture")),
+        "quality_scope": metadata.get("quality_scope"),
+        "notes": _loads_json_array(row["notes_json"]),
+        "metadata": metadata,
+        "created_at": row["created_at"],
+    }
+
+
+def _loads_json(value: str | None) -> dict[str, Any]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _loads_json_array(value: str | None) -> list[Any]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _json_array_from_value(value: Any) -> list[Any]:
+    return list(value) if isinstance(value, list | tuple) else []
+
+
+def _tuple_field(record: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = record.get(key, ())
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, list | tuple):
+        return tuple(str(item) for item in value if str(item))
+    raise ValueError(f"{key} must be a string or list of strings")
+
+
+def _optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _expected_answerability_status(record: dict[str, Any]) -> str | None:
+    status = _optional_string(record.get("expected_answerability_status"))
+    if status is None:
+        return None
+    normalized = status.casefold()
+    if normalized not in ALLOWED_ANSWERABILITY_STATUSES:
+        raise ValueError(
+            "expected_answerability_status must be one of: "
+            f"{', '.join(sorted(ALLOWED_ANSWERABILITY_STATUSES))}"
+        )
+    return normalized
+
+
+def _optional_non_negative_int(record: dict[str, Any], key: str) -> int | None:
+    value = record.get(key)
+    if value is None:
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{key} must be a non-negative integer") from exc
+    if number < 0:
+        raise ValueError(f"{key} must be a non-negative integer")
+    return number
+
+
+def _optional_bool(record: dict[str, Any], key: str, *, default: bool) -> bool:
+    value = record.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        normalized = value.strip().casefold()
+        if normalized in {"true", "1", "yes"}:
+            return True
+        if normalized in {"false", "0", "no"}:
+            return False
+    raise ValueError(f"{key} must be a boolean")
+
+
+@dataclass(frozen=True)
+class _QualityGateMetrics:
+    unique_evidence_count: int
+    duplicate_support_count: int
+    stale_support_count: int
+    not_evidence_support_count: int
+    non_ready_citation_count: int
+    duplicate_provenance_preserved: bool
+    dedup_lineage_policy_notes: tuple[str, ...]
+    dedup_lineage_policy_actions: tuple[str, ...]
+    provider_free_fixture: bool
+    quality_scope: str | None
+
+
+def _contract_notes(
+    case: EvalCase,
+    *,
+    answerability_status: str | None,
+    answer_citations: int,
+    cited_source_kinds: tuple[str, ...],
+    citation_restoration_notes: tuple[str, ...],
+    searched_after_sufficient_evidence: bool,
+    redundant_search_count: int,
+    quality_metrics: _QualityGateMetrics,
+) -> list[str]:
+    notes: list[str] = []
+    notes.extend(citation_restoration_notes)
+    if (
+        case.expected_answerability_status is not None
+        and answerability_status != case.expected_answerability_status
+    ):
+        notes.append(
+            "answerability mismatch: expected "
+            f"{case.expected_answerability_status}, got {answerability_status or '-'}"
+        )
+    if (
+        case.min_answer_citations is not None
+        and answer_citations < case.min_answer_citations
+    ):
+        notes.append(
+            "answer citations below threshold "
+            f"{case.min_answer_citations}: got {answer_citations}"
+        )
+    missing_source_kinds = tuple(
+        source_kind
+        for source_kind in case.required_source_kinds
+        if source_kind not in cited_source_kinds
+    )
+    if missing_source_kinds:
+        notes.append(
+            "required source kind missing from answer citations: "
+            f"{', '.join(missing_source_kinds)}"
+        )
+    if (
+        not case.allow_search_after_sufficient_evidence
+        and searched_after_sufficient_evidence
+    ):
+        notes.append("searched after sufficient evidence")
+    if (
+        case.max_redundant_search_count is not None
+        and redundant_search_count > case.max_redundant_search_count
+    ):
+        notes.append(
+            "redundant search count above threshold "
+            f"{case.max_redundant_search_count}: got {redundant_search_count}"
+        )
+    if (
+        case.expected_unique_evidence_count is not None
+        and quality_metrics.unique_evidence_count != case.expected_unique_evidence_count
+    ):
+        notes.append(
+            "unique evidence count mismatch: expected "
+            f"{case.expected_unique_evidence_count}, got "
+            f"{quality_metrics.unique_evidence_count}"
+        )
+    if (
+        case.max_duplicate_support_count is not None
+        and quality_metrics.duplicate_support_count > case.max_duplicate_support_count
+    ):
+        notes.append(
+            "duplicate support count above threshold "
+            f"{case.max_duplicate_support_count}: got "
+            f"{quality_metrics.duplicate_support_count}"
+        )
+    if case.forbid_duplicate_citation_support and quality_metrics.duplicate_support_count:
+        notes.append(
+            "duplicate citation support forbidden: "
+            f"got {quality_metrics.duplicate_support_count}"
+        )
+    if (
+        case.require_provenance_preserved
+        and quality_metrics.duplicate_support_count
+        and not quality_metrics.duplicate_provenance_preserved
+    ):
+        notes.append("duplicate provenance not preserved")
+    if case.forbid_stale_evidence_support and quality_metrics.stale_support_count:
+        notes.append(
+            "stale evidence support forbidden: "
+            f"got {quality_metrics.stale_support_count}"
+        )
+    if case.forbid_not_evidence_support and quality_metrics.not_evidence_support_count:
+        notes.append(
+            "not-evidence support forbidden: "
+            f"got {quality_metrics.not_evidence_support_count}"
+        )
+    if case.require_citation_ready and quality_metrics.non_ready_citation_count:
+        notes.append(
+            "citation support not ready: "
+            f"got {quality_metrics.non_ready_citation_count}"
+        )
+    notes.extend(quality_metrics.dedup_lineage_policy_notes)
+    if (
+        quality_metrics.provider_free_fixture
+        and quality_metrics.quality_scope != "boundary_wiring_not_model_quality"
+    ):
+        notes.append(
+            "provider-free fixture missing boundary-only quality scope: "
+            f"{quality_metrics.quality_scope or '-'}"
+        )
+    return notes
+
+
+def _evaluate_case(
+    case: EvalCase,
+    workflow: MemoryWorkflow,
+    hits: list[dict],
+) -> MemoryEvalResult:
+    notes: list[str] = []
+    source_kinds = _source_kinds(workflow)
+    context_chunks = len(workflow.context_bundle.context_chunks) if workflow.context_bundle else 0
+    answerability_status = _answerability_status(workflow)
+    answer_citations = len(workflow.answer.citation_annotations) if workflow.answer else 0
+    cited_source_kinds = _cited_source_kinds(workflow)
+    citation_restoration_notes = _citation_restoration_notes(workflow)
+    searched_after_sufficient_evidence = _searched_after_sufficient_evidence(workflow)
+    redundant_search_count = _redundant_search_count(workflow)
+    quality_metrics = _quality_gate_metrics(case, workflow)
+    if case.expected_route and workflow.route != case.expected_route:
+        notes.append(f"route mismatch: expected {case.expected_route}, got {workflow.route}")
+    if case.expected_stop_reasons and workflow.stop_reason not in case.expected_stop_reasons:
+        notes.append(
+            "stop reason mismatch: expected "
+            f"{', '.join(case.expected_stop_reasons)}, got {workflow.stop_reason}"
+        )
+    notes.extend(
+        _contract_notes(
+            case,
+            answerability_status=answerability_status,
+            answer_citations=answer_citations,
+            cited_source_kinds=cited_source_kinds,
+            citation_restoration_notes=citation_restoration_notes,
+            searched_after_sufficient_evidence=searched_after_sufficient_evidence,
+            redundant_search_count=redundant_search_count,
+            quality_metrics=quality_metrics,
+        )
+    )
+    if not hits:
+        expected_no_evidence = (
+            workflow.stop_reason == "no_local_evidence"
+            and "no_local_evidence" in case.expected_stop_reasons
+        )
+        if expected_no_evidence:
+            notes.append("expected no local evidence")
+            status = "ok"
+            if any(
+                note.startswith("route mismatch")
+                or note.startswith("stop reason mismatch")
+                or _is_contract_failure_note(note)
+                for note in notes
+            ):
+                status = "fail"
+        else:
+            notes.append("no hits")
+            status = "fail"
+        return MemoryEvalResult(
+            query=case.query,
+            question_type=case.question_type,
+            fixture_family=case.fixture_family,
+            status=status,
+            route=workflow.route,
+            expected_route=case.expected_route,
+            stop_reason=workflow.stop_reason,
+            hits=0,
+            context_chunks=context_chunks,
+            first_doc_id=None,
+            best_score=0.0,
+            matched_terms=(),
+            retrieval_engines=(),
+            source_kinds=source_kinds,
+            answer_status=workflow.answer.status if workflow.answer else None,
+            answerability_status=answerability_status,
+            answer_citations=answer_citations,
+            searched_after_sufficient_evidence=searched_after_sufficient_evidence,
+            redundant_search_count=redundant_search_count,
+            unique_evidence_count=quality_metrics.unique_evidence_count,
+            duplicate_support_count=quality_metrics.duplicate_support_count,
+            stale_support_count=quality_metrics.stale_support_count,
+            not_evidence_support_count=quality_metrics.not_evidence_support_count,
+            non_ready_citation_count=quality_metrics.non_ready_citation_count,
+            dedup_lineage_policy_violation_count=len(
+                quality_metrics.dedup_lineage_policy_notes
+            ),
+            dedup_lineage_policy_actions=quality_metrics.dedup_lineage_policy_actions,
+            provider_free_fixture=quality_metrics.provider_free_fixture,
+            quality_scope=quality_metrics.quality_scope,
+            notes=tuple(notes),
+        )
+
+    first = hits[0]
+    best_score = float(first.get("score") or 0.0)
+    matched_terms = _matched_terms(hits)
+    preferred_found = any(hit.get("doc_type") in case.preferred_doc_types for hit in hits)
+    required_term_found = any(
+        _term_matches(term, hit)
+        for term in case.required_any_terms
+        for hit in hits
+    )
+    feature_found = _feature_found(case.required_feature, hits)
+
+    if not _valid_hit(first):
+        notes.append("first hit is missing compact evidence")
+    if best_score < case.min_hit_score:
+        notes.append(f"best score below threshold {case.min_hit_score:.1f}")
+    if case.preferred_doc_types and not preferred_found:
+        notes.append(f"preferred doc type missing: {', '.join(case.preferred_doc_types)}")
+    if case.required_any_terms and not required_term_found:
+        notes.append("required term family missing")
+    if case.required_feature and not feature_found:
+        notes.append(f"required feature missing: {case.required_feature}")
+    if workflow.status == "error":
+        notes.append(f"workflow error stop reason: {workflow.stop_reason}")
+    if workflow.answer is not None:
+        if workflow.answer.status != "ok":
+            notes.append(f"answer status is {workflow.answer.status}")
+        if hits and not workflow.answer.citation_annotations:
+            notes.append("answer has no citations")
+
+    status = "ok" if not notes else "needs_review"
+    if (
+        "first hit is missing compact evidence" in notes
+        or "required term family missing" in notes
+        or any(note.startswith("route mismatch") for note in notes)
+        or any(_is_contract_failure_note(note) for note in notes)
+    ):
+        status = "fail"
+
+    return MemoryEvalResult(
+        query=case.query,
+        question_type=case.question_type,
+        fixture_family=case.fixture_family,
+        status=status,
+        route=workflow.route,
+        expected_route=case.expected_route,
+        stop_reason=workflow.stop_reason,
+        hits=len(hits),
+        context_chunks=context_chunks,
+        first_doc_id=first.get("doc_id"),
+        best_score=best_score,
+        matched_terms=matched_terms,
+        retrieval_engines=_retrieval_engines(hits),
+        source_kinds=source_kinds,
+        answer_status=workflow.answer.status if workflow.answer else None,
+        answerability_status=answerability_status,
+        answer_citations=answer_citations,
+        searched_after_sufficient_evidence=searched_after_sufficient_evidence,
+        redundant_search_count=redundant_search_count,
+        unique_evidence_count=quality_metrics.unique_evidence_count,
+        duplicate_support_count=quality_metrics.duplicate_support_count,
+        stale_support_count=quality_metrics.stale_support_count,
+        not_evidence_support_count=quality_metrics.not_evidence_support_count,
+        non_ready_citation_count=quality_metrics.non_ready_citation_count,
+        dedup_lineage_policy_violation_count=len(
+            quality_metrics.dedup_lineage_policy_notes
+        ),
+        dedup_lineage_policy_actions=quality_metrics.dedup_lineage_policy_actions,
+        provider_free_fixture=quality_metrics.provider_free_fixture,
+        quality_scope=quality_metrics.quality_scope,
+        notes=tuple(notes),
+    )
+
+
+def _answerability_status(workflow: MemoryWorkflow) -> str | None:
+    if workflow.answer is None:
+        return None
+    answerability = workflow.answer.structured.get("answerability")
+    if not isinstance(answerability, dict):
+        return None
+    status = answerability.get("status")
+    return str(status) if status else None
+
+
+def _is_contract_failure_note(note: str) -> bool:
+    return (
+        note.startswith("answerability mismatch")
+        or note.startswith("answer citations below threshold")
+        or note.startswith("required source kind missing")
+        or note.startswith("citation source not restored")
+        or note.startswith("citation source mismatch")
+        or note.startswith("citation source missing")
+        or note == "searched after sufficient evidence"
+        or note.startswith("redundant search count above threshold")
+        or note.startswith("unique evidence count mismatch")
+        or note.startswith("duplicate support count above threshold")
+        or note.startswith("duplicate citation support forbidden")
+        or note.startswith("duplicate provenance not preserved")
+        or note.startswith("stale evidence support forbidden")
+        or note.startswith("not-evidence support forbidden")
+        or note.startswith("citation support not ready")
+        or note.startswith("dedup lineage policy")
+        or note.startswith("provider-free fixture missing boundary-only quality scope")
+    )
+
+
+def _searched_after_sufficient_evidence(workflow: MemoryWorkflow) -> bool:
+    audit = _stop_condition_audit(workflow)
+    return bool(audit.get("searched_after_sufficient_evidence"))
+
+
+def _redundant_search_count(workflow: MemoryWorkflow) -> int:
+    audit = _stop_condition_audit(workflow)
+    return int(audit.get("redundant_search_count") or 0)
+
+
+def _stop_condition_audit(workflow: MemoryWorkflow) -> dict[str, Any]:
+    audit = workflow.metadata.get("stop_condition_audit")
+    return audit if isinstance(audit, dict) else {}
+
+
+def _quality_gate_metrics(case: EvalCase, workflow: MemoryWorkflow) -> _QualityGateMetrics:
+    citations = _eval_citations(workflow)
+    dedup_records = _dedup_lineage_metadata_records(workflow)
+    duplicate_count = duplicate_evidence_count(citations)
+    duplicate_provenance_preserved = (
+        duplicate_count == 0
+        or any(citation_preserves_duplicate_provenance(citation) for citation in citations)
+    )
+    provider_free_fixture = case.provider_free_fixture or bool(
+        workflow.metadata.get("provider_free_fixture")
+    )
+    quality_scope = case.quality_scope
+    if quality_scope is None:
+        metadata_scope = workflow.metadata.get("quality_scope")
+        quality_scope = str(metadata_scope).strip() if metadata_scope else None
+    return _QualityGateMetrics(
+        unique_evidence_count=unique_evidence_count(citations),
+        duplicate_support_count=duplicate_count,
+        stale_support_count=sum(1 for citation in citations if citation_is_stale(citation)),
+        not_evidence_support_count=sum(
+            1 for citation in citations if citation_is_not_evidence(citation)
+        ),
+        non_ready_citation_count=sum(
+            1 for citation in citations if not citation_is_citation_ready(citation)
+        ),
+        duplicate_provenance_preserved=duplicate_provenance_preserved,
+        dedup_lineage_policy_notes=_dedup_lineage_policy_notes(case, dedup_records),
+        dedup_lineage_policy_actions=_dedup_lineage_policy_actions(dedup_records),
+        provider_free_fixture=provider_free_fixture,
+        quality_scope=quality_scope,
+    )
+
+
+def _eval_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:
+    if workflow.answer is not None:
+        return workflow.answer.citation_annotations
+    if workflow.context_bundle is not None:
+        return workflow.context_bundle.citation_annotations
+    return ()
+
+
+def _dedup_lineage_metadata_records(
+    workflow: MemoryWorkflow,
+) -> tuple[tuple[str, dict[str, Any]], ...]:
+    records: list[tuple[str, dict[str, Any]]] = []
+    if workflow.context_bundle is not None:
+        for chunk in workflow.context_bundle.context_chunks:
+            records.append((f"context_chunk:{chunk.chunk_id}", chunk.metadata))
+        for citation in workflow.context_bundle.citation_annotations:
+            records.append((f"context_citation:{citation.citation_id}", citation.metadata))
+    if workflow.answer is not None:
+        for citation in workflow.answer.citation_annotations:
+            records.append((f"answer_citation:{citation.citation_id}", citation.metadata))
+    return tuple(records)
+
+
+def _dedup_lineage_policy_actions(
+    records: tuple[tuple[str, dict[str, Any]], ...],
+) -> tuple[str, ...]:
+    actions: list[str] = []
+    for _, metadata in records:
+        action = _metadata_text(metadata, "dedup_lineage_policy_action")
+        if action and action not in actions:
+            actions.append(action)
+    return tuple(actions)
+
+
+def _dedup_lineage_policy_notes(
+    case: EvalCase,
+    records: tuple[tuple[str, dict[str, Any]], ...],
+) -> tuple[str, ...]:
+    expected_policy = case.expected_dedup_lineage_policy
+    if expected_policy is None:
+        return ()
+    if not records:
+        return ("dedup lineage policy metadata missing: no citation or context records",)
+    notes: list[str] = []
+    for surface, metadata in records:
+        notes.extend(
+            _dedup_lineage_policy_record_notes(
+                surface,
+                metadata,
+                expected_policy=expected_policy,
+            )
+        )
+    return tuple(notes)
+
+
+def _dedup_lineage_policy_record_notes(
+    surface: str,
+    metadata: dict[str, Any],
+    *,
+    expected_policy: str,
+) -> list[str]:
+    notes: list[str] = []
+    policy = _metadata_text(metadata, "dedup_lineage_policy")
+    if policy != expected_policy:
+        notes.append(
+            "dedup lineage policy mismatch on "
+            f"{surface}: expected {expected_policy}, got {policy or '-'}"
+        )
+    scope = _metadata_text(metadata, "dedup_lineage_policy_scope")
+    if scope != DEDUP_LINEAGE_POLICY_SCOPE:
+        notes.append(
+            "dedup lineage policy scope mismatch on "
+            f"{surface}: expected {DEDUP_LINEAGE_POLICY_SCOPE}, got {scope or '-'}"
+        )
+    source_hash_policy = _metadata_text(
+        metadata,
+        "dedup_lineage_source_hash_variant_policy",
+    )
+    if source_hash_policy != DEDUP_SOURCE_HASH_VARIANT_POLICY:
+        notes.append(
+            "dedup lineage source-hash variant policy mismatch on "
+            f"{surface}: expected {DEDUP_SOURCE_HASH_VARIANT_POLICY}, "
+            f"got {source_hash_policy or '-'}"
+        )
+    stale_policy = _metadata_text(metadata, "dedup_lineage_stale_variant_policy")
+    if stale_policy != DEDUP_STALE_VARIANT_POLICY:
+        notes.append(
+            "dedup lineage stale variant policy mismatch on "
+            f"{surface}: expected {DEDUP_STALE_VARIANT_POLICY}, got {stale_policy or '-'}"
+        )
+    conflict_policy = _metadata_text(metadata, "dedup_lineage_conflict_variant_policy")
+    if conflict_policy != DEDUP_CONFLICT_VARIANT_POLICY:
+        notes.append(
+            "dedup lineage conflict variant policy mismatch on "
+            f"{surface}: expected {DEDUP_CONFLICT_VARIANT_POLICY}, "
+            f"got {conflict_policy or '-'}"
+        )
+    action = _metadata_text(metadata, "dedup_lineage_policy_action")
+    if not action:
+        notes.append(f"dedup lineage policy action missing on {surface}")
+        return notes
+    if action not in _ALLOWED_DEDUP_LINEAGE_POLICY_ACTIONS:
+        notes.append(
+            "dedup lineage policy action invalid on "
+            f"{surface}: got {action}"
+        )
+        return notes
+    expected_action = _expected_dedup_lineage_policy_action(metadata)
+    if action != expected_action:
+        notes.append(
+            "dedup lineage policy action mismatch on "
+            f"{surface}: expected {expected_action}, got {action}"
+        )
+    return notes
+
+
+def _expected_dedup_lineage_policy_action(metadata: dict[str, Any]) -> str:
+    if (
+        _metadata_truthy(metadata.get("conflict_lineage_variant_present"))
+        or _metadata_text(metadata, "lineage_variant_warning") == "conflict"
+        or _metadata_text(metadata, "source_doc_hash_status") == "conflict"
+    ):
+        return DEDUP_CONFLICT_VARIANT_POLICY
+    if (
+        _metadata_truthy(metadata.get("stale_lineage_variant_present"))
+        or _metadata_text(metadata, "lineage_variant_warning") == "stale"
+        or _metadata_text(metadata, "freshness_status") == "stale"
+    ):
+        return DEDUP_STALE_VARIANT_POLICY
+    if _metadata_int(metadata.get("source_hash_variant_count")) > 1:
+        return DEDUP_SOURCE_HASH_VARIANT_POLICY
+    return "no_lineage_variant"
+
+
+def _metadata_text(metadata: dict[str, Any], key: str) -> str:
+    value = metadata.get(key)
+    return str(value).strip() if value is not None else ""
+
+
+def _metadata_truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return value != 0
+    if value is None:
+        return False
+    return str(value).strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
+def _metadata_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _valid_hit(hit: dict) -> bool:
+    evidence = hit.get("evidence") or {}
+    return bool(
+        hit.get("doc_id")
+        and hit.get("compact_text")
+        and (evidence.get("url") or hit.get("tweet_id"))
+    )
+
+
+def _matched_terms(hits: list[dict]) -> tuple[str, ...]:
+    terms: list[str] = []
+    for hit in hits:
+        for term in hit.get("matched_terms") or ():
+            if term not in terms:
+                terms.append(str(term))
+    return tuple(terms)
+
+
+def _term_matches(term: str, hit: dict) -> bool:
+    needle = term.casefold()
+    haystack = "\n".join(
+        [
+            str(hit.get("title") or ""),
+            str(hit.get("compact_text") or ""),
+            " ".join(str(value) for value in hit.get("matched_terms") or ()),
+            json.dumps(hit.get("evidence") or {}, ensure_ascii=False),
+        ]
+    ).casefold()
+    return needle in haystack
+
+
+def _feature_found(feature: str | None, hits: list[dict]) -> bool:
+    if feature is None:
+        return True
+    for hit in hits:
+        evidence = hit.get("evidence") or {}
+        if feature == "bookmark_context" and hit.get("doc_type") == "bookmark_doc":
+            return True
+        if feature == "quote_context" and evidence.get("quoted_tweets"):
+            return True
+        if feature == "media_context" and evidence.get("media"):
+            return True
+        if feature == "cross_account" and _bookmark_account_count(hit) > 1:
+            return True
+        if feature == "event_dates" and _term_matches("202", hit):
+            return True
+        if feature == "recent" and hit.get("freshness") == "recent":
+            return True
+        freshness_score = float((hit.get("score_components") or {}).get("freshness") or 0.0)
+        if feature == "freshness" and abs(freshness_score) > 0.0001:
+            return True
+        relation_counts = (hit.get("metadata") or {}).get("relation_counts") or {}
+        if feature == "freshness" and _has_freshness_relation(relation_counts):
+            return True
+    return False
+
+
+def _has_freshness_relation(relation_counts: dict[str, Any]) -> bool:
+    freshness_relations = (
+        "newer_than",
+        "older_than",
+        "older_same_author_label",
+        "obsolete_candidate",
+        "supports",
+        "contradicts",
+    )
+    for relation, count in relation_counts.items():
+        if str(relation).removeprefix("incoming:") not in freshness_relations:
+            continue
+        try:
+            if int(count or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def _bookmark_account_count(hit: dict) -> int:
+    evidence = hit.get("evidence") or {}
+    metadata_count = hit.get("bookmark_account_count")
+    if isinstance(metadata_count, int):
+        return metadata_count
+    account_id = evidence.get("account_id")
+    return 1 if account_id else 0
+
+
+def _retrieval_engines(hits: list[dict]) -> tuple[str, ...]:
+    engines: list[str] = []
+    for hit in hits:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        for contribution in metadata.get("engine_contributions") or ():
+            if not isinstance(contribution, dict):
+                continue
+            engine = str(contribution.get("engine") or "")
+            if engine and engine not in engines:
+                engines.append(engine)
+        why = str(hit.get("why_relevant") or "")
+        engine = why.split(" match:", 1)[0].strip()
+        if engine and engine not in engines:
+            engines.append(engine)
+    return tuple(engines)
+
+
+def _source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
+    if workflow.context_bundle is None:
+        return ()
+    kinds = sorted(
+        {
+            str(chunk.metadata.get("evidence_source_kind") or chunk.source_kind)
+            for chunk in workflow.context_bundle.context_chunks
+        }
+    )
+    return tuple(kinds)
+
+
+def _cited_source_kinds(workflow: MemoryWorkflow) -> tuple[str, ...]:
+    if workflow.answer is None:
+        return ()
+    return tuple(
+        sorted(
+            {
+                str(citation.source_kind)
+                for citation in workflow.answer.citation_annotations
+                if str(citation.source_kind).strip()
+            }
+        )
+    )
+
+
+def _citation_restoration_notes(workflow: MemoryWorkflow) -> tuple[str, ...]:
+    if workflow.answer is None:
+        return ()
+    chunk_by_id = {
+        chunk.chunk_id: chunk
+        for chunk in (
+            workflow.context_bundle.context_chunks if workflow.context_bundle else ()
+        )
+    }
+    notes: list[str] = []
+    for citation in workflow.answer.citation_annotations:
+        if not str(citation.source_kind).strip() or not str(citation.source_id).strip():
+            notes.append(f"citation source missing: {citation.citation_id}")
+            continue
+        chunk = chunk_by_id.get(citation.chunk_id)
+        if chunk is None:
+            notes.append(f"citation source not restored: {citation.citation_id}")
+            continue
+        if (
+            str(citation.source_kind) != str(chunk.source_kind)
+            or str(citation.source_id) != str(chunk.source_id)
+        ):
+            notes.append(f"citation source mismatch: {citation.citation_id}")
+    return tuple(notes)
+
+
+def _eval_run_id(
+    results: tuple[MemoryEvalResult, ...],
+    parameters: dict[str, Any],
+    created_at: str,
+) -> str:
+    payload = {
+        "created_at": created_at,
+        "parameters": parameters,
+        "queries": [result.query for result in results],
+        "statuses": [result.status for result in results],
+    }
+    return _hash_id("memory-eval-run", json.dumps(payload, ensure_ascii=False, sort_keys=True))[:24]
+
+
+def _eval_result_id(run_id: str, index: int, result: MemoryEvalResult) -> str:
+    return _hash_id("memory-eval-result", run_id, str(index), result.query, result.status)[:24]
+
+
+def _hash_id(*parts: str) -> str:
+    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
+
+
+def _utc_now() -> str:
+    return datetime.now(tz=UTC).isoformat(timespec="seconds")

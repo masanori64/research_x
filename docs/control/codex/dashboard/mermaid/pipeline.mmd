@@ -1,0 +1,26 @@
+%% control_artifact=true
+%% not_research_evidence=true
+%% not_citation=true
+%% not_answer_support=true
+%% generated_by=codex-hotl-implementation-pipeline
+%% foundation_manifest_sha256=7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566
+flowchart LR
+  intake["Intake"]
+  plan["Plan"]
+  implement["Implement"]
+  verify["Verify"]
+  review["Review"]
+  release_ready["Release Ready"]
+  done["Done"]
+  gated["Gated"]
+  intake --> plan
+  plan --> implement
+  implement --> verify
+  verify --> review
+  review --> release_ready
+  release_ready --> done
+  plan --> gated
+  implement --> gated
+  verify --> gated
+  note["control artifact / not evidence / not citation"]
+  note -.-> intake

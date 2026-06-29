@@ -1,0 +1,131 @@
+schema_version: 1
+control_artifact: true
+not_evidence: true
+not_project_evidence: true
+not_research_evidence: true
+not_citation: true
+not_answer_support: true
+generated_by: codex-hotl-implementation-pipeline
+foundation_manifest:
+  id: codex-hotl-implementation-pipeline
+  version: 0.1.0
+  path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
+  sha256: 7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566
+  exists: true
+artifact_kind: effective_profile
+project:
+  id: research_x
+  name: research_x
+  root: "C:\\Users\\maasa\\research_x"
+  domain: ai_callable_x_memory_search
+commands:
+  sync: uv sync
+  test: uv run pytest
+  lint: uv run ruff check src\research_x tests scripts
+constraints:
+  use_uv: true
+  no_quota_provider_freeze: true
+  forbid_control_artifacts_as_evidence: true
+  evidence_boundary: raw source != searchable document != search result != source bundle != context chunk != citation != answer
+  forbidden_external_actions:
+    - provider_api_quota
+    - secrets_credentials
+    - mcp_plugin_hook_enablement
+    - destructive_action
+    - irreversible_db_migration
+capabilities:
+  github_api_read: public_read_enabled
+  github_api_write: pages_static_cd_only
+  github_actions_wrappers: enabled
+  dashboard_artifact_cd: enabled
+  preview_cd: static_pages_lane_enabled
+  staging_cd: static_pages_lane_enabled
+  production_cd: static_pages_enabled
+  rollback_execution: safe_static_pages_enabled
+  github_pages: enabled_public_static
+  repository_settings_change: free_pages_source_setup_only
+  provider_api_calls: hard_blocked_paid
+  mcp_plugin_hook_enablement: outside_free_static_pages_cd
+control_artifacts:
+  output_root: docs/control/codex
+  generated_root: .codex-project/generated
+  not_evidence: true
+  not_research_evidence: true
+  not_citation: true
+  not_answer_support: true
+subagents:
+  owner: Codex foundation
+  raw_log_in_project: false
+  allowed_roles:
+    - impact_mapper
+    - pr_reviewer
+    - ci_log_auditor
+    - release_auditor
+  summaries:
+  policy:
+    schema_version: 1
+    control_artifact: true
+    not_evidence: true
+    not_project_evidence: true
+    not_research_evidence: true
+    not_citation: true
+    not_answer_support: true
+    generated_by: codex-hotl-implementation-pipeline
+    foundation_manifest:
+      id: codex-hotl-implementation-pipeline
+      version: 0.1.0
+      path: "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json"
+      sha256: 7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566
+      exists: true
+    artifact_kind: subagent_policy
+    owner: Codex foundation
+    raw_log_in_project: false
+    allowed_roles:
+      - impact_mapper
+      - pr_reviewer
+      - ci_log_auditor
+      - release_auditor
+    lifecycle:
+      mode: read_only
+      spawned_by_default: false
+      short_lived: true
+      parent_integrates_outputs: true
+    summary_contract:
+      schema: schema/subagent-report.schema.json
+      raw_logs_allowed: false
+      sanitized_summary_required: true
+      control_artifact: true
+      not_evidence: true
+      not_citation: true
+    forbidden_actions:
+      - commit
+      - push
+      - deploy
+      - rollback_execution
+      - github_api_mutation
+      - provider_api_quota
+      - secret_access
+      - mcp_plugin_hook_enablement
+      - destructive_action
+      - create_project_evidence
+    summaries:
+bridge:
+  path: "C:\\Users\\maasa\\research_x\\.codex-project\\bridge.yml"
+  outputs:
+    dashboard_dir: docs/control/codex/dashboard
+    generated_dir: .codex-project/generated
+    mermaid_dir: docs/control/codex/dashboard/mermaid
+  github:
+    mode: public_repo_pages_static_cd
+    api_enabled: public_read
+    repository: masanori64/research_x
+    default_branch: main
+project_boundary:
+  generic_pipeline_owner: Codex foundation
+  project_may_own_generic_engine: false
+  allowed_project_surfaces:
+    - .codex-project/profile.yml
+    - .codex-project/bridge.yml
+    - .codex-project/generated
+    - docs/control/codex
+    - thin wrappers after explicit gate
