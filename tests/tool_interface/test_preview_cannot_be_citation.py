@@ -23,6 +23,7 @@ CREATED_AT = "2026-06-27T00:00:00Z"
         "diagram_review",
         "compressed_summary",
         "html_structure_view",
+        "wbs_json",
         "wbs_rendered_view",
         "chatgpt_consultation",
         "gpt_pro_plan",

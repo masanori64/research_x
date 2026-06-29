@@ -42,6 +42,18 @@ def test_current_wbs_contains_no_historical_source_item_fields() -> None:
         assert meta["evidence_status"] == "not_evidence"
 
 
+def test_current_wbs_display_config_stays_out_of_runtime_leaves() -> None:
+    root = json.loads(WBS.read_text(encoding="utf-8"))
+    project = root["projects"][0]
+    project_text = json.dumps(project, ensure_ascii=False)
+
+    assert "holidays" in root
+    assert "holidays" not in project_text
+    for leaf in _leaf_tasks(project["tasks"]):
+        meta_text = json.dumps(leaf["_research_x"], ensure_ascii=False)
+        assert "holidays" not in meta_text
+
+
 def test_historical_candidate_and_codex_items_are_externalized() -> None:
     if not PRE_LAYER_WBS_ARCHIVE.exists() or not CODEX_FOUNDATION_WORK_STATE.exists():
         pytest.skip("Codex foundation work-state archives are outside the portable repository")

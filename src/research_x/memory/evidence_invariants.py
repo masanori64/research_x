@@ -66,6 +66,7 @@ NON_EVIDENCE_MARKERS = {
     "review_artifact",
     "review_capture",
     "structure_view",
+    "wbs_json",
     "wbs_rendered_view",
 }
 

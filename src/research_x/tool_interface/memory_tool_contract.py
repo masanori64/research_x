@@ -57,6 +57,7 @@ NON_EVIDENCE_RESTORE_MARKERS = {
     "preview",
     "review_artifact",
     "wbs",
+    "wbs_json",
     "wbs_rendered_view",
 }
 

@@ -17,6 +17,7 @@ NON_EVIDENCE_ARTIFACT_KINDS = (
     "diagram_review",
     "compressed_summary",
     "html_structure_view",
+    "wbs_json",
     "wbs_rendered_view",
     "chatgpt_consultation",
     "codex_review_capture",
