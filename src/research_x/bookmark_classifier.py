@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from research_x.contracts import XItem, utc_now
@@ -509,18 +510,27 @@ def _classifier_url(settings: BookmarkClassifierSettings) -> str:
 
 def _budget_provider_for_settings(settings: BookmarkClassifierSettings) -> str:
     api_key_env = settings.api_key_env.upper()
-    base_url = (settings.api_base_url or "").lower()
-    if "GEMINI" in api_key_env or "generativelanguage.googleapis.com" in base_url:
+    base_hostname = _api_base_hostname(settings.api_base_url)
+    if "GEMINI" in api_key_env or base_hostname == "generativelanguage.googleapis.com":
         return "gemini"
-    if "OPENAI" in api_key_env or "api.openai.com" in base_url:
+    if "OPENAI" in api_key_env or base_hostname == "api.openai.com":
         return "openai"
-    if "QWEN" in api_key_env or "dashscope" in base_url:
+    if "QWEN" in api_key_env or base_hostname.endswith(".aliyuncs.com"):
         return "qwen"
-    if "MOONSHOT" in api_key_env or "moonshot" in base_url:
+    if "MOONSHOT" in api_key_env or base_hostname.endswith(".moonshot.ai"):
         return "kimi"
-    if "ZHIPU" in api_key_env or "bigmodel" in base_url:
+    if "ZHIPU" in api_key_env or base_hostname == "open.bigmodel.cn":
         return "glm"
     return settings.provider
+
+
+def _api_base_hostname(api_base_url: str | None) -> str:
+    if not api_base_url:
+        return ""
+    parsed = urlparse(api_base_url)
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+    return (parsed.hostname or "").lower().rstrip(".")
 
 
 def _classification_item_payload(item: XItem, batch: tuple[XItem, ...]) -> dict[str, Any]:

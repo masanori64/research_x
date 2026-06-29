@@ -1579,14 +1579,41 @@ def _count_text_chars(value: Any) -> int:
 def _request_hash(value: Any | None) -> str | None:
     if value is None:
         return None
+    material = _request_fingerprint_material(value)
     return hashlib.sha256(
-        json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+        json.dumps(material, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8"),
+        usedforsecurity=False,
     ).hexdigest()
 
 
 def _event_id(*parts: object) -> str:
     payload = "|".join(str(part) for part in (*parts, uuid.uuid4().hex))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+    return hashlib.sha256(payload.encode("utf-8"), usedforsecurity=False).hexdigest()[:32]
+
+
+def _request_fingerprint_material(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return {"type": type(value).__name__}
+    if isinstance(value, str):
+        return {"type": "str", "length": len(value)}
+    if isinstance(value, bytes):
+        return {"type": "bytes", "length": len(value)}
+    if isinstance(value, dict):
+        return {
+            "type": "dict",
+            "items": {
+                str(key): _request_fingerprint_material(item)
+                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            },
+        }
+    if isinstance(value, (list, tuple, set)):
+        items = list(value)
+        return {
+            "type": type(value).__name__,
+            "length": len(items),
+            "items": [_request_fingerprint_material(item) for item in items[:20]],
+        }
+    return {"type": type(value).__name__, "repr_length": len(str(value))}
 
 
 def _clean_id(value: str) -> str:

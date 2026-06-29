@@ -13,7 +13,7 @@
       "checks": [
         {
           "name": "static_artifact_exists",
-          "status": "passed"
+          "status": "planned"
         },
         {
           "name": "not_evidence_notice",
@@ -24,25 +24,25 @@
           "status": "passed"
         }
       ],
-      "status": "passed"
+      "status": "planned"
     },
-    "restore_executed": true,
-    "status": "passed",
+    "restore_executed": false,
+    "status": "dry_run_plan",
     "would_restore_paths": [
       "docs/control/codex/dashboard/",
       ".codex-project/generated/"
     ]
   },
-  "dry_run": false,
+  "dry_run": true,
   "environment": "production",
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:58:50.263005+00:00",
+  "generated_at": "2026-06-29T06:17:10.061620+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "not_answer_support": true,
   "not_citation": true,
@@ -58,23 +58,23 @@
     "external_cloud_deploy",
     "research_evidence_write"
   ],
-  "rollback_executed": true,
+  "rollback_executed": false,
   "schema_version": 1,
   "scope": "safe_static_artifacts_only",
   "side_effects": {
     "db_migration": false,
     "db_restore": false,
     "destructive_action": false,
-    "files_mutated": true,
-    "production_deploy": true,
+    "files_mutated": false,
+    "production_deploy": false,
     "provider_api_calls": false,
-    "rollback_execution": true,
+    "rollback_execution": false,
     "secrets_changed": false
   },
   "target": {
-    "artifact_pointer": "https://masanori64.github.io/research_x/production/latest/",
+    "artifact_pointer": "docs/control/codex/dashboard/index.html",
     "reason": "Rollback is restricted to static Pages control artifacts and refuses provider, secret, DB, destructive, and evidence paths.",
-    "resolved": true,
+    "resolved": false,
     "selection_mode": "safe_static_pages",
     "strategy": "previous_known_good_static_pages_snapshot"
   }

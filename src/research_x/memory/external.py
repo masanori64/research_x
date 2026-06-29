@@ -522,24 +522,30 @@ def _run_id(
     material = {
         "provider": provider,
         "provider_role": provider_role,
-        "query": query,
+        "query_length": len(query),
         "endpoint": endpoint,
-        "parameters": parameters,
+        "parameters": _public_parameter_fingerprint(parameters),
         "retrieved_at": retrieved_at,
         "raw_hash": raw_hash,
     }
     return hashlib.sha256(
-        json.dumps(material, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        json.dumps(material, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+        usedforsecurity=False,
     ).hexdigest()[:24]
 
 
 def _item_id(run_id: str, item: ExternalEvidenceItem) -> str:
-    return hashlib.sha256(f"{run_id}\0{item.position}\0{item.url}".encode()).hexdigest()
+    safe_url = _url_identity_without_credentials(item.url)
+    return hashlib.sha256(
+        f"{run_id}\0{item.position}\0{safe_url}".encode(),
+        usedforsecurity=False,
+    ).hexdigest()
 
 
 def _json_hash(value: dict[str, Any]) -> str:
     return hashlib.sha256(
-        json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+        usedforsecurity=False,
     ).hexdigest()
 
 
@@ -550,6 +556,37 @@ def _utc_now() -> str:
 def _slug(value: str) -> str:
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
     return slug or "query"
+
+
+def _public_parameter_fingerprint(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return {"type": type(value).__name__}
+    if isinstance(value, str):
+        return {"type": "str", "length": len(value)}
+    if isinstance(value, dict):
+        return {
+            "type": "dict",
+            "items": {
+                str(key): _public_parameter_fingerprint(item)
+                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            },
+        }
+    if isinstance(value, (list, tuple, set)):
+        items = list(value)
+        return {
+            "type": type(value).__name__,
+            "length": len(items),
+            "items": [_public_parameter_fingerprint(item) for item in items[:20]],
+        }
+    return {"type": type(value).__name__, "repr_length": len(str(value))}
+
+
+def _url_identity_without_credentials(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    hostname = (parsed.hostname or "").lower()
+    port = f":{parsed.port}" if parsed.port is not None else ""
+    netloc = f"{hostname}{port}"
+    return urllib.parse.urlunsplit((parsed.scheme.lower(), netloc, parsed.path, "", ""))
 
 
 def _domain(url: str) -> str:

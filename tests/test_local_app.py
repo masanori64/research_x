@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from pathlib import Path
 from types import SimpleNamespace
 
 from research_x import local_app
@@ -317,3 +318,32 @@ def test_app_research_run_pages_surface_gap_and_citation_state(tmp_path) -> None
     assert "serp_flattening:" in detail_page
     assert "source_quality:" in detail_page
     assert "claim_support:" in detail_page
+
+
+def test_local_app_http_db_path_is_restricted_to_runs() -> None:
+    assert (
+        local_app._safe_local_app_db_path("runs/x_data.sqlite3")  # noqa: SLF001
+        == Path("runs/x_data.sqlite3")
+    )
+    assert (
+        local_app._safe_local_app_db_path("runs/nested/custom.db")  # noqa: SLF001
+        == Path("runs/nested/custom.db")
+    )
+    assert (
+        local_app._safe_local_app_db_path("../secret.sqlite3")  # noqa: SLF001
+        == Path(local_app.DEFAULT_DB_PATH)
+    )
+    assert (
+        local_app._safe_local_app_db_path("C:/Users/maasa/secret.sqlite3")  # noqa: SLF001
+        == Path(local_app.DEFAULT_DB_PATH)
+    )
+    assert (
+        local_app._safe_local_app_db_path("docs/control.json")  # noqa: SLF001
+        == Path(local_app.DEFAULT_DB_PATH)
+    )
+
+
+def test_local_app_redirect_job_id_rejects_header_breaks() -> None:
+    assert local_app._safe_redirect_job_id("job_123-ABC") == "job_123-ABC"  # noqa: SLF001
+    assert local_app._safe_redirect_job_id("job\r\nX-Test: injected") == ""  # noqa: SLF001
+    assert local_app._safe_redirect_job_id("../job") == ""  # noqa: SLF001

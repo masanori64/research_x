@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 
 from research_x.cli import main
+from research_x.memory import api_budget
 from research_x.memory.api_budget import (
     ApiBudgetExceededError,
     api_budget_context,
@@ -272,6 +273,19 @@ def test_api_budget_status_is_json_serializable(tmp_path: Path) -> None:
     payload = api_budget_status(db_path)
 
     assert json.dumps(payload, ensure_ascii=False)
+
+
+def test_api_budget_request_hash_uses_payload_shape_not_secret_value() -> None:
+    first = {"password": "alpha", "input": [{"text": "same"}]}
+    second = {"password": "bravo", "input": [{"text": "same"}]}
+    different_shape = {"password": "bravo", "input": [{"text": "same"}, {"text": "extra"}]}
+
+    assert first["password"] != second["password"]
+    assert api_budget._request_hash(first) == api_budget._request_hash(second)  # noqa: SLF001
+    assert (
+        api_budget._request_hash(second)  # noqa: SLF001
+        != api_budget._request_hash(different_shape)  # noqa: SLF001
+    )
 
 
 def test_api_budget_cli_accepts_db_after_nested_command(tmp_path: Path, capsys) -> None:

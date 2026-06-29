@@ -110,6 +110,25 @@ def test_bookmark_classifier_uses_gemini_openai_compatible_preset() -> None:
     assert request["provider_quality_proof"] is False
 
 
+def test_bookmark_classifier_budget_provider_uses_exact_hostname() -> None:
+    spoofed = BookmarkClassifierSettings(
+        provider="openai_compatible",
+        api_base_url="https://evil.example.test/proxy?next=api.openai.com",
+        api_key_env="CUSTOM_API_KEY",
+    )
+    openai = BookmarkClassifierSettings(
+        provider="openai_compatible",
+        api_base_url="https://api.openai.com/v1",
+        api_key_env="CUSTOM_API_KEY",
+    )
+
+    assert (
+        bookmark_classifier._budget_provider_for_settings(spoofed)  # noqa: SLF001
+        == "openai_compatible"
+    )
+    assert bookmark_classifier._budget_provider_for_settings(openai) == "openai"  # noqa: SLF001
+
+
 def test_write_bookmark_outputs_groups_by_genre(tmp_path) -> None:
     items = [_item("1", "LLM agent tips"), _item("2", "startup growth")]
     categories = default_bookmark_categories()

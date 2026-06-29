@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import shutil
 import sqlite3
 import threading
@@ -36,6 +37,11 @@ from research_x.memory.observability import (
 )
 from research_x.playwright_auth import capture_storage_state_auto, storage_state_has_x_auth_cookies
 from research_x.progress import ProgressSnapshot, progress_snapshot
+
+DEFAULT_DB_PATH = "runs/x_data.sqlite3"
+LOCAL_APP_DB_ROOT = Path("runs")
+LOCAL_APP_DB_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
+SAFE_REDIRECT_JOB_ID = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 
 
 @dataclass
@@ -505,12 +511,12 @@ def serve_collection_app(
                 return
             if parsed.path == "/api/budget":
                 params = parse_qs(parsed.query)
-                db = _first(params, "db") or "runs/x_data.sqlite3"
+                db = _safe_research_db_from_params(params)
                 self._json(api_budget_status(db))
                 return
             if parsed.path == "/results":
                 params = parse_qs(parsed.query)
-                db = _first(params, "db") or "runs/x_data.sqlite3"
+                db = _safe_research_db_from_params(params)
                 account = _first(params, "account") or None
                 kind = _first(params, "kind") or "bookmarks"
                 limit = int(_first(params, "limit") or "50")
@@ -518,14 +524,14 @@ def serve_collection_app(
                 return
             if parsed.path == "/research-runs":
                 params = parse_qs(parsed.query)
-                db = _first(params, "db") or "runs/x_data.sqlite3"
+                db = _safe_research_db_from_params(params)
                 kind = _first(params, "kind") or "all"
                 limit = int(_first(params, "limit") or "20")
                 self._html(_research_runs_page(db=db, kind=kind, limit=limit))
                 return
             if parsed.path == "/research-run":
                 params = parse_qs(parsed.query)
-                db = _first(params, "db") or "runs/x_data.sqlite3"
+                db = _safe_research_db_from_params(params)
                 run_id = _first(params, "run_id")
                 kind = _first(params, "kind") or "auto"
                 self._html(_research_run_page(db=db, run_id=run_id, kind=kind))
@@ -549,10 +555,10 @@ def serve_collection_app(
             body = self.rfile.read(length).decode("utf-8", errors="replace")
             form = {key: values[-1] for key, values in parse_qs(body).items()}
             if parsed_path in {"/api/budget/stop", "/api/budget/resume"}:
-                db = form.get("db", "runs/x_data.sqlite3") or "runs/x_data.sqlite3"
+                db = _safe_research_db_from_form(form)
                 set_api_kill_switch(db, enabled=parsed_path.endswith("/stop"))
                 location = "/"
-                job_id = form.get("job", "")
+                job_id = _safe_redirect_job_id(form.get("job", ""))
                 if job_id:
                     location = "/status?" + urlencode({"job": job_id})
                 self.send_response(303)
@@ -560,7 +566,7 @@ def serve_collection_app(
                 self.end_headers()
                 return
             if parsed_path in {"/job/cancel", "/job/cancel-rollback", "/job/rollback"}:
-                job_id = form.get("job", "")
+                job_id = _safe_redirect_job_id(form.get("job", ""))
                 if parsed_path == "/job/cancel":
                     job = app.request_cancel(job_id)
                 elif parsed_path == "/job/cancel-rollback":
@@ -1679,6 +1685,35 @@ def _safe_int(value: Any, *, default: int = 0) -> int:
 def _first(params: dict[str, list[str]], key: str) -> str:
     values = params.get(key) or [""]
     return values[-1]
+
+
+def _safe_research_db_from_params(params: dict[str, list[str]]) -> str:
+    return str(_safe_local_app_db_path(_first(params, "db") or DEFAULT_DB_PATH))
+
+
+def _safe_research_db_from_form(form: dict[str, str]) -> str:
+    return str(_safe_local_app_db_path(form.get("db") or DEFAULT_DB_PATH))
+
+
+def _safe_local_app_db_path(value: str) -> Path:
+    text = str(value or DEFAULT_DB_PATH).strip().replace("\\", "/")
+    candidate = Path(text)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        return Path(DEFAULT_DB_PATH)
+    if not candidate.parts or candidate.parts[0] != LOCAL_APP_DB_ROOT.name:
+        return Path(DEFAULT_DB_PATH)
+    if candidate.suffix.lower() not in LOCAL_APP_DB_SUFFIXES:
+        return Path(DEFAULT_DB_PATH)
+    root = (Path.cwd() / LOCAL_APP_DB_ROOT).resolve()
+    resolved = (Path.cwd() / candidate).resolve()
+    if not resolved.is_relative_to(root):
+        return Path(DEFAULT_DB_PATH)
+    return candidate
+
+
+def _safe_redirect_job_id(value: str | None) -> str:
+    text = str(value or "").strip()
+    return text if SAFE_REDIRECT_JOB_ID.fullmatch(text) else ""
 
 
 def _is_terminal_status(status: str) -> bool:

@@ -659,7 +659,10 @@ def _relation_from_row(row: sqlite3.Row) -> MemoryRelation:
 
 
 def _relation_id(source_doc_id: str, target_doc_id: str, relation_type: str) -> str:
-    digest = hashlib.sha1(f"{source_doc_id}\0{target_doc_id}\0{relation_type}".encode()).hexdigest()
+    digest = hashlib.sha1(
+        f"{source_doc_id}\0{target_doc_id}\0{relation_type}".encode(),
+        usedforsecurity=False,
+    ).hexdigest()
     return digest[:24]
 
 

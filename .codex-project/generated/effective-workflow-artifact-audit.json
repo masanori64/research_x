@@ -1,16 +1,16 @@
 {
   "artifact_kind": "workflow_artifact_audit",
-  "artifact_only_static_smoke": true,
+  "artifact_only_static_smoke": false,
   "control_artifact": true,
   "deploy_executed": false,
   "foundation_manifest": {
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:58:50.703258+00:00",
+  "generated_at": "2026-06-29T06:17:10.081332+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "github_actions_artifact_storage_created_by_this_smoke": false,
   "github_actions_minutes_consumed_by_this_smoke": false,
@@ -48,8 +48,16 @@
   "repository_settings_changed": false,
   "schema_version": 1,
   "secrets_used": false,
-  "status": "passed",
-  "validation_errors": [],
+  "status": "failed",
+  "validation_errors": [
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-ci.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml: wrapper must upload an artifact",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml: preview wrapper missing 'actions/upload-artifact@v4'",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml: wrapper must use checkout with read-only permissions",
+    "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml: wrapper must upload an artifact"
+  ],
   "workflow_dispatch_executed": false,
   "workflow_files": [
     {
@@ -63,7 +71,7 @@
       "workflow_dispatch_declared": true
     },
     {
-      "artifact_upload": true,
+      "artifact_upload": false,
       "exists": true,
       "forbidden_live_deploy_markers": [],
       "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-dashboard.yml",
@@ -73,7 +81,7 @@
       "workflow_dispatch_declared": true
     },
     {
-      "artifact_upload": true,
+      "artifact_upload": false,
       "exists": true,
       "forbidden_live_deploy_markers": [],
       "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-preview.yml",
@@ -83,7 +91,7 @@
       "workflow_dispatch_declared": true
     },
     {
-      "artifact_upload": true,
+      "artifact_upload": false,
       "exists": true,
       "forbidden_live_deploy_markers": [],
       "path": "C:\\Users\\maasa\\research_x\\.github\\workflows\\codex-artifact-smoke.yml",

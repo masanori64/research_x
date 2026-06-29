@@ -7,10 +7,10 @@
     "exists": true,
     "id": "codex-hotl-implementation-pipeline",
     "path": "C:\\Users\\maasa\\.codex\\foundation\\pipeline\\FOUNDATION_MANIFEST.json",
-    "sha256": "fd589af48069127efcf4e905039d5d8096ded7531aa80e9ba9026ec59cc20143",
+    "sha256": "7b8c9be4d4d9eb6cd0bf18dde5d1eb4f2cdb4c0079f5e51cfcf64df6d06f9566",
     "version": "0.1.0"
   },
-  "generated_at": "2026-06-26T15:58:50.725547+00:00",
+  "generated_at": "2026-06-29T06:17:10.083130+00:00",
   "generated_by": "codex-hotl-implementation-pipeline",
   "github_api_write_executed": false,
   "not_answer_support": true,
@@ -21,7 +21,7 @@
   "pages_enabled": false,
   "paid_usage_detected": false,
   "provider_api_calls": false,
-  "reason": "Artifact-only workflow has run remotely and the artifact metadata was read back.",
+  "reason": "The artifact-only workflow file failed local static safety checks.",
   "remote": {
     "artifact_count_in_sample": 1,
     "artifact_observed": true,
@@ -93,7 +93,7 @@
     },
     {
       "name": "artifact_upload_present",
-      "status": "passed"
+      "status": "failed"
     },
     {
       "name": "no_pages_write",
@@ -124,7 +124,7 @@
       "status": "passed"
     }
   ],
-  "status": "passed",
+  "status": "failed_static_validation",
   "trigger_policy": {
     "pull_request_enabled": true,
     "push_enabled": true,
