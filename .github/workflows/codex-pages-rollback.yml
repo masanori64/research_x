@@ -87,4 +87,4 @@ jobs:
         with:
           path: _codex_pages_site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
