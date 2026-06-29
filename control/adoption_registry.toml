@@ -47,13 +47,13 @@ adoption_shape = "adopt"
 status = "implemented"
 source_ref = "S33"
 source_url = "https://github.com/piguo45/single-file-wbs"
-active_artifact = "tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html"
-first_local_step = "Load project-owned WBS JSON locally and inspect operational state."
+active_artifact = "tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html"
+first_local_step = "Load project-owned WBS JSON locally and inspect operational state with holiday-aware calendar display."
 promotion_gate = "WBS tests prove rendered/state artifacts are not evidence or answer support."
 stop_condition = "Stop if the adopted artifact is missing, local verification fails, or evidence boundaries regress."
 provider_or_quota = false
 enabled = true
-notes = "Pinned local control artifact for the current 4-layer WBS only; historical candidate lists stay outside current WBS."
+notes = "Pinned local control artifact for the current 4-layer WBS only; holidays are viewer display config, and historical candidate lists stay outside current WBS."
 
 [[candidates]]
 name = "d2_marp_presentation_boundary"

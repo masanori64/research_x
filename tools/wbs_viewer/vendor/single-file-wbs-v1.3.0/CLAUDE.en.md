@@ -8,6 +8,20 @@ A text (JSON) driven WBS / Gantt + inazuma-line tool.
 
 ---
 
+## Product vision & design principles (#67)
+
+> **A local WBS for the AI-era manager (PL / tech lead) leading a small, elite team that includes AI. Humans edit via the GUI; AI edits via raw JSON and `CLAUDE.md` — the same plan.**
+
+- **Target user**: not the enterprise PM of huge projects, but a **manager (PL / tech lead) leading a ~10-person elite team that includes AI**. The author is this persona (dogfooding).
+- **Vision (a bet, owned as such)**: as AI rises, small elite teams wielding AI become the norm, and **everyone becomes a PL/TL**. This tool is for that lead (human **and** PL/TL agent) to manage the plan. It is a bet on the future, but hedged — even if it misses, it already helps today's leads.
+- **Core differentiator = two first-class interfaces**: human = GUI / AI = raw JSON + the AI-readable `CLAUDE.md`. **Both are first-class.** Every feature works via both the GUI path and the AI/JSON path (custom keys preserved, round-trip).
+- **`CLAUDE.md` is not "documentation" but "the AI's API spec"**: because AI depends on the format, **the schema is kept almost frozen**.
+- **Build**: AI-native (progress assessment, dependency inference) / honest views (true state, not vanity) / load by assignee (human vs AI) / cost (`_ai` tokens, `_money`).
+- **Don't build**: enterprise PM (portfolios, complex permissions) / large-scale real-time collaboration / heavy workflow engines / approval flows.
+- Background essay (Japanese) → [WBSという至高ツールで、このAI時代をサバイブする](https://zenn.dev/piguolabo/articles/99b5b30a028f80)
+
+---
+
 ## Handling principles (important)
 
 - **Do not touch `wbs_viewer.html` (the viewer) as a rule.** The view logic is complete.
@@ -47,7 +61,9 @@ In addition to text / AI editing, `wbs.json` can be **edited directly on screen*
 - Supported: **inline editing of every field** (No.=id / task name / qty / hours / assignee / plan & actual dates / notes),
   **progress input** (the leaf's `◀ N% ▶` stepper changes `_progress` by ±10%; setting ≥10% auto-sets `actual.start` to today / returning to 0% keeps the start date),
   **adding leaves** (row `＋` = sibling below; project row `+Task`; ids are minted collision-free; adding to a collapsed project auto-expands it),
-  **deletion** (`✕`, with confirmation, including children), **reordering among siblings** (`▲▼`).
+  **nesting (add a child task)** (row `＋子`/`+sub`: on a leaf it **becomes a summary node** carrying its values into child 1 = effort/progress unchanged; on a summary it appends a blank child; child id = parent id + suffix; **not shown on the 3rd level** = no 4th level),
+  **deletion** (`✕`, with confirmation, including children; **deleting the last child of a summary returns that child's values to the parent and demotes it to a leaf** = effort is never lost), **reordering among siblings** (`▲▼`),
+  **milestone editing** (`＋MS` on the project row / an edit row below it with **date (📅) · name · color · ✕ delete**. Color is **chosen from 5 CUD-safe Okabe-Ito presets** — the GUI uses a picker, not free hex; JSON/AI can still set any `#hex`).
 - **Autosave**: changes are written back to `wbs.json` after a ~0.4 s debounce (File System Access API).
   Writes are serialized through a single queue. Only the internal derived values `_calc`/`_leaf` are stripped (**user keys starting with `_` are preserved**).
   Save status (Unsaved changes… / Saved HH:MM:SS / Save failed) is **always visible at the top right**.
@@ -69,12 +85,16 @@ In addition to text / AI editing, `wbs.json` can be **edited directly on screen*
   (The display format of `input type=date` follows the browser UI language and cannot be controlled, so the display is fixed to ISO — #33.)
 - Input guards: dates are **valid only within 1900–2099** (out-of-range / partial input is ignored, not saved). Qty / hours accept decimals (`step="any"`).
   Mouse-wheel changes on number inputs are disabled (prevents accidental edits). Closing the tab with unsaved changes prompts for confirmation.
-- Out of scope (by design): drag-and-drop reordering / moving across parents / automatic renumbering / leaf↔summary conversion / adding projects. Use JSON or AI editing for those.
+- Out of scope (by design): drag-and-drop reordering / moving across parents / automatic renumbering / adding projects. Use JSON or AI editing for those.
+  (leaf↔summary conversion is now handled in the GUI via `＋子`/deleting the last child = #70)
 - Effort / progress / inazuma line recompute automatically as before (re-rendering is deferred while an input has focus).
 
 ## Data (wbs.json)
 - **Multi-project**. Top level is `projects: [{ name, milestones, tasks }]`.
   - The legacy format (single `{ project, milestones, tasks }`) is **still readable** (backward compatible).
+- **Holidays (optional, top-level)**: `holidays: ["YYYY-MM-DD", { date, name }]` (string form = no name / object form = `name` as tooltip).
+  Shared across all projects. Holiday dates render **red in the date header**, and **weekend + holiday columns are shaded faint pink full-height** in the Gantt. If omitted, only weekends are pink (backward compatible).
+  e.g. `"holidays": [{ "date": "2026-07-20", "name": "Marine Day" }]` (2026 Japanese holidays ship in `wbs_roadmap.json`/`wbs_sample.json`).
 - Each project's `tasks` nest parent-child (max 3 levels). With `children` = summary node; without = leaf (carries effort).
 - Leaf fields:
   ```
@@ -152,7 +172,7 @@ Hand the fuzzy "roughly what %" to an AI. The steps are deterministic:
   - Parent = effort-weighted average of descendant leaves' (progress × effort) (continuous; not snapped).
 - **EVM values**: EV = actual progress / **PV = planned** = what should be done by today `clamp((today−plan.start)/(plan.end−plan.start)×100,0,100)` (linear; parents weighted) /
   **slip = behind = max(PV−EV,0)** (≈ EVM SV). S-curve, non-linear PV, and a cost axis are out of scope (not done).
-- **Header summary (right, #71)**: **Period** (earliest start–latest end / weekdays left, excl. weekends) / **Effort**
+- **Header summary (right, #71)**: **Period** (earliest start–latest end / business days left, **excl. weekends & holidays (`holidays`)** #75) / **Effort**
   (person-months = person-days ÷ 20 working days / remaining) / **Progress** (actual EV% / planned PV% / behind = max(PV−EV,0)%),
   in three rows plus a meta line (📄 filename · N projects · 📅 today · 🔄 refreshed · 💾 saved). Each row has a hover tooltip.
 - **Delay badges (4th summary line "Behind:")**: the overall behind% is textbook EVM (ahead-work offsets it, so it can read 0%);
@@ -169,15 +189,17 @@ Hand the fuzzy "roughly what %" to an AI. The steps are deterministic:
 
 ## Display
 - **UI is Japanese/English switchable** (the "EN / 日本語" toolbar button). Default Japanese; the choice is stored in localStorage.
+- **Plain-branding toggle (#79)**: clicking the **title (logo / "WBS Viewer") at the top-left** hides the logo, version, "Viewer" and the tab title, leaving just **"WBS"** (click again to restore; remembered in localStorage). It strips the product look so the tool can pass as "self-made" on locked-down client sites. No tooltip is added (to keep it undiscoverable).
   All UI strings live in the `I18N` table inside the HTML (data = the contents of wbs.json is never translated). **When adding a UI string, add it to both ja and en.**
 - Column headers are centered. The left info table (No.–Notes) is fixed; **only the Gantt scrolls horizontally**.
-- **Column collapse (Excel-style, #64)**: a thin row above the column headers holds **+/−** toggles per **collapsible unit** —
+- **Column collapse (outline-style, #64)**: a thin row above the column headers holds **+/−** toggles per **collapsible unit** —
   `qty+hours` (the breakdown of effort), Effort, Progress, Status, Assignee, Plan, Actual, Notes (**No. and Task name are always shown**).
-  Collapsed columns are **removed at 0 width (like Excel — no leftover gap stub)**, the + sits at the boundary (absolute). State is
+  Collapsed columns are **removed at 0 width (no leftover gap stub)**, the + sits at the boundary (absolute). State is
   saved in localStorage; scroll/tree-collapse are preserved; collapsing widens the Gantt. Implemented via the `COL_CG` map + `effCols()` filter (draw cost = column count, not row-dependent).
 - **Plan/Actual date columns have a two-level header**: "Plan" / "Actual" on top, "Start / End" beneath (adjacent columns grouped by the `group` property in `COLS`).
 - Row layer colors: **◆project (with separators) > L1 > L2 > L3**.
-- Gantt: date + weekday (year-month header), weekends shaded; active tasks extend the actual bar to today.
+- Gantt: date + weekday (year-month header), **weekend + holiday (`holidays`) columns shaded faint pink full-height** (`--weekend` / a translucent overlay drawn above the rows; bars/inazuma/today-line stay in front for legibility); active tasks extend the actual bar to today.
+  **Holidays render red in the date header** (Sat = blue / Sun = red convention kept). The holiday name shows as the date cell's tooltip.
   **Plan = unfilled outline (front, 4 sides) / actual = filled bar (behind), overlaid in the same lane** (#65):
   the actual sticking past the outline's right = **finish delay = red bar + "+N"** (number only; always placed at the bar tip; exact value in the tooltip "Finish delay +N d"),
   empty space at the outline's left = **start delay** (actual start is right of the outline's left) — shown by the gap, no dedicated color.
@@ -207,7 +229,8 @@ Avoid the following when entering data (nothing crashes, but display degrades).
 
 | Input (anomaly) | Viewer behavior |
 |---|---|
-| Invalid date (not `"YYYY-MM-DD"`, or **outside 1900–2099**) | **Ignored** (plan/actual/milestones alike). Date cell shows `—` |
+| Invalid date (not `"YYYY-MM-DD"`, or **outside 1900–2099**) | **Ignored** (plan/actual/milestones/holidays alike). Date cell shows `—` |
+| `holidays` not an array, or an element with an invalid date | **Ignored** (no red text / no pink column; no crash) |
 | Milestone without `label` | **Rendered with an empty label** (no crash) |
 | Active but `plan.end` missing | Progress **0%** (avoids NaN) |
 | End < start (inverted period) | Bar not drawn / looks odd |

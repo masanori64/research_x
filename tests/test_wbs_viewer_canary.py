@@ -8,8 +8,8 @@ CODEX_PROJECT_REVIEWS = Path(
     "C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control"
 )
 WBS_JSON = CODEX_PROJECT_REVIEWS / "x-url-analysis-20260622" / "wbs-35-item-flow.json"
-WBS_VIEWER = Path("tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/wbs_viewer.html")
-WBS_LICENSE = Path("tools/wbs_viewer/vendor/single-file-wbs-v1.2.0/LICENSE")
+WBS_VIEWER = Path("tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html")
+WBS_LICENSE = Path("tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/LICENSE")
 
 
 def _leaf_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -55,6 +55,7 @@ def test_wbs_viewer_vendor_copy_is_pinned_and_local() -> None:
     license_text = WBS_LICENSE.read_text(encoding="utf-8")
 
     assert "WBS Viewer" in html
-    assert "v1.2.0" in html
+    assert "v1.3.0" in html
+    assert "holidays" in html
     assert "showOpenFilePicker" in html
     assert "MIT License" in license_text

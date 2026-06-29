@@ -141,8 +141,7 @@ reason when a task depends on those states.
 The following artifacts are control, planning, review, or restore-index surfaces:
 
 - WBS JSON;
-- generated diagram sources and rendered assets;
-- screenshots;
+- generated diagram sources and rendered assets, screenshots;
 - `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`;
 - `C:/Users/maasa/.codex/route_memory/route-memory.json`;
 - ChatGPT/GPT Pro consultation captures;
@@ -157,10 +156,11 @@ permission to call providers.
 
 Work state belongs in `tools/wbs_viewer/projects/research-x-work-state.json`.
 WBS owns only current Source, Evidence, Retrieval-Eval, and Tool Interface layer
-work state: status, gates, owner surfaces, artifact pointers, stop conditions, and
-next actions. It must not hold historical 35-item consultation lists, source-review
-prose, candidate inventories, or Codex foundation tasks. Historical mixed WBS state
-is archived outside the repo at
+work state plus viewer-only calendar settings such as `holidays`: status, gates,
+owner surfaces, artifact pointers, stop conditions, and next actions. It must not
+hold historical 35-item lists, source-review prose, candidate inventories, or
+Codex foundation tasks. Historical mixed WBS state is
+archived outside the repo at
 `C:/Users/maasa/.codex/foundation/work_state/research-x-pre-layer-wbs-archive-20260625.json`;
 Codex foundation work state lives at
 `C:/Users/maasa/.codex/foundation/work_state/research-x-codex-foundation-adjuncts.json`.

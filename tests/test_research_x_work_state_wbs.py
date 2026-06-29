@@ -65,12 +65,27 @@ def _project() -> dict[str, Any]:
     return json.loads(WBS_PATH.read_text(encoding="utf-8"))["projects"][0]
 
 
+def _root() -> dict[str, Any]:
+    return json.loads(WBS_PATH.read_text(encoding="utf-8"))
+
+
 def test_current_wbs_is_runtime_layer_work_state_only() -> None:
     project = _project()
 
     assert project["name"] == "research_x Runtime Work State"
     assert [task["name"] for task in project["tasks"]] == EXPECTED_GROUPS
     assert len(project["milestones"]) == 1
+
+
+def test_current_wbs_holidays_are_viewer_config_only() -> None:
+    root = _root()
+    holidays = root["holidays"]
+
+    assert len(holidays) == 18
+    assert holidays[0] == {"date": "2026-01-01", "name": "元日"}
+    assert holidays[-1] == {"date": "2026-11-23", "name": "勤労感謝の日"}
+    assert all(set(item) == {"date", "name"} for item in holidays)
+    assert "holidays" not in json.dumps(_project(), ensure_ascii=False)
 
 
 def test_wbs_leaf_tasks_have_current_research_x_metadata_without_history() -> None:

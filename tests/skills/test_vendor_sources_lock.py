@@ -19,8 +19,9 @@ def test_single_file_wbs_is_pinned_local_tool_canary_not_evidence() -> None:
     vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
 
     assert "single-file-wbs" in vendor_lock
-    assert "v1.2.0" in vendor_lock
-    assert "322895a23f49028b53ae8c8a1710d6db45cdf726" in vendor_lock
+    assert "v1.3.0" in vendor_lock
+    assert "b1ef3d7e175dedfd9f4f34a9984437b174469c76" in vendor_lock
+    assert "c92b71b83075d2c6ae1108166ccceb90590e901914e7b57ce9843a5c885bea97" in vendor_lock
     assert "Pinned local WBS/progress visualization tool" in vendor_lock
     assert "No plugin, MCP, hook, provider, hosted service, or evidence promotion" in vendor_lock
 

@@ -7,8 +7,8 @@
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI5LjYiIGZpbGw9IiMxZTJmNjMiLz48cmVjdCB4PSI0LjIiIHk9IjQuOCIgd2lkdGg9IjcuNSIgaGVpZ2h0PSIyLjciIHJ4PSIxIiBmaWxsPSIjN2RhNGY3Ii8+PHJlY3QgeD0iNiIgeT0iOC42IiB3aWR0aD0iOS4zIiBoZWlnaHQ9IjIuNyIgcng9IjEiIGZpbGw9IiNjZGQ5ZjUiLz48cmVjdCB4PSI0LjgiIHk9IjEyLjQiIHdpZHRoPSI1LjgiIGhlaWdodD0iMi43IiByeD0iMSIgZmlsbD0iIzdkYTRmNyIvPjxwb2x5bGluZSBwb2ludHM9IjEyLjgsMy4yIDkuOCw5LjYgMTMuOCwxMS4yIDEwLjgsMTYuOCIgc3Ryb2tlPSIjZTExZDQ4IiBzdHJva2Utd2lkdGg9IjEuOCIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==">
 <style>
   :root{
-    --day-w:22px; --row-h:30px; --header-h:48px; --tab-h:26px; --pv-pad:14px;
-    --border:#d7dbe0; --btn-border:#9aa2ad; --grid:#eceef1; --line:#c5cad3; --weekend:#f4f5f7;  /* line=表の区切り（縦横共通・青帯と色相で区別できるグレー）。--grid はガント日グリッド用 */  /* btn-border=操作物の輪郭（罫線より濃く・WCAG非テキスト3:1寄り） */
+    --day-w:22px; --row-h:30px; --header-h:48px; --tab-h:22px; --pv-pad:14px;
+    --border:#d7dbe0; --btn-border:#9aa2ad; --grid:#eceef1; --line:#c5cad3; --weekend:#fbeef1;  /* line=表の区切り（縦横共通・青帯と色相で区別できるグレー）。--grid はガント日グリッド用 */  /* btn-border=操作物の輪郭（罫線より濃く・WCAG非テキスト3:1寄り） */
     --text:#1f2430; --muted:#6b7280; --ym-fg:#11161f;  /* 年月ラベル: 日付の数字(--text)より一段濃い=月>日の階層 */
     --actual:#2f6fed;  /* 実績は全階層で同色（親もリーフも同じ＝何のバーか一目で分かる・#65）。階層は行背景＋左表で表現 */
     --proj:#93acdf; --proj-line:#3a5694; --lvl0:#b9cdf2; --lvl1:#e3ebfb;
@@ -19,11 +19,12 @@
   html,body{margin:0;height:100%}
   body{font-family:-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;
        color:var(--text);background:#f7f8fa;display:flex;flex-direction:column;font-size:12px}
-  #topbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 12px;
+  #topbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:4px 12px;
           background:#fff;flex-wrap:wrap}
-  #topbar .title{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px;line-height:1.15}
+  #topbar .title{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px;line-height:1.15;cursor:pointer}  /* クリックで簡素表示トグル(#79) */
   #topbar .tdiv{width:1px;align-self:stretch;margin:5px 2px;background:var(--border)} /* 呼称｜操作の区切り。上下を少し空けて柔らかく */
   #topbar .title .ver{font-size:9px;color:var(--muted);font-weight:400}
+  body.plain #brandTitle .logo,body.plain #brandTitle .brand-x,body.plain #brandTitle .ver{display:none}  /* 簡素モード=ロゴ/版/“Viewer”を隠し「WBS」だけ。現場で“自作”と言える逃げ道(#79) */
   #topbar button{font:inherit;padding:5px 10px;border:1px solid var(--btn-border);background:#fff;border-radius:6px;cursor:pointer;
                  align-self:center} /* 指標ブロックが高くてもボタンは伸びない。操作3ボタンの高さは下の規則で統一 */
   #topbar button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -33,7 +34,7 @@
   #openBtn.over{background:#eef4ff!important;border:1px dashed var(--accent)!important;color:var(--accent)!important} /* ドラッグ中だけ「落とせる」点線合図 */
   #topbar #langBtn{border-color:transparent;background:transparent;color:var(--muted)} /* 表示設定＝データ操作より弱く・右端 */
   #topbar #langBtn:hover{border-color:var(--btn-border);background:#fff}
-  #stat{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;color:var(--muted);line-height:1.35}
+  #stat{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;color:var(--muted);line-height:1.18}
   #stat b{color:var(--text)}
   #stat .mrows{display:inline-block;text-align:left;font-variant-numeric:tabular-nums}
   #stat .mrow{font-size:12px;color:var(--text);cursor:help}
@@ -100,27 +101,43 @@
            cursor:pointer;font-size:11px;line-height:1;color:var(--done-fg)}
   .donechk.on{border-color:var(--done-fg)}
   .donechk:hover{border-color:var(--accent)}
-  .acts,.movegrp{display:inline-flex;gap:3px;flex:0 0 auto}
+  .acts,.movegrp{display:inline-flex;gap:2px;flex:0 0 auto}
   .movegrp{margin-right:3px}   /* 移動⬆⬇はチェックの前・横並び独立（穂先が大きく視認しやすい・＋✕と同サイズ） */
   .acts button,.movegrp button{font:inherit;font-size:12px;line-height:1.3;padding:2px 6px;border:1px solid var(--btn-border);
-               background:#fff;border-radius:3px;cursor:pointer;color:#445}
+               background:#fff;border-radius:3px;cursor:pointer;color:#445;display:inline-flex;align-items:center;justify-content:center}
+  .movegrp button,.acts button[data-act="add"],.acts button[data-act="addchild"],.acts button[data-act="del"]{padding:2px 3px}  /* アイコンボタンは横を詰めて名前入力に幅を返す（＋タスクのテキストは据え置き）・#49 */
+  .ic{width:13px;height:13px;flex:0 0 auto}                 /* インラインSVGアイコン（currentColor）・#49 */
+  .acts .ic,.movegrp .ic{width:12px;height:12px}            /* 行内アイコンは少し小さく */
+  #stat .mstat .ic{width:12px;height:12px;vertical-align:-2px;margin-right:1px}  /* メタ行は文字に揃える */
   .acts button:hover,.movegrp button:hover{background:#eef2ff;border-color:#9db4f0}
   .acts button[data-act="del"]{margin-left:5px}   /* 破壊的操作の✕は少し離して誤クリック防止 */
   .date-wrap{display:flex;align-items:center;gap:2px;width:100%;min-width:0}
   #leftRows .date-wrap input[type="text"]{flex:1 1 auto;width:auto}  /* #leftRows input{width:100%} に勝つ詳細度（.nm-in と同じ理由） */
   .cal-proxy{position:absolute;width:0;height:0;opacity:0;border:0;padding:0;margin:0;pointer-events:none}
   .cal-btn{flex:0 0 auto;font-size:11px;line-height:1.2;padding:2px 3px;border:1px solid var(--btn-border);
-           background:#fff;border-radius:3px;cursor:pointer}
+           background:#fff;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#445}
   .clk{cursor:pointer}
+  #leftHead .h[title]{cursor:help}   /* 押せない説明ツールチップは ?（押せるボタンは pointer のまま）・#46 */
+  .msrow{height:var(--row-h);background:#fbfcfe}                              /* 編集モードのマイルストーン編集行 */
+  .ms-edit{display:flex;align-items:center;gap:3px;width:100%;padding:0 6px;min-width:0}
+  .ms-edit .ms-tag{color:#8a5a78;font-size:11px;font-weight:600;flex:0 0 auto;white-space:nowrap}  /* 行の種別＝マイルストーン */
+  .ms-edit .date-wrap{flex:0 0 auto;width:92px}
+  #leftRows input.ms-label{flex:0 0 auto;width:200px}                        /* #leftRows input{width:100%} のID詳細度に勝つ（nm-inと同じ理由）＝右の色/✕を画面外に押し出さない */
+  .ms-edit input{font:inherit;font-size:12px;border:1px solid var(--btn-border);border-radius:3px;padding:2px 4px;min-width:0;color:#445}
+  .ms-edit .ms-sws{display:inline-flex;gap:4px;align-items:center;flex:0 0 auto}  /* 色は5プリセットから選択（CUD安全） */
+  .ms-sw{width:15px;height:15px;border-radius:50%;border:1px solid rgba(0,0,0,.25);cursor:pointer;padding:0;flex:0 0 auto}
+  .ms-sw.on{outline:2px solid #333;outline-offset:1px}
+  .ms-edit button[data-act="delms"]{flex:0 0 auto;border:1px solid var(--btn-border);background:#fff;border-radius:3px;cursor:pointer;color:#445;display:inline-flex;align-items:center;justify-content:center;padding:2px 3px}
   #rightHead{position:sticky;top:0;z-index:4;background:var(--head-bg);border-bottom:2px solid var(--border)}
   #ym{display:flex;height:18px;border-bottom:1px solid var(--border)}
   #ym .seg{border-right:1px solid #c8ccd2;font-size:11px;white-space:nowrap;
            display:flex;align-items:center;justify-content:center;background:#e9ebef;overflow:hidden;color:var(--ym-fg)}
   #dates{display:flex;height:30px}
   #dates .d{width:var(--day-w);border-right:1px solid var(--grid);text-align:center;line-height:1.05;padding-top:3px;font-size:10px}
-  #dates .d.sat{background:#eef3fb}#dates .d.sun{background:#fbeef0}
+  #dates .d.sat,#dates .d.sun,#dates .d.hol{background:var(--weekend)}   /* 土日/祝日のヘッダ＝列(.we)と同じ薄ピンク＝列まるごと統一 */
   #dates .d .dow{font-size:9px;color:var(--muted)}
   #dates .d.sat .dow{color:var(--accent)}#dates .d.sun .dow{color:#dc2626}
+  #dates .d.hol{color:#dc2626}#dates .d.hol .dow{color:#dc2626}   /* 祝日=赤字（日付/曜日）。土=青字・日=赤字の慣習は維持 */
   #dates .d.hl{background:#dbe7ff;font-weight:700}
   #colHl{position:absolute;top:0;bottom:0;width:var(--day-w);pointer-events:none;display:none;z-index:3;
          background:rgba(37,99,235,.08);border-left:1px solid rgba(37,99,235,.35);border-right:1px solid rgba(37,99,235,.35)}
@@ -163,8 +180,7 @@
   .pbar.short{background:#e11d48}
   .prw.done .pbar.act{background:#8c98a6}                                        /* 完了=グレー（ガント実績バーと統一） */
   .prw.thin .pbar{top:11px;height:8px}                                           /* 親=集計=細く（時間ビューの親サマリーバーと同寸） */
-  #ganttBg{position:absolute;top:0;left:0;z-index:0}
-  #ganttBg .we{position:absolute;top:0;bottom:0;background:var(--weekend)}
+  #ganttBg{position:absolute;top:0;left:0;z-index:0}   /* 月の区切り線(.mline)用。土日/祝日の列塗りは行背景に隠れるためオーバーレイ(#overlay rect)で全高に出す */
   #ganttBg .mline{position:absolute;top:0;bottom:0;width:1px;background:#dfe2e6}
   #grows{position:relative;z-index:1}
   .grow{height:var(--row-h);border-bottom:1px solid var(--line);position:relative}
@@ -191,7 +207,7 @@
 </head>
 <body>
   <div id="topbar">
-    <span class="title"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.6" fill="#1e2f63"/><rect x="4.2" y="4.8" width="7.5" height="2.7" rx="1" fill="#7da4f7"/><rect x="6" y="8.6" width="9.3" height="2.7" rx="1" fill="#cdd9f5"/><rect x="4.8" y="12.4" width="5.8" height="2.7" rx="1" fill="#7da4f7"/><polyline points="12.8,3.2 9.8,9.6 13.8,11.2 10.8,16.8" stroke="#e11d48" stroke-width="1.8" fill="none"/></svg><span style="display:flex;flex-direction:column">WBS Viewer<span class="ver">v1.2.0</span></span></span>
+    <span class="title" id="brandTitle"><svg class="logo" width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.6" fill="#1e2f63"/><rect x="4.2" y="4.8" width="7.5" height="2.7" rx="1" fill="#7da4f7"/><rect x="6" y="8.6" width="9.3" height="2.7" rx="1" fill="#cdd9f5"/><rect x="4.8" y="12.4" width="5.8" height="2.7" rx="1" fill="#7da4f7"/><polyline points="12.8,3.2 9.8,9.6 13.8,11.2 10.8,16.8" stroke="#e11d48" stroke-width="1.8" fill="none"/></svg><span style="display:flex;flex-direction:column"><span class="brand">WBS<span class="brand-x"> Viewer</span></span><span class="ver">v1.3.0</span></span></span>
     <span class="tdiv"></span>
     <button id="openBtn" class="primary">ファイルを開く<span class="sub">（ドラッグ&amp;ドロップ）</span></button>
     <button id="refreshBtn">更新</button>
@@ -214,6 +230,20 @@
   const DAY_W=22, ROW_H=30, DAY_MS=86400000;
   const SAVE_DEBOUNCE_MS=400, RENDER_DEFER_MS=350, FOCUS_POLL_MS=400;  // 自動保存と遅延再描画の間隔
   const SAVE_RETRY_DELAY_MS=250;  // InvalidStateError（同期/AVの横入り）時に1拍おいて1回だけ再試行する間隔
+  // アイコン＝単色インラインSVG（currentColorで文字色に追従・ロゴと同トーン・依存ゼロ・#49）。葉だけベタ塗り(案A)・他はライン基調
+  const ICN={
+    file:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M4 2h5l3 3v9H4z"/><path d="M9 2v3h3"/></svg>',
+    cal:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.2" y="3.2" width="11.6" height="10.6" rx="1.6"/><path d="M2.2 6.3h11.6" stroke-width="1.2"/><path d="M5 1.6v2.4M11 1.6v2.4" stroke-linecap="round"/></svg>',
+    refresh:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2"/><path d="M12.7 2.6V5.1H10.2" stroke-linejoin="round"/></svg>',
+    save:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M3 2.5h7.5L13.5 5.5V13.5H3z"/><path d="M5.2 2.5v3.3h4.6V2.5" stroke-width="1.1"/><rect x="5.2" y="9" width="5.6" height="4.3" stroke-width="1.1"/></svg>',
+    up:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5V4M4.5 7.5 8 4l3.5 3.5"/></svg>',
+    down:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5V12M4.5 8.5 8 12l3.5-3.5"/></svg>',
+    add:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 3.3v9.4M3.3 8h9.4"/></svg>',
+    del:'<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"/></svg>',
+    leaf:'<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.34 1.5.34C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>'
+  };
+  // マイルストーンの選べる色（GUIプリセット）。Okabe-Ito由来でCUD安全・実績(青)/遅延(赤)と被らない5色。JSON/AIは引き続き任意#hex可
+  const MS_COLORS=["#cc79a7","#e69f00","#009e73","#d55e00","#56b4e9"];
   // ===== i18n（UI文言の単一ソース。データ(wbs.json)は翻訳しない） =====
   const I18N={
     ja:{
@@ -227,12 +257,13 @@
       colStart:"開始",colEnd:"終了",colNote:"備考",grpPlan:"予定",grpActual:"実績",
       wd:["日","月","火","水","木","金","土"],locale:"ja-JP",active:"進行中",newTask:"新規作業",
       addTask:"＋タスク",addTaskTip:"タスクを追加",up:"上へ",down:"下へ",addBelow:"下に作業を追加",del:"削除",
+      addChild:"子タスクを追加（入れ子にする）",addChildLabel:"＋子",
       unsaved:"未保存の変更あり…",savedAt:"",saveFail:"保存失敗",savePending:"未保存（外部変更のため保留）",
-      calTip:"カレンダーから選択",
+      calTip:"カレンダーから選択",addMs:"＋MS",addMsTip:"マイルストーンを追加",msLabelPh:"マイルストーン名",milestone:"マイルストーン",
       startDelayTip:n=>`着手遅れ +${n}日`, endDelayTip:(n,act)=>`終了遅延 +${n}日${act?"・進行中":""}`,
       doneTip:"完了/未完了を切替（チェックで実績終了＝今日。未着手なら着手も今日）",
       ym:(y,m)=>`${y}年${m}月`,
-      stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="最早開始 - 最遅終了 ／ 残り＝本日→終了の平日数（土日除外・祝日は除外していません #75）"><span class="mk">期間：</span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub">（残り：${d.biz}日）</span></div>`+`<div class="mrow" title="予定合計(人月)＝Σ(数量×時間÷8)÷20 ／ 残り＝予定−実績(EV)"><span class="mk">工数：</span><span class="mv">${d.planPM}人月</span><span class="msub">（残り：${d.restPM}人月）</span></div>`+`<div class="mrow" title="実際%（出来高EV/総） ／ 予定%（あるべきPV/総）｜ 遅れ%（予定−実際）"><span class="mk">進捗：</span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub">（予定：${d.plan}% ｜ 遅れ：<span class="mdl">${d.delay}%</span>）</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="遅れているタスク数。全体の遅れ%は前倒し分で相殺され0%でも、個別に遅れている件数（状況列の赤で詳細）"><span class="mk">遅延：</span><span class="mv2">${d.due?`<span class="dbadge" title="締切超過＝本日>予定終了かつ未完了">⚠ 期限${d.due}件</span>`:""}${d.slip?`<span class="dbadge" title="出来高遅れ＝予定(PV)>実績(EV)">⚠ 進捗${d.slip}件</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="開いているファイル">📄 ${esc(d.fname)}</span> ・ <span title="プロジェクト数">${d.pc}P</span> ・ <span title="本日（進捗・イナズマ線の基準日）">📅 ${esc(mdSlash(d.today))}</span> ・ <span title="最後に更新（読込）した時刻">🔄 ${esc(d.upd)}</span><span id="saveMsg" title="最後に保存した時刻（自動保存）">${d.save}</span></div>`,
+      stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="最早開始 - 最遅終了 ／ 残り＝本日→終了の営業日数（土日・祝日(holidays)を除外 #75）"><span class="mk">期間：</span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub">（残り：${d.biz}日）</span></div>`+`<div class="mrow" title="予定合計(人月)＝Σ(数量×時間÷8)÷20 ／ 残り＝予定−実績(EV)"><span class="mk">工数：</span><span class="mv">${d.planPM}人月</span><span class="msub">（残り：${d.restPM}人月）</span></div>`+`<div class="mrow" title="実際%（出来高EV/総） ／ 予定%（あるべきPV/総）｜ 遅れ%（予定−実際）"><span class="mk">進捗：</span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub">（予定：${d.plan}% ｜ 遅れ：<span class="mdl">${d.delay}%</span>）</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="遅れているタスク数。全体の遅れ%は前倒し分で相殺され0%でも、個別に遅れている件数（状況列の赤で詳細）"><span class="mk">遅延：</span><span class="mv2">${d.due?`<span class="dbadge" title="締切超過＝本日>予定終了かつ未完了">⚠ 期限${d.due}件</span>`:""}${d.slip?`<span class="dbadge" title="出来高遅れ＝予定(PV)>実績(EV)">⚠ 進捗${d.slip}件</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="開いているファイル">${ICN.file} ${esc(d.fname)}</span> ・ <span title="プロジェクト数">${d.pc}P</span> ・ <span title="本日（進捗・イナズマ線の基準日）">${ICN.cal} ${esc(mdSlash(d.today))}</span> ・ <span title="最後に更新（読込）した時刻">${ICN.refresh} ${esc(d.upd)}</span><span id="saveMsg" title="最後に保存した時刻（自動保存）">${d.save}</span></div>`,
       confirmDel:name=>`「${name}」を削除します。よろしいですか？（配下も削除）`,
       fileLabel:(name,size)=>`${name}・${size} byte`,
       jsonFail:(label,msg)=>`JSON読み込み失敗${label?`（${label}）`:""}: ${msg}`,
@@ -261,12 +292,13 @@
       colStart:"Start",colEnd:"End",colNote:"Notes",grpPlan:"Plan",grpActual:"Actual",
       wd:["Su","Mo","Tu","We","Th","Fr","Sa"],locale:"en-US",active:"active",newTask:"New task",
       addTask:"+Task",addTaskTip:"Add a task",up:"Move up",down:"Move down",addBelow:"Add task below",del:"Delete",
+      addChild:"Add a child task (nest)",addChildLabel:"+sub",
       unsaved:"Unsaved changes…",savedAt:"",saveFail:"Save failed",savePending:"Not saved (external change)",
-      calTip:"Pick a date",
+      calTip:"Pick a date",addMs:"+MS",addMsTip:"Add a milestone",msLabelPh:"name",milestone:"Milestone",
       startDelayTip:n=>`Start delay +${n}d`, endDelayTip:(n,act)=>`Finish delay +${n}d${act?" (active)":""}`,
       doneTip:"Toggle done (check = actual end today; also start if not yet started)",
       ym:(y,m)=>`${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${y}`,
-      stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="Earliest start - latest end / Remaining = weekdays from today to end (excl. weekends; holidays not excluded #75)"><span class="mk">Period: </span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub"> (left: ${d.biz}d)</span></div>`+`<div class="mrow" title="Planned total (person-months) / Remaining = planned - actual(EV)"><span class="mk">Effort: </span><span class="mv">${d.planPM}pm</span><span class="msub"> (left: ${d.restPM}pm)</span></div>`+`<div class="mrow" title="Actual% (EV/total) / Planned% (PV/total) | Behind% (plan-actual)"><span class="mk">Progress: </span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub"> (plan: ${d.plan}% | behind: <span class="mdl">${d.delay}%</span>)</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="Tasks behind schedule. Even when the overall behind% is 0% (ahead-work offsets it), this many items are individually behind (see the red Status column)"><span class="mk">Behind: </span><span class="mv2">${d.due?`<span class="dbadge" title="Overdue = past planned end & not done">⚠ ${d.due} late</span>`:""}${d.slip?`<span class="dbadge" title="Behind on value = plan(PV) > actual(EV)">⚠ ${d.slip} EV</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="Open file">📄 ${esc(d.fname)}</span> ・ <span title="Projects">${d.pc}P</span> ・ <span title="Today (reference date)">📅 ${esc(mdSlash(d.today))}</span> ・ <span title="Last refreshed">🔄 ${esc(d.upd)}</span><span id="saveMsg" title="Last saved (autosave)">${d.save}</span></div>`,
+      stat:(d)=>`<div class="mrows">`+`<div class="mrow" title="Earliest start - latest end / Remaining = business days from today to end (excl. weekends & holidays #75)"><span class="mk">Period: </span><span class="mv">${esc(mdSlash(d.ps))} - ${esc(mdSlash(d.pe))}</span><span class="msub"> (left: ${d.biz}d)</span></div>`+`<div class="mrow" title="Planned total (person-months) / Remaining = planned - actual(EV)"><span class="mk">Effort: </span><span class="mv">${d.planPM}pm</span><span class="msub"> (left: ${d.restPM}pm)</span></div>`+`<div class="mrow" title="Actual% (EV/total) / Planned% (PV/total) | Behind% (plan-actual)"><span class="mk">Progress: </span><span class="mv"><b class="mev">${d.prog}%</b></span><span class="msub"> (plan: ${d.plan}% | behind: <span class="mdl">${d.delay}%</span>)</span></div>`+`${(d.due||d.slip)?`<div class="mrow mdrow" title="Tasks behind schedule. Even when the overall behind% is 0% (ahead-work offsets it), this many items are individually behind (see the red Status column)"><span class="mk">Behind: </span><span class="mv2">${d.due?`<span class="dbadge" title="Overdue = past planned end & not done">⚠ ${d.due} late</span>`:""}${d.slip?`<span class="dbadge" title="Behind on value = plan(PV) > actual(EV)">⚠ ${d.slip} EV</span>`:""}</span></div>`:""}`+`</div>`+`<div class="mstat"><span title="Open file">${ICN.file} ${esc(d.fname)}</span> ・ <span title="Projects">${d.pc}P</span> ・ <span title="Today (reference date)">${ICN.cal} ${esc(mdSlash(d.today))}</span> ・ <span title="Last refreshed">${ICN.refresh} ${esc(d.upd)}</span><span id="saveMsg" title="Last saved (autosave)">${d.save}</span></div>`,
       confirmDel:name=>`Delete "${name}"? (children will also be deleted)`,
       fileLabel:(name,size)=>`${name}, ${size} bytes`,
       jsonFail:(label,msg)=>`Failed to load JSON${label?` (${label})`:""}: ${msg}`,
@@ -365,12 +397,12 @@
      view:(c,n,x)=>x.leaf?linkify(n.note||""):"", field:"note",edit:"text",get:(c,n)=>n.note||""},
   ];
 
-  // Excel風の列折りたたみ：列→折りたたみ単位の対応（No.・作業項目は対応なし＝常時表示）。数量+時間は工数の内訳でまとめる／工数は個別
+  // アウトライン式の列折りたたみ：列→折りたたみ単位の対応（No.・作業項目は対応なし＝常時表示）。数量+時間は工数の内訳でまとめる／工数は個別
   const COL_CG={qty:"qh",hrs:"qh",work:"work",prog:"prog",stat:"stat",asg:"asg",ps:"plan",pe:"plan",as:"act",ae:"act",note:"note"};
   let colCollapsed=new Set();
   try{const s=JSON.parse(localStorage.getItem("wbsColCollapsed")||"[]");if(Array.isArray(s))colCollapsed=new Set(s);}catch(_){}
   function saveColCollapsed(){try{localStorage.setItem("wbsColCollapsed",JSON.stringify([...colCollapsed]));}catch(_){}}
-  function effCols(){return COLS.filter(c=>{const g=COL_CG[c.key];return !(g&&colCollapsed.has(g));});}  // 畳んだ列は完全に消す（Excel同様＝隙間を作らない）。+/−はタブ帯の上に絶対配置
+  function effCols(){return COLS.filter(c=>{const g=COL_CG[c.key];return !(g&&colCollapsed.has(g));});}  // 畳んだ列は完全に消す（隙間を作らない）。+/−はタブ帯の上に絶対配置
 
   const isColor=s=>typeof s==="string"&&/^#[0-9a-fA-F]{3,8}$/.test(s);
   function normalizeProjects(d){
@@ -380,7 +412,7 @@
   }
   function leavesOf(tasks){const out=[];(function c(ns){for(const n of ns){if(n._leaf)out.push(n);else c(n.children);}})(tasks||[]);return out;}
   const quantProg=v=>{const n=Number(v);return Number.isFinite(n)?clamp(Math.round(n/10)*10,0,100):null;};
-  function bizDays(from,to){if(!from||!to||to<from)return 0;let n=0;const tot=diff(from,to);for(let i=0;i<=tot;i++){const w=parse(addStr(from,i)).getUTCDay();if(w!==0&&w!==6)n++;}return n;}  // _progress→0/10/…/100に量子化。未設定はnull
+  function bizDays(from,to,hol){if(!from||!to||to<from)return 0;let n=0;const tot=diff(from,to);for(let i=0;i<=tot;i++){const ds=addStr(from,i),w=parse(ds).getUTCDay();if(w!==0&&w!==6&&!(hol&&hol.has(ds)))n++;}return n;}  // 残り営業日＝土日＋祝日(hol)を除外(#75)  // _progress→0/10/…/100に量子化。未設定はnull
   function progStep(pct,editable,path){   // 進捗の ◀ N% ▶ ステッパー。editable=編集モードのリーフ（±10%）／親は読み取り（連続値pct）
     const v=`<span class="v">${Math.round(pct)}%</span>`;
     return editable
@@ -440,7 +472,7 @@
     const TODAY=todayStr();
     const projects=normalizeProjects(data);
     curProjects=projects;                                                    // 編集ハンドラ用に保持
-    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:editMode&&c.key==="name"?c.w+40:c.w;  // 編集時：日付列は短縮表示に合わせ84px(#59)・作業項目は広げる
+    const cw=c=>editMode&&DATE_FIELDS[c.key]?84:editMode&&c.key==="name"?c.w+72:editMode&&(c.key==="qty"||c.key==="hrs")?52:c.w;  // 編集時：日付列84px(#59)・作業項目+72(操作ボタンぶん名前入力に幅確保)・数量/時間は▲▼を残し3桁見える52px
     const ms=[], rows=[];
     projects.forEach((proj,pi)=>{
       (proj.tasks||[]).forEach(n=>computeNode(n,TODAY));
@@ -500,21 +532,24 @@
     while(i<totalDays){const key=addStr(rangeStart,i).slice(0,7);let j=i;
       while(j<totalDays&&addStr(rangeStart,j).slice(0,7)===key)j++;
       ym+=`<div class="seg" style="width:${(j-i)*DAY_W}px">${t("ym")(key.slice(0,4),parseInt(key.slice(5,7),10))}</div>`;i=j;}
+    // 祝日（top-level の holidays）。文字列"YYYY-MM-DD" or {date,name} を許容。日付ヘッダ=赤字／列=ピンク（土日と同じ.we）
+    const holMap=new Map();((data&&Array.isArray(data.holidays))?data.holidays:[]).forEach(h=>{const hd=typeof h==="string"?h:(h&&h.date);if(isDate(hd))holMap.set(hd,(h&&h.name)||"");});
     let dc="";
+    for(let k=0;k<totalDays;k++){const dsx=addStr(rangeStart,k),dow=parse(dsx).getUTCDay(),hn=holMap.get(dsx);
+      const cls=(dow===0?"sun":dow===6?"sat":"")+(hn!==undefined?" hol":"");
+      dc+=`<div class="d ${cls}"${hn?` title="${esc(hn)}"`:""}><div>${parse(dsx).getUTCDate()}</div><div class="dow">${t("wd")[dow]}</div></div>`;}
+    let bg="",weX=[];
     for(let k=0;k<totalDays;k++){const dsx=addStr(rangeStart,k),dow=parse(dsx).getUTCDay();
-      const cls=dow===0?"sun":dow===6?"sat":"";
-      dc+=`<div class="d ${cls}"><div>${parse(dsx).getUTCDate()}</div><div class="dow">${t("wd")[dow]}</div></div>`;}
-    let bg="";
-    for(let k=0;k<totalDays;k++){const dsx=addStr(rangeStart,k),dow=parse(dsx).getUTCDay();
-      if(dow===0||dow===6)bg+=`<div class="we" style="left:${k*DAY_W}px;width:${DAY_W}px"></div>`;
+      if(dow===0||dow===6||holMap.has(dsx))weX.push(k*DAY_W);   // 土日/祝日の列x。行背景に隠れるので #ganttBg ではなくオーバーレイ(行の上)で全高に塗る
       if(dsx.slice(8,10)==="01"&&k>0)bg+=`<div class="mline" style="left:${k*DAY_W}px"></div>`;}
 
     const sym=(r,tg)=>r.collapsible                                          // tg=true: caret自体をクリック可能に
       ?`<span class="${tg?"clk ":""}caret"${tg?` data-collapse="${esc(r.key)}"`:""}>${r.collapsed?"▶":"▼"}</span>`
       :`<span class="caret-sp"></span>`;
 
-    let lrows="",grows="",progRows="",pts=[[xToday,0]];
+    let lrows="",grows="",progRows="",pts=[[xToday,0]],yTop=0;
     rows.forEach((r,idx)=>{
+      let extra=0;   // 編集モードでこの行の下に挿入されるMS編集行の高さ（オーバーレイ高さ/イナズマyに織り込む）
       if(r.kind==="proj"){
         let info="";
         eCols.forEach(col=>{let v="";
@@ -522,7 +557,8 @@
           else if(col.key==="name"){
             if(editMode)v=`<span class="nm-wrap">${sym(r,true)}`
               +`<input class="nm-in" data-pname="${r.pi}" type="text" value="${esc(r.name)}" title="${esc(r.name)}">`
-              +`<span class="acts"><button data-act="addtask" data-proj="${r.pi}" title="${esc(t("addTaskTip"))}">${esc(t("addTask"))}</button></span></span>`;
+              +`<span class="acts"><button data-act="addtask" data-proj="${r.pi}" title="${esc(t("addTaskTip"))}">${esc(t("addTask"))}</button>`
+              +`<button data-act="addms" data-proj="${r.pi}" title="${esc(t("addMsTip"))}">${esc(t("addMs"))}</button></span></span>`;
             else v=`<span class="clk" data-collapse="${esc(r.key)}">${sym(r)}<b>${esc(r.name)}</b></span>`;
           }
           else if(col.key==="work")v=esc(fmtLoad(r.load));
@@ -536,6 +572,20 @@
         const span=r.planStart&&r.planEnd?`<div class="pspan" style="left:${xOf(r.planStart)}px;width:${barW(r.planStart,r.planEnd)}px"></div>`:"";
         grows+=`<div class="grow prow">${span}</div>`;
         progRows+=progBarRow(r,true,r.allDone,"prow");
+        if(editMode&&!r.collapsed){                                          // 編集モード:プロジェクト直下にMS編集行（GUIでMS追加/編集/削除）
+          const msArr=((curProjects[r.pi]||{}).milestones)||[]; extra=msArr.length*ROW_H;
+          msArr.forEach((m,mi)=>{const MP=r.pi+"/"+mi;
+            const cur=(isColor(m.color)?String(m.color):"#cc79a7").toLowerCase();
+            const inSet=MS_COLORS.includes(cur);
+            let sw=inSet?"":`<button class="ms-sw on" data-act="setmscolor" data-mpath="${MP}" data-color="${cur}" style="background:${cur}" title="${cur}"></button>`;  // 現在色がプリセット外でも先頭に「選択中」で表示
+            sw+=MS_COLORS.map(c=>`<button class="ms-sw${cur===c?" on":""}" data-act="setmscolor" data-mpath="${MP}" data-color="${c}" style="background:${c}" title="${c}"></button>`).join("");
+            lrows+=`<div class="lrow msrow"><span class="ms-edit"><span class="ms-tag">${esc(t("milestone"))}</span>`
+              +`<span class="date-wrap"><input data-mpath="${MP}" data-mfield="date" type="text" placeholder="MM-DD" value="${esc(m.date||"")}"><input type="date" class="cal-proxy" tabindex="-1" aria-hidden="true"><button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">${ICN.cal}</button></span>`
+              +`<input class="ms-label" data-mpath="${MP}" data-mfield="label" type="text" placeholder="${esc(t("msLabelPh"))}" value="${esc(m.label||"")}">`
+              +`<span class="ms-sws">${sw}</span>`
+              +`<button data-act="delms" data-mpath="${MP}" title="${esc(t("del"))}">${ICN.del}</button></span></div>`;
+            grows+=`<div class="grow msrow"></div>`; progRows+=`<div class="prw msrow"></div>`;});
+        }
       }else{
         const n=r.node,c=n._calc,leaf=n._leaf;
         const inProg=leaf&&c.actualStart&&!c.actualEnd, done=c.allDone;  // 完了=実績終了あり（集計は全子完了）
@@ -544,17 +594,18 @@
         const inp=(f,val,type)=>type==="date"                                // 編集入力欄（型でテンプレ分岐）
           ?`<span class="date-wrap"><input data-path="${P}" data-field="${f}" type="text" placeholder="MM-DD" value="${esc(val)}">`
             +`<input type="date" class="cal-proxy" tabindex="-1" aria-hidden="true">`
-            +`<button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">📅</button></span>`
+            +`<button type="button" class="cal-btn" data-cal title="${esc(t("calTip"))}">${ICN.cal}</button></span>`
           :`<input data-path="${P}" data-field="${f}" type="${type}"${type==="number"?' step="any"':""} value="${esc(val)}">`;
         let info="";
         eCols.forEach(col=>{let v="";
           if(col.key==="no")v=editMode?inp("id",n.id,"text"):esc(n.id);
           else if(col.key==="name"){
             if(editMode){
-              const move=`<span class="movegrp"><button data-act="up" data-path="${P}" title="${esc(t("up"))}">⬆︎</button>`  // ⬆⬇=兄弟内移動（caretの三角と区別）・チェックの前。FE0E=絵文字でなくテキスト字形を強制
-                +`<button data-act="down" data-path="${P}" title="${esc(t("down"))}">⬇︎</button></span>`;
-              const acts=`<span class="acts"><button data-act="add" data-path="${P}" title="${esc(t("addBelow"))}">＋</button>`
-                +`<button data-act="del" data-path="${P}" title="${esc(t("del"))}">✕</button></span>`;
+              const move=`<span class="movegrp"><button data-act="up" data-path="${P}" title="${esc(t("up"))}">${ICN.up}</button>`  // ⬆⬇=兄弟内移動（caretの三角と区別）・チェックの前
+                +`<button data-act="down" data-path="${P}" title="${esc(t("down"))}">${ICN.down}</button></span>`;
+              const acts=`<span class="acts"><button data-act="add" data-path="${P}" title="${esc(t("addBelow"))}">${ICN.add}</button>`
+                +(r.depth<2?`<button data-act="addchild" data-path="${P}" title="${esc(t("addChild"))}">${ICN.leaf}</button>`:"")  // ＋子=入れ子追加（葉アイコン・#49/#70）。3L(深さ2)は4L禁止のため出さない
+                +`<button data-act="del" data-path="${P}" title="${esc(t("del"))}">${ICN.del}</button></span>`;
               const doneCtl=leaf                                              // リーフ=押せる完了チェック／集計ノード=読み取り✓のまま
                 ?`<button class="donechk${done?" on":""}" data-act="done" data-path="${P}" title="${esc(t("doneTip"))}">${done?"✓":""}</button>`
                 :(done?'<span class="done-mark">✓</span>':"");
@@ -611,27 +662,37 @@
           else if(!c.actualStart&&c.planStart&&TODAY>c.planStart)px=centerOf(c.planStart);  // 着手遅延：未着手で予定開始超過
           // 進行中（期限内）は本日線（着手ズレは表示しない）
         }
-        pts.push([clamp(px,0,ganttW),idx*ROW_H+ROW_H/2]);
+        pts.push([clamp(px,0,ganttW),yTop+ROW_H/2]);
       }
+      yTop+=ROW_H+extra;                                                     // この行＋（編集モードなら）MS編集行ぶんを進める
     });
-    const rowsH=rows.length*ROW_H;
+    const rowsH=yTop;
     pts.push([xToday,rowsH]);
 
-    let svg="";
+    // 土日/祝日の列を行の上に薄ピンクで重ねる（#ganttBg背景は不透明な行背景に隠れるため、オーバーレイで全高に効かせる）
+    // 半透明なのでバー/イナズマ/本日線は後段で上書きされ視認性を損なわない
+    let svg=weX.map(x=>`<rect class="we" x="${x}" y="0" width="${DAY_W}" height="${rowsH}" fill="#d94f72" opacity="0.10"></rect>`).join("");
     // CSS変数(var(--x))はSVGのプレゼンテーション属性では解決されない → stroke/fill はリテラル色を書く
-    ms.forEach(m=>{if(!isDate(m.date)||m.date<rangeStart||m.date>rangeEnd)return;
-      const x=centerOf(m.date),col=isColor(m.color)?m.color:"#cc79a7";   // 色は#hexのみ許可（注入防止）。既定=Okabe-Ito赤紫(青と安全に分離・#35）
-      const lbl=String(m.label??"");                                     // label欠損でも落とさない
+    // 線は全高で重なってOK。ラベルだけ近接時に重ならないようレーン（縦段）に割り当てる
+    const mvis=ms.filter(m=>isDate(m.date)&&m.date>=rangeStart&&m.date<=rangeEnd)
+      .map(m=>({m,x:centerOf(m.date)})).sort((a,b)=>a.x-b.x);
+    const laneEnd=[];                                                    // 各レーンの直近ラベル右端x
+    mvis.forEach(({m,x})=>{
+      const col=isColor(m.color)?m.color:"#cc79a7";                     // 色は#hexのみ許可（注入防止）。既定=Okabe-Ito赤紫(青と安全に分離・#35）
+      const lbl=String(m.label??""), w=Math.max(28,lbl.length*11);      // label欠損でも落とさない
+      const lx=(x+2+w>ganttW)?Math.max(0,x-2-w):x+2;                    // 右端はみ出しならラベルを線の左側へ寄せる（見切れ防止・クランプ）
+      let lane=0; while(lane<laneEnd.length&&laneEnd[lane]>lx-3)lane++;  // 直近ラベルが終わってる最初のレーンへ
+      laneEnd[lane]=lx+w+3;
       svg+=`<line x1="${x}" y1="0" x2="${x}" y2="${rowsH}" stroke="${col}" stroke-width="1.5" stroke-dasharray="4 3"></line>`
-         +`<rect x="${x+2}" y="1" width="${Math.max(28,lbl.length*11)}" height="14" rx="2" fill="${col}"></rect>`
-         +`<text x="${x+5}" y="12" font-size="10" fill="#fff">${esc(lbl)}</text>`;});
+         +`<rect x="${lx}" y="${1+lane*16}" width="${w}" height="14" rx="2" fill="${col}"></rect>`
+         +`<text x="${lx+3}" y="${12+lane*16}" font-size="10" fill="#fff">${esc(lbl)}</text>`;});
     svg+=`<polyline points="${pts.map(p=>p[0].toFixed(1)+","+p[1]).join(" ")}" fill="none" stroke="#e11d48" stroke-width="1.8" stroke-linejoin="round"></polyline>`;
     pts.slice(1,-1).forEach(p=>svg+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1]}" r="2.5" fill="#e11d48"></circle>`);
 
     document.getElementById("leftHead").innerHTML=lh;
     document.getElementById("leftRows").innerHTML=lrows+`<div id="leftColHl"></div>`; leftColBounds=null;  // 列幅が変わりうるので境界キャッシュを無効化
     document.getElementById("left").style.width=eCols.reduce((s,c)=>s+cw(c),0)+"px";
-    let ctgl="",tx=0,lastCx=-99;                                               // 列折りたたみ +/−：畳んだ列は0幅＝隙間なし、+/−はタブ帯に絶対配置（Excel風）
+    let ctgl="",tx=0,lastCx=-99;                                               // 列折りたたみ +/−：畳んだ列は0幅＝隙間なし、+/−はタブ帯に絶対配置（アウトライン式）
     for(let ci=0;ci<COLS.length;ci++){const c=COLS[ci];const g=COL_CG[c.key];
       if(g){let j=ci;while(j<COLS.length&&COL_CG[COLS[j].key]===g)j++;
         if(colCollapsed.has(g)){let bx=tx;if(bx-lastCx<16)bx=lastCx+16;        // 隣接で畳んだ時に + が重ならないよう少しずらす
@@ -672,13 +733,13 @@
     const _pend=maxStr(_pe);
     document.getElementById("stat").innerHTML=t("stat")({
       pc:projects.length,ps:minStr(_ps),pe:_pend,due:_overdue,slip:_behind,
-      biz:(_pend&&_pend>=TODAY)?bizDays(TODAY,_pend):0,
+      biz:(_pend&&_pend>=TODAY)?bizDays(TODAY,_pend,holMap):0,
       planPM:(totalLoad/20).toFixed(1),restPM:(Math.max(totalLoad-_ev,0)/20).toFixed(1),
       prog:Math.round(totalLoad?_ev/totalLoad*100:0),plan:Math.round(totalLoad?_pv/totalLoad*100:0),
       delay:Math.round(totalLoad?Math.max((_pv-_ev)/totalLoad*100,0):0),
       fname:(fileHandle&&fileHandle.name)||curFileName||"\u2014",today:TODAY,
       upd:new Date().toLocaleTimeString(t("locale"),{hour:"2-digit",minute:"2-digit"}),
-      save:saveMsg?"・ 💾 "+esc(saveMsg):""});
+      save:saveMsg?"・ "+ICN.save+" "+esc(saveMsg):""});
     const rEl=document.getElementById("right"), lEl=document.getElementById("left");
     const maxLeft=Math.max(0,ganttW-rEl.clientWidth);
     // 初回/新規読込のみ本日へセンタリング。折りたたみ・更新ではスクロール位置を保持。進捗ビューは横スクロール無し（0固定）
@@ -706,7 +767,7 @@
     if(lastData)render(lastData);
   });
   // 折りたたみ（イベント委譲）
-  document.querySelector(".htab-sp").addEventListener("click",e=>{           // 列折りたたみ +/−（Excel風）
+  document.querySelector(".htab-sp").addEventListener("click",e=>{           // 列折りたたみ +/−（アウトライン式）
     const b=e.target.closest("[data-colcol],[data-colexp]"); if(!b||!lastData)return;
     const col=b.getAttribute("data-colcol"),exp=b.getAttribute("data-colexp");
     if(col)colCollapsed.add(col); else colCollapsed.delete(exp);
@@ -810,7 +871,7 @@
     }
   }
   // 保存キュー：dirty → デバウンス → 単一チェーンで書込（並走書込・古いスナップショット後勝ちを防ぐ）
-  function setSaveMsg(m){saveMsg=m;const el=document.getElementById("saveMsg");if(el)el.textContent=m?"・ 💾 "+m:"";}
+  function setSaveMsg(m){saveMsg=m;const el=document.getElementById("saveMsg");if(el)el.innerHTML=m?"・ "+ICN.save+" "+esc(m):"";}
   function notice(m){const el=document.getElementById("notice");el.textContent=m;el.classList.toggle("show",!!m);}  // ページ内の案内バー（alertと違いジェスチャーを消費しない）
   function queueSave(){dirty=true;setSaveMsg(t("unsaved"));clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,SAVE_DEBOUNCE_MS);}
   function flushSaves(){clearTimeout(saveTimer);if(dirty){dirty=false;saveChain=saveChain.then(()=>writeNow());}return saveChain;}
@@ -863,7 +924,7 @@
   document.getElementById("leftRows").addEventListener("change",e=>{
     const t=e.target; if(t.tagName!=="INPUT")return;
     if(t.classList.contains("cal-proxy")){                                   // 📅の選択/クリアをテキスト入力へ反映（#33/#56）
-      const txt=t.closest(".date-wrap").querySelector("input[data-field]");
+      const txt=t.closest(".date-wrap").querySelector("input[data-field],input[data-mfield]");
       txt.value=t.value;                                                     // 空＝カレンダーの「クリア」もそのまま反映（→null保存）
       txt.dispatchEvent(new Event("change",{bubbles:true}));
       return;
@@ -874,13 +935,19 @@
     }else if(t.hasAttribute("data-pname")){
       const pi=+t.getAttribute("data-pname"); if(!curProjects||!curProjects[pi])return;
       curProjects[pi].name=t.value;
+    }else if(t.hasAttribute("data-mfield")){                                  // マイルストーン編集（GUI経路・#70補足）
+      const[pi,mi]=t.getAttribute("data-mpath").split("/").map(Number);
+      const m=curProjects&&curProjects[pi]&&curProjects[pi].milestones&&curProjects[pi].milestones[mi]; if(!m)return;
+      const f=t.getAttribute("data-mfield");
+      if(f==="date"){const iso=expandDate(t.value,m.date); if(iso===null)return; m.date=iso;}
+      else if(f==="label")m.label=t.value;
     }else return;
     queueSave(); deferRender();
   });
   document.getElementById("leftRows").addEventListener("click",e=>{
     const cb=e.target.closest("button[data-cal]");                           // 📅 → ネイティブカレンダー（表示形式の制御不能を回避し、入力はISO固定 #33）
     if(cb){
-      const w=cb.closest(".date-wrap"), txt=w.querySelector("input[data-field]"), px=w.querySelector(".cal-proxy");
+      const w=cb.closest(".date-wrap"), txt=w.querySelector("input[data-field],input[data-mfield]"), px=w.querySelector(".cal-proxy");
       px.value=isDate(txt.value)?txt.value:(expandDate(txt.value)||"");        // 短縮形"06-01"はfull ISOに展開してからnativeへ（空でないと現在日付/クリアが効かない・#59）
       try{px.showPicker();}catch(_){}
       return;
@@ -893,14 +960,52 @@
       collapsed.delete("P|"+proj.name);                                      // 折りたたみ中でも追加が見えるように展開（#11）
       queueSave(); render(lastData); return;
     }
+    if(act==="addms"){                                                       // マイルストーン追加（既定:本日/空ラベル/既定色）
+      const pi=+b.getAttribute("data-proj"), proj=curProjects&&curProjects[pi]; if(!proj)return;
+      proj.milestones=proj.milestones||[]; proj.milestones.push({date:todayStr(),label:"",color:"#cc79a7"});
+      collapsed.delete("P|"+proj.name);
+      queueSave(); render(lastData); return;
+    }
+    if(act==="delms"){                                                       // マイルストーン削除
+      const[pi,mi]=b.getAttribute("data-mpath").split("/").map(Number);
+      const proj=curProjects&&curProjects[pi]; if(!proj||!proj.milestones)return;
+      proj.milestones.splice(mi,1);
+      queueSave(); render(lastData); return;
+    }
+    if(act==="setmscolor"){                                                  // 色プリセット選択（5色）
+      const[pi,mi]=b.getAttribute("data-mpath").split("/").map(Number);
+      const m=curProjects&&curProjects[pi]&&curProjects[pi].milestones&&curProjects[pi].milestones[mi]; if(!m)return;
+      m.color=b.getAttribute("data-color"); queueSave(); render(lastData); return;
+    }
     const r=resolvePath(b.getAttribute("data-path")), arr=r.parentArray, i=r.index;
     if(!arr||!r.node)return;
     if(act==="up"){if(i<=0)return; const t=arr[i-1];arr[i-1]=arr[i];arr[i]=t;}
     else if(act==="down"){if(i>=arr.length-1)return; const t=arr[i+1];arr[i+1]=arr[i];arr[i]=t;}
-    else if(act==="del"){if(!confirm(t("confirmDel")(r.node.name||"")))return; arr.splice(i,1);}
+    else if(act==="del"){
+      if(!confirm(t("confirmDel")(r.node.name||"")))return;
+      const removed=arr[i]; arr.splice(i,1);
+      if(arr.length===0){                                                    // 案Y降格(#70)：親集計の子が全部消えたら、最後の子の値を親へ戻しリーフ化（工数を消さない）
+        const pp=b.getAttribute("data-path").split("/");
+        if(pp.length>=3){const pr=resolvePath(pp.slice(0,-1).join("/"));
+          if(pr.node){delete pr.node.children;
+            for(const k in removed)if(k!=="id"&&k!=="children"&&k!=="_calc"&&k!=="_leaf")pr.node[k]=removed[k];}}
+      }
+    }
     else if(act==="add"){
       const base=String(r.node.id||""), dot=base.lastIndexOf("."), prefix=dot>=0?base.slice(0,dot+1):"";
       arr.splice(i+1,0,newLeaf(mintId(arr,prefix)));
+    }
+    else if(act==="addchild"){                                               // ＋子=入れ子追加(#70)
+      const node=r.node;
+      if(node.children&&node.children.length){                               // 既存集計→末尾に空の子（総工数は増える）
+        node.children.push(newLeaf(mintId(node.children,String(node.id)+".")));
+      }else{                                                                  // リーフ→集計化：自分の値を子1へ移す（案A）。総工数・進捗は不変
+        const child={id:String(node.id)+".1",name:node.name};
+        for(const k in node)if(k!=="id"&&k!=="name"&&k!=="children"&&k!=="_calc"&&k!=="_leaf")child[k]=node[k];
+        Object.keys(node).forEach(k=>{if(k!=="id"&&k!=="name")delete node[k];});
+        node.children=[child];
+      }
+      collapsed.delete("T|"+r.proj.name+"|"+node.id);                         // 折りたたみ中でも追加が見えるよう展開
     }
     else if(act==="done"){                                                   // 完了トグル：チェックで実績終了=今日（未着手なら着手も今日）・解除でnull
       const a=r.node.actual=r.node.actual&&typeof r.node.actual==="object"?r.node.actual:{};
@@ -1029,6 +1134,15 @@
     applyLang(); if(lastData)render(lastData);
   });
   applyLang();
+  // 簡素表示トグル(#79)：ロゴ/版/“Viewer”/タブ名を隠し「WBS」だけに。現場で“自作”と言える逃げ道。クリックで切替・localStorage記憶
+  function applyPlain(){const on=(()=>{try{return localStorage.getItem("wbsPlain")==="1";}catch(_){return false;}})();
+    document.body.classList.toggle("plain",on); document.title=on?"WBS":"WBS Viewer";}
+  document.getElementById("brandTitle").addEventListener("click",()=>{
+    const on=!document.body.classList.contains("plain");
+    try{localStorage.setItem("wbsPlain",on?"1":"0");}catch(_){}
+    applyPlain();
+  });
+  applyPlain();
 })();
 </script>
 </body>
