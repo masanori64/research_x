@@ -27,7 +27,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify dashboard artifact boundary
         shell: bash
@@ -48,7 +48,7 @@ jobs:
           grep -q "control artifact / not evidence / not citation" docs/control/codex/dashboard/index.html
 
       - name: Upload dashboard artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex-control-dashboard
           path: |

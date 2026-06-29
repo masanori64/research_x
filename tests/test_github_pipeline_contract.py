@@ -58,7 +58,7 @@ def test_build_artifact_workflow_does_not_publish_or_deploy() -> None:
 
     assert "name: Research X Build Artifacts" in workflow
     assert "uv build" in workflow
-    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/upload-artifact@v7" in workflow
     assert "contents: write" not in workflow
     assert "id-token: write" not in workflow
     assert "pypi" not in workflow.lower()
@@ -74,8 +74,8 @@ def test_security_workflows_and_dependabot_cover_current_dependency_surfaces() -
     assert "fail-on-severity: high" in dependency_review
     assert "comment-summary-in-pr: never" in dependency_review
     assert "pull-requests: write" not in dependency_review
-    assert "github/codeql-action/init@v3" in codeql
-    assert "github/codeql-action/analyze@v3" in codeql
+    assert "github/codeql-action/init@v4" in codeql
+    assert "github/codeql-action/analyze@v4" in codeql
     assert "security-events: write" in codeql
     for ecosystem in ("github-actions", "uv", "npm"):
         assert f"package-ecosystem: {ecosystem}" in dependabot

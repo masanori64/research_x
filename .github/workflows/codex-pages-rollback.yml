@@ -45,7 +45,7 @@ jobs:
     env:
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.before }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TARGET_REF }}
       - uses: actions/configure-pages@v5
