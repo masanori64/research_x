@@ -177,6 +177,7 @@ def _format_needs_review_answer_triage(triage: dict[str, Any]) -> str:
     if not total:
         return "needs_review answer triage: none"
     reason_counts = triage.get("reason_counts")
+    action_counts = triage.get("action_counts")
     samples = triage.get("samples")
     sample_text = ""
     if isinstance(samples, list) and samples:
@@ -185,11 +186,13 @@ def _format_needs_review_answer_triage(triage: dict[str, Any]) -> str:
             sample_text = (
                 " first="
                 f"{sample.get('answer_id')} "
+                f"action={sample.get('suggested_action') or '-'} "
                 f"reasons={sample.get('reasons') or []}"
             )
     return (
         "needs_review answer triage: "
-        f"total={total} reasons={reason_counts or {}}{sample_text}"
+        f"total={total} reasons={reason_counts or {}} "
+        f"actions={action_counts or {}}{sample_text}"
     )
 
 
@@ -665,14 +668,17 @@ def _needs_review_answer_triage(
         """
     ).fetchall()
     reason_counts: dict[str, int] = {}
+    action_counts: dict[str, int] = {}
     samples: list[dict[str, Any]] = []
     for answer in answers:
         answer_id = str(answer["answer_id"])
         structured = _loads_json(answer["structured_json"], default={})
         citations = _answer_citation_rows(conn, answer_id)
         reasons = _needs_review_answer_reasons(answer, structured, citations)
+        suggested_action = _needs_review_answer_action(reasons)
         for reason in reasons:
             _increment(reason_counts, reason)
+        _increment(action_counts, suggested_action)
         if len(samples) < sample_limit:
             samples.append(
                 {
@@ -686,11 +692,13 @@ def _needs_review_answer_triage(
                     "citation_count": len(citations),
                     "answer_text_present": bool(str(answer["answer_text"] or "").strip()),
                     "reasons": reasons,
+                    "suggested_action": suggested_action,
                 }
             )
     return {
         "total": len(answers),
         "reason_counts": dict(sorted(reason_counts.items())),
+        "action_counts": dict(sorted(action_counts.items())),
         "sample_limit": sample_limit,
         "samples": samples,
     }
@@ -721,6 +729,23 @@ def _needs_review_answer_reasons(
     if reasons == ["answerability:answerable"]:
         reasons.append("needs_review_status_without_detected_blocker")
     return _dedupe_preserve_order(reasons)
+
+
+def _needs_review_answer_action(reasons: list[str]) -> str:
+    reason_set = set(reasons)
+    if "answer_text_missing" in reason_set:
+        return "regenerate_answer"
+    if "answerability:conflicting" in reason_set:
+        return "resolve_conflict"
+    if "citation_missing" in reason_set:
+        return "add_or_repair_citation"
+    if "citation_not_ready" in reason_set:
+        return "restore_source_then_regenerate"
+    if "answerability:stale_only" in reason_set:
+        return "restore_source_then_regenerate"
+    if "needs_review_status_without_detected_blocker" in reason_set:
+        return "inspect_unexpected_needs_review_status"
+    return "regenerate_answer"
 
 
 def _answerability_status(structured: Any) -> str | None:

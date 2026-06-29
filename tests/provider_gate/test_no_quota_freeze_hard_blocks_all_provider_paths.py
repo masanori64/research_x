@@ -186,6 +186,29 @@ def test_reader_provider_blocks_before_network_fetch(
     assert called is False
 
 
+def test_direct_http_reader_provider_blocks_before_network_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    def fail_read_url(*_args: Any, **_kwargs: Any) -> Any:
+        nonlocal called
+        called = True
+        raise AssertionError("direct reader request should be blocked before network fetch")
+
+    monkeypatch.setattr(reader, "_read_url", fail_read_url)
+
+    with pytest.raises(RuntimeError, match=FREEZE_MATCH):
+        reader.HttpReaderProvider(timeout_seconds=1.0).extract(
+            "https://example.com/page",
+            query="query",
+            title=None,
+            max_chars=100,
+        )
+
+    assert called is False
+
+
 def test_ocr_provider_blocks_before_http_send(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match=FREEZE_MATCH):
         ocr.build_ocr_evidence(

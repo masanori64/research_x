@@ -414,7 +414,7 @@
                 "start": null,
                 "end": null
               },
-              "note": "Embeddings, rerank, LLM context, classifiers, and answer providers are blocked by no-quota freeze.",
+              "note": "Embeddings, rerank, LLM context, direct HTTP Reader, classifiers, and answer providers are blocked by no-quota freeze.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "runtime_layer": "retrieval_eval",
@@ -427,7 +427,7 @@
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop before any paid, free-tier, trial-credit, zero-dollar, or keyless provider call.",
-                "next_action": "Run offline estimates first if the user explicitly lifts the provider gate."
+                "next_action": "Keep budget, transport guard, and static network scanner green before any approved provider lane."
               }
             },
             {
@@ -528,7 +528,7 @@
             },
             {
               "id": "4.3",
-              "name": "Adoption and source-lock audit surface",
+              "name": "Adoption, review ZIP, and source-lock audit surface",
               "qty": 1,
               "hours": 1,
               "assignee": "Codex",
@@ -540,7 +540,7 @@
                 "start": "2026-06-25",
                 "end": "2026-06-25"
               },
-              "note": "Adoption audit checks owner surface, source refs, stop conditions, and enabled gates.",
+              "note": "Adoption audit and review ZIP checks cover owner surface, provenance, command evidence, stop conditions, and enabled gates.",
               "_research_x": {
                 "owner_plane": "wbs",
                 "runtime_layer": "tool_interface",
@@ -553,7 +553,7 @@
                 "evidence_status": "not_evidence",
                 "answer_support_allowed": false,
                 "stop_condition": "Stop if source locks, adoption shapes, or enabled/provider flags diverge.",
-                "next_action": "Run research-x adoption audit after registry/source-lock changes."
+                "next_action": "Run adoption audit and review ZIP verification after registry, provenance, or command-manifest changes."
               }
             },
             {

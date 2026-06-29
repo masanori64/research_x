@@ -150,12 +150,22 @@ class HttpReaderProvider:
         title: str | None,
         max_chars: int,
     ) -> ReaderPage:
-        response = _read_url(
-            url,
-            timeout_seconds=self.timeout_seconds,
-            user_agent=self.user_agent,
-            max_bytes=self.max_bytes,
-        )
+        with budgeted_api_call(
+            provider=self.provider_id,
+            model="direct-http",
+            provider_role=self.provider_role,
+            operation="reader_extract",
+            units=api_units(calls=1, input_tokens=rough_text_tokens({"url": url, "query": query})),
+            request_payload={"url": url, "query": query, "max_chars": max_chars},
+            metadata={"direct_http_reader": True},
+        ):
+            require_provider_transport_send_allowed(url)
+            response = _read_url(
+                url,
+                timeout_seconds=self.timeout_seconds,
+                user_agent=self.user_agent,
+                max_bytes=self.max_bytes,
+            )
         extracted_title, text = _extract_text(response.body, response.content_type)
         resolved_title = title or extracted_title or response.final_url
         metadata = {

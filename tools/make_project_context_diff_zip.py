@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +16,10 @@ REVIEW_ZIP_SCHEMA_VERSION = 1
 REVIEW_ZIP_ARTIFACT_KIND = "research_x_gpt_review_context_zip"
 COMMAND_MANIFEST_SCHEMA_VERSION = 1
 COMMAND_MANIFEST_ARTIFACT_KIND = "research_x_review_command_manifest"
+GIT_PROVENANCE_SCHEMA_VERSION = 1
+GIT_PROVENANCE_ARTIFACT_KIND = "research_x_review_git_provenance"
+API_BUDGET_EVENT_DELTA_SCHEMA_VERSION = 1
+API_BUDGET_EVENT_DELTA_ARTIFACT_KIND = "research_x_api_budget_event_delta"
 
 REQUIRED_PROJECT_CONTEXT_FILES = (
     "README.codex.md",
@@ -46,10 +51,12 @@ REQUIRED_REVIEW_ARTIFACTS = {
     "git_status_log": "attachments/logs/git_status_short.log",
     "review_zip_verify_log": "attachments/logs/review_zip_verify.log",
     "command_manifest": "attachments/logs/command_manifest.json",
+    "git_provenance": "attachments/logs/git_provenance.json",
     "memory_audit": "attachments/audits/memory_audit.json",
     "adoption_audit": "attachments/audits/adoption_audit.json",
     "pointer_map_audit": "attachments/audits/pointer_map_audit.json",
 }
+GENERATED_REVIEW_ARTIFACTS = frozenset({"git_provenance"})
 ALLOW_EMPTY_REVIEW_ARTIFACTS = frozenset(
     {
         "git_diff_check_log",
@@ -99,7 +106,19 @@ def build_review_context_zip(
         staging = Path(temp_dir) / output.stem
         staging.mkdir(parents=True)
         files: list[dict[str, Any]] = []
-        _write_context(staging, root, base_ref=base_ref, head_ref=head_ref)
+        git_provenance = _git_provenance_payload(
+            root,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            changed_files=tuple(dict.fromkeys(resolved_changed_files)),
+        )
+        _write_context(
+            staging,
+            root,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            git_provenance=git_provenance,
+        )
         _write_manifest_markdown(staging)
         for zip_path in ("context.md", "attachment_manifest.md"):
             files.append(
@@ -140,6 +159,7 @@ def build_review_context_zip(
             files,
             review_artifacts or {},
         )
+        _write_git_provenance_artifact(staging, files, git_provenance)
         _write_git_artifacts(
             root,
             staging,
@@ -265,6 +285,9 @@ def _validate_required_review_artifacts(
     command_manifest_raw = payloads.get("command_manifest")
     if command_manifest_raw is not None and command_manifest_raw.strip():
         errors.extend(_validate_command_manifest(command_manifest_raw, zip_names=zip_names))
+    git_provenance_raw = payloads.get("git_provenance")
+    if git_provenance_raw is not None and git_provenance_raw.strip():
+        errors.extend(_validate_git_provenance(git_provenance_raw))
     return tuple(errors)
 
 
@@ -316,6 +339,58 @@ def _validate_command_manifest_entry(
         errors.append(f"{label}.exit_code must be 0")
     if command.get("provider_requests_expected_zero") is not True:
         errors.append(f"{label}.provider_requests_expected_zero must be true")
+    for key in (
+        "provider_requests_observed",
+        "provider_transport_sends_observed",
+    ):
+        value = command.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            errors.append(f"{label}.{key} must be a non-negative integer")
+        elif value != 0:
+            errors.append(f"{label}.{key} must be 0")
+    delta = command.get("api_budget_event_delta")
+    if not isinstance(delta, dict):
+        errors.append(f"{label}.api_budget_event_delta must be a JSON object")
+    else:
+        if delta.get("artifact_kind") != API_BUDGET_EVENT_DELTA_ARTIFACT_KIND:
+            errors.append(
+                f"{label}.api_budget_event_delta.artifact_kind must be "
+                f"{API_BUDGET_EVENT_DELTA_ARTIFACT_KIND!r}"
+            )
+        if delta.get("schema_version") != API_BUDGET_EVENT_DELTA_SCHEMA_VERSION:
+            errors.append(
+                f"{label}.api_budget_event_delta.schema_version must be "
+                f"{API_BUDGET_EVENT_DELTA_SCHEMA_VERSION}"
+            )
+        for key in (
+            "provider_requests_observed",
+            "provider_requests_blocked_by_freeze",
+            "provider_transport_sends_observed",
+        ):
+            value = delta.get(key)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                errors.append(
+                    f"{label}.api_budget_event_delta.{key} must be a non-negative integer"
+                )
+            elif key in {
+                "provider_requests_observed",
+                "provider_transport_sends_observed",
+            } and value != 0:
+                errors.append(f"{label}.api_budget_event_delta.{key} must be 0")
+        for key in (
+            "provider_requests_observed",
+            "provider_transport_sends_observed",
+        ):
+            if (
+                isinstance(command.get(key), int)
+                and isinstance(delta.get(key), int)
+                and command.get(key) != delta.get(key)
+            ):
+                errors.append(
+                    f"{label}.{key} must match api_budget_event_delta.{key}"
+                )
+        if delta.get("not_evidence") is not True:
+            errors.append(f"{label}.api_budget_event_delta.not_evidence must be true")
     log_path = str(command.get("log_path") or "").replace("\\", "/")
     if log_path and log_path not in zip_names:
         errors.append(f"{label}.log_path missing from ZIP: {log_path}")
@@ -326,6 +401,66 @@ def _validate_command_manifest_entry(
                 datetime.fromisoformat(value.replace("Z", "+00:00"))
             except ValueError:
                 errors.append(f"{label}.{key} must be an ISO 8601 timestamp")
+    return tuple(errors)
+
+
+def _validate_git_provenance(raw: bytes) -> tuple[str, ...]:
+    zip_path = REQUIRED_REVIEW_ARTIFACTS["git_provenance"]
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return (f"git provenance artifact is not valid JSON: {zip_path}: {exc}",)
+    if not isinstance(payload, dict):
+        return (f"git provenance artifact must be a JSON object: {zip_path}",)
+    errors: list[str] = []
+    if payload.get("artifact_kind") != GIT_PROVENANCE_ARTIFACT_KIND:
+        errors.append(
+            "git provenance artifact_kind must be "
+            f"{GIT_PROVENANCE_ARTIFACT_KIND!r}"
+        )
+    if payload.get("schema_version") != GIT_PROVENANCE_SCHEMA_VERSION:
+        errors.append(
+            "git provenance schema_version must be "
+            f"{GIT_PROVENANCE_SCHEMA_VERSION}"
+        )
+    if payload.get("not_evidence") is not True:
+        errors.append("git provenance not_evidence must be true")
+    if payload.get("git_available") is not True:
+        errors.append("git provenance git_available must be true")
+    head_commit = str(payload.get("head_commit") or "")
+    if not re.fullmatch(r"[0-9a-f]{40}", head_commit):
+        errors.append("git provenance head_commit must be a 40-character lowercase hex hash")
+    head_short = str(payload.get("head_short_commit") or "")
+    if head_short and head_commit and not head_commit.startswith(head_short):
+        errors.append("git provenance head_short_commit must prefix head_commit")
+    working_tree = payload.get("working_tree")
+    if not isinstance(working_tree, dict):
+        errors.append("git provenance working_tree must be a JSON object")
+    else:
+        if not isinstance(working_tree.get("status_short"), list):
+            errors.append("git provenance working_tree.status_short must be a list")
+        if not isinstance(working_tree.get("is_dirty"), bool):
+            errors.append("git provenance working_tree.is_dirty must be boolean")
+        if working_tree.get("is_dirty") is True and not str(
+            working_tree.get("dirty_allowed_reason") or ""
+        ).strip():
+            errors.append(
+                "git provenance dirty working tree requires dirty_allowed_reason"
+            )
+        policy = str(working_tree.get("policy") or "")
+        if policy not in {
+            "clean_required_satisfied",
+            "dirty_allowed_for_review_package",
+            "git_unavailable",
+        }:
+            errors.append(f"git provenance working_tree.policy is invalid: {policy!r}")
+    diff = payload.get("diff")
+    if not isinstance(diff, dict):
+        errors.append("git provenance diff must be a JSON object")
+    else:
+        for key in ("base_to_head_name_status", "working_tree_name_status", "cached_name_status"):
+            if not isinstance(diff.get(key), list):
+                errors.append(f"git provenance diff.{key} must be a list")
     return tuple(errors)
 
 
@@ -510,6 +645,8 @@ def _copy_review_artifacts(
     review_artifacts: dict[str, str | Path],
 ) -> None:
     for artifact_id, zip_path in REQUIRED_REVIEW_ARTIFACTS.items():
+        if artifact_id in GENERATED_REVIEW_ARTIFACTS:
+            continue
         raw_source = review_artifacts.get(artifact_id)
         source = _resolve_optional_source(root, raw_source)
         if source is None or not source.exists() or not source.is_file():
@@ -560,7 +697,11 @@ def _write_context(
     *,
     base_ref: str | None,
     head_ref: str,
+    git_provenance: dict[str, Any],
 ) -> None:
+    working_tree = git_provenance.get("working_tree")
+    if not isinstance(working_tree, dict):
+        working_tree = {}
     lines = [
         "# research_x GPT Review Context",
         "",
@@ -568,6 +709,12 @@ def _write_context(
         f"project_root: {project_root}",
         f"base_ref: {base_ref or '-'}",
         f"head_ref: {head_ref}",
+        f"head_commit: {git_provenance.get('head_commit') or '-'}",
+        f"head_short_commit: {git_provenance.get('head_short_commit') or '-'}",
+        f"base_commit: {git_provenance.get('base_commit') or '-'}",
+        f"working_tree_policy: {working_tree.get('policy') or '-'}",
+        f"working_tree_dirty: {working_tree.get('is_dirty')}",
+        f"dirty_allowed_reason: {working_tree.get('dirty_allowed_reason') or '-'}",
         "",
         "This package is a control/review artifact, not answer evidence.",
         "Use source bundles, context chunks, and citations for answer support.",
@@ -589,6 +736,30 @@ def _write_manifest_markdown(staging: Path) -> None:
     (staging / "attachment_manifest.md").write_text(
         "\n".join(lines) + "\n",
         encoding="utf-8",
+    )
+
+
+def _write_git_provenance_artifact(
+    staging: Path,
+    files: list[dict[str, Any]],
+    payload: dict[str, Any],
+) -> None:
+    zip_path = REQUIRED_REVIEW_ARTIFACTS["git_provenance"]
+    path = staging / zip_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    files.append(
+        {
+            "role": "review_artifact",
+            "artifact_id": "git_provenance",
+            "source_path": None,
+            "zip_path": zip_path,
+            "required": True,
+            "generated": True,
+        }
     )
 
 
@@ -627,6 +798,74 @@ def _write_git_artifacts(
                 "required": False,
             }
         )
+
+
+def _git_provenance_payload(
+    root: Path,
+    *,
+    base_ref: str | None,
+    head_ref: str,
+    changed_files: tuple[str, ...],
+) -> dict[str, Any]:
+    head_commit = _git_commit(root, head_ref)
+    base_commit = _git_commit(root, base_ref) if base_ref else None
+    status_short = _git_lines(root, ["git", "status", "--short"])
+    working_tree_name_status = _git_lines(root, ["git", "diff", "--name-status"])
+    cached_name_status = _git_lines(root, ["git", "diff", "--cached", "--name-status"])
+    if base_ref:
+        base_to_head = _git_lines(root, ["git", "diff", "--name-status", f"{base_ref}..{head_ref}"])
+        merge_base = _run_git_optional(root, ["git", "merge-base", base_ref, head_ref])
+    else:
+        base_to_head = []
+        merge_base = None
+    is_dirty = bool(status_short)
+    git_available = bool(head_commit)
+    return {
+        "artifact_kind": GIT_PROVENANCE_ARTIFACT_KIND,
+        "schema_version": GIT_PROVENANCE_SCHEMA_VERSION,
+        "created_at": datetime.now(tz=UTC).isoformat(timespec="seconds"),
+        "project_root": str(root),
+        "git_available": git_available,
+        "head_ref": head_ref,
+        "head_commit": head_commit,
+        "head_short_commit": head_commit[:12] if head_commit else None,
+        "head_oneline": _run_git_optional(root, ["git", "show", "-s", "--oneline", head_ref]),
+        "head_stat": _run_git_optional(
+            root,
+            ["git", "show", "--stat", "--oneline", "--no-renames", head_ref],
+        ),
+        "base_ref": base_ref,
+        "base_commit": base_commit,
+        "base_short_commit": base_commit[:12] if base_commit else None,
+        "merge_base_commit": merge_base.strip() if merge_base else None,
+        "working_tree": {
+            "is_dirty": is_dirty,
+            "policy": (
+                "git_unavailable"
+                if not git_available
+                else "dirty_allowed_for_review_package"
+                if is_dirty
+                else "clean_required_satisfied"
+            ),
+            "dirty_allowed_reason": (
+                "review package captures current working tree status and changed file list"
+                if is_dirty
+                else None
+            ),
+            "status_short": status_short,
+            "tracked_change_count": sum(1 for line in status_short if not line.startswith("??")),
+            "untracked_count": sum(1 for line in status_short if line.startswith("??")),
+            "unstaged_change_count": len(working_tree_name_status),
+            "staged_change_count": len(cached_name_status),
+        },
+        "diff": {
+            "base_to_head_name_status": base_to_head,
+            "working_tree_name_status": working_tree_name_status,
+            "cached_name_status": cached_name_status,
+            "changed_files_requested": list(changed_files),
+        },
+        "not_evidence": True,
+    }
 
 
 def _manifest_payload(
@@ -685,6 +924,26 @@ def _run_git(root: Path, command: list[str]) -> str:
         encoding="utf-8",
     )
     return completed.stdout
+
+
+def _run_git_optional(root: Path, command: list[str]) -> str | None:
+    try:
+        return _run_git(root, command).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def _git_commit(root: Path, ref: str | None) -> str | None:
+    if not ref:
+        return None
+    return _run_git_optional(root, ["git", "rev-parse", ref])
+
+
+def _git_lines(root: Path, command: list[str]) -> list[str]:
+    output = _run_git_optional(root, command)
+    if output is None:
+        return []
+    return [line.strip() for line in output.splitlines() if line.strip()]
 
 
 def main(argv: list[str] | None = None) -> int:

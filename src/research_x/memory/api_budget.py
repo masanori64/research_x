@@ -472,6 +472,75 @@ def provider_quota_preflight(
     }
 
 
+def api_budget_event_snapshot(
+    db_path: str | Path,
+    *,
+    run_id: str | None = None,
+) -> dict[str, Any]:
+    path = Path(db_path)
+    if not path.exists():
+        return _api_budget_event_snapshot_payload(path, run_id=run_id, rows=[])
+    with sqlite3.connect(path, timeout=60) as conn:
+        conn.row_factory = sqlite3.Row
+        ensure_api_budget_schema(conn)
+        clauses: list[str] = []
+        params: list[Any] = []
+        if run_id:
+            clauses.append("run_id = ?")
+            params.append(run_id)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = conn.execute(
+            f"""
+            SELECT event_id, run_id, provider, model, provider_role, operation,
+                   status, metadata_json, started_at, finished_at
+            FROM memory_api_usage_events
+            {where}
+            ORDER BY started_at, event_id
+            """,
+            params,
+        ).fetchall()
+    return _api_budget_event_snapshot_payload(path, run_id=run_id, rows=rows)
+
+
+def api_budget_event_delta(
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> dict[str, Any]:
+    before_counts = before.get("counts") if isinstance(before, dict) else {}
+    after_counts = after.get("counts") if isinstance(after, dict) else {}
+    if not isinstance(before_counts, dict):
+        before_counts = {}
+    if not isinstance(after_counts, dict):
+        after_counts = {}
+    keys = sorted(set(before_counts) | set(after_counts))
+    counts = {
+        key: int(after_counts.get(key) or 0) - int(before_counts.get(key) or 0)
+        for key in keys
+    }
+    return {
+        "artifact_kind": "research_x_api_budget_event_delta",
+        "schema_version": 1,
+        "count_basis": (
+            "memory_api_usage_events delta; provider_transport_sends_observed counts "
+            "non-exempt provider events that reached ok/error status after budget gate"
+        ),
+        "run_id": after.get("run_id") if isinstance(after, dict) else None,
+        "before_total_events": int(before_counts.get("total_events") or 0),
+        "after_total_events": int(after_counts.get("total_events") or 0),
+        "counts": counts,
+        "provider_requests_observed": counts.get("provider_requests_observed", 0),
+        "provider_requests_blocked_by_freeze": counts.get(
+            "provider_requests_blocked_by_freeze",
+            0,
+        ),
+        "provider_transport_sends_observed": counts.get(
+            "provider_transport_sends_observed",
+            0,
+        ),
+        "not_evidence": True,
+    }
+
+
 def format_provider_quota_preflight(report: dict[str, Any]) -> str:
     approval = report["approval_contract"]
     budget = report["budget_guard"]
@@ -1363,6 +1432,57 @@ def _provider_usage(conn: sqlite3.Connection, *, since: str | None = None) -> li
         bucket["media_bytes"] += int(float(units.get("media_bytes", 0) or 0))
         bucket["estimated_cost_usd"] += float(row["estimated_cost_usd"] or 0.0)
     return sorted(grouped.values(), key=lambda item: item["estimated_cost_usd"], reverse=True)
+
+
+def _api_budget_event_snapshot_payload(
+    path: Path,
+    *,
+    run_id: str | None,
+    rows: list[sqlite3.Row],
+) -> dict[str, Any]:
+    counts = {
+        "total_events": 0,
+        "exempt_provider_events": 0,
+        "non_exempt_provider_events": 0,
+        "provider_requests_observed": 0,
+        "provider_requests_blocked_by_freeze": 0,
+        "provider_transport_sends_observed": 0,
+        "blocked_events": 0,
+        "reserved_events": 0,
+        "ok_events": 0,
+        "error_events": 0,
+    }
+    providers: dict[str, int] = {}
+    for row in rows:
+        provider = _clean_id(row["provider"])
+        status = _clean_id(row["status"])
+        metadata = _loads_dict(row["metadata_json"])
+        counts["total_events"] += 1
+        if status in {"blocked", "reserved", "ok", "error"}:
+            counts[f"{status}_events"] += 1
+        providers[provider] = providers.get(provider, 0) + 1
+        if _is_exempt_provider(provider):
+            counts["exempt_provider_events"] += 1
+            continue
+        counts["non_exempt_provider_events"] += 1
+        counts["provider_requests_observed"] += 1
+        if (
+            status == "blocked"
+            and metadata.get("freeze_status") == NO_QUOTA_FREEZE_BLOCK_STATUS
+        ):
+            counts["provider_requests_blocked_by_freeze"] += 1
+        if status in {"ok", "error"}:
+            counts["provider_transport_sends_observed"] += 1
+    return {
+        "artifact_kind": "research_x_api_budget_event_snapshot",
+        "schema_version": 1,
+        "db_path": str(path),
+        "run_id": run_id,
+        "captured_at": _utc_now(),
+        "counts": counts,
+        "providers": dict(sorted(providers.items())),
+        "not_evidence": True,
+    }
 
 
 def _recent_events(

@@ -7,6 +7,8 @@ from research_x.memory import api_budget
 from research_x.memory.api_budget import (
     ApiBudgetExceededError,
     api_budget_context,
+    api_budget_event_delta,
+    api_budget_event_snapshot,
     api_budget_status,
     api_units,
     budgeted_api_call,
@@ -100,6 +102,46 @@ def test_priced_api_reserves_and_finishes_ok(tmp_path: Path) -> None:
     assert status["usage"]["run"]["input_tokens"] == 100
     assert status["usage"]["run"]["estimated_cost_usd"] > 0
     assert status["recent_events"][0]["status"] == "ok"
+
+
+def test_api_budget_event_snapshot_and_delta_count_provider_events(tmp_path: Path) -> None:
+    db_path = tmp_path / "x.sqlite3"
+    before = api_budget_event_snapshot(db_path, run_id="run")
+    upsert_api_price(
+        db_path,
+        provider="openai",
+        model="text-embedding-3-small",
+        operation="embedding",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://event-delta",
+    )
+
+    with api_budget_context(db_path=db_path, run_id="run"):
+        try:
+            with budgeted_api_call(
+                provider="openai",
+                model="text-embedding-3-small",
+                provider_role="embedding",
+                operation="embedding",
+                units=api_units(calls=1),
+                request_payload={"input": "x"},
+            ):
+                pass
+        except ApiBudgetExceededError:
+            pass
+        else:
+            raise AssertionError("no-quota freeze should block provider request")
+
+    after = api_budget_event_snapshot(db_path, run_id="run")
+    delta = api_budget_event_delta(before, after)
+
+    assert before["counts"]["total_events"] == 0
+    assert after["counts"]["total_events"] == 1
+    assert delta["provider_requests_observed"] == 1
+    assert delta["provider_requests_blocked_by_freeze"] == 1
+    assert delta["provider_transport_sends_observed"] == 0
+    assert delta["not_evidence"] is True
 
 
 def test_no_quota_freeze_blocks_budgeted_api_call_even_with_price(tmp_path: Path) -> None:

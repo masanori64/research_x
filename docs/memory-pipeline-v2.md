@@ -213,9 +213,7 @@ the API Budget Guard passes.
 ## Provider / API Budget Gate
 
 Real provider calls are blocked while the no-quota freeze is active, including
-free-tier, trial-credit, and zero-dollar quota usage.
-
-Blocked lanes include real embeddings, native media embeddings, rerankers, Reader
+free-tier, trial-credit, and zero-dollar quota usage. Blocked lanes include real embeddings, native media embeddings, rerankers, Reader
 extraction, OCR, classifiers, answer engines, relation judges, external search,
 LLM-context, managed RAG, and real-model prompt-contract validation.
 
@@ -225,7 +223,9 @@ fields: id, provider, model, operation, max calls, max USD, price source, scope,
 and approved time. `--allow-provider-quota` alone is insufficient; preflight is
 dry-run and must report zero provider requests while the freeze is active.
 
-Hard block is enforced at `budgeted_api_call`: contextless non-exempt routes are blocked, active-context freeze blocks are recorded, and only fake/local/local_hash plus registered local fixture providers such as `fixture_media` are exempt. Request-shape tests inspect builders only; GPT review ZIPs must include logs, provider source, semantic memory/adoption readiness, and usable/not-evidence Pointer Map rows.
+Hard block is enforced at `budgeted_api_call`: contextless non-exempt routes are blocked, active-context freeze blocks are recorded, and only fake/local/local_hash plus registered local fixture providers such as `fixture_media` are exempt. Private provider HTTP helpers and direct external Reader fetches must pass the transport-send guard before `urlopen` or equivalent network send; static scanner tests cover new provider/network send surfaces.
+
+Request-shape tests inspect builders only; they are not model-quality proof. GPT review ZIPs must include logs, provider source, semantic memory/adoption readiness, usable/not-evidence Pointer Map rows, git provenance, and a command manifest with API-budget event deltas. Observed-zero means no non-exempt provider transport send was observed in the local API-budget event delta, never a real provider smoke call while frozen.
 
 ## ContextBudgetPolicy Boundary
 

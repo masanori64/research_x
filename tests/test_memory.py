@@ -17,6 +17,7 @@ from research_x.memory import portfolio as memory_portfolio
 from research_x.memory import reader as memory_reader
 from research_x.memory import rerank as memory_rerank
 from research_x.memory.answer import answer_json, assess_answerability, build_memory_answer
+from research_x.memory.api_budget import api_budget_context, upsert_api_price
 from research_x.memory.api_lane_estimate import (
     build_api_lane_estimate_report,
     discover_external_urls,
@@ -5179,6 +5180,15 @@ def test_reader_extract_http_provider_normalizes_html(
     monkeypatch,
 ) -> None:
     db_path = tmp_path / "x.sqlite3"
+    upsert_api_price(
+        db_path,
+        provider="http",
+        model="direct-http",
+        operation="reader_extract",
+        unit="call",
+        usd_per_unit=0.0,
+        source_url="fixture://direct-http-reader",
+    )
 
     def fake_read_url(url, *, timeout_seconds, user_agent, max_bytes):
         assert timeout_seconds == 5.0
@@ -5196,14 +5206,15 @@ def test_reader_extract_http_provider_normalizes_html(
 
     monkeypatch.setattr("research_x.memory.reader._read_url", fake_read_url)
 
-    bundle = extract_url_to_context(
-        db_path,
-        "https://example.com/pizza",
-        provider="http",
-        timeout_seconds=5.0,
-        user_agent="test-agent",
-        max_bytes=1000,
-    )
+    with api_budget_context(db_path=db_path, run_id="reader-http", no_quota_freeze_active=False):
+        bundle = extract_url_to_context(
+            db_path,
+            "https://example.com/pizza",
+            provider="http",
+            timeout_seconds=5.0,
+            user_agent="test-agent",
+            max_bytes=1000,
+        )
 
     assert bundle.page.title == "Pizza Place"
     assert "North Senju" in bundle.page.text

@@ -59,15 +59,27 @@ def test_memory_audit_triages_stored_needs_review_answers(tmp_path: Path) -> Non
     assert triage["reason_counts"]["citation_missing"] == 1
     assert triage["reason_counts"]["citation_not_ready"] == 1
     assert triage["reason_counts"]["needs_review_status_without_detected_blocker"] == 1
+    assert triage["action_counts"]["add_or_repair_citation"] == 1
+    assert triage["action_counts"]["resolve_conflict"] == 1
+    assert triage["action_counts"]["inspect_unexpected_needs_review_status"] == 1
     assert len(triage["samples"]) == 3
     samples_by_id = {sample["answer_id"]: sample for sample in triage["samples"]}
     assert samples_by_id["answer:conflict"]["citation_count"] == 1
+    assert samples_by_id["answer:missing-citation"]["suggested_action"] == (
+        "add_or_repair_citation"
+    )
+    assert samples_by_id["answer:conflict"]["suggested_action"] == "resolve_conflict"
+    assert samples_by_id["answer:answerable-review"]["suggested_action"] == (
+        "inspect_unexpected_needs_review_status"
+    )
     assert "answer:ok" not in json.dumps(triage, ensure_ascii=False)
 
     payload = json.loads(audit_report_json(report))
     assert payload["needs_review_answer_triage"]["total"] == 3
+    assert payload["needs_review_answer_triage"]["action_counts"]["resolve_conflict"] == 1
     text = format_audit_report(report)
     assert "needs_review answer triage: total=3" in text
+    assert "actions=" in text
 
 
 def _insert_answer(

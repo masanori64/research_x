@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -60,6 +61,9 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
         names = set(archive.namelist())
         manifest = json.loads(archive.read("attachment_manifest.json").decode("utf-8"))
         context_text = archive.read("context.md").decode("utf-8")
+        provenance = json.loads(
+            archive.read("attachments/logs/git_provenance.json").decode("utf-8")
+        )
     assert "context.md" in names
     assert "attachment_manifest.md" in names
     assert "attachment_manifest.json" in names
@@ -89,10 +93,17 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     assert "attachments/logs/ruff.log" in names
     assert "attachments/logs/git_status_short.log" in names
     assert "attachments/logs/command_manifest.json" in names
+    assert "attachments/logs/git_provenance.json" in names
     assert "attachments/audits/memory_audit.json" in names
     assert "attachments/audits/adoption_audit.json" in names
     assert "attachments/audits/pointer_map_audit.json" in names
     assert manifest["artifact_kind"] == module.REVIEW_ZIP_ARTIFACT_KIND
+    assert manifest["head_ref"] == "HEAD"
+    assert provenance["artifact_kind"] == module.GIT_PROVENANCE_ARTIFACT_KIND
+    assert provenance["git_available"] is True
+    assert len(provenance["head_commit"]) == 40
+    assert provenance["not_evidence"] is True
+    assert "head_commit:" in context_text
     assert "Provider execution surface source files are included" in context_text
 
 
@@ -404,6 +415,13 @@ def test_verify_review_zip_rejects_failed_command_manifest(
                         "started_at": "2026-06-27T00:00:00+00:00",
                         "finished_at": "not-a-timestamp",
                         "provider_requests_expected_zero": False,
+                        "provider_requests_observed": 1,
+                        "provider_transport_sends_observed": 1,
+                        "api_budget_event_delta": {
+                            "provider_requests_observed": 1,
+                            "provider_transport_sends_observed": 1,
+                            "not_evidence": False,
+                        },
                     }
                 ],
             },
@@ -432,6 +450,23 @@ def test_verify_review_zip_rejects_failed_command_manifest(
         for error in result.verification_errors
     )
     assert any(
+        "command manifest commands[0].provider_requests_observed must be 0" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "command manifest commands[0].provider_transport_sends_observed must be 0" in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "command manifest commands[0].api_budget_event_delta.provider_requests_observed must be 0"
+        in error
+        for error in result.verification_errors
+    )
+    assert any(
+        "command manifest commands[0].api_budget_event_delta.not_evidence must be true" in error
+        for error in result.verification_errors
+    )
+    assert any(
         "command manifest commands[0].log_path missing from ZIP" in error
         for error in result.verification_errors
     )
@@ -439,6 +474,61 @@ def test_verify_review_zip_rejects_failed_command_manifest(
         "command manifest commands[0].finished_at must be an ISO 8601 timestamp" in error
         for error in result.verification_errors
     )
+
+
+def test_verify_review_zip_rejects_invalid_git_provenance(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    good_zip = tmp_path / "good.zip"
+    bad_zip = tmp_path / "bad.zip"
+    result = module.build_review_context_zip(
+        project_root,
+        good_zip,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+    assert result.verification_errors == ()
+    with zipfile.ZipFile(good_zip) as source, zipfile.ZipFile(bad_zip, "w") as target:
+        for info in source.infolist():
+            if info.filename == "attachments/logs/git_provenance.json":
+                target.writestr(
+                    info.filename,
+                    json.dumps(
+                        {
+                            "artifact_kind": module.GIT_PROVENANCE_ARTIFACT_KIND,
+                            "schema_version": module.GIT_PROVENANCE_SCHEMA_VERSION,
+                            "git_available": False,
+                            "head_commit": "not-a-hash",
+                            "not_evidence": False,
+                            "working_tree": {
+                                "is_dirty": True,
+                                "policy": "dirty_allowed_for_review_package",
+                                "status_short": [],
+                            },
+                            "diff": {
+                                "base_to_head_name_status": [],
+                                "working_tree_name_status": [],
+                                "cached_name_status": [],
+                            },
+                        }
+                    ),
+                )
+            else:
+                target.writestr(info, source.read(info.filename))
+
+    errors = module.verify_review_zip(bad_zip)
+
+    assert any("git provenance git_available must be true" in error for error in errors)
+    assert any("git provenance not_evidence must be true" in error for error in errors)
+    assert any("git provenance head_commit must be a 40-character" in error for error in errors)
+    assert any("dirty working tree requires dirty_allowed_reason" in error for error in errors)
 
 
 def _load_module():
@@ -454,6 +544,7 @@ def _load_module():
 def _write_required_project_files(project_root: Path, paths: tuple[str, ...]) -> None:
     for path in paths:
         _write_file(project_root / path, f"fixture for {path}\n")
+    _init_git_repo(project_root)
 
 
 def _write_required_review_artifacts(
@@ -462,6 +553,8 @@ def _write_required_review_artifacts(
 ) -> dict[str, Path]:
     paths: dict[str, Path] = {}
     for artifact_id, zip_path in artifacts.items():
+        if artifact_id == "git_provenance":
+            continue
         source = project_root / "review_inputs" / zip_path.replace("/", "_")
         _write_file(source, _review_artifact_fixture(artifact_id))
         paths[artifact_id] = source
@@ -536,6 +629,9 @@ def _review_artifact_fixture(artifact_id: str) -> str:
                         "started_at": "2026-06-27T00:00:00+00:00",
                         "finished_at": "2026-06-27T00:01:00+00:00",
                         "provider_requests_expected_zero": True,
+                        "provider_requests_observed": 0,
+                        "provider_transport_sends_observed": 0,
+                        "api_budget_event_delta": _zero_api_budget_event_delta(),
                     },
                     {
                         "phase": "fixture",
@@ -546,6 +642,9 @@ def _review_artifact_fixture(artifact_id: str) -> str:
                         "started_at": "2026-06-27T00:01:00+00:00",
                         "finished_at": "2026-06-27T00:01:10+00:00",
                         "provider_requests_expected_zero": True,
+                        "provider_requests_observed": 0,
+                        "provider_transport_sends_observed": 0,
+                        "api_budget_event_delta": _zero_api_budget_event_delta(),
                     },
                 ],
             },
@@ -559,3 +658,43 @@ def _review_artifact_fixture(artifact_id: str) -> str:
 def _write_file(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def _zero_api_budget_event_delta() -> dict[str, object]:
+    return {
+        "artifact_kind": "research_x_api_budget_event_delta",
+        "schema_version": 1,
+        "provider_requests_observed": 0,
+        "provider_requests_blocked_by_freeze": 0,
+        "provider_transport_sends_observed": 0,
+        "counts": {
+            "provider_requests_observed": 0,
+            "provider_transport_sends_observed": 0,
+        },
+        "not_evidence": True,
+    }
+
+
+def _init_git_repo(project_root: Path) -> None:
+    if (project_root / ".git").exists():
+        return
+    subprocess.run(["git", "init"], cwd=project_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "fixture@example.test"],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Fixture"],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=project_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "fixture"],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+    )
