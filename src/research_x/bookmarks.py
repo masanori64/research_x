@@ -232,15 +232,6 @@ def _bookmark_adapters(
             },
         ),
         AdapterConfig(
-            "crawl4ai",
-            options={
-                "storage_state": storage_state_text,
-                "headless": headless,
-                "request_timeout_seconds": 45,
-                "max_scroll_steps": max_scroll_steps,
-            },
-        ),
-        AdapterConfig(
             "camoufox",
             options={
                 "storage_state": storage_state_text,

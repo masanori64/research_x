@@ -62,7 +62,7 @@ Future automated intake must keep these boundaries:
 | `masa_twitter_scraper` | Independent Go sidecar fallback for Python-library/schema failures. |
 | `playwright` | Session source, browser/network evidence provider, and DOM fallback. |
 | `scrapling` | Scrapling static fetch first, then PlayWrightFetcher rendered fallback. |
-| `crawl4ai` | Browser crawler fallback that extracts status URLs from authorized rendered HTML, then shared browser fallback if needed. |
+| `crawl4ai` | Security-gated optional browser crawler boundary. It is not installed or scheduled by default while upstream releases require vulnerable transitive packages. |
 | `scrapy` | Static HTTP fetch first, then Scrapy selector parsing over rendered HTML. |
 | `camoufox`, `patchright`, `rebrowser-*` | Browser variants when normal Playwright launch/runtime behavior is the blocker. |
 
@@ -71,24 +71,29 @@ Future automated intake must keep these boundaries:
 ```text
 profile:
   twscrape_raw -> scweet -> twikit -> masa_twitter_scraper -> playwright
-  -> scrapling -> crawl4ai -> camoufox -> patchright -> rebrowser_playwright
-  -> rebrowser_patches -> scrapy
+  -> scrapling -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches
+  -> scrapy
 
 search:
   scweet -> twscrape_raw -> twikit -> masa_twitter_scraper -> playwright
-  -> scrapling -> crawl4ai -> camoufox -> patchright -> rebrowser_playwright
-  -> rebrowser_patches -> scrapy
+  -> scrapling -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches
+  -> scrapy
 
 url:
   twscrape_raw -> twikit -> masa_twitter_scraper -> playwright
-  -> scrapling -> crawl4ai -> camoufox -> patchright -> rebrowser_playwright
-  -> rebrowser_patches -> scrapy
+  -> scrapling -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches
+  -> scrapy
 
 bookmarks:
   twscrape_raw -> twikit -> x_web_graphql_bookmarks -> gallery_dl_bookmarks
-  -> playwright_network_bookmarks -> playwright -> scrapling -> crawl4ai
-  -> camoufox -> patchright -> rebrowser_playwright -> rebrowser_patches -> scrapy
+  -> playwright_network_bookmarks -> playwright -> scrapling -> camoufox -> patchright
+  -> rebrowser_playwright -> rebrowser_patches -> scrapy
 ```
+
+Explicit configs can still name `crawl4ai`; in that case the adapter returns `not_configured`
+unless the package is installed outside the default dependency surface. Do not add it back to the
+default lock until the advisory path allows `lxml >=6.1.0` and removes or patches the vulnerable
+`nltk` dependency.
 
 The chain stops when the target has enough deduped items and the configured minimum number of
 successful providers has been reached. For cursor-based full bookmark runs, a provider that reaches
@@ -202,7 +207,7 @@ edge from the quoting tweet. The automatic routes are:
 | `x_web_graphql_bookmarks` | Direct Web GraphQL `Bookmarks` / `BookmarkFolderTimeline` replay. |
 | `gallery_dl_bookmarks` | gallery-dl `TwitterBookmarkExtractor` with Netscape cookies. |
 | `playwright_network_bookmarks` | Browser opens `/i/bookmarks` and captures GraphQL JSON responses. |
-| `playwright`, `scrapling`, `crawl4ai` | Rendered fallback extraction. |
+| `playwright`, `scrapling` | Rendered fallback extraction. |
 
 ```powershell
 uv run python -m research_x bookmarks --out runs\bookmarks --limit 100 --no-classify
@@ -256,7 +261,7 @@ uv run python -m research_x pipeline --config examples\x_pipeline.toml --out run
 Observed result:
 
 ```text
-profile:@target_user: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,crawl4ai,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
+profile:@target_user: ok items=5 providers=twscrape_raw,scweet,twikit,masa_twitter_scraper,playwright,scrapling,camoufox,patchright,rebrowser_playwright,rebrowser_patches,scrapy
 ```
 
 Final full-chain provider states:
@@ -269,7 +274,6 @@ Final full-chain provider states:
 | `masa_twitter_scraper` | `ok` | 5 |
 | `playwright` | `ok` | 5 |
 | `scrapling` | `ok` | 5 |
-| `crawl4ai` | `ok` | 5 |
 | `camoufox` | `ok` | 5 |
 | `patchright` | `ok` | 5 |
 | `rebrowser_playwright` | `ok` | 5 |

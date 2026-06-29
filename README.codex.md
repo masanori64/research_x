@@ -147,8 +147,6 @@ target, not the audit owner.
 
 ## Verification
 
-Default broad checks, when appropriate:
-
 ```powershell
 uv run ruff check src\research_x tests
 uv run pytest
@@ -161,8 +159,9 @@ GitHub workflow ownership:
   and build. Full-source type coverage is a ratchet target, not yet a hard gate.
 - `.github/workflows/research-x-build-artifacts.yml`: build-only release
   artifact lane; it uploads `dist/` and does not publish or deploy.
-- `.github/workflows/research-x-dependency-review.yml`,
-  `.github/workflows/research-x-codeql.yml`, and `.github/dependabot.yml`: dependency/security surfaces.
+- `.github/workflows/research-x-dependency-review.yml`, `.github/workflows/research-x-codeql.yml`,
+  and `.github/dependabot.yml`: dependency/security surfaces; `crawl4ai` stays explicit/lazy but
+  outside the default lock/chain while it requires `lxml <6` and unpatched `nltk`.
 - `.github/workflows/codex-*.yml`: Codex control artifact lanes only. They are
   not product evidence, research evidence, citations, or answer support.
 

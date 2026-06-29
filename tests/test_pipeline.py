@@ -40,7 +40,6 @@ def test_bookmarks_chain_uses_non_official_cursor_providers_first() -> None:
             "x_web_graphql_bookmarks",
             "gallery_dl_bookmarks",
             "playwright_network_bookmarks",
-            "crawl4ai",
             "camoufox",
             "patchright",
             "rebrowser_playwright",
@@ -55,13 +54,21 @@ def test_bookmarks_chain_uses_non_official_cursor_providers_first() -> None:
         "gallery_dl_bookmarks",
         "playwright_network_bookmarks",
         "playwright",
-        "crawl4ai",
         "camoufox",
         "patchright",
         "rebrowser_playwright",
         "rebrowser_patches",
         "scrapy",
     )
+
+
+def test_explicit_security_gated_optional_provider_is_tried_after_defaults() -> None:
+    chain = provider_chain_for(
+        TargetKind.URL,
+        ("playwright", "scrapling", "crawl4ai", "scrapy"),
+    )
+
+    assert chain == ("playwright", "scrapling", "scrapy", "crawl4ai")
 
 
 def test_run_pipeline_with_synthetic_provider(tmp_path) -> None:

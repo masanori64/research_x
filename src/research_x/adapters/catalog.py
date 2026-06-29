@@ -200,27 +200,31 @@ CATALOG: dict[str, AdapterCatalogEntry] = {
     "crawl4ai": AdapterCatalogEntry(
         adapter_id="crawl4ai",
         display_name="Crawl4AI",
-        package_name="crawl4ai",
+        package_name="external:crawl4ai",
         language="Python",
         source_url="https://docs.crawl4ai.com/",
         acquisition_layer="generic_browser_crawler",
         auth_model="authorized URL/session inputs",
         supported_targets=("url", "bookmarks"),
-        readiness="implemented_generic_url",
+        readiness="implemented_security_gated_optional",
         priority=80,
         fit="generic extraction fallback, not an X-specific first-line candidate",
         adapter_strategy=(
-            "Use for URL-level extraction with CSS/XPath/markdown output, not for high-volume "
-            "X search."
+            "Keep the adapter boundary available, but do not install or schedule it in default "
+            "runs until upstream dependency advisories have patched releases."
         ),
         blockers=(
             "X's dynamic app and access policy make it a fragile direct acquisition source.",
             "Needs per-page extraction schema and allowed URL fixtures.",
+            "Current upstream releases require vulnerable transitive dependencies, so the "
+            "package is excluded from the default lock and CI dependency surface.",
         ),
         evidence=(
             "Docs describe AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, markdown "
             "generation, and CSS/XPath extraction.",
             "Docs describe arun_many for multi-URL concurrency and dynamic page support.",
+            "GitHub Dependabot alerts require lxml >=6.1.0 while current crawl4ai releases "
+            "require lxml <6 and pull nltk with no patched advisory version.",
         ),
     ),
     "camoufox": AdapterCatalogEntry(

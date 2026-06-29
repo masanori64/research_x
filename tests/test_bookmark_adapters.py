@@ -183,7 +183,6 @@ def test_bookmark_exhaustive_adapters_do_not_use_smoke_limits(tmp_path) -> None:
         "playwright_network_bookmarks",
         "playwright",
         "scrapling",
-        "crawl4ai",
         "camoufox",
         "patchright",
         "rebrowser_playwright",
