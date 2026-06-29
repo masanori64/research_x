@@ -529,7 +529,7 @@ def _insert_provider_run(conn: sqlite3.Connection, attempt: Any) -> None:
             _iso(outcome.started_at),
         ]
     )
-    provider_run_id = hashlib.sha1(key.encode()).hexdigest()
+    provider_run_id = _stable_digest(key)
     conn.execute(
         """
         INSERT INTO provider_runs (
@@ -644,7 +644,7 @@ def _raw_payload_row(
         sort_keys=True,
     )
     return {
-        "raw_id": hashlib.sha1(key.encode("utf-8")).hexdigest(),
+        "raw_id": _stable_digest(key),
         "run_id": run_id,
         "provider_id": provider_id,
         "target_kind": target.kind.value,
@@ -670,11 +670,11 @@ def _classification_row(
     resolved_generated_at = (
         generated_at or getattr(classification, "generated_at", None) or utc_now()
     )
-    label_id = hashlib.sha1(
+    label_id = _stable_digest(
         "|".join(
             [account_id or "global", label_scope, source_id, resolved_model, run_id or ""]
-        ).encode()
-    ).hexdigest()
+        )
+    )
     return (
         label_id,
         account_id,
@@ -883,7 +883,7 @@ def _tweet_url(raw: dict[str, Any], author: str | None, tweet_id: str) -> str | 
 
 def _add_media(media: dict[str, dict[str, Any]], tweet_id: str, raw: dict[str, Any]) -> None:
     for url, media_type, alt_text in _media_values(raw):
-        media_id = hashlib.sha1(f"{tweet_id}:{url}".encode()).hexdigest()[:16]
+        media_id = _stable_digest(f"{tweet_id}:{url}", digest_size=8)
         media.setdefault(
             media_id,
             {
@@ -1049,7 +1049,11 @@ def _stable_run_id(collection_kind: str, target: AcquisitionTarget, account_id: 
     payload = "|".join(
         [account_id or "global", collection_kind, target.kind.value, target.value, _iso(utc_now())]
     )
-    return hashlib.sha1(payload.encode()).hexdigest()[:20]
+    return _stable_digest(payload, digest_size=10)
+
+
+def _stable_digest(value: str, *, digest_size: int = 20) -> str:
+    return hashlib.blake2b(value.encode("utf-8"), digest_size=digest_size).hexdigest()
 
 
 def _write_jsonl(path: Path, rows) -> None:

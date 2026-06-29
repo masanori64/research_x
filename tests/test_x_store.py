@@ -1,10 +1,11 @@
+import hashlib
 import json
 import sqlite3
 
 from research_x.accounts import AccountProfile
 from research_x.contracts import AcquisitionTarget, TargetKind, XItem, utc_now
 from research_x.memory.corpus import build_memory_corpus
-from research_x.x_store import write_x_store_outputs
+from research_x.x_store import _stable_digest, write_x_store_outputs
 
 
 def test_x_store_dedupes_bookmarks_and_profile_tweets_in_same_db(tmp_path) -> None:
@@ -75,6 +76,15 @@ def test_x_store_writes_db_friendly_jsonl_outputs(tmp_path) -> None:
     rows = (tmp_path / "collection_items.jsonl").read_text(encoding="utf-8").splitlines()
     assert json.loads(rows[0])["tweet_id"] == "1"
     assert (tmp_path / "x_data.sqlite3").exists()
+
+
+def test_x_store_stable_digest_uses_blake2b_with_expected_lengths() -> None:
+    value = "account|bookmarks|profile|@example"
+
+    assert _stable_digest(value) == hashlib.blake2b(
+        value.encode("utf-8"), digest_size=20
+    ).hexdigest()
+    assert len(_stable_digest(value, digest_size=8)) == 16
 
 
 def _item(source_id: str, text: str = "hello", raw=None) -> XItem:

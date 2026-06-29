@@ -805,7 +805,10 @@ def _text_hash(value: str) -> str:
 
 
 def _hash_id(*parts: object) -> str:
-    return hashlib.sha1("|".join(str(part) for part in parts).encode("utf-8")).hexdigest()
+    return hashlib.blake2b(
+        "|".join(str(part) for part in parts).encode("utf-8"),
+        digest_size=20,
+    ).hexdigest()
 
 
 def _compact_error(value: str, *, limit: int = 500) -> str:
