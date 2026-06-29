@@ -22,7 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 local-vector = [
-    "turbovec>=0.7.0",
+    "turbovec>=0.8.0",
 ]
 
 [dependency-groups]
