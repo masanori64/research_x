@@ -48,5 +48,4 @@ class SyntheticAdapter:
 
 
 def _stable_id(value: str, index: int) -> str:
-    digest = hashlib.sha1(f"{value}:{index}".encode()).hexdigest()
-    return digest[:16]
+    return hashlib.blake2b(f"{value}:{index}".encode(), digest_size=8).hexdigest()

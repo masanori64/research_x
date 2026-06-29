@@ -70,7 +70,7 @@ def test_security_workflows_and_dependabot_cover_current_dependency_surfaces() -
     codeql = _read(WORKFLOWS / "research-x-codeql.yml")
     dependabot = _read(DEPENDABOT)
 
-    assert "actions/dependency-review-action@v4" in dependency_review
+    assert "actions/dependency-review-action@v5" in dependency_review
     assert "fail-on-severity: high" in dependency_review
     assert "comment-summary-in-pr: never" in dependency_review
     assert "pull-requests: write" not in dependency_review

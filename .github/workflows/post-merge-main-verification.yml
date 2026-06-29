@@ -1,0 +1,118 @@
+name: Post Merge Main Verification
+
+on:
+  pull_request_target:
+    types:
+      - closed
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 * * * *"
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+  security-events: read
+
+concurrency:
+  group: post-merge-main-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-main:
+    name: dispatch and wait for main verification
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        (
+          startsWith(github.event.pull_request.head.ref, 'codex/') ||
+          startsWith(github.event.pull_request.head.ref, 'dependabot/')
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TARGET_REF: main
+    steps:
+      - name: Dispatch missing main verification workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          head_sha="$(gh api "repos/$REPO/commits/$TARGET_REF" --jq .sha)"
+          workflows=(
+            research-x-ci.yml
+            research-x-codeql.yml
+            codex-ci.yml
+            codex-artifact-smoke.yml
+            research-x-build-artifacts.yml
+          )
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            missing=()
+            for workflow in "${workflows[@]}"; do
+              ok="$(
+                gh run list \
+                  --repo "$REPO" \
+                  --workflow "$workflow" \
+                  --branch "$TARGET_REF" \
+                  --commit "$head_sha" \
+                  --status success \
+                  --limit 1 \
+                  --json databaseId \
+                  --jq 'length > 0'
+              )"
+              if [ "$ok" != "true" ]; then
+                missing+=("$workflow")
+              fi
+            done
+            if [ "${#missing[@]}" -eq 0 ]; then
+              echo "Latest main already has successful verification runs: $head_sha"
+              exit 0
+            fi
+            workflows=("${missing[@]}")
+          fi
+
+          run_ids=()
+          for workflow in "${workflows[@]}"; do
+            echo "Dispatching $workflow for $TARGET_REF at $head_sha"
+            dispatch_output="$(gh workflow run "$workflow" --repo "$REPO" --ref "$TARGET_REF")"
+            echo "$dispatch_output"
+            run_id="$(printf '%s\n' "$dispatch_output" | grep -Eo '[0-9]+$' | tail -n 1 || true)"
+            if [ -z "$run_id" ]; then
+              sleep 8
+              for _ in {1..40}; do
+                run_id="$(
+                  gh run list \
+                    --repo "$REPO" \
+                    --workflow "$workflow" \
+                    --branch "$TARGET_REF" \
+                    --commit "$head_sha" \
+                    --event workflow_dispatch \
+                    --limit 20 \
+                    --json databaseId,createdAt \
+                    --jq 'sort_by(.createdAt) | last | .databaseId // empty'
+                )"
+                if [ -n "$run_id" ]; then
+                  break
+                fi
+                sleep 3
+              done
+              if [ -z "$run_id" ]; then
+                echo "::error::Could not find dispatched run for $workflow at $head_sha"
+                exit 1
+              fi
+            fi
+            echo "Found $workflow run $run_id"
+            run_ids+=("$run_id")
+          done
+
+          for run_id in "${run_ids[@]}"; do
+            gh run watch "$run_id" --repo "$REPO" --exit-status
+          done

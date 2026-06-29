@@ -228,6 +228,32 @@ def test_totp_code_uses_rfc_6238_vector() -> None:
     assert _totp_code(secret, timestamp=59) == "287082"
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://x.com/i/flow/login",
+        "https://mobile.twitter.com/home",
+        "https://subdomain.x.com/path",
+        "https://twitter.com./home",
+    ],
+)
+def test_x_hostname_url_accepts_x_hosts(url: str) -> None:
+    assert auth._is_x_hostname_url(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://x.com.evil.example/home",
+        "https://example.com/redirect?next=https://x.com",
+        "https://twitter.com.attacker.test",
+        "about:blank",
+    ],
+)
+def test_x_hostname_url_rejects_substring_spoofing(url: str) -> None:
+    assert not auth._is_x_hostname_url(url)
+
+
 def test_cdp_requires_running_browser(tmp_path) -> None:
     assert not capture_storage_state_from_cdp(
         storage_state=tmp_path / "state.json",
