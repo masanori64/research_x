@@ -14,6 +14,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from research_x.cookies import (
     REQUIRED_X_SESSION_COOKIES,
@@ -578,7 +579,7 @@ async def _drive_x_credential_login(
 async def _x_login_page(context, start_url: str):
     x_page = None
     for page in context.pages:
-        if "x.com" in page.url or "twitter.com" in page.url:
+        if _is_x_hostname_url(page.url):
             x_page = page
             break
     if x_page is None:
@@ -592,10 +593,17 @@ async def _close_non_x_pages(context, *, keep) -> None:
     for page in list(context.pages):
         if page is keep:
             continue
-        if "x.com" in page.url or "twitter.com" in page.url:
+        if _is_x_hostname_url(page.url):
             continue
         with suppress(Exception):
             await page.close()
+
+
+def _is_x_hostname_url(url: str) -> bool:
+    hostname = (urlparse(str(url or "")).hostname or "").casefold().rstrip(".")
+    return hostname in {"x.com", "twitter.com"} or hostname.endswith(
+        (".x.com", ".twitter.com")
+    )
 
 
 async def _export_from_persistent_profile(

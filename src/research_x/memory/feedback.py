@@ -47,8 +47,9 @@ def add_feedback(
     resolved_terms = tuple(query_terms) if query_terms is not None else plan.search_terms
     resolved_intents = tuple(intents) if intents is not None else plan.intents
     created_at = datetime.now(tz=UTC).isoformat()
-    feedback_id = hashlib.sha1(
-        "|".join([query, doc_id, label, route or "", created_at, note or ""]).encode("utf-8")
+    feedback_id = hashlib.blake2b(
+        "|".join([query, doc_id, label, route or "", created_at, note or ""]).encode("utf-8"),
+        digest_size=20,
     ).hexdigest()
     with sqlite3.connect(Path(db_path), timeout=60) as conn:
         ensure_memory_schema(conn)
