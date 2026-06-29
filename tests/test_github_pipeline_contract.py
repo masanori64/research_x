@@ -57,6 +57,10 @@ def test_product_ci_covers_lint_tests_local_e2e_boundary_and_build() -> None:
     readme_words = " ".join(readme.split())
     assert "boundary type check" in readme_words
     assert "Full-source type coverage is a ratchet target" in readme_words
+    assert (
+        "uv run ruff check src\\research_x tests tools\\make_project_context_diff_zip.py "
+        "tools\\audit_context_pointers.py"
+    ) in readme
 
 
 def test_build_artifact_workflow_does_not_publish_or_deploy() -> None:

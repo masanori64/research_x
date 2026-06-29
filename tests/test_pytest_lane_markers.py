@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 def test_pytest_marker_registry_covers_research_x_test_lanes() -> None:
+    conftest = _load_conftest()
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     marker_entries = pyproject["tool"]["pytest"]["ini_options"]["markers"]
     marker_names = {entry.split(":", 1)[0] for entry in marker_entries}
@@ -26,6 +27,7 @@ def test_pytest_marker_registry_covers_research_x_test_lanes() -> None:
         "manual_provider_gated",
         "control_artifact",
     } <= marker_names
+    assert marker_names >= conftest.LANE_POLICY_MARKERS
 
 
 def test_lane_marker_mapping_covers_first_operational_lanes() -> None:
@@ -67,6 +69,61 @@ def test_lane_marker_mapping_covers_first_operational_lanes() -> None:
 
     for path, expected_markers in cases.items():
         assert expected_markers <= conftest.lane_markers_for_path(path)
+
+
+def test_lane_marker_report_has_no_silent_unclassified_tests() -> None:
+    conftest = _load_conftest()
+
+    assert conftest.unclassified_test_paths() == ()
+
+
+def test_lane_marker_allowlist_requires_reasons() -> None:
+    conftest = _load_conftest()
+
+    assert all(reason.strip() for reason in conftest.UNMARKED_TEST_ALLOWLIST.values())
+
+
+def test_lane_marker_prefixes_do_not_hide_root_test_files() -> None:
+    conftest = _load_conftest()
+
+    assert "tests/" not in dict(conftest.PREFIX_MARKERS)
+    assert "tests/test_" not in dict(conftest.PREFIX_MARKERS)
+
+
+def test_lane_marker_report_exposes_machine_readable_coverage() -> None:
+    conftest = _load_conftest()
+
+    report = conftest.lane_marker_report(
+        [
+            "tests/test_review_context_zip.py",
+            "tests/test_memory.py",
+            "tests/unknown/test_future.py",
+        ]
+    )
+
+    assert report == (
+        {
+            "allowlist_reason": None,
+            "markers": (
+                "contract",
+                "control_artifact",
+                "fast",
+                "review_package",
+                "static_guard",
+            ),
+            "path": "tests/test_review_context_zip.py",
+        },
+        {
+            "allowlist_reason": None,
+            "markers": ("integration", "slow"),
+            "path": "tests/test_memory.py",
+        },
+        {
+            "allowlist_reason": None,
+            "markers": (),
+            "path": "tests/unknown/test_future.py",
+        },
+    )
 
 
 def _load_conftest():
