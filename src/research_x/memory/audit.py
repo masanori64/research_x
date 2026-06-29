@@ -178,6 +178,7 @@ def _format_needs_review_answer_triage(triage: dict[str, Any]) -> str:
         return "needs_review answer triage: none"
     reason_counts = triage.get("reason_counts")
     action_counts = triage.get("action_counts")
+    owner_layer_counts = triage.get("owner_layer_counts")
     samples = triage.get("samples")
     sample_text = ""
     if isinstance(samples, list) and samples:
@@ -187,12 +188,14 @@ def _format_needs_review_answer_triage(triage: dict[str, Any]) -> str:
                 " first="
                 f"{sample.get('answer_id')} "
                 f"action={sample.get('suggested_action') or '-'} "
+                f"owner={sample.get('owner_layer') or '-'} "
                 f"reasons={sample.get('reasons') or []}"
             )
     return (
         "needs_review answer triage: "
         f"total={total} reasons={reason_counts or {}} "
-        f"actions={action_counts or {}}{sample_text}"
+        f"actions={action_counts or {}} "
+        f"owners={owner_layer_counts or {}}{sample_text}"
     )
 
 
@@ -669,6 +672,9 @@ def _needs_review_answer_triage(
     ).fetchall()
     reason_counts: dict[str, int] = {}
     action_counts: dict[str, int] = {}
+    owner_layer_counts: dict[str, int] = {}
+    answer_contract_counts: dict[str, int] = {}
+    provider_gate_counts: dict[str, int] = {}
     samples: list[dict[str, Any]] = []
     for answer in answers:
         answer_id = str(answer["answer_id"])
@@ -676,9 +682,24 @@ def _needs_review_answer_triage(
         citations = _answer_citation_rows(conn, answer_id)
         reasons = _needs_review_answer_reasons(answer, structured, citations)
         suggested_action = _needs_review_answer_action(reasons)
+        owner_layer = _needs_review_answer_owner_layer(reasons, suggested_action)
+        blocking_for_answer_contract = _needs_review_blocks_answer_contract(reasons)
+        requires_provider_gate = _needs_review_requires_provider_gate(suggested_action)
+        safe_under_local_no_provider = not requires_provider_gate
         for reason in reasons:
             _increment(reason_counts, reason)
         _increment(action_counts, suggested_action)
+        _increment(owner_layer_counts, owner_layer)
+        _increment(
+            answer_contract_counts,
+            "blocking" if blocking_for_answer_contract else "non_blocking",
+        )
+        _increment(
+            provider_gate_counts,
+            "requires_provider_gate"
+            if requires_provider_gate
+            else "safe_under_local_no_provider",
+        )
         if len(samples) < sample_limit:
             samples.append(
                 {
@@ -693,12 +714,22 @@ def _needs_review_answer_triage(
                     "answer_text_present": bool(str(answer["answer_text"] or "").strip()),
                     "reasons": reasons,
                     "suggested_action": suggested_action,
+                    "owner_layer": owner_layer,
+                    "blocking_for_answer_contract": blocking_for_answer_contract,
+                    "suggested_local_check": _needs_review_suggested_local_check(
+                        suggested_action
+                    ),
+                    "safe_under_local_no_provider": safe_under_local_no_provider,
+                    "requires_provider_gate": requires_provider_gate,
                 }
             )
     return {
         "total": len(answers),
         "reason_counts": dict(sorted(reason_counts.items())),
         "action_counts": dict(sorted(action_counts.items())),
+        "owner_layer_counts": dict(sorted(owner_layer_counts.items())),
+        "answer_contract_blocking_counts": dict(sorted(answer_contract_counts.items())),
+        "provider_gate_counts": dict(sorted(provider_gate_counts.items())),
         "sample_limit": sample_limit,
         "samples": samples,
     }
@@ -746,6 +777,53 @@ def _needs_review_answer_action(reasons: list[str]) -> str:
     if "needs_review_status_without_detected_blocker" in reason_set:
         return "inspect_unexpected_needs_review_status"
     return "regenerate_answer"
+
+
+def _needs_review_answer_owner_layer(reasons: list[str], suggested_action: str) -> str:
+    reason_set = set(reasons)
+    if "answerability:conflicting" in reason_set or suggested_action == "resolve_conflict":
+        return "Retrieval-Eval"
+    if (
+        "citation_missing" in reason_set
+        or "citation_not_ready" in reason_set
+        or any(reason.startswith("citation_block:") for reason in reason_set)
+        or suggested_action == "add_or_repair_citation"
+    ):
+        return "Evidence"
+    return "Tool Interface"
+
+
+def _needs_review_blocks_answer_contract(reasons: list[str]) -> bool:
+    reason_set = set(reasons)
+    return bool(
+        {
+            "answer_text_missing",
+            "citation_missing",
+            "citation_not_ready",
+            "answerability:conflicting",
+            "answerability:stale_only",
+        }
+        & reason_set
+    ) or any(reason.startswith("citation_block:") for reason in reason_set)
+
+
+def _needs_review_requires_provider_gate(suggested_action: str) -> bool:
+    return suggested_action in {
+        "regenerate_answer",
+        "restore_source_then_regenerate",
+    }
+
+
+def _needs_review_suggested_local_check(suggested_action: str) -> str:
+    if suggested_action == "add_or_repair_citation":
+        return "inspect source bundle, context chunk, and citation annotation linkage"
+    if suggested_action == "resolve_conflict":
+        return "compare conflicting source bundles and rerun local retrieval eval"
+    if suggested_action == "restore_source_then_regenerate":
+        return "restore source bundle and context chunks before any provider-gated regeneration"
+    if suggested_action == "inspect_unexpected_needs_review_status":
+        return "inspect stored answer status and structured_json for stale review state"
+    return "review answer artifact and use fake/local regeneration only while provider gated"
 
 
 def _answerability_status(structured: Any) -> str | None:

@@ -18,6 +18,14 @@ class NetworkCall:
     expression: str
 
 
+@dataclass(frozen=True)
+class ProviderSdkImport:
+    path: str
+    line: int
+    module_name: str
+    expression: str
+
+
 PROVIDER_TRANSPORT_HELPERS = {
     ("src/research_x/bookmark_classifier.py", "_post_json_unbudgeted"),
     ("src/research_x/memory/answer.py", "_post_json_unbudgeted"),
@@ -59,6 +67,17 @@ NON_PROVIDER_NETWORK_ALLOWLIST = {
     ): "raw X media acquisition download; not model/provider evidence",
 }
 
+PROVIDER_SDK_MODULES = {
+    "anthropic",
+    "cohere",
+    "google.genai",
+    "google.generativeai",
+    "jina",
+    "mistralai",
+    "openai",
+    "voyageai",
+}
+
 
 def test_provider_network_sends_are_guarded_or_explicitly_allowlisted() -> None:
     calls = _network_calls()
@@ -88,6 +107,47 @@ def test_provider_network_sends_are_guarded_or_explicitly_allowlisted() -> None:
 
     assert reader_call_sites, "_read_url call sites should be scanned"
     assert problems == []
+
+
+def test_provider_sdk_imports_are_absent_from_runtime_sources() -> None:
+    imports = _provider_sdk_imports()
+
+    assert imports == []
+
+
+def test_network_call_kind_detects_guard_bypass_primitives() -> None:
+    assert _call_kind("requests.get('https://api.openai.com/v1/models')") == "requests_request"
+    assert _call_kind("requests.post('https://api.openai.com/v1/models')") == "requests_request"
+    assert _call_kind("requests.request('GET', url)") == "requests_request"
+    assert _call_kind("requests.Session()") == "requests_session"
+    assert _call_kind("aiohttp.ClientSession()") == "aiohttp_client_session"
+    assert _call_kind("urllib3.PoolManager()") == "urllib3_pool_manager"
+    assert _call_kind("http.client.HTTPSConnection('api.openai.com')") == (
+        "http_client_https_connection"
+    )
+    assert _call_kind("subprocess.run(['curl', 'https://api.openai.com'])") == (
+        "subprocess_network_tool"
+    )
+    assert _call_kind("subprocess.Popen(['wget', 'https://api.openai.com'])") == (
+        "subprocess_network_tool"
+    )
+
+
+def test_provider_sdk_import_kind_detects_direct_imports() -> None:
+    assert _provider_sdk_imports_from_source("import openai\n") == [
+        ProviderSdkImport(
+            path="<fixture>",
+            line=1,
+            module_name="openai",
+            expression="import openai",
+        )
+    ]
+    assert _provider_sdk_imports_from_source("from google import genai\n")[0].module_name == (
+        "google.genai"
+    )
+    assert _provider_sdk_imports_from_source("from google import generativeai\n")[
+        0
+    ].module_name == "google.generativeai"
 
 
 def _network_calls() -> list[NetworkCall]:
@@ -124,6 +184,25 @@ def _network_call_kind(node: ast.Call) -> str | None:
     expr = ast.unparse(node.func)
     if expr in {"urlopen", "urllib.request.urlopen"} or expr.endswith(".urlopen"):
         return "urllib_urlopen_send"
+    if expr in {
+        "requests.get",
+        "requests.post",
+        "requests.request",
+        "requests.put",
+        "requests.patch",
+        "requests.delete",
+    }:
+        return "requests_request"
+    if expr == "requests.Session":
+        return "requests_session"
+    if expr in {"aiohttp.ClientSession", "ClientSession"}:
+        return "aiohttp_client_session"
+    if expr in {"urllib3.PoolManager", "PoolManager"}:
+        return "urllib3_pool_manager"
+    if expr in {"http.client.HTTPSConnection", "HTTPSConnection"}:
+        return "http_client_https_connection"
+    if _is_subprocess_network_tool_call(node, expr):
+        return "subprocess_network_tool"
     if expr in {"httpx.AsyncClient", "AsyncClient"}:
         return "httpx_async_client"
     if expr in {"httpx.Client", "Client"}:
@@ -133,6 +212,114 @@ def _network_call_kind(node: ast.Call) -> str | None:
     if expr == "_post_json_unbudgeted":
         return "internal_post_json_unbudgeted"
     return None
+
+
+def _is_subprocess_network_tool_call(node: ast.Call, expr: str) -> bool:
+    if expr not in {
+        "subprocess.run",
+        "subprocess.Popen",
+        "asyncio.create_subprocess_exec",
+        "create_subprocess_exec",
+    }:
+        return False
+    command_parts = _literal_command_parts(node)
+    if not command_parts:
+        return False
+    executable = Path(command_parts[0]).name.lower()
+    if executable in {"curl", "curl.exe", "wget", "wget.exe"}:
+        return True
+    if executable in {"powershell", "powershell.exe", "pwsh", "pwsh.exe"}:
+        return any(
+            part.lower() in {"invoke-webrequest", "iwr", "invoke-restmethod", "irm"}
+            for part in command_parts[1:]
+        )
+    return False
+
+
+def _literal_command_parts(node: ast.Call) -> list[str]:
+    if not node.args:
+        return []
+    first = node.args[0]
+    if isinstance(first, ast.Constant) and isinstance(first.value, str):
+        parts = [first.value]
+        for arg in node.args[1:]:
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                parts.append(arg.value)
+        return parts
+    if isinstance(first, (ast.List, ast.Tuple)):
+        parts: list[str] = []
+        for element in first.elts:
+            if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                parts.append(element.value)
+            else:
+                return []
+        return parts
+    return []
+
+
+def _provider_sdk_imports() -> list[ProviderSdkImport]:
+    imports: list[ProviderSdkImport] = []
+    for path in sorted(SRC_ROOT.rglob("*.py")):
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        imports.extend(
+            _provider_sdk_imports_from_source(
+                path.read_text(encoding="utf-8"),
+                path_label=relative,
+            )
+        )
+    return imports
+
+
+def _provider_sdk_imports_from_source(
+    source: str,
+    *,
+    path_label: str = "<fixture>",
+) -> list[ProviderSdkImport]:
+    tree = ast.parse(source, filename=path_label)
+    imports: list[ProviderSdkImport] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                module_name = _provider_sdk_module_name(alias.name)
+                if module_name is not None:
+                    imports.append(
+                        ProviderSdkImport(
+                            path=path_label,
+                            line=node.lineno,
+                            module_name=module_name,
+                            expression=f"import {alias.name}",
+                        )
+                    )
+        if isinstance(node, ast.ImportFrom):
+            base_module = node.module or ""
+            for alias in node.names:
+                full_name = f"{base_module}.{alias.name}" if base_module else alias.name
+                module_name = _provider_sdk_module_name(full_name)
+                if module_name is None:
+                    module_name = _provider_sdk_module_name(base_module)
+                if module_name is not None:
+                    imports.append(
+                        ProviderSdkImport(
+                            path=path_label,
+                            line=node.lineno,
+                            module_name=module_name,
+                            expression=f"from {base_module} import {alias.name}",
+                        )
+                    )
+    return imports
+
+
+def _provider_sdk_module_name(module_name: str) -> str | None:
+    for provider_module in sorted(PROVIDER_SDK_MODULES, key=len, reverse=True):
+        if module_name == provider_module or module_name.startswith(f"{provider_module}."):
+            return provider_module
+    return None
+
+
+def _call_kind(source: str) -> str | None:
+    tree = ast.parse(source, mode="eval")
+    assert isinstance(tree.body, ast.Call)
+    return _network_call_kind(tree.body)
 
 
 def _is_provider_transport_helper(call: NetworkCall) -> bool:

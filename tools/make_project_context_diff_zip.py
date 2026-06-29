@@ -57,6 +57,19 @@ REQUIRED_REVIEW_ARTIFACTS = {
     "pointer_map_audit": "attachments/audits/pointer_map_audit.json",
 }
 GENERATED_REVIEW_ARTIFACTS = frozenset({"git_provenance"})
+COMMAND_MANIFEST_REQUIRED_LOG_PATHS = tuple(
+    REQUIRED_REVIEW_ARTIFACTS[artifact_id]
+    for artifact_id in (
+        "pytest_log",
+        "ruff_log",
+        "git_diff_check_log",
+        "git_status_log",
+        "review_zip_verify_log",
+        "memory_audit",
+        "adoption_audit",
+        "pointer_map_audit",
+    )
+)
 ALLOW_EMPTY_REVIEW_ARTIFACTS = frozenset(
     {
         "git_diff_check_log",
@@ -88,6 +101,7 @@ def build_review_context_zip(
     changed_files: tuple[str, ...] | None = None,
     extra_files: tuple[str, ...] = (),
     review_artifacts: dict[str, str | Path] | None = None,
+    expected_branch: str | None = None,
     verify_manifest: bool = True,
 ) -> ReviewZipBuildResult:
     root = Path(project_root).resolve()
@@ -110,6 +124,7 @@ def build_review_context_zip(
             root,
             base_ref=base_ref,
             head_ref=head_ref,
+            expected_branch=expected_branch,
             changed_files=tuple(dict.fromkeys(resolved_changed_files)),
         )
         _write_context(
@@ -171,6 +186,7 @@ def build_review_context_zip(
             project_root=root,
             base_ref=base_ref,
             head_ref=head_ref,
+            git_provenance=git_provenance,
             files=files,
         )
         manifest_path = staging / "attachment_manifest.json"
@@ -313,8 +329,19 @@ def _validate_command_manifest(raw: bytes, *, zip_names: set[str]) -> tuple[str,
     commands = payload.get("commands")
     if not isinstance(commands, list) or not commands:
         return tuple([*errors, "command manifest commands must be a non-empty list"])
+    command_log_paths: set[str] = set()
     for index, command in enumerate(commands):
         errors.extend(_validate_command_manifest_entry(index, command, zip_names=zip_names))
+        if isinstance(command, dict):
+            log_path = str(command.get("log_path") or "").replace("\\", "/")
+            if log_path:
+                command_log_paths.add(log_path)
+    for required_log_path in COMMAND_MANIFEST_REQUIRED_LOG_PATHS:
+        if required_log_path not in command_log_paths:
+            errors.append(
+                "command manifest missing required artifact log_path: "
+                f"{required_log_path}"
+            )
     return tuple(errors)
 
 
@@ -427,6 +454,40 @@ def _validate_git_provenance(raw: bytes) -> tuple[str, ...]:
         errors.append("git provenance not_evidence must be true")
     if payload.get("git_available") is not True:
         errors.append("git provenance git_available must be true")
+    detached_head = payload.get("detached_head")
+    if not isinstance(detached_head, bool):
+        errors.append("git provenance detached_head must be boolean")
+        detached_head = False
+    current_branch = payload.get("current_branch")
+    if current_branch is not None and (
+        not isinstance(current_branch, str) or not current_branch.strip()
+    ):
+        errors.append("git provenance current_branch must be a non-empty string or null")
+    head_branch = payload.get("head_branch")
+    if head_branch is not None and (
+        not isinstance(head_branch, str) or not head_branch.strip()
+    ):
+        errors.append("git provenance head_branch must be a non-empty string or null")
+    if current_branch != head_branch:
+        errors.append("git provenance head_branch must match current_branch")
+    branch_checked_by = payload.get("branch_checked_by")
+    if (
+        not isinstance(branch_checked_by, list)
+        or not branch_checked_by
+        or not all(isinstance(item, str) and item.strip() for item in branch_checked_by)
+    ):
+        errors.append("git provenance branch_checked_by must be a non-empty string list")
+    if payload.get("git_available") is True and detached_head is False and current_branch is None:
+        errors.append("git provenance current_branch is required unless detached_head is true")
+    expected_branch = payload.get("expected_branch")
+    if expected_branch is not None:
+        if not isinstance(expected_branch, str) or not expected_branch.strip():
+            errors.append("git provenance expected_branch must be a non-empty string or null")
+        elif detached_head is True or current_branch != expected_branch:
+            errors.append(
+                "git provenance current_branch must match expected_branch: "
+                f"{current_branch!r} != {expected_branch!r}"
+            )
     head_commit = str(payload.get("head_commit") or "")
     if not re.fullmatch(r"[0-9a-f]{40}", head_commit):
         errors.append("git provenance head_commit must be a 40-character lowercase hex hash")
@@ -712,6 +773,9 @@ def _write_context(
         f"head_commit: {git_provenance.get('head_commit') or '-'}",
         f"head_short_commit: {git_provenance.get('head_short_commit') or '-'}",
         f"base_commit: {git_provenance.get('base_commit') or '-'}",
+        f"branch: {git_provenance.get('current_branch') or '-'}",
+        f"detached_head: {git_provenance.get('detached_head')}",
+        f"expected_branch: {git_provenance.get('expected_branch') or '-'}",
         f"working_tree_policy: {working_tree.get('policy') or '-'}",
         f"working_tree_dirty: {working_tree.get('is_dirty')}",
         f"dirty_allowed_reason: {working_tree.get('dirty_allowed_reason') or '-'}",
@@ -805,9 +869,14 @@ def _git_provenance_payload(
     *,
     base_ref: str | None,
     head_ref: str,
+    expected_branch: str | None,
     changed_files: tuple[str, ...],
 ) -> dict[str, Any]:
     head_commit = _git_commit(root, head_ref)
+    branch_show_current = _run_git_optional(root, ["git", "branch", "--show-current"])
+    branch_symbolic_ref = _run_git_optional(root, ["git", "symbolic-ref", "--short", "HEAD"])
+    current_branch = (branch_show_current or branch_symbolic_ref or "").strip() or None
+    detached_head = bool(head_commit and current_branch is None)
     base_commit = _git_commit(root, base_ref) if base_ref else None
     status_short = _git_lines(root, ["git", "status", "--short"])
     working_tree_name_status = _git_lines(root, ["git", "diff", "--name-status"])
@@ -827,6 +896,14 @@ def _git_provenance_payload(
         "project_root": str(root),
         "git_available": git_available,
         "head_ref": head_ref,
+        "current_branch": current_branch,
+        "head_branch": current_branch,
+        "detached_head": detached_head,
+        "expected_branch": expected_branch,
+        "branch_checked_by": [
+            "git branch --show-current",
+            "git symbolic-ref --short HEAD",
+        ],
         "head_commit": head_commit,
         "head_short_commit": head_commit[:12] if head_commit else None,
         "head_oneline": _run_git_optional(root, ["git", "show", "-s", "--oneline", head_ref]),
@@ -873,6 +950,7 @@ def _manifest_payload(
     project_root: Path,
     base_ref: str | None,
     head_ref: str,
+    git_provenance: dict[str, Any],
     files: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
@@ -882,6 +960,9 @@ def _manifest_payload(
         "project_root": str(project_root),
         "base_ref": base_ref,
         "head_ref": head_ref,
+        "current_branch": git_provenance.get("current_branch"),
+        "detached_head": git_provenance.get("detached_head"),
+        "expected_branch": git_provenance.get("expected_branch"),
         "required_project_context_files": list(REQUIRED_PROJECT_CONTEXT_FILES),
         "required_review_artifacts": REQUIRED_REVIEW_ARTIFACTS,
         "files": files,
@@ -954,6 +1035,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--base-ref")
     parser.add_argument("--head-ref", default="HEAD")
+    parser.add_argument("--expected-branch")
     parser.add_argument("--changed-file", action="append", default=[])
     parser.add_argument("--extra-file", action="append", default=[])
     parser.add_argument("--pytest-log", type=Path)
@@ -988,6 +1070,7 @@ def main(argv: list[str] | None = None) -> int:
         changed_files=tuple(args.changed_file) if args.changed_file else None,
         extra_files=tuple(args.extra_file),
         review_artifacts=review_artifacts,
+        expected_branch=args.expected_branch,
         verify_manifest=args.verify_manifest,
     )
     payload = asdict(result)

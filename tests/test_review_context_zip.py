@@ -8,6 +8,16 @@ import zipfile
 from pathlib import Path
 
 SCRIPT_PATH = Path("tools/make_project_context_diff_zip.py")
+COMMAND_MANIFEST_FIXTURE_LOG_PATHS = (
+    "attachments/logs/pytest.log",
+    "attachments/logs/ruff.log",
+    "attachments/logs/git_diff_check.log",
+    "attachments/logs/git_status_short.log",
+    "attachments/logs/review_zip_verify.log",
+    "attachments/audits/memory_audit.json",
+    "attachments/audits/adoption_audit.json",
+    "attachments/audits/pointer_map_audit.json",
+)
 
 
 def test_review_context_zip_required_files_cover_gpt_review_surfaces() -> None:
@@ -99,12 +109,63 @@ def test_build_review_context_zip_includes_required_context_and_manifest(
     assert "attachments/audits/pointer_map_audit.json" in names
     assert manifest["artifact_kind"] == module.REVIEW_ZIP_ARTIFACT_KIND
     assert manifest["head_ref"] == "HEAD"
+    assert manifest["current_branch"] == provenance["current_branch"]
+    assert manifest["detached_head"] == provenance["detached_head"]
     assert provenance["artifact_kind"] == module.GIT_PROVENANCE_ARTIFACT_KIND
     assert provenance["git_available"] is True
+    assert provenance["current_branch"] == "fixture-main"
+    assert provenance["head_branch"] == "fixture-main"
+    assert provenance["detached_head"] is False
+    assert provenance["branch_checked_by"]
     assert len(provenance["head_commit"]) == 40
     assert provenance["not_evidence"] is True
     assert "head_commit:" in context_text
+    assert "branch: fixture-main" in context_text
+    assert "detached_head: False" in context_text
     assert "Provider execution surface source files are included" in context_text
+
+
+def test_review_context_zip_can_require_expected_branch(tmp_path: Path) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        expected_branch="fixture-main",
+        verify_manifest=True,
+    )
+
+    assert result.verification_errors == ()
+    with zipfile.ZipFile(zip_path) as archive:
+        context_text = archive.read("context.md").decode("utf-8")
+        provenance = json.loads(
+            archive.read("attachments/logs/git_provenance.json").decode("utf-8")
+        )
+    assert provenance["expected_branch"] == "fixture-main"
+    assert provenance["current_branch"] == "fixture-main"
+    assert "expected_branch: fixture-main" in context_text
+
+    mismatch_zip = tmp_path / "review-mismatch.zip"
+    mismatch = module.build_review_context_zip(
+        project_root,
+        mismatch_zip,
+        review_artifacts=review_artifacts,
+        expected_branch="wrong-branch",
+        verify_manifest=True,
+    )
+
+    assert any(
+        "git provenance current_branch must match expected_branch" in error
+        for error in mismatch.verification_errors
+    )
 
 
 def test_verify_review_zip_detects_manifest_missing_required_file(
@@ -476,6 +537,53 @@ def test_verify_review_zip_rejects_failed_command_manifest(
     )
 
 
+def test_verify_review_zip_rejects_command_manifest_missing_required_artifact_log(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    project_root = tmp_path / "project"
+    _write_required_project_files(project_root, module.REQUIRED_PROJECT_CONTEXT_FILES)
+    review_artifacts = _write_required_review_artifacts(
+        project_root,
+        module.REQUIRED_REVIEW_ARTIFACTS,
+    )
+    review_artifacts["command_manifest"].write_text(
+        json.dumps(
+            {
+                "artifact_kind": module.COMMAND_MANIFEST_ARTIFACT_KIND,
+                "schema_version": module.COMMAND_MANIFEST_SCHEMA_VERSION,
+                "commands": [
+                    _command_manifest_entry(
+                        name="pytest",
+                        command="uv run pytest tests -q",
+                        log_path="attachments/logs/pytest.log",
+                        index=0,
+                    )
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    zip_path = tmp_path / "review.zip"
+
+    result = module.build_review_context_zip(
+        project_root,
+        zip_path,
+        review_artifacts=review_artifacts,
+        verify_manifest=True,
+    )
+
+    assert any(
+        "command manifest missing required artifact log_path: attachments/logs/ruff.log"
+        in error
+        for error in result.verification_errors
+    )
+
+
 def test_verify_review_zip_rejects_invalid_git_provenance(
     tmp_path: Path,
 ) -> None:
@@ -528,6 +636,7 @@ def test_verify_review_zip_rejects_invalid_git_provenance(
     assert any("git provenance git_available must be true" in error for error in errors)
     assert any("git provenance not_evidence must be true" in error for error in errors)
     assert any("git provenance head_commit must be a 40-character" in error for error in errors)
+    assert any("git provenance detached_head must be boolean" in error for error in errors)
     assert any("dirty working tree requires dirty_allowed_reason" in error for error in errors)
 
 
@@ -615,38 +724,20 @@ def _review_artifact_fixture(artifact_id: str) -> str:
             sort_keys=True,
         ) + "\n"
     if artifact_id == "command_manifest":
+        commands = [
+            _command_manifest_entry(
+                name=Path(log_path).stem,
+                command=f"fixture command for {log_path}",
+                log_path=log_path,
+                index=index,
+            )
+            for index, log_path in enumerate(COMMAND_MANIFEST_FIXTURE_LOG_PATHS)
+        ]
         return json.dumps(
             {
                 "artifact_kind": "research_x_review_command_manifest",
                 "schema_version": 1,
-                "commands": [
-                    {
-                        "phase": "fixture",
-                        "name": "pytest",
-                        "command": "uv run pytest tests -q",
-                        "exit_code": 0,
-                        "log_path": "attachments/logs/pytest.log",
-                        "started_at": "2026-06-27T00:00:00+00:00",
-                        "finished_at": "2026-06-27T00:01:00+00:00",
-                        "provider_requests_expected_zero": True,
-                        "provider_requests_observed": 0,
-                        "provider_transport_sends_observed": 0,
-                        "api_budget_event_delta": _zero_api_budget_event_delta(),
-                    },
-                    {
-                        "phase": "fixture",
-                        "name": "ruff",
-                        "command": "uv run ruff check src\\research_x tests",
-                        "exit_code": 0,
-                        "log_path": "attachments/logs/ruff.log",
-                        "started_at": "2026-06-27T00:01:00+00:00",
-                        "finished_at": "2026-06-27T00:01:10+00:00",
-                        "provider_requests_expected_zero": True,
-                        "provider_requests_observed": 0,
-                        "provider_transport_sends_observed": 0,
-                        "api_budget_event_delta": _zero_api_budget_event_delta(),
-                    },
-                ],
+                "commands": commands,
             },
             ensure_ascii=False,
             indent=2,
@@ -675,6 +766,28 @@ def _zero_api_budget_event_delta() -> dict[str, object]:
     }
 
 
+def _command_manifest_entry(
+    *,
+    name: str,
+    command: str,
+    log_path: str,
+    index: int,
+) -> dict[str, object]:
+    return {
+        "phase": "fixture",
+        "name": name,
+        "command": command,
+        "exit_code": 0,
+        "log_path": log_path,
+        "started_at": f"2026-06-27T00:{index:02d}:00+00:00",
+        "finished_at": f"2026-06-27T00:{index:02d}:30+00:00",
+        "provider_requests_expected_zero": True,
+        "provider_requests_observed": 0,
+        "provider_transport_sends_observed": 0,
+        "api_budget_event_delta": _zero_api_budget_event_delta(),
+    }
+
+
 def _init_git_repo(project_root: Path) -> None:
     if (project_root / ".git").exists():
         return
@@ -694,6 +807,12 @@ def _init_git_repo(project_root: Path) -> None:
     subprocess.run(["git", "add", "."], cwd=project_root, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "fixture"],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "checkout", "-b", "fixture-main"],
         cwd=project_root,
         check=True,
         capture_output=True,

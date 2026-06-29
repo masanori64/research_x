@@ -109,8 +109,8 @@ uv run python -m research_x test-diagnose --help
 Common local/fake verification families include memory audit/eval/portfolio checks,
 research-intake dry-runs, prompt-contract tests, Skill manifest validation, WBS
 structure checks, D2/Marp build-boundary checks, pointer-map hash checks, review ZIP
-provenance validation, command-manifest API-budget observed-zero deltas, and static
-provider/network send guard scans. Keep provider-backed commands gated.
+branch provenance validation, command-manifest required-artifact coverage/API-budget
+observed-zero deltas, and static provider/network send guard scans. Keep provider-backed commands gated.
 
 ## Work-State And Structure
 

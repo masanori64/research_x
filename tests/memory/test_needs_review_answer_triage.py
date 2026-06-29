@@ -62,24 +62,47 @@ def test_memory_audit_triages_stored_needs_review_answers(tmp_path: Path) -> Non
     assert triage["action_counts"]["add_or_repair_citation"] == 1
     assert triage["action_counts"]["resolve_conflict"] == 1
     assert triage["action_counts"]["inspect_unexpected_needs_review_status"] == 1
+    assert triage["owner_layer_counts"]["Evidence"] == 1
+    assert triage["owner_layer_counts"]["Retrieval-Eval"] == 1
+    assert triage["owner_layer_counts"]["Tool Interface"] == 1
+    assert triage["answer_contract_blocking_counts"]["blocking"] == 2
+    assert triage["answer_contract_blocking_counts"]["non_blocking"] == 1
+    assert triage["provider_gate_counts"]["safe_under_local_no_provider"] == 3
     assert len(triage["samples"]) == 3
     samples_by_id = {sample["answer_id"]: sample for sample in triage["samples"]}
     assert samples_by_id["answer:conflict"]["citation_count"] == 1
     assert samples_by_id["answer:missing-citation"]["suggested_action"] == (
         "add_or_repair_citation"
     )
+    assert samples_by_id["answer:missing-citation"]["owner_layer"] == "Evidence"
+    assert samples_by_id["answer:missing-citation"]["blocking_for_answer_contract"] is True
+    assert samples_by_id["answer:missing-citation"]["safe_under_local_no_provider"] is True
+    assert samples_by_id["answer:missing-citation"]["requires_provider_gate"] is False
+    assert (
+        samples_by_id["answer:missing-citation"]["suggested_local_check"]
+        == "inspect source bundle, context chunk, and citation annotation linkage"
+    )
     assert samples_by_id["answer:conflict"]["suggested_action"] == "resolve_conflict"
+    assert samples_by_id["answer:conflict"]["owner_layer"] == "Retrieval-Eval"
+    assert samples_by_id["answer:conflict"]["blocking_for_answer_contract"] is True
     assert samples_by_id["answer:answerable-review"]["suggested_action"] == (
         "inspect_unexpected_needs_review_status"
+    )
+    assert samples_by_id["answer:answerable-review"]["owner_layer"] == "Tool Interface"
+    assert (
+        samples_by_id["answer:answerable-review"]["blocking_for_answer_contract"]
+        is False
     )
     assert "answer:ok" not in json.dumps(triage, ensure_ascii=False)
 
     payload = json.loads(audit_report_json(report))
     assert payload["needs_review_answer_triage"]["total"] == 3
     assert payload["needs_review_answer_triage"]["action_counts"]["resolve_conflict"] == 1
+    assert payload["needs_review_answer_triage"]["owner_layer_counts"]["Evidence"] == 1
     text = format_audit_report(report)
     assert "needs_review answer triage: total=3" in text
     assert "actions=" in text
+    assert "owners=" in text
 
 
 def _insert_answer(
