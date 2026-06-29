@@ -347,3 +347,18 @@ def test_local_app_redirect_job_id_rejects_header_breaks() -> None:
     assert local_app._safe_redirect_job_id("job_123-ABC") == "job_123-ABC"  # noqa: SLF001
     assert local_app._safe_redirect_job_id("job\r\nX-Test: injected") == ""  # noqa: SLF001
     assert local_app._safe_redirect_job_id("../job") == ""  # noqa: SLF001
+
+
+def test_local_app_status_location_urlencodes_server_job_id(tmp_path: Path) -> None:
+    job = local_app.AppJob(
+        job_id="job\r\nX-Test: injected",
+        account_id="tpq9e",
+        out_dir=tmp_path / "out",
+        db_path=tmp_path / "x.sqlite3",
+    )
+
+    location = local_app._status_location_for_job(job)  # noqa: SLF001
+
+    assert "\r" not in location
+    assert "\n" not in location
+    assert location == "/status?job=job%0D%0AX-Test%3A+injected"

@@ -557,10 +557,9 @@ def serve_collection_app(
             if parsed_path in {"/api/budget/stop", "/api/budget/resume"}:
                 db = _safe_research_db_from_form(form)
                 set_api_kill_switch(db, enabled=parsed_path.endswith("/stop"))
-                location = "/"
                 job_id = _safe_redirect_job_id(form.get("job", ""))
-                if job_id:
-                    location = "/status?" + urlencode({"job": job_id})
+                job = app.get_job(job_id) if job_id else None
+                location = _status_location_for_job(job) if job is not None else "/"
                 self.send_response(303)
                 self.send_header("Location", location)
                 self.end_headers()
@@ -573,9 +572,7 @@ def serve_collection_app(
                     job = app.request_cancel(job_id, rollback=True)
                 else:
                     job = app.rollback_job(job_id)
-                location = "/status?" + urlencode({"job": job_id})
-                if job is None:
-                    location = "/"
+                location = _status_location_for_job(job) if job is not None else "/"
                 self.send_response(303)
                 self.send_header("Location", location)
                 self.end_headers()
@@ -585,7 +582,7 @@ def serve_collection_app(
                 if parsed_path == "/label-existing"
                 else app.start_job(form)
             )
-            location = "/status?" + urlencode({"job": job.job_id})
+            location = _status_location_for_job(job)
             self.send_response(303)
             self.send_header("Location", location)
             self.end_headers()
@@ -1714,6 +1711,10 @@ def _safe_local_app_db_path(value: str) -> Path:
 def _safe_redirect_job_id(value: str | None) -> str:
     text = str(value or "").strip()
     return text if SAFE_REDIRECT_JOB_ID.fullmatch(text) else ""
+
+
+def _status_location_for_job(job: AppJob) -> str:
+    return "/status?" + urlencode({"job": job.job_id})
 
 
 def _is_terminal_status(status: str) -> bool:

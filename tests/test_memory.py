@@ -91,6 +91,7 @@ from research_x.memory.observability import (
     format_research_run,
     list_research_runs,
     show_research_run,
+    trusted_research_db_path,
 )
 from research_x.memory.ocr import (
     add_media_observation,
@@ -1737,6 +1738,11 @@ def test_memory_research_run_observability_surfaces_objective_artifacts(
     assert "reader_quality_profile:" in plain_detail
     assert "claim_support:" in plain_detail
     assert "source_quality:" in plain_detail
+
+
+def test_memory_research_run_observability_rejects_untrusted_db_path() -> None:
+    with pytest.raises(ValueError, match="under runs"):
+        trusted_research_db_path(Path.cwd() / "docs" / "x.sqlite3")
 
 
 def test_memory_workflow_plain_output_shows_route_plan(tmp_path: Path) -> None:

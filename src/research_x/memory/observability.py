@@ -2,11 +2,23 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from research_x.memory.schema import ensure_memory_schema
+
+OBSERVABILITY_DB_ALLOWED_ROOTS = (Path("runs"), Path(tempfile.gettempdir()))
+OBSERVABILITY_DB_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
+
+
+@dataclass(frozen=True)
+class TrustedResearchDbPath:
+    path: Path
+
+    def __fspath__(self) -> str:
+        return str(self.path)
 
 
 @dataclass(frozen=True)
@@ -46,14 +58,12 @@ class ResearchRunDetail:
 
 
 def list_research_runs(
-    db_path: str | Path,
+    db_path: str | Path | TrustedResearchDbPath,
     *,
     run_kind: str = "all",
     limit: int = 20,
 ) -> tuple[ResearchRunSummary, ...]:
-    path = Path(db_path)
-    if not path.exists():
-        raise FileNotFoundError(f"database not found: {path}")
+    path = trusted_research_db_path(db_path).path
     kinds = _resolve_run_kind(run_kind)
     summaries: list[ResearchRunSummary] = []
     with sqlite3.connect(path, timeout=60) as conn:
@@ -70,14 +80,12 @@ def list_research_runs(
 
 
 def show_research_run(
-    db_path: str | Path,
+    db_path: str | Path | TrustedResearchDbPath,
     run_id: str,
     *,
     run_kind: str = "auto",
 ) -> ResearchRunDetail:
-    path = Path(db_path)
-    if not path.exists():
-        raise FileNotFoundError(f"database not found: {path}")
+    path = trusted_research_db_path(db_path).path
     with sqlite3.connect(path, timeout=60) as conn:
         conn.row_factory = sqlite3.Row
         ensure_memory_schema(conn)
@@ -103,6 +111,30 @@ def research_runs_json(runs: tuple[ResearchRunSummary, ...]) -> str:
 
 def research_run_json(detail: ResearchRunDetail) -> str:
     return json.dumps(detail.as_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def trusted_research_db_path(
+    db_path: str | Path | TrustedResearchDbPath,
+) -> TrustedResearchDbPath:
+    if isinstance(db_path, TrustedResearchDbPath):
+        return db_path
+    candidate = Path(db_path)
+    if candidate.suffix.lower() not in OBSERVABILITY_DB_SUFFIXES:
+        raise ValueError(f"database path must use a sqlite suffix: {candidate}")
+    if ".." in candidate.parts:
+        raise ValueError("database path must not contain parent traversal")
+    base = Path.cwd().resolve()
+    allowed_roots = tuple(
+        _allowed_observability_root(base, root) for root in OBSERVABILITY_DB_ALLOWED_ROOTS
+    )
+    resolved = candidate.resolve() if candidate.is_absolute() else (base / candidate).resolve()
+    if not any(resolved == root or resolved.is_relative_to(root) for root in allowed_roots):
+        raise ValueError("database path must be under runs/ or the OS temp directory")
+    if not resolved.exists():
+        raise FileNotFoundError(f"database not found: {resolved}")
+    if not resolved.is_file():
+        raise ValueError(f"database path is not a file: {resolved}")
+    return TrustedResearchDbPath(resolved)
 
 
 def format_research_runs(runs: tuple[ResearchRunSummary, ...]) -> str:
@@ -850,6 +882,10 @@ def _loads_dict(value: str | None) -> dict[str, Any]:
 
 def _dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _allowed_observability_root(base: Path, root: Path) -> Path:
+    return root.resolve() if root.is_absolute() else (base / root).resolve()
 
 
 def _objective_metadata(payload: dict[str, Any]) -> dict[str, Any]:
