@@ -80,3 +80,17 @@ def test_security_workflows_and_dependabot_cover_current_dependency_surfaces() -
     for ecosystem in ("github-actions", "uv", "npm"):
         assert f"package-ecosystem: {ecosystem}" in dependabot
     assert "package-ecosystem: pip" not in dependabot
+
+
+def test_trusted_pr_auto_merge_is_limited_to_same_repo_codex_and_dependabot_prs() -> None:
+    workflow = _read(WORKFLOWS / "trusted-pr-auto-merge.yml")
+
+    assert "name: Trusted PR Auto Merge" in workflow
+    assert "pull_request_target:" in workflow
+    assert "contents: write" in workflow
+    assert "pull-requests: write" in workflow
+    assert "github.event.pull_request.head.repo.full_name == github.repository" in workflow
+    assert "startsWith(github.event.pull_request.head.ref, 'codex/')" in workflow
+    assert "startsWith(github.event.pull_request.head.ref, 'dependabot/')" in workflow
+    assert 'gh pr merge "$PR_URL" --auto --squash --delete-branch' in workflow
+    assert "actions/checkout" not in workflow
