@@ -232,6 +232,32 @@ def test_cognee_source_stays_disabled_metadata_only() -> None:
     assert "candidate-only" in source.source_governance.notes
 
 
+def test_slidev_visual_review_sources_are_metadata_only() -> None:
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+    sources = {source.source_id: source for source in registry.sources}
+
+    for source_id in (
+        "manual_sios_marp_slidev",
+        "manual_marp_official",
+        "manual_slidev_official",
+    ):
+        source = sources[source_id]
+
+        assert source.enabled_when == "always"
+        assert source.policy.fetch_mode == "metadata_only"
+        assert source.policy.allow_network is False
+        assert source.policy.allow_provider is False
+        assert source.source_governance is not None
+        assert source.source_governance.source_ref == "S51"
+        assert source.source_governance.adoption_candidate == "slidev_visual_review_lane"
+        assert (
+            source.source_governance.promotion_boundary
+            == "presentation_visual_review_control_artifact_only"
+        )
+        assert "generated evidence" in source.source_governance.notes
+        assert "citation" in source.source_governance.notes
+
+
 def test_risky_manual_url_candidates_must_stay_disabled(tmp_path: Path) -> None:
     registry_path = tmp_path / "source_registry.toml"
     registry_text = Path("control/research_intake/source_registry.toml").read_text(

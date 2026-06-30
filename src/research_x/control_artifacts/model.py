@@ -182,6 +182,16 @@ def load_control_artifact_view(payload: Mapping[str, Any]) -> ControlArtifactVie
 def control_artifact_review_status(payload: Mapping[str, Any]) -> str:
     if validate_control_artifact_payload(payload):
         return "rejected"
+    if payload.get("view_kind") == "visual_review":
+        from research_x.control_artifacts.visual_review import validate_visual_review_payload
+
+        visual_errors = validate_visual_review_payload(dict(payload))
+        if any("evaluation is required for ready status" not in error for error in visual_errors):
+            return "rejected"
+        evaluation = payload.get("evaluation")
+        if not isinstance(evaluation, Mapping):
+            return "needs_review"
+        return "ready" if evaluation.get("status") == "pass" else "needs_review"
     if (
         payload.get("view_kind") == "diagram_review"
         and payload.get("diagram_kind") in DIAGRAM_KINDS_NEEDING_REFS

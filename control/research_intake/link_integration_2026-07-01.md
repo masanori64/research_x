@@ -217,7 +217,7 @@ Project candidates staged or gated:
 | `ontology_relation_traversal_eval` | adopt | route policy | relation traversal vs semantic recall fixtures |
 | `databricks_rag_governance_checklist` | adopt | eval | precision vs faithfulness separation |
 | `cc_rsg_reverse_spec_review` | adopt | control artifact | generated-spec non-evidence test |
-| `slidev_visual_review_lane` | staging | presentation | local render/visual QA comparison |
+| `slidev_visual_review_lane` | adopt | presentation | local visual QA evaluator; renderer/browser capture still gated |
 | `f3_self_describing_artifact_reference` | staging | artifact manifest | inert manifest identity, no Wasm execution |
 | `sqljoiner_query_visualization_reference` | staging | control artifact | owned read-only query-plan visualization |
 | `embedding_stabilization_eval` | adopt | retrieval eval | synthetic drift/cold-start fixtures |
@@ -307,10 +307,9 @@ Presentation boundary findings:
 - Slidev/Playwright can add value only as optional visual QA for layout,
   overlap, missing assets, blank renders, and unreadable scale. It should not
   replace the Marp deck lane or final flow docs.
-- Future checks may add artifact kinds such as `slidev_rendered_view`,
-  `slidev_deck`, `playwright_visual_snapshot`, `ppt_master_deck`, and
-  `reverse_spec`, all with `not_evidence: true` and
-  `answer_support_allowed: false`.
+- Local visual QA now evaluates already-rendered deck/snapshot artifacts for
+  blank output, missing assets, overlap, readability, and frame fit, while
+  Slidev runtime, Playwright capture, and ppt-master generation stay gated.
 
 ## Loop 3-5 Local Implementations
 
@@ -405,7 +404,8 @@ Implemented generated artifact / reverse-spec boundary:
   non-evidence: `slidev_deck`, `slidev_rendered_view`,
   `playwright_visual_snapshot`, and `ppt_master_deck`.
 - This does not adopt Slidev, Playwright MCP, ppt-master, or any model-based
-  slide/spec generator. Local render and visual-overlap QA remains staged.
+  slide/spec generator. Local visual QA can evaluate already-rendered artifacts,
+  but render/capture/generation runtime adoption remains gated.
 
 Implemented OKF source-candidate metadata boundary:
 
@@ -471,18 +471,23 @@ Implemented agent-safety tool trace:
 - The trace explicitly does not grant provider, network, browser, install,
   MCP/plugin/connector, destructive-action, or evidence-promotion permission.
 
-Implemented generated-artifact visual review checklist:
+Implemented generated-artifact visual review evaluator:
 
-- `slidev_visual_review_lane` remains staged and disabled, but now has a local
-  owner in `src/research_x/control_artifacts/visual_review.py`.
+- `slidev_visual_review_lane` is now implemented as a local evaluator in
+  `src/research_x/control_artifacts/visual_review.py`.
 - The builder emits review-only `visual_review` control-artifact payloads for
   generated deck and snapshot artifacts such as `slidev_deck`,
   `slidev_rendered_view`, `playwright_visual_snapshot`, and `ppt_master_deck`.
-- The checklist covers blank render, missing assets, overlap, readability,
-  viewport/frame fit, and non-evidence boundaries.
-- This does not install Slidev, run Playwright, use ppt-master, or promote
-  screenshots/decks as evidence. Render and visual-overlap QA remains staged
-  behind dependency/browser/install review.
+- The evaluator accepts local artifact paths, an already-rendered local
+  snapshot, local asset paths, viewport size, and element boxes. It checks blank
+  render, missing assets, overlap, readability, viewport/frame fit, exact gate
+  status, and non-evidence boundaries.
+- Checklist-only payloads remain `needs_review`; a visual review is `ready`
+  only when every local evaluator gate passes. Failed or ambiguous checks stay
+  review-only and cannot become answer support.
+- This does not install Slidev, run Playwright, use ppt-master, launch a
+  browser, generate slides, or promote screenshots/decks as evidence. Renderer,
+  capture, and deck-generation adoption remain staged behind explicit review.
 
 Implemented X private/snippet route-memory boundary:
 
@@ -576,6 +581,7 @@ Verification completed for these loops:
 - `uv run pytest tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - `uv run pytest tests\test_context_headroom.py tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - `uv run pytest tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\tool_interface\test_preview_cannot_be_citation.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
+- `uv run pytest tests\test_visual_review_boundary.py tests\test_control_artifact_structure_view.py tests\test_adoption_registry.py tests\research_intake\test_source_registry_policy.py tests\skills\test_vendor_sources_lock.py tests\test_presentation_stage1.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

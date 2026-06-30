@@ -112,6 +112,9 @@ def test_diagram_systems_route_by_creation_system_and_retire_custom_uml() -> Non
         "Do not recreate a custom SVG generator",
         "Do not call a flowchart UML",
         "Mermaid can own that lane",
+        "Local visual QA uses src/research_x/control_artifacts/visual_review.py",
+        "It is a review gate only",
+        "does not install or run Slidev, Playwright, ppt-master",
     ):
         assert phrase in normalized_without_backticks
 

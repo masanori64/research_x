@@ -13,6 +13,11 @@ Generated diagrams, WBS views, dashboards, slide decks, and screenshots are
 control or review artifacts. They are not source bundles, context chunks,
 citations, or answer evidence.
 
+Local visual QA uses `src/research_x/control_artifacts/visual_review.py` to
+evaluate already-rendered deck or snapshot artifacts for blank output, missing
+assets, overlap, readability, and frame fit. It is a review gate only; it does
+not install or run Slidev, Playwright, ppt-master, or any browser automation.
+
 ## Current Systems
 
 | System | Repository surface | Official/upstream fit | Use in this repository |

@@ -216,20 +216,23 @@ def test_f3_and_sqljoiner_references_stay_staged_disabled() -> None:
     ].notes
 
 
-def test_slidev_visual_review_lane_stays_staged_with_local_checklist_only() -> None:
+def test_slidev_visual_review_lane_adopts_local_evaluator_only() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     item = candidates["slidev_visual_review_lane"]
 
-    assert item.adoption_shape == "staging"
-    assert item.status == "staged"
-    assert item.enabled is False
+    assert item.adoption_shape == "adopt"
+    assert item.status == "implemented"
+    assert item.enabled is True
     assert item.provider_or_quota is False
     assert item.active_artifact == "src/research_x/control_artifacts/visual_review.py"
-    assert "dependency-free visual-review checklist" in item.first_local_step
-    assert "dependency install" in item.stop_condition
-    assert "runtime import" in item.stop_condition
+    assert "dependency-free visual-review evaluation" in item.first_local_step
+    assert "already-rendered local deck/snapshot artifacts" in item.first_local_step
+    assert "renderer/browser" in item.stop_condition
+    assert "installs dependencies" in item.stop_condition
+    assert "Slidev/Playwright/ppt-master runtime code" in item.stop_condition
     assert "evidence promotion" in item.stop_condition
-    assert "render and visual-overlap QA remains staged" in item.notes
+    assert "Local visual QA evaluator is implemented" in item.notes
+    assert "renderer/browser/dependency capture remains staged" in item.notes
 
 
 def test_cognee_reference_is_local_invariant_coverage_without_runtime_adoption() -> None:

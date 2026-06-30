@@ -543,7 +543,7 @@ source_ref = "S51"
 adoption_candidate = "slidev_visual_review_lane"
 evidence_status = "not_evidence_until_fetched_and_chunked"
 promotion_boundary = "presentation_visual_review_control_artifact_only"
-notes = "Owned by the staged visual-review lane; not adopted as renderer install, browser automation, generated evidence, or citation."
+notes = "Owned by the local visual-review evaluator; not adopted as renderer install, browser automation, generated evidence, or citation."
 
 [[sources]]
 source_id = "manual_marp_official"
@@ -568,7 +568,7 @@ source_ref = "S51"
 adoption_candidate = "slidev_visual_review_lane"
 evidence_status = "not_evidence_until_fetched_and_chunked"
 promotion_boundary = "presentation_visual_review_control_artifact_only"
-notes = "Owned by the presentation artifact boundary; not adopted as renderer install, generated evidence, or citation."
+notes = "Owned by the local presentation artifact and visual-review boundary; not adopted as renderer install, generated evidence, or citation."
 
 [[sources]]
 source_id = "manual_slidev_official"
@@ -593,7 +593,7 @@ source_ref = "S51"
 adoption_candidate = "slidev_visual_review_lane"
 evidence_status = "not_evidence_until_fetched_and_chunked"
 promotion_boundary = "presentation_visual_review_control_artifact_only"
-notes = "Owned by the staged visual-review lane; not adopted as dependency install, browser automation, generated evidence, or citation."
+notes = "Owned by the local visual-review evaluator; not adopted as dependency install, browser automation, generated evidence, or citation."
 
 [[sources]]
 source_id = "manual_f3_repo"

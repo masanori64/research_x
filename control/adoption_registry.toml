@@ -637,17 +637,17 @@ notes = "Generated-spec non-evidence boundary is implemented; no Claude Skill or
 name = "slidev_visual_review_lane"
 category = "control_artifact"
 owner_surface = "research_x_tool"
-adoption_shape = "staging"
-status = "staged"
+adoption_shape = "adopt"
+status = "implemented"
 source_ref = "S51"
 source_url = "https://sli.dev/"
 active_artifact = "src/research_x/control_artifacts/visual_review.py"
-first_local_step = "Use dependency-free visual-review checklist payloads for generated deck/snapshot artifacts before any renderer or browser automation is adopted."
-promotion_gate = "A local render plus visual-overlap check improves review output without changing the source-of-truth flow docs."
-stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until dependency review and local render verification pass."
+first_local_step = "Run dependency-free visual-review evaluation on already-rendered local deck/snapshot artifacts before any renderer or browser automation is adopted."
+promotion_gate = "Local snapshot, asset, overlap, readability, frame, and non-evidence checks improve review output without changing the source-of-truth flow docs."
+stop_condition = "Stop if visual review launches a renderer/browser, installs dependencies, imports Slidev/Playwright/ppt-master runtime code, grants default-route promotion, or permits evidence promotion."
 provider_or_quota = false
-enabled = false
-notes = "Generated deck/snapshot artifact kinds are blocked as non-evidence; visual-review checklist payloads are local, but render and visual-overlap QA remains staged."
+enabled = true
+notes = "Local visual QA evaluator is implemented for already-rendered artifacts; renderer/browser/dependency capture remains staged."
 
 [[candidates]]
 name = "f3_self_describing_artifact_reference"

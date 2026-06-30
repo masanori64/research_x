@@ -11,6 +11,8 @@ from research_x.control_artifacts.renderer import render_control_artifact_html
 from research_x.control_artifacts.visual_review import (
     VISUAL_REVIEW_REQUIRED_GATES,
     build_visual_review_payload,
+    evaluate_visual_review_snapshot,
+    validate_visual_review_payload,
 )
 
 __all__ = [
@@ -19,7 +21,9 @@ __all__ = [
     "VISUAL_REVIEW_REQUIRED_GATES",
     "build_visual_review_payload",
     "control_artifact_review_status",
+    "evaluate_visual_review_snapshot",
     "load_control_artifact_view",
     "render_control_artifact_html",
     "validate_control_artifact_payload",
+    "validate_visual_review_payload",
 ]

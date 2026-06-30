@@ -52,6 +52,18 @@ def test_cognee_vendor_lock_blocks_platform_output_promotion() -> None:
     assert "source-bundle and citation pipeline" in vendor_lock
 
 
+def test_slidev_vendor_lock_keeps_runtime_staged_but_local_qa_owned() -> None:
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+
+    assert "| S51 | `marp-slidev` |" in vendor_lock
+    assert "Marp is already the owned deck assembly boundary" in vendor_lock
+    assert "local visual QA evaluation is project-owned" in vendor_lock
+    assert "already-rendered artifacts" in vendor_lock
+    assert "Slidev runtime, Playwright capture, ppt-master generation" in vendor_lock
+    assert "dependency/install, browser automation" in vendor_lock
+    assert "generated-deck evidence promotion remain disabled" in vendor_lock
+
+
 def test_codex_foundation_candidates_stay_out_of_research_x_vendor_lock() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
     vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
