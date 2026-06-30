@@ -167,6 +167,39 @@ def test_okf_source_candidates_serialize_full_metadata_shape() -> None:
         assert candidate["evidence_status"] == "not_evidence_until_fetched_and_chunked"
 
 
+def test_source_governance_serializes_to_candidates_and_snapshots() -> None:
+    profile = load_profile(Path("control/research_intake/research_x_sources.profile.toml"))
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+
+    run = discover_candidates(profile, registry, limit=20, created_at="2026-07-01T00:00:00Z")
+    payload = run.as_dict()
+    candidates = {
+        candidate["source_id"]: candidate
+        for candidate in payload["candidates"]
+        if "source_governance" in candidate
+    }
+    snapshots = {
+        snapshot["candidate_id"]: snapshot
+        for snapshot in payload["snapshots"]
+        if "source_governance" in snapshot
+    }
+
+    assert "manual_agent_safety_tan_go238" in candidates
+    governance = candidates["manual_agent_safety_tan_go238"]["source_governance"]
+    assert governance.items() >= {
+        "owner_surface": "research_intake",
+        "owner_status": "adoption_registry",
+        "source_ref": "S57",
+        "adoption_candidate": "agent_control_source_ownership_coverage",
+        "evidence_status": "not_evidence_until_fetched_and_chunked",
+    }.items()
+    assert candidates["manual_agent_safety_tan_go238"]["citation_excluded"] is True
+    assert any(
+        snapshot["source_governance"] == governance for snapshot in snapshots.values()
+    )
+    assert validate_run(run) == []
+
+
 def test_cli_validate_discover_and_brief_round_trip(tmp_path: Path) -> None:
     run_path = tmp_path / "run.json"
     brief_path = tmp_path / "brief.md"

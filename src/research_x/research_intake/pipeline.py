@@ -69,6 +69,12 @@ OKF_SOURCE_CANDIDATE_REVIEW_STATUSES = {
     "staged",
 }
 SOURCE_CANDIDATE_EVIDENCE_STATUS = "not_evidence_until_fetched_and_chunked"
+SOURCE_GOVERNANCE_OWNER_STATUSES = {
+    "adoption_registry",
+    "codex_foundation",
+    "source_registry_only",
+    "vendor_lock",
+}
 
 
 @dataclass(frozen=True)
@@ -124,6 +130,20 @@ class SourcePolicy:
 
 
 @dataclass(frozen=True)
+class SourceGovernance:
+    owner_surface: str
+    owner_status: str
+    source_ref: str = ""
+    adoption_candidate: str = ""
+    evidence_status: str = SOURCE_CANDIDATE_EVIDENCE_STATUS
+    promotion_boundary: str = ""
+    notes: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class SourceSubscription:
     source_id: str
     source_type: str
@@ -134,12 +154,15 @@ class SourceSubscription:
     topics: tuple[str, ...] = field(default_factory=tuple)
     policy: SourcePolicy = field(default_factory=SourcePolicy)
     okf_source_metadata: OkfSourceMetadata | None = None
+    source_governance: SourceGovernance | None = None
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["topics"] = list(self.topics)
         if self.okf_source_metadata is not None:
             data["okf_source_metadata"] = self.okf_source_metadata.as_dict()
+        if self.source_governance is not None:
+            data["source_governance"] = self.source_governance.as_dict()
         return data
 
 
@@ -183,12 +206,15 @@ class ResearchCandidate:
     citation_excluded: bool
     evidence_status: str
     okf_source_metadata: OkfSourceMetadata | None = None
+    source_governance: SourceGovernance | None = None
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["risk_flags"] = list(self.risk_flags)
         if self.okf_source_metadata is not None:
             data["okf_source_metadata"] = self.okf_source_metadata.as_dict()
+        if self.source_governance is not None:
+            data["source_governance"] = self.source_governance.as_dict()
         return data
 
 
@@ -207,11 +233,14 @@ class FetchSnapshot:
     prompt_injection_review: str
     promotion_gate: str
     okf_source_metadata: OkfSourceMetadata | None = None
+    source_governance: SourceGovernance | None = None
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
         if self.okf_source_metadata is not None:
             data["okf_source_metadata"] = self.okf_source_metadata.as_dict()
+        if self.source_governance is not None:
+            data["source_governance"] = self.source_governance.as_dict()
         return data
 
 
@@ -323,6 +352,10 @@ def validate_registry(registry: SourceRegistry) -> list[str]:
         if source.source_type == "manual_url" and not _looks_like_url(source.locator):
             errors.append(f"{source.source_id}: manual_url locator must be http(s)")
         if source.source_type == "manual_url" and _source_enabled(source):
+            if source.source_governance is None:
+                errors.append(
+                    f"{source.source_id}: enabled manual_url requires source_governance"
+                )
             storage_rights = source.policy.storage_rights.casefold()
             matched_risk_tokens = sorted(
                 token for token in MANUAL_URL_ENABLED_RISK_TOKENS if token in storage_rights
@@ -337,6 +370,7 @@ def validate_registry(registry: SourceRegistry) -> list[str]:
                 f"{source.source_id}: quality_hint must be one of {sorted(QUALITY_SCORES)}"
             )
         errors.extend(_validate_okf_source_metadata(source))
+        errors.extend(_validate_source_governance(source))
     return errors
 
 
@@ -469,6 +503,14 @@ def validate_run(run: DiscoveryRun | dict[str, Any]) -> list[str]:
                     expected_resource=str(candidate.get("canonical_url") or ""),
                 )
             )
+        governance = candidate.get("source_governance")
+        if governance is not None:
+            errors.extend(
+                _validate_source_governance_dict(
+                    governance,
+                    context=str(candidate_id),
+                )
+            )
     for snapshot in data.get("snapshots", []):
         snapshot_id = snapshot.get("snapshot_id")
         if snapshot.get("fetch_status") != "not_fetched_dry_run":
@@ -483,6 +525,14 @@ def validate_run(run: DiscoveryRun | dict[str, Any]) -> list[str]:
         if metadata is not None:
             errors.extend(
                 _validate_okf_metadata_dict(metadata, context=str(snapshot_id))
+            )
+        governance = snapshot.get("source_governance")
+        if governance is not None:
+            errors.extend(
+                _validate_source_governance_dict(
+                    governance,
+                    context=str(snapshot_id),
+                )
             )
     return errors
 
@@ -572,6 +622,7 @@ def _source_from_dict(raw: dict[str, Any]) -> SourceSubscription:
             source_type=str(raw.get("source_type", "")).strip(),
             source_topics=topics,
         ),
+        source_governance=_source_governance_from_dict(raw.get("source_governance")),
     )
 
 
@@ -613,6 +664,24 @@ def _policy_from_dict(raw: dict[str, Any]) -> SourcePolicy:
         prompt_injection_review=str(
             raw.get("prompt_injection_review", "required_before_fetch")
         ).strip(),
+    )
+
+
+def _source_governance_from_dict(raw: Any) -> SourceGovernance | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raw = {}
+    return SourceGovernance(
+        owner_surface=str(raw.get("owner_surface", "")).strip(),
+        owner_status=str(raw.get("owner_status", "")).strip(),
+        source_ref=str(raw.get("source_ref", "")).strip(),
+        adoption_candidate=str(raw.get("adoption_candidate", "")).strip(),
+        evidence_status=str(
+            raw.get("evidence_status", SOURCE_CANDIDATE_EVIDENCE_STATUS)
+        ).strip(),
+        promotion_boundary=str(raw.get("promotion_boundary", "")).strip(),
+        notes=str(raw.get("notes", "")).strip(),
     )
 
 
@@ -675,6 +744,7 @@ def _make_candidate(
         citation_excluded=True,
         evidence_status=SOURCE_CANDIDATE_EVIDENCE_STATUS,
         okf_source_metadata=source.okf_source_metadata,
+        source_governance=source.source_governance,
     )
 
 
@@ -694,6 +764,8 @@ def _make_snapshot(
     }
     if source.okf_source_metadata is not None:
         metadata["okf_source_metadata"] = source.okf_source_metadata.as_dict()
+    if source.source_governance is not None:
+        metadata["source_governance"] = source.source_governance.as_dict()
     content_hash = _hash_dict(metadata)
     return FetchSnapshot(
         snapshot_id="snapshot_" + _stable_id(candidate.candidate_id, content_hash),
@@ -709,6 +781,7 @@ def _make_snapshot(
         prompt_injection_review=source.policy.prompt_injection_review,
         promotion_gate="requires_fetch_extract_chunk_citation",
         okf_source_metadata=source.okf_source_metadata,
+        source_governance=source.source_governance,
     )
 
 
@@ -720,6 +793,60 @@ def _validate_okf_source_metadata(source: SourceSubscription) -> list[str]:
         context=source.source_id,
         expected_resource=source.locator,
     )
+
+
+def _validate_source_governance(source: SourceSubscription) -> list[str]:
+    if source.source_governance is None:
+        return []
+    return _validate_source_governance_dict(
+        source.source_governance.as_dict(),
+        context=source.source_id,
+    )
+
+
+def _validate_source_governance_dict(raw: dict[str, Any], *, context: str) -> list[str]:
+    errors: list[str] = []
+    owner_surface = str(raw.get("owner_surface", "")).strip()
+    owner_status = str(raw.get("owner_status", "")).strip()
+    source_ref = str(raw.get("source_ref", "")).strip()
+    adoption_candidate = str(raw.get("adoption_candidate", "")).strip()
+    evidence_status = str(raw.get("evidence_status", "")).strip()
+    promotion_boundary = str(raw.get("promotion_boundary", "")).strip()
+    notes = str(raw.get("notes", "")).strip()
+
+    if not owner_surface:
+        errors.append(f"{context}: source_governance.owner_surface is required")
+    if owner_status not in SOURCE_GOVERNANCE_OWNER_STATUSES:
+        errors.append(
+            f"{context}: source_governance.owner_status must be one of "
+            f"{sorted(SOURCE_GOVERNANCE_OWNER_STATUSES)}"
+        )
+    if evidence_status != SOURCE_CANDIDATE_EVIDENCE_STATUS:
+        errors.append(
+            f"{context}: source_governance.evidence_status must be "
+            f"{SOURCE_CANDIDATE_EVIDENCE_STATUS}"
+        )
+    if not promotion_boundary:
+        errors.append(f"{context}: source_governance.promotion_boundary is required")
+
+    if owner_status == "adoption_registry" and not adoption_candidate:
+        errors.append(
+            f"{context}: adoption_registry governance requires adoption_candidate"
+        )
+    if owner_status == "vendor_lock" and not source_ref:
+        errors.append(f"{context}: vendor_lock governance requires source_ref")
+    if owner_status == "codex_foundation" and (
+        owner_surface != "codex_foundation" or not adoption_candidate
+    ):
+        errors.append(
+            f"{context}: codex_foundation governance requires owner_surface="
+            "codex_foundation and adoption_candidate"
+        )
+    if owner_status == "source_registry_only" and "not adopted" not in notes.casefold():
+        errors.append(
+            f"{context}: source_registry_only governance notes must state not adopted"
+        )
+    return errors
 
 
 def _validate_okf_metadata_dict(

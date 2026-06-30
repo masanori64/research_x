@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from research_x.adoption_registry import adoption_candidates
 from research_x.research_intake.pipeline import (
     LOCAL_SOURCE_TYPES,
     PROVIDER_SOURCE_TYPES,
+    SOURCE_CANDIDATE_EVIDENCE_STATUS,
+    SourcePolicy,
+    SourceRegistry,
+    SourceSubscription,
     load_registry,
     validate_registry,
 )
@@ -66,6 +71,65 @@ def test_source_registry_local_sources_are_metadata_only() -> None:
         assert source.policy.allow_network is False
         assert source.policy.allow_provider is False
         assert source.quality_hint in {"official", "high", "medium", "unknown", "low"}
+
+
+def test_enabled_manual_urls_have_source_governance_owner_paths() -> None:
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+    adoption_names = {
+        candidate.name for candidate in adoption_candidates("control/adoption_registry.toml")
+    }
+    source_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+    enabled_manual_sources = [
+        source
+        for source in registry.sources
+        if source.source_type == "manual_url" and source.enabled_when == "always"
+    ]
+
+    assert enabled_manual_sources
+    for source in enabled_manual_sources:
+        governance = source.source_governance
+
+        assert governance is not None
+        assert governance.evidence_status == SOURCE_CANDIDATE_EVIDENCE_STATUS
+        assert governance.promotion_boundary
+        assert "evidence" in governance.notes
+
+        if governance.source_ref:
+            assert f"| {governance.source_ref} |" in source_lock
+        if governance.owner_status == "adoption_registry":
+            assert governance.adoption_candidate in adoption_names
+        elif governance.owner_status == "codex_foundation":
+            assert governance.owner_surface == "codex_foundation"
+            assert governance.adoption_candidate
+        elif governance.owner_status == "source_registry_only":
+            assert "not adopted" in governance.notes.casefold()
+        else:
+            assert governance.owner_status == "vendor_lock"
+
+
+def test_enabled_manual_url_without_source_governance_is_rejected() -> None:
+    registry = SourceRegistry(
+        registry_id="missing_governance_registry",
+        sources=(
+            SourceSubscription(
+                source_id="manual_without_governance",
+                source_type="manual_url",
+                locator="https://example.com/source",
+                enabled_when="always",
+                quality_hint="medium",
+                policy=SourcePolicy(
+                    fetch_mode="metadata_only",
+                    allow_network=False,
+                    allow_provider=False,
+                    storage_rights="unfetched_public_candidate",
+                ),
+            ),
+        ),
+    )
+
+    errors = validate_registry(registry)
+
+    assert "manual_without_governance: enabled manual_url requires source_governance" in errors
 
 
 def test_okf_source_metadata_shape_is_candidate_only() -> None:

@@ -170,6 +170,23 @@ def test_agent_safety_trace_is_contract_visibility_not_runtime_permission() -> N
     assert "prompt-only safety model" in item.notes
 
 
+def test_agent_control_source_ownership_is_intake_metadata_only() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    item = candidates["agent_control_source_ownership_coverage"]
+
+    assert item.adoption_shape == "adopt"
+    assert item.status == "implemented"
+    assert item.enabled is True
+    assert item.provider_or_quota is False
+    assert item.owner_surface == "research_intake"
+    assert item.source_ref == "S57"
+    assert item.active_artifact == "src/research_x/research_intake/pipeline.py"
+    assert "source_governance" in item.first_local_step
+    assert "citation-ready" in item.promotion_gate
+    assert "browser/MCP/provider/install authority" in item.stop_condition
+    assert "not adopted as runtime behavior" in item.notes
+
+
 def test_f3_and_sqljoiner_references_stay_staged_disabled() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     expected = {

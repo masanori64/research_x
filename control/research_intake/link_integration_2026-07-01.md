@@ -222,6 +222,7 @@ Project candidates staged or gated:
 | `sqljoiner_query_visualization_reference` | staging | control artifact | owned read-only query-plan visualization |
 | `embedding_stabilization_eval` | staging | retrieval eval | synthetic drift/cold-start fixtures |
 | `x_source_restoration_status` | staging | source restoration | login/snippet/private status fixtures |
+| `agent_control_source_ownership_coverage` | adopt | research intake | enabled manual URL ownership metadata |
 
 Codex foundation candidates staged or gated:
 
@@ -473,6 +474,22 @@ Implemented X private/snippet route-memory boundary:
   and not permission for browser login, scraping, installs, connectors, MCP,
   hidden APIs, provider calls, or quota use.
 
+Implemented source-governance ownership coverage:
+
+- Enabled `manual_url` entries in `control/research_intake/source_registry.toml`
+  now require `source_governance`, and validation rejects enabled manual URLs
+  that lack an owner path.
+- The new `agent_control_source_ownership_coverage` candidate source-locks the
+  previously under-owned agent-control and AI-test-quality URLs as `S57`.
+- `source_governance` records owner surface, owner status, source ref,
+  adoption candidate, evidence status, and promotion boundary. It is serialized
+  into dry-run candidates and snapshots so downstream intake reports can see why
+  a source is present without treating it as fetched evidence.
+- This covers both project-owned candidates and Codex-foundation-owned
+  references, while preserving the boundary that enabled source-registry entries
+  are still unfetched, metadata-only, not evidence, not citations, not runtime
+  permission, and not automatic adoption.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -487,6 +504,9 @@ Verification completed for these loops:
 - `uv run pytest tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
 - `uv run pytest tests\test_visual_review_boundary.py tests\test_control_artifact_structure_view.py tests\test_adoption_registry.py tests\test_pytest_lane_markers.py -q`
 - `uv run pytest tests\test_agents_route_memory_preflight.py tests\test_codex_foundation_boundary.py tests\memory\test_x_source_restoration_status.py -q`
+- `uv run pytest tests\research_intake\test_source_registry_policy.py tests\test_research_intake.py tests\test_adoption_registry.py -q`
+- `uv run python -m research_x.research_intake.cli validate`
+- `uv run python -m research_x adoption audit --json`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

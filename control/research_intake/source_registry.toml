@@ -64,6 +64,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S56"
+adoption_candidate = "agent_safety_tool_trace"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "contract_trace_only_not_runtime_permission"
+notes = "Adopted only as local tool-boundary trace visibility; not adopted as agent framework, browser automation, MCP/plugin, dependency, or evidence."
+
 [[sources]]
 source_id = "manual_headroom_qiita"
 source_type = "manual_url"
@@ -79,6 +88,14 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "codex_foundation"
+owner_status = "codex_foundation"
+adoption_candidate = "headroom-context-observability"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "codex_foundation_reference_only_not_research_x_runtime"
+notes = "Owned by Codex foundation session/context governance; not adopted by research_x runtime or evidence intake."
 
 [[sources]]
 source_id = "manual_peerd_repo"
@@ -96,6 +113,14 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "codex_foundation"
+owner_status = "codex_foundation"
+adoption_candidate = "peerd"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "external_tool_governance_not_mcp_browser_runtime"
+notes = "Owned by Codex foundation external-tool governance; not adopted by research_x runtime, browser automation, MCP, or evidence."
+
 [[sources]]
 source_id = "manual_loop_engineering_repo"
 source_type = "manual_url"
@@ -111,6 +136,14 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "codex_foundation"
+owner_status = "codex_foundation"
+adoption_candidate = "loop-engineering"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "codex_foundation_loop_reference_not_research_x_runtime"
+notes = "Owned by Codex foundation loop-governance comparison; not adopted by research_x runtime or evidence."
 
 [[sources]]
 source_id = "manual_takt_loop_zenn"
@@ -128,6 +161,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S56"
+adoption_candidate = "agent_safety_tool_trace"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "loop_control_trace_only_not_agent_runtime"
+notes = "Adopted only as local loop-control trace visibility; not adopted as agent framework, dependency, browser automation, or evidence."
+
 [[sources]]
 source_id = "manual_agent_safety_tan_go238"
 source_type = "manual_url"
@@ -143,6 +185,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "adoption_registry"
+source_ref = "S57"
+adoption_candidate = "agent_control_source_ownership_coverage"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "source_ownership_metadata_only"
+notes = "Adopted only as source-governance coverage; not adopted as runtime behavior, browser/MCP permission, or evidence."
 
 [[sources]]
 source_id = "manual_mellowlaunch_agent_article"
@@ -160,6 +211,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "adoption_registry"
+source_ref = "S57"
+adoption_candidate = "agent_control_source_ownership_coverage"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "source_ownership_metadata_only_not_mcp_browser_permission"
+notes = "Adopted only as source-governance coverage; not adopted as MCP/browser automation, runtime behavior, or evidence."
+
 [[sources]]
 source_id = "manual_ai_unit_test_article"
 source_type = "manual_url"
@@ -175,6 +235,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "adoption_registry"
+source_ref = "S57"
+adoption_candidate = "agent_control_source_ownership_coverage"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "source_ownership_metadata_only_not_test_policy"
+notes = "Adopted only as source-governance coverage; not adopted as unit-test policy, runtime behavior, or evidence."
 
 [[sources]]
 source_id = "manual_lighthouse_agentic_browsing"
@@ -192,6 +261,14 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "codex_foundation"
+owner_status = "codex_foundation"
+adoption_candidate = "lighthouse-agentic-browsing-audit"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "browser_audit_reference_not_mcp_or_browser_permission"
+notes = "Owned by Codex foundation browser-audit governance; not adopted by research_x runtime, MCP/browser configuration, or evidence."
+
 [[sources]]
 source_id = "manual_kg_puzzle"
 source_type = "manual_url"
@@ -207,6 +284,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S44"
+adoption_candidate = "kg_typed_edge_authority"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "typed_relation_trace_only_not_graph_runtime_or_evidence"
+notes = "Adopted only as candidate-only relation trace and eval boundary; not adopted as graph runtime, dependency, or evidence."
 
 [[sources]]
 source_id = "manual_cognee_repo"
@@ -253,6 +339,15 @@ evidence_status = "not_evidence_until_fetched_and_chunked"
 answer_support_allowed = false
 citation_excluded = true
 
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "adoption_registry"
+source_ref = "S46"
+adoption_candidate = "okf_source_metadata_shape"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "source_metadata_only_not_source_bundle_or_evidence"
+notes = "Adopted only as candidate metadata shape; not adopted as source bundle, citation, or evidence."
+
 [[sources]]
 source_id = "manual_okf_google_cloud"
 source_type = "manual_url"
@@ -282,6 +377,15 @@ evidence_status = "not_evidence_until_fetched_and_chunked"
 answer_support_allowed = false
 citation_excluded = true
 
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "adoption_registry"
+source_ref = "S46"
+adoption_candidate = "okf_source_metadata_shape"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "source_metadata_only_not_source_bundle_or_evidence"
+notes = "Adopted only as candidate metadata shape; not adopted as source bundle, citation, or evidence."
+
 [[sources]]
 source_id = "manual_rag_knowledge_ops"
 source_type = "manual_url"
@@ -297,6 +401,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S47"
+adoption_candidate = "rag_knowledge_ops_observability"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "knowledge_ops_trace_only_not_managed_search_or_evidence"
+notes = "Adopted only as workflow/tool-output trace fields; not adopted as cloud Agent Search, managed service, notification, or evidence."
 
 [[sources]]
 source_id = "manual_claude_ontology"
@@ -314,6 +427,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S48"
+adoption_candidate = "ontology_relation_traversal_eval"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "relation_eval_only_not_external_ontology_or_evidence"
+notes = "Adopted only as local relation traversal eval/trace fixture; not adopted as ontology runtime, MCP memory, or evidence."
+
 [[sources]]
 source_id = "manual_databricks_rag_workflow"
 source_type = "manual_url"
@@ -329,6 +451,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S49"
+adoption_candidate = "databricks_rag_governance_checklist"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "vendor_neutral_governance_checklist_not_managed_rag"
+notes = "Adopted only as local governance/eval checklist fields; not adopted as Databricks service, managed RAG, or evidence."
 
 [[sources]]
 source_id = "manual_cc_rsg_web"
@@ -346,6 +477,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S50"
+adoption_candidate = "cc_rsg_reverse_spec_review"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "generated_spec_control_artifact_only_not_evidence"
+notes = "Adopted only as generated-spec non-evidence boundary; not adopted as external model execution, Skill import, or evidence."
+
 [[sources]]
 source_id = "manual_cc_rsg_repo"
 source_type = "manual_url"
@@ -361,6 +501,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S50"
+adoption_candidate = "cc_rsg_reverse_spec_review"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "generated_spec_control_artifact_only_not_evidence"
+notes = "Adopted only as generated-spec non-evidence boundary; not adopted as external model execution, Skill import, or evidence."
 
 [[sources]]
 source_id = "manual_sios_marp_slidev"
@@ -378,6 +527,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S51"
+adoption_candidate = "slidev_visual_review_lane"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "presentation_visual_review_control_artifact_only"
+notes = "Owned by the staged visual-review lane; not adopted as renderer install, browser automation, generated evidence, or citation."
+
 [[sources]]
 source_id = "manual_marp_official"
 source_type = "manual_url"
@@ -394,6 +552,15 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S51"
+adoption_candidate = "slidev_visual_review_lane"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "presentation_visual_review_control_artifact_only"
+notes = "Owned by the presentation artifact boundary; not adopted as renderer install, generated evidence, or citation."
+
 [[sources]]
 source_id = "manual_slidev_official"
 source_type = "manual_url"
@@ -409,6 +576,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S51"
+adoption_candidate = "slidev_visual_review_lane"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "presentation_visual_review_control_artifact_only"
+notes = "Owned by the staged visual-review lane; not adopted as dependency install, browser automation, generated evidence, or citation."
 
 [[sources]]
 source_id = "manual_f3_repo"
@@ -457,6 +633,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S54"
+adoption_candidate = "embedding_stabilization_eval"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "provider_free_drift_eval_only_not_embedding_provider"
+notes = "Adopted only as provider-free vector projection and drift fixture; not adopted as real embedding provider, reranker, or evidence."
 
 [[sources]]
 source_id = "manual_x_bookmarks"

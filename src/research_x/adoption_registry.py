@@ -19,6 +19,7 @@ ALLOWED_ADOPTION_SHAPES = {
 }
 ALLOWED_OWNER_SURFACES = {
     "codex_foundation",
+    "research_intake",
     "research_x_tool",
     "research_x_bridge",
     "historical",
