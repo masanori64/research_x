@@ -1,0 +1,35 @@
+flowchart TB
+  %% 全体アーキテクチャ図: 初見の人が「誰が何を頼み、research_x がどこまで担当するか」を見る
+
+  classDef person fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef system fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef data fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef artifact fill:#f3f4f6,stroke:#6b7280,color:#17212b
+
+  user["人<br/>質問する・確認する"]:::person
+  ai["AI agent<br/>必要なときに検索を呼ぶ"]:::person
+  operator["開発者 / 運用者<br/>取得・検証・承認を扱う"]:::person
+
+  subgraph rx["research_x"]
+    intake["Xデータを取り込む<br/>投稿・ブックマーク・メディア"]:::system
+    store["ローカルに保存する<br/>SQLiteで出典と関係を保つ"]:::data
+    memory["検索できる形に整える<br/>候補と根拠を分ける"]:::system
+    answer["根拠付きで返す<br/>引用できない時は止める"]:::system
+    trace["実行記録を残す<br/>状態・停止理由・監査"]:::artifact
+  end
+
+  outside["外部Provider/API<br/>使う前に承認が必要"]:::gate
+  secrets["ログイン・secrets<br/>資格情報は別ゲート"]:::gate
+  review["図・WBS・PPTX<br/>確認用であり根拠ではない"]:::artifact
+
+  user -->|"質問"| ai
+  ai -->|"検索依頼"| memory
+  operator -->|"取得・設定"| intake
+  intake --> store --> memory --> answer
+  memory --> trace
+  answer --> trace
+  operator -->|"確認"| trace
+  outside -. "承認時だけ" .-> memory
+  secrets -. "承認時だけ" .-> intake
+  trace -. "説明資料へ反映" .-> review

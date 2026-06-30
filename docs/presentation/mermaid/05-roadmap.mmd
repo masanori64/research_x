@@ -1,0 +1,29 @@
+flowchart TB
+  %% WBS / ロードマップ図: 現状、次、承認後を混ぜない
+
+  classDef done fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef next fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef future fill:#e7f0f8,stroke:#49657a,color:#17212b
+
+  subgraph base["今ある土台"]
+    local["ローカル実行<br/>uv / Python / SQLite"]:::done
+    invariant["証拠の分離<br/>原本・候補・引用・回答を混ぜない"]:::done
+    tests["安全な検証<br/>実Providerなしで確認する"]:::done
+  end
+
+  subgraph improve["次に固めること"]
+    quality["検索品質<br/>重複・復元・評価を詰める"]:::next
+    observable["見える化<br/>状態・停止理由・監査を追える"]:::next
+    scope["委託範囲<br/>local-only と承認作業を分ける"]:::next
+  end
+
+  subgraph gated["承認後に進めること"]
+    provider["実Provider評価<br/>embedding / OCR / rerank など"]:::gate
+    login["実ログイン運用<br/>secrets とセッション管理"]:::gate
+    operation["運用設計<br/>予算・SLA・責任分界"]:::future
+  end
+
+  local --> invariant --> tests
+  tests --> quality --> observable --> scope
+  scope --> provider --> login --> operation

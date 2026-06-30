@@ -1,0 +1,21 @@
+flowchart TB
+  %% provider / quota gate 図: 何をそのまま進め、何で止めるか
+
+  classDef ok fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef check fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+
+  start["これから実行する作業"]:::check
+  asks_provider{"外部Provider/APIを呼ぶか？"}:::check
+  asks_secret{"ログイン・secretsを使うか？"}:::check
+  local["進めてよい<br/>fake/local provider<br/>静的検査<br/>monkeypatch済みテスト"]:::ok
+  budget["止める<br/>API Budget Guardで料金・上限・停止条件を確認"]:::stop
+  secret_gate["止める<br/>資格情報・セッションの扱いを確認"]:::stop
+  blocked["承認があるまで実行しない<br/>free-tier / trial / zero-dollar quota も対象"]:::stop
+  record["結果を記録する<br/>ローカル検証か承認待ちかを残す"]:::ok
+
+  start --> asks_provider
+  asks_provider -->|"いいえ"| asks_secret
+  asks_provider -->|"はい"| budget --> blocked --> record
+  asks_secret -->|"いいえ"| local --> record
+  asks_secret -->|"はい"| secret_gate --> blocked

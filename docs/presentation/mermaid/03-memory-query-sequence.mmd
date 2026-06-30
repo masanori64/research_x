@@ -1,0 +1,42 @@
+sequenceDiagram
+  %% 1回の memory query シーケンス図: 1回の問い合わせで何が順に起きるか
+
+  actor Human as 人 / AI agent
+  participant Tool as memory workflow
+  participant Search as ローカル検索
+  participant Source as 出典復元
+  participant Citation as 引用確認
+  participant Trace as 実行記録
+  participant Gate as provider gate
+
+  Human->>Tool: 質問を渡す
+  Tool->>Trace: 実行を開始する
+  Tool->>Tool: 質問の意図と検索方針を決める
+  Tool->>Search: ローカル候補を探す
+  Search-->>Tool: 検索結果を返す
+  Tool->>Source: 候補から原本へ戻す
+
+  alt 出典に戻れる
+    Source-->>Tool: Source Bundle を返す
+    Tool->>Citation: 文脈と引用可能性を確認する
+    alt 引用できる
+      Citation-->>Tool: Citation-ready
+      Tool->>Trace: answer と引用状態を保存する
+      Tool-->>Human: 引用付き回答を返す
+    else 引用できない
+      Citation-->>Tool: 根拠不足
+      Tool->>Trace: needs_review と理由を保存する
+      Tool-->>Human: レビュー待ちを返す
+    end
+  else 出典に戻れない
+    Source-->>Tool: 復元失敗
+    Tool->>Trace: needs_review と理由を保存する
+    Tool-->>Human: 回答せずに止まる
+  end
+
+  opt 外部Provider/APIが必要
+    Tool->>Gate: 承認と予算を確認する
+    Gate-->>Tool: provider_gated
+    Tool->>Trace: 外部保留として保存する
+    Tool-->>Human: 承認待ちを返す
+  end

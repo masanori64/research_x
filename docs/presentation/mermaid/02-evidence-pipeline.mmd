@@ -1,0 +1,29 @@
+flowchart TB
+  %% 証拠パイプライン図: 「検索できた」と「根拠にできる」を分ける
+
+  classDef raw fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef candidate fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef evidence fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+
+  raw["原本<br/>Xの投稿・ブックマーク・メディア"]:::raw
+  document["検索対象<br/>検索しやすく整えた文書"]:::candidate
+  hit["検索結果<br/>質問に近い候補"]:::candidate
+
+  bundle["Source Bundle<br/>元の投稿まで戻れる根拠束"]:::evidence
+  context["Context Chunk<br/>回答に渡す短い文脈"]:::evidence
+  citation["Citation<br/>どこを根拠にしたか示せる状態"]:::evidence
+  answer["回答<br/>引用つきで返す"]:::evidence
+
+  no_source["止まる<br/>候補から原本へ戻れない"]:::stop
+  no_citation["止まる<br/>引用として足りない"]:::stop
+
+  raw -->|"検索用に投影"| document
+  document -->|"探す"| hit
+  hit -->|"原本へ戻す"| bundle
+  bundle -->|"回答に使う範囲を切る"| context
+  context -->|"根拠位置を確認"| citation
+  citation --> answer
+
+  hit -. "復元失敗" .-> no_source
+  context -. "根拠不足" .-> no_citation
