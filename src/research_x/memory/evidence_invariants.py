@@ -45,11 +45,18 @@ NON_EVIDENCE_MARKERS = {
     "restore_hint",
     "ranking_hint",
     "score_is_not_evidence",
+    "source_not_restored",
+    "source_unavailable",
     "ranking_hint_not_evidence",
     "workflow_hint_not_evidence",
     "map_hint_not_evidence_restore_source_first",
     "brief_is_not_evidence",
     "not_evidence_until_fetched_and_chunked",
+    "login_required",
+    "private_collection",
+    "private_locator",
+    "snippet_only",
+    "user_export_required",
     "chatgpt_consultation",
     "codex_review_capture",
     "context_offload",
@@ -98,6 +105,31 @@ NON_EVIDENCE_METADATA_KEYS = (
     "preview_kind",
     "summary_kind",
     "restore_hint_kind",
+    "access_status",
+    "fetch_status",
+    "privacy_status",
+    "restoration_status",
+    "source_access_status",
+    "source_restoration_status",
+)
+
+SOURCE_RESTORATION_BLOCK_MARKERS = {
+    "login_required",
+    "private_collection",
+    "private_locator",
+    "snippet_only",
+    "source_not_restored",
+    "source_unavailable",
+    "user_export_required",
+}
+
+SOURCE_RESTORATION_METADATA_KEYS = (
+    "access_status",
+    "fetch_status",
+    "privacy_status",
+    "restoration_status",
+    "source_access_status",
+    "source_restoration_status",
 )
 
 STALE_METADATA_KEYS = (
@@ -170,6 +202,7 @@ def citation_block_reasons(citation: CitationAnnotation) -> tuple[str, ...]:
         reasons.append("stale_evidence")
     if citation_is_not_evidence(citation):
         reasons.append("not_evidence")
+    reasons.extend(_source_restoration_block_reasons(citation))
     reasons.extend(_local_x_db_lineage_block_reasons(citation))
     return tuple(_dedupe_preserve_order(reasons))
 
@@ -220,6 +253,34 @@ def citation_is_not_evidence(citation: CitationAnnotation) -> bool:
         *(_metadata_values(citation.metadata, NON_EVIDENCE_METADATA_KEYS)),
     ]
     return any(_is_non_evidence_value(value) for value in values)
+
+
+def _source_restoration_block_reasons(citation: CitationAnnotation) -> list[str]:
+    reasons: list[str] = []
+    for value in _metadata_values(citation.metadata, SOURCE_RESTORATION_METADATA_KEYS):
+        reasons.extend(_restoration_markers(value))
+    return _dedupe_preserve_order(reasons)
+
+
+def _restoration_markers(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, bool):
+        return []
+    if isinstance(value, list | tuple | set):
+        markers: list[str] = []
+        for item in value:
+            markers.extend(_restoration_markers(item))
+        return markers
+    if isinstance(value, dict):
+        markers = []
+        for item in value.values():
+            markers.extend(_restoration_markers(item))
+        return markers
+    normalized = _normalized(value)
+    if normalized in SOURCE_RESTORATION_BLOCK_MARKERS:
+        return [normalized]
+    return []
 
 
 def _local_x_db_lineage_block_reasons(citation: CitationAnnotation) -> list[str]:
