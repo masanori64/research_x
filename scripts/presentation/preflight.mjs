@@ -51,8 +51,9 @@ async function main() {
       sanitySvg: skipD2Sanity ? "skipped" : await d2Sanity(),
     },
     directories: {
-      ok: true,
+      ok: existsSync(rel("docs", "presentation", "diagram-design-harness.md")),
       config: existsSync(rel("docs", "presentation", "presentation.config.yaml")),
+      diagramDesignHarness: existsSync(rel("docs", "presentation", "diagram-design-harness.md")),
       diagrams: "docs/presentation/diagrams",
       assets: "docs/presentation/assets",
       dist: "docs/presentation/dist",

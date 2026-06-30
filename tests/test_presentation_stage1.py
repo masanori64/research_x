@@ -6,6 +6,7 @@ from pathlib import Path
 PACKAGE_JSON = Path("package.json")
 PACKAGE_LOCK = Path("package-lock.json")
 PRESENTATION_CONFIG = Path("docs/presentation/presentation.config.yaml")
+DIAGRAM_DESIGN_HARNESS = Path("docs/presentation/diagram-design-harness.md")
 PREFLIGHT = Path("scripts/presentation/preflight.mjs")
 RENDER_D2 = Path("scripts/presentation/render-d2.mjs")
 BUILD = Path("scripts/presentation/build.mjs")
@@ -60,9 +61,29 @@ def test_presentation_config_names_d2_marp_and_stage2_sources() -> None:
     config = PRESENTATION_CONFIG.read_text(encoding="utf-8")
 
     assert "diagram_source: d2" in config
+    assert "diagram_design_harness: docs/presentation/diagram-design-harness.md" in config
     assert "slide_renderer: marp" in config
     assert "facts_source: docs/presentation/project-facts.json" in config
     assert "slides_source: docs/presentation/slides.md" in config
     assert "PptxGenJS" not in config
     assert "PlantUML" not in config
     assert "Structurizr" not in config
+
+
+def test_diagram_design_harness_preserves_human_readability_intent() -> None:
+    text = DIAGRAM_DESIGN_HARNESS.read_text(encoding="utf-8")
+
+    for phrase in (
+        "Create diagrams for first-time human readers",
+        "without zooming",
+        "stable reading order",
+        "crossing arrows",
+        "proper nouns",
+        "ordinary explanation is Japanese",
+        "not like an automatic inventory",
+        "Passing automated checks is not enough",
+    ):
+        assert phrase in text
+
+    assert "These are examples of what to avoid. They are not the whole rule." in text
+    assert "diagramDesignHarness" in PREFLIGHT.read_text(encoding="utf-8")
