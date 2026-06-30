@@ -3,6 +3,10 @@
 These Mermaid diagrams are review artifacts that must follow the final flow docs
 and project requirements, not existing D2/SVG assets.
 
+The current canonical Mermaid source set and writing style are the fallback set
+committed at `46b1ce1e`. Treat that source as the baseline for writing and
+layout until a later reviewed Mermaid source replaces it.
+
 This redesign set is exactly two groups of five diagrams:
 
 - `current/`: current-state explanation;
@@ -35,12 +39,37 @@ Primary sources:
 The existing Mermaid diagrams are review artifacts and must be checked against
 the two provisional final flow docs before reuse.
 
+Canonical fallback source:
+
+- `46b1ce1e`: current accepted Mermaid writing style and 2 x 5 diagram shape.
+
+Pipeline sync rule:
+
+- update the Mermaid source in this directory in the same change as any durable
+  change to `docs/presentation/final-runtime-flow.md` or
+  `docs/presentation/final-design-flow.md`;
+- CI checks the Mermaid source against the final flow docs for core architecture
+  names, evidence boundaries, answer statuses, and the 2 x 5 file contract;
+- detailed route inventories stay in the final flow docs unless a diagram's
+  purpose specifically requires them.
+
 Visual style:
 
 - use monochrome Mermaid styling only;
 - do not use chromatic color to encode meaning;
 - distinguish gate, stop, support, and main-path nodes with labels, grouping,
   stroke weight, and layout instead of red/yellow/green/blue fills.
+
+Writing style, reverse-engineered from `46b1ce1e`:
+
+- make one node explain one role, not one implementation object;
+- put the Japanese role label first and established English names second;
+- keep the main request-to-result path visually central;
+- move support surfaces such as provider, WBS, audit, and feedback to side
+  groups unless they are the diagram's subject;
+- use short status words inside nodes instead of color-coded meaning;
+- avoid dumping every route family into a single diagram when the final flow
+  docs already own that inventory.
 
 ## Design Loop Record
 
@@ -91,16 +120,16 @@ Self-review loop:
   Decision: final-state diagrams show a matured version of the same path:
   choose routes, branch guarded provider lanes, restore, chunk, cite, check
   answer authority, cross Answer Boundary, observe, and improve.
-- Finding: over-compressing Route Portfolio into a generic "候補を探す" box
-  removes the project-specific architecture.
-  Decision: keep concrete route families visible: SQLite FTS / BM25, metadata,
-  relation expansion, semantic candidates, Corpus2Skill, OCR, Reader,
-  LLM-context, managed RAG, and provider_gated skips.
-- Finding: provider guard and evidence promotion are state changes, not just
-  decorative boxes.
-  Decision: use Mermaid UML-capable `stateDiagram-v2` for the evidence pipeline
-  and provider/quota guard diagrams, and `sequenceDiagram` for memory query
-  interactions.
+- Finding: trying to show every route family inside every diagram makes the
+  diagrams look like inventories.
+  Decision: keep the exact route portfolio in the final flow docs, and show the
+  portfolio in diagrams only at the level needed for the diagram's question.
+- Finding: forcing evidence and provider guard drawings into `stateDiagram-v2`
+  made the accepted diagrams harder to read.
+  Decision: use readable `flowchart` diagrams for the current 2 x 5 review set,
+  and use real Mermaid UML-capable syntax when the requested diagram is
+  specifically an interaction, structure, or state diagram. The memory-query
+  diagram remains a real Mermaid `sequenceDiagram`.
 - Finding: no remaining issue changes the diagram purpose, node set, or reading
   order without creating a different diagram.
   Decision: write the diagrams.

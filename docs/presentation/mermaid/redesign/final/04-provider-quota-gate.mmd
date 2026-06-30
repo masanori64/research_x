@@ -1,29 +1,23 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-stateDiagram-v2
-  %% 完成形の provider / quota guard 図: Mermaid UML stateDiagramで承認済みProviderの状態遷移を見る
-  direction LR
+flowchart TB
+  %% 完成形の provider / quota guard 図: 承認済みProviderを候補生成として安全に使う
 
-  state "provider-backed route<br/>embedding / native media / OCR / Reader<br/>rerank / external search / managed RAG" as ProviderLane
-  state "明示承認を確認" as ApprovalCheck
-  state "止める<br/>承認・価格・上限・停止条件が不明" as Stop
-  state "traceに記録<br/>provider_gated / skip reason" as Record
-  state "offline estimate<br/>件数・費用・scope" as Estimate
-  state "ProviderApiBudgetGuard<br/>max calls / max USD / price source" as Guard
-  state "最小範囲で実行<br/>結果は候補扱い" as MinimalRun
-  state "candidates<br/>answer authorityなし" as Candidate
-  state "後続で昇格確認<br/>Source Bundle / Context Chunk / Citation<br/>AnswerAuthorityGatekeeper" as EvidencePromotion
+  classDef ask fill:#ffffff,stroke:#111111,color:#111111
+  classDef ok fill:#ffffff,stroke:#111111,color:#111111
+  classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
+  classDef record fill:#ffffff,stroke:#111111,color:#111111
 
-  [*] --> ProviderLane
-  ProviderLane --> ApprovalCheck
+  need["provider-backed 候補ルート"]:::ask
+  approval{"今回の明示承認があるか"}:::ask
+  estimate["先に見積もる<br/>件数・token・費用"]:::ask
+  guard{"ProviderApiBudgetGuard<br/>上限内か"}:::ask
+  run["最小範囲で実行<br/>結果は候補として扱う"]:::ok
+  restore["後続で昇格確認<br/>Source Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper"]:::ok
+  stop["止める<br/>承認・価格・上限が不明"]:::stop
+  ledger["記録する<br/>使用量と次の停止点"]:::record
 
-  ApprovalCheck --> Stop: 承認なし
-  Stop --> Record
-
-  ApprovalCheck --> Estimate: 承認あり
-  Estimate --> Guard
-
-  Guard --> Stop: 失敗
-  Guard --> MinimalRun: 通過
-  MinimalRun --> Candidate
-  Candidate --> EvidencePromotion
-  EvidencePromotion --> Record
+  need --> approval
+  approval -->|"いいえ"| stop --> ledger
+  approval -->|"はい"| estimate --> guard
+  guard -->|"失敗"| stop
+  guard -->|"通過"| run --> restore --> ledger

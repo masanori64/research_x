@@ -1,37 +1,31 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 flowchart TB
-  %% 現状の全体アーキテクチャ図: 広い候補生成と狭い回答権限を分けて見る
+  %% 現状の全体アーキテクチャ図: 質問から返答までの主経路と、周辺の外部設計面を見る
 
   classDef main fill:#ffffff,stroke:#111111,color:#111111
+  classDef input fill:#ffffff,stroke:#111111,color:#111111
   classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef side fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
+  classDef support fill:#ffffff,stroke:#111111,color:#111111
 
-  subgraph row1["依頼から候補生成まで"]
-    direction LR
-    request["人 / Codex<br/>query・objective<br/>context budget"]:::main
-    bridge["Narrow Codex Bridge<br/>入力を狭く受ける"]:::main
-    policy["SearchLens / ObjectiveRoutePolicy<br/>関心・重み・候補ルート"]:::main
-    routes["Route Portfolio [wide]<br/>local: exact / SQLite FTS / BM25 / metadata / relation<br/>projection: memory_documents / retrieval text / local topic hints<br/>provider-backed: semantic / OCR / Reader / rerank / LLM-context / managed RAG"]:::gate
-    request --> bridge --> policy --> routes
+  question["人 / Codex<br/>質問と目的を渡す"]:::input
+
+  subgraph core["research_x の主経路"]
+    receive["依頼を受ける<br/>目的・制約・保存可否を確認"]:::main
+    policy["検索方針を決める<br/>SearchLens / ObjectiveRoutePolicy"]:::main
+    search["候補を探す<br/>local route portfolio"]:::main
+    restore["根拠へ戻す<br/>Source Bundle / Context Chunk / Citation"]:::main
+    decide["回答権限を見る<br/>AnswerAuthorityGatekeeper"]:::main
   end
 
-  subgraph row2["候補から返答まで"]
-    direction LR
-    candidates["Search Results / Candidates<br/>score・why_relevant・skip reason<br/>evidence_level = candidate"]:::main
-    bundle["Source Bundle<br/>元投稿・media・authorへ戻す"]:::main
-    chunk["Context Chunk<br/>回答用に切る"]:::main
-    cite["Citation<br/>claimに結びつける"]:::main
-    authority["AnswerAuthorityGatekeeper<br/>claim supportを確認"]:::main
-    answer["Answer Boundary<br/>answer / needs_review / source_not_restored<br/>citation_missing / hypothesis_only / provider_gated"]:::main
-    candidates --> bundle --> chunk --> cite --> authority --> answer
+  result["返す結果<br/>Answer Boundary status"]:::input
+
+  subgraph outside["外部設計として見る範囲"]
+    raw["X原本・メディア<br/>検索の出発点"]:::support
+    provider["外部Provider/API<br/>ProviderApiBudgetGuard で停止"]:::gate
+    review["WBS・図・監査<br/>説明と確認用"]:::support
   end
 
-  trace["Workflow Trace Sidecar<br/>route・guard・failure・stop reason"]:::side
-  source["Source Layer<br/>tweets・bookmarks・media・raw_payloads"]:::side
-  guard["ProviderApiBudgetGuard<br/>現状は承認まで停止"]:::gate
-
-  routes --> candidates
-  source -. "原本として復元に使う" .-> bundle
-  routes -. "provider-backedは実行前に通す" .-> guard
-  guard -. "provider_gatedも記録" .-> candidates
-  answer -. "実行状態を残す" .-> trace
+  question --> receive --> policy --> search --> restore --> decide --> result
+  raw -. "原本として支える" .-> search
+  provider -. "provider-backed候補だけ" .-> search
+  decide -. "状態を残す" .-> review

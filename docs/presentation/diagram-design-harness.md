@@ -34,6 +34,19 @@ Mermaid diagrams are for humans first. They must explain how `research_x` moves
 from a request to a usable result, not merely list everything that exists in the
 repository.
 
+The accepted fallback style is the Mermaid source from commit `46b1ce1e`.
+Reverse-engineer that style when editing these diagrams:
+
+- one node explains one reader-facing role;
+- ordinary explanation is Japanese, with English kept for proper nouns and
+  established terms;
+- the main path stays small, while provider, WBS, audit, feedback, and review
+  surfaces sit to the side unless they are the subject;
+- implementation inventories and route-family lists stay in the final flow docs
+  unless the diagram specifically needs them;
+- Mermaid source is treated as code and is updated together with the final flow
+  Markdown when the pipeline design changes.
+
 The main path carries the most visual and textual weight:
 
 ```text

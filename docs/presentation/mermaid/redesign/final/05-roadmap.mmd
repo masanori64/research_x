@@ -1,33 +1,16 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart LR
-  %% 完成形のWBS / ロードマップ図: 完了時に全層がどう成熟しているかを見る
+flowchart TB
+  %% 完成形のWBS / ロードマップ図: 完了時に主経路がどこまで成熟しているかを見る
 
-  classDef main fill:#ffffff,stroke:#111111,color:#111111
-  classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef side fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
+  classDef foundation fill:#ffffff,stroke:#111111,color:#111111
+  classDef capability fill:#ffffff,stroke:#111111,color:#111111
+  classDef operate fill:#ffffff,stroke:#111111,color:#111111
 
-  subgraph foundation["土台と検索"]
-    direction TB
-    source["1. Source Layer完成<br/>原本・media・取得記録を失わない"]:::main
-    projection["2. Projection完成<br/>memory_documents / retrieval text<br/>OCR・VLM観測も再生成可能"]:::main
-    retrieval["3. Route Portfolio完成<br/>BM25 / semantic / Corpus2Skill<br/>media / Reader / managed RAG候補"]:::main
-  end
+  foundation["土台が完成<br/>原本を失わず、候補と根拠を分ける"]:::foundation
+  evidence["根拠化が完成<br/>Source Bundle / Context Chunk / Citation / claim support"]:::foundation
+  retrieval["検索能力が完成<br/>SearchLens / ObjectiveRoutePolicy で候補を選ぶ"]:::capability
+  quality["回答権限が完成<br/>AnswerAuthorityGatekeeper と Answer Boundary"]:::capability
+  operation["運用が完成<br/>ProviderApiBudgetGuard・監査・レビューで止め時が見える"]:::operate
+  memory["AIの外部記憶として使える<br/>答える・棄権する・仮説止まり・レビューへ回す"]:::operate
 
-  subgraph authority["根拠と回答権限"]
-    direction TB
-    evidence["4. Evidence昇格完成<br/>Source Bundle / Context Chunk / Citation"]:::main
-    support["5. Claim Support完成<br/>AnswerAuthorityGatekeeper"]:::main
-    boundary["6. Answer Boundary完成<br/>answer / abstain / review / blocked"]:::main
-  end
-
-  subgraph operation["運用"]
-    direction TB
-    guard["7. Provider guard完成<br/>承認・見積・上限・停止点"]:::gate
-    trace["8. Trace / Eval完成<br/>restoration rate・citation coverage・route gaps"]:::side
-    tool["9. AI外部記憶として提供<br/>stable JSON: status・citations・trace"]:::main
-  end
-
-  source --> projection --> retrieval
-  evidence --> support --> boundary
-  guard --> trace --> tool
-  foundation --> authority --> operation
+  foundation --> evidence --> retrieval --> quality --> operation --> memory

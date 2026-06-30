@@ -1,6 +1,6 @@
-%%{init: {"theme":"base","sequence":{"mirrorActors":false},"themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
+%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 sequenceDiagram
-  %% 現状の1回の memory query シーケンス図: Mermaid UML sequenceDiagramで相互作用を見る
+  %% 現状の1回の memory query シーケンス図: 1回の質問が回答か停止理由になるまでを見る
 
   actor User as 人 / Codex
   participant RX as research_x
@@ -10,24 +10,22 @@ sequenceDiagram
   participant Evidence as Source Bundle / Context / Citation
   participant Authority as AnswerAuthorityGatekeeper
   participant Boundary as Answer Boundary
-  participant Trace as Workflow Trace
+  participant Trace as 実行記録
 
-  User->>RX: 質問・目的・context budget
-  RX->>Trace: sidecar trace を開始
-  RX->>Policy: 関心・制約・保存可否を整理
-  Policy->>Routes: local / media / provider候補ルートを選ぶ
+  User->>RX: 質問と目的を渡す
+  RX->>Trace: sidecar trace を開始する
+  RX->>Policy: 関心・目的・制約を整理する
+  Policy->>Routes: 候補ルートを選ぶ
 
-  par local lanes
-    Routes-->>Routes: exact / SQLite FTS / BM25 / metadata / relation
-  and provider-backed lanes
-    Routes->>Guard: semantic / OCR / Reader / rerank / LLM-context を確認
-    Guard-->>Trace: provider_gated または実行可を記録
+  opt provider-backed ルートが必要
+    Routes->>Guard: 実行可否を確認する
+    Guard-->>Trace: provider_gated または実行可を記録する
   end
 
-  Routes-->>RX: candidates と skip reason
-  RX->>Evidence: Source Bundle / Context Chunk / Citationへ復元
-  Evidence->>Authority: claim support を確認
+  Routes-->>RX: candidates
+  RX->>Evidence: source bundle / context chunk / citation を確認する
+  Evidence->>Authority: claim support を見る
   Authority->>Boundary: answer support または停止理由
   Boundary-->>RX: answer / needs_review / source_not_restored / citation_missing / hypothesis_only / provider_gated
-  RX->>Trace: route・guard・evidence・stop reasonを保存
-  RX-->>User: status・citations・traceを返す
+  RX->>Trace: route / guard / evidence / stop reason を残す
+  RX-->>User: citations と status を返す

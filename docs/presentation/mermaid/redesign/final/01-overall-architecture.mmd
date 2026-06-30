@@ -1,40 +1,29 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 flowchart TB
-  %% 完成形の全体アーキテクチャ図: AIの外部記憶として広く探し、狭く答える
+  %% 完成形の全体アーキテクチャ図: AIの外部記憶として質問から答えまでを閉じる
 
   classDef main fill:#ffffff,stroke:#111111,color:#111111
+  classDef input fill:#ffffff,stroke:#111111,color:#111111
   classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef side fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
+  classDef side fill:#ffffff,stroke:#111111,color:#111111
 
-  subgraph row1["質問を候補に変える"]
-    direction LR
-    request["人 / AI agent<br/>query・objective<br/>context budget"]:::main
-    lens["SearchLens / RetrievalPolicy<br/>corpus scope・source weights<br/>inference stance"]:::main
-    policy["ObjectiveRoutePolicy<br/>目的とbudgetからrouteを選ぶ"]:::main
-    portfolio["Retrieval And Route Portfolio [wide]<br/>local: exact / SQLite FTS / BM25 / metadata / relation expansion<br/>expansion: semantic vectors / Corpus2Skill / graph-topic hints<br/>provider-backed: native media / OCR / Reader / rerank / external search / managed RAG"]:::gate
-    request --> lens --> policy --> portfolio
+  request["人 / AI agent<br/>調べたい目的を渡す"]:::input
+
+  subgraph core["research_x 完成形の主経路"]
+    lens["SearchLens<br/>人間側の関心と重みを反映"]:::main
+    route["ObjectiveRoutePolicy<br/>local / media / provider候補を選ぶ"]:::main
+    restore["候補を根拠へ戻す<br/>Source Bundle / Context Chunk / Citation"]:::main
+    authority["AnswerAuthorityGatekeeper<br/>claim support を判定"]:::main
+    respond["Answer Boundary<br/>answer / abstain / review / hypothesis"]:::main
   end
 
-  guard["ProviderApiBudgetGuard<br/>承認・見積・上限・停止条件"]:::gate
-
-  subgraph row2["候補を回答にできるか見る"]
-    direction LR
-    candidates["Search Results / Candidates<br/>route_id・score・why_relevant<br/>restore_path・skip reason"]:::main
-    bundle["Source Bundle<br/>tweet・quote・media・author"]:::main
-    chunk["Context Chunk<br/>bounded answer input"]:::main
-    citation["Citation<br/>specific claim support"]:::main
-    authority["AnswerAuthorityGatekeeper<br/>claim supportを判定"]:::main
-    boundary["Answer Boundary<br/>answer / abstain / needs_review<br/>source_not_restored / citation_missing<br/>hypothesis_only / provider_gated / blocked"]:::main
-    bundle --> chunk --> citation
-    candidates --> bundle
-    citation --> authority --> boundary
+  subgraph support["外部設計として見る範囲"]
+    provider["外部Provider/API<br/>承認済み範囲だけ"]:::gate
+    observe["監査と見える化<br/>費用・品質・停止理由"]:::side
+    feedback["評価と改善<br/>失敗例を次の検索へ戻す"]:::side
   end
 
-  interface["Tool Interface Layer<br/>stable JSON: status・citations・trace"]:::main
-  feedback["Eval / Audit / Feedback<br/>restoration rate・citation coverage・route gaps"]:::side
-
-  portfolio --> candidates
-  portfolio -. "provider-backedは実行前guard" .-> guard
-  guard -. "candidate or provider_gated" .-> candidates
-  boundary --> interface
-  interface -. "品質と失敗理由" .-> feedback
+  request --> lens --> route --> restore --> authority --> respond
+  provider -. "ProviderApiBudgetGuard後の候補だけ" .-> route
+  respond -. "状態を残す" .-> observe
+  observe -. "改善に使う" .-> feedback
