@@ -130,6 +130,20 @@ def test_okf_source_metadata_rejects_invalid_review_status_and_timestamp(
     )
 
 
+def test_f3_and_sqljoiner_sources_stay_disabled_metadata_only() -> None:
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+    sources = {source.source_id: source for source in registry.sources}
+
+    for source_id in ("manual_f3_repo", "manual_sqljoiner_repo"):
+        source = sources[source_id]
+
+        assert source.enabled_when == "disabled"
+        assert source.source_type == "manual_url"
+        assert source.policy.fetch_mode == "metadata_only"
+        assert source.policy.allow_network is False
+        assert source.policy.allow_provider is False
+
+
 def test_risky_manual_url_candidates_must_stay_disabled(tmp_path: Path) -> None:
     registry_path = tmp_path / "source_registry.toml"
     registry_text = Path("control/research_intake/source_registry.toml").read_text(

@@ -626,12 +626,12 @@ status = "staged"
 source_ref = "S52"
 source_url = "https://github.com/future-file-format/f3"
 active_artifact = "src/research_x/memory/source_identity.py"
-first_local_step = "Represent decoder, schema, restore command, hash, and source locator as manifest fields without executing embedded Wasm."
+first_local_step = "Validate inert self-describing artifact manifests for schema, decoder reference, hash, and source locator without executing embedded Wasm."
 promotion_gate = "Manifest fields improve artifact restoration compared with current pointer metadata, with no decoder execution."
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until sandbox and long-term reader risks are resolved."
 provider_or_quota = false
 enabled = false
-notes = "Research-prototype format reference only; no F3 archive or Wasm decoder is adopted."
+notes = "Research-prototype format reference only; manifest identity guards are local, but no F3 archive reader or Wasm decoder is adopted."
 
 [[candidates]]
 name = "sqljoiner_query_visualization_reference"
@@ -641,13 +641,13 @@ adoption_shape = "staging"
 status = "staged"
 source_ref = "S53"
 source_url = "https://github.com/webofmarius/SQLJoiner"
-active_artifact = "src/research_x/memory/search.py"
-first_local_step = "Design a read-only query-plan visualization fixture for local SQLite/FTS routes without importing SQLJoiner code."
+active_artifact = "src/research_x/memory/research_artifacts.py"
+first_local_step = "Expose read-only query-plan visualization from ObjectiveRoutePlan search_plan_graph without importing SQLJoiner code or accepting SQL text."
 promotion_gate = "Query visualization improves auditability while credentials are never stored and write SQL is impossible."
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until license, credential, and read-only SQL safety checks pass."
 provider_or_quota = false
 enabled = false
-notes = "GPL/MySQL UI reference only; no code reuse or DB connection handling is adopted."
+notes = "GPL/MySQL UI reference only; local query-plan review payload is owned code and no code reuse or DB connection handling is adopted."
 
 [[candidates]]
 name = "embedding_stabilization_eval"

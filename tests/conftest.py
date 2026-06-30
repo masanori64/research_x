@@ -82,7 +82,15 @@ PATH_MARKERS: dict[str, tuple[str, ...]] = {
         "contract",
         "local_fixture",
     ),
+    "tests/memory/test_source_identity_manifest.py": (
+        "contract",
+        "local_fixture",
+    ),
     "tests/memory/test_stale_lineage_blocks_answer.py": (
+        "contract",
+        "local_fixture",
+    ),
+    "tests/memory/test_x_source_restoration_status.py": (
         "contract",
         "local_fixture",
     ),
@@ -142,11 +150,21 @@ PATH_MARKERS: dict[str, tuple[str, ...]] = {
     "tests/test_playwright_adapter.py": ("browser", "integration"),
     "tests/test_playwright_auth.py": ("browser", "integration"),
     "tests/test_presentation_facts.py": ("contract", "control_artifact"),
+    "tests/test_presentation_mermaid_diagrams.py": ("contract", "control_artifact"),
+    "tests/test_presentation_mermaid_redesign_diagrams.py": (
+        "contract",
+        "control_artifact",
+    ),
     "tests/test_presentation_slides.py": ("control_artifact", "integration"),
     "tests/test_presentation_stage1.py": ("control_artifact", "integration"),
     "tests/test_progress.py": ("unit",),
     "tests/test_prompt_contracts.py": ("contract", "provider_gate"),
     "tests/test_pytest_lane_markers.py": ("contract", "control_artifact", "fast"),
+    "tests/test_query_plan_visualization_boundary.py": (
+        "contract",
+        "control_artifact",
+        "static_guard",
+    ),
     "tests/test_research_intake.py": ("contract", "static_guard"),
     "tests/test_research_x_work_state_wbs.py": (
         "contract",

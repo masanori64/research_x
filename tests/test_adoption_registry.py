@@ -154,6 +154,35 @@ def test_okf_metadata_candidate_is_adopted_without_evidence_promotion() -> None:
     assert "OKF-style files are not evidence" in item.notes
 
 
+def test_f3_and_sqljoiner_references_stay_staged_disabled() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    expected = {
+        "f3_self_describing_artifact_reference": "src/research_x/memory/source_identity.py",
+        "sqljoiner_query_visualization_reference": (
+            "src/research_x/memory/research_artifacts.py"
+        ),
+    }
+
+    for name, active_artifact in expected.items():
+        item = candidates[name]
+
+        assert item.adoption_shape == "staging"
+        assert item.status == "staged"
+        assert item.enabled is False
+        assert item.provider_or_quota is False
+        assert item.active_artifact == active_artifact
+        assert "dependency install" in item.stop_condition
+        assert "runtime import" in item.stop_condition
+        assert "evidence promotion" in item.stop_condition
+
+    assert "no F3 archive reader or Wasm decoder is adopted" in candidates[
+        "f3_self_describing_artifact_reference"
+    ].notes
+    assert "no code reuse or DB connection handling is adopted" in candidates[
+        "sqljoiner_query_visualization_reference"
+    ].notes
+
+
 def test_provider_stop_condition_tokens_are_validation_errors(tmp_path: Path) -> None:
     registry = tmp_path / "adoption_registry.toml"
     shutil.copy2(REGISTRY, registry)

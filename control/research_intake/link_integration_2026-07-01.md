@@ -218,8 +218,8 @@ Project candidates staged or gated:
 | `databricks_rag_governance_checklist` | staging | eval | precision vs faithfulness separation |
 | `cc_rsg_reverse_spec_review` | staging | control artifact | generated-spec non-evidence test |
 | `slidev_visual_review_lane` | staging | presentation | local render/visual QA comparison |
-| `f3_self_describing_artifact_reference` | staging | artifact manifest | manifest fields, no Wasm execution |
-| `sqljoiner_query_visualization_reference` | staging | control artifact | read-only query-plan fixture |
+| `f3_self_describing_artifact_reference` | staging | artifact manifest | inert manifest identity, no Wasm execution |
+| `sqljoiner_query_visualization_reference` | staging | control artifact | owned read-only query-plan visualization |
 | `embedding_stabilization_eval` | staging | retrieval eval | synthetic drift/cold-start fixtures |
 | `x_source_restoration_status` | staging | source restoration | login/snippet/private status fixtures |
 
@@ -396,6 +396,24 @@ Implemented OKF source-candidate metadata boundary:
   filtering without fetching remote content, creating source bundles, or
   promoting metadata into answer support.
 
+Implemented local guards for F3 / SQLJoiner references:
+
+- `f3_self_describing_artifact_reference` remains staged and disabled, but
+  `src/research_x/memory/source_identity.py` now validates inert
+  self-describing artifact manifests for source locator, content hash, schema,
+  version, decoder-reference metadata, and review-only identity.
+- The F3-inspired manifest validator rejects inline Wasm/base64 decoder fields,
+  execution/import/subprocess hints, and any answer-support or evidence
+  promotion. No F3 archive reader, dependency, or Wasm decoder is adopted.
+- `sqljoiner_query_visualization_reference` remains staged and disabled, but
+  `src/research_x/memory/research_artifacts.py` now emits an owned
+  `query_plan_visualization` review payload derived from
+  `ObjectiveRoutePlan.search_plan_graph`.
+- The SQLJoiner-inspired payload redacts raw query text, rejects SQL/DSN/
+  credential-shaped fields, rejects remote/script/mutation text, renders through
+  the safe control-artifact HTML path, and does not import SQLJoiner code or
+  create a database connection surface.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -405,6 +423,7 @@ Verification completed for these loops:
 - `uv run pytest tests\vector tests\test_memory.py::test_memory_vector_projection_backend_searches_existing_embeddings tests\test_memory.py::test_memory_vector_backend_benchmark_gates_candidate_dependency tests\test_memory.py::test_memory_vector_backend_benchmark_blocks_non_local_provider tests\test_memory.py::test_memory_vector_backend_benchmark_cli_reports_candidate_gate tests\test_memory.py::test_memory_vector_projection_coverage_detects_stale_source_hash tests\test_memory.py::test_memory_vector_projection_coverage_respects_doc_type_scope tests\test_memory.py::test_memory_portfolio_strict_blocks_diagnostic_provider tests\memory\test_memory_audit_warning_taxonomy.py::test_audit_taxonomy_treats_local_hash_as_expected_provider_gate -q`
 - `uv run pytest tests\memory\test_preview_not_evidence.py tests\tool_interface\test_preview_cannot_be_citation.py tests\test_control_artifact_structure_view.py tests\test_diagram_review_boundary.py -q`
 - `uv run pytest tests\test_research_intake.py tests\research_intake\test_source_registry_policy.py tests\research_intake\test_no_network_by_default.py tests\memory\test_evidence_invariant_fixtures.py tests\test_adoption_registry.py -q`
+- `uv run pytest tests\memory\test_source_identity_manifest.py tests\test_query_plan_visualization_boundary.py tests\test_control_artifact_structure_view.py tests\test_pytest_lane_markers.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

@@ -7,9 +7,44 @@ from contextlib import suppress
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from research_x.control_artifacts.model import validate_control_artifact_payload
 from research_x.memory.source_kinds import classify_external_source_kind
 
 RESEARCH_CONTROL_VERSION = "research-control-v1"
+QUERY_PLAN_VISUALIZATION_VERSION = "query-plan-visualization-v1"
+QUERY_PLAN_VISUALIZATION_FORBIDDEN_KEYS = {
+    "connection_string",
+    "credential",
+    "credentials",
+    "dsn",
+    "mysql",
+    "password",
+    "remote_url",
+    "script",
+    "script_url",
+    "secret",
+    "sql",
+}
+QUERY_PLAN_VISUALIZATION_FORBIDDEN_VALUE_TOKENS = (
+    "<script",
+    "alter table",
+    "create table",
+    "delete from",
+    "drop table",
+    "fetch(",
+    "http://",
+    "https://",
+    "insert into",
+    "javascript:",
+    "localstorage",
+    "merge into",
+    "mysql",
+    "mysql://",
+    "select ",
+    "sessionstorage",
+    "truncate table",
+    "update set",
+)
 
 
 @dataclass(frozen=True)
@@ -37,10 +72,123 @@ def build_pre_execution_artifacts(plan: Any) -> dict[str, Any]:
     return {
         "research_task_frame": task_frame.as_dict(),
         "search_plan_graph": graph,
+        "query_plan_visualization": build_query_plan_visualization_payload(
+            plan,
+            search_plan_graph=graph,
+        ),
         "provider_capability_matrix": _provider_capability_matrix(plan),
         "personalization_policy": task_frame.personalization_policy,
         "user_signal_policy": _user_signal_policy(plan),
     }
+
+
+def build_query_plan_visualization_payload(
+    plan: Any,
+    *,
+    search_plan_graph: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a review-only route graph payload without SQL or execution surfaces."""
+
+    graph = search_plan_graph or _search_plan_graph(plan)
+    route_items = [
+        (
+            f"{node.get('order', index)}: {node.get('node_id', '')} "
+            f"roles={','.join(str(role) for role in node.get('provider_roles', ())) or 'none'} "
+            f"policy={node.get('citation_policy', '')}"
+        )
+        for index, node in enumerate(graph.get("nodes", ()))
+        if isinstance(node, dict)
+    ]
+    fallback_items = [
+        (
+            f"{edge.get('from', '')} -> {edge.get('to', '')} "
+            f"when={edge.get('edge_kind', '')}"
+        )
+        for edge in graph.get("edges", ())
+        if isinstance(edge, dict)
+    ] or ["no fallback edges"]
+    variant_items = [
+        (
+            f"{variant.get('variant_id', '')}: "
+            f"purpose={variant.get('purpose', '')}; text_redacted=true"
+        )
+        for variant in graph.get("query_variants", ())
+        if isinstance(variant, dict)
+    ] or ["no query variants"]
+    return {
+        "view_id": "query-plan-" + str(getattr(plan, "primary_route", "route")),
+        "view_kind": "query_plan_review",
+        "title": "Query Plan Visualization",
+        "generated_at": "plan_pre_execution",
+        "owner_plane": "research_x_tool",
+        "source_artifacts": [
+            {
+                "artifact_id": "search_plan_graph",
+                "artifact_path": "memory://control/search_plan_graph",
+                "artifact_kind": "search_plan_graph",
+                "not_evidence": True,
+                "answer_support_allowed": False,
+                "evidence_role": "control",
+                "evidence_status": "not_evidence",
+            }
+        ],
+        "sections": [
+            {
+                "heading": "Route Arms",
+                "items": route_items or ["no route arms"],
+            },
+            {
+                "heading": "Fallback Edges",
+                "items": fallback_items,
+            },
+            {
+                "heading": "Query Variants",
+                "items": variant_items,
+            },
+        ],
+        "gates": [
+            {
+                "gate_id": "owned_plan_graph_only",
+                "label": "Derived from ObjectiveRoutePlan search_plan_graph only",
+                "status": "active",
+            },
+            {
+                "gate_id": "no_sql_execution",
+                "label": "No database query execution surface",
+                "status": "active",
+            },
+            {
+                "gate_id": "no_credentials",
+                "label": "No connection secrets or account material",
+                "status": "active",
+            },
+            {
+                "gate_id": "review_artifact_only",
+                "label": "Not evidence and not answer support",
+                "status": "active",
+            },
+        ],
+        "not_evidence": True,
+        "answer_support_allowed": False,
+        "source_of_structure": "ObjectiveRoutePlan.search_plan_graph",
+        "consistency_refs": ["search_plan_graph"],
+    }
+
+
+def validate_query_plan_visualization_payload(payload: dict[str, Any]) -> list[str]:
+    errors = validate_control_artifact_payload(payload)
+    if payload.get("view_kind") != "query_plan_review":
+        errors.append("query_plan_visualization.view_kind must be query_plan_review")
+    for path in _forbidden_query_plan_key_paths(payload):
+        errors.append(f"query_plan_visualization contains forbidden field: {path}")
+    for value in _query_plan_string_values(payload):
+        lowered = value.casefold()
+        if any(
+            token in lowered for token in QUERY_PLAN_VISUALIZATION_FORBIDDEN_VALUE_TOKENS
+        ):
+            errors.append("query_plan_visualization contains executable or SQL text")
+            break
+    return errors
 
 
 def build_execution_artifacts(
@@ -908,6 +1056,40 @@ def _dedupe(values: tuple[str, ...]) -> tuple[str, ...]:
 
 def _dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _forbidden_query_plan_key_paths(value: Any, *, prefix: str = "") -> list[str]:
+    if isinstance(value, list | tuple):
+        return [
+            path
+            for index, item in enumerate(value)
+            for path in _forbidden_query_plan_key_paths(item, prefix=f"{prefix}[{index}]")
+        ]
+    if not isinstance(value, dict):
+        return []
+    paths: list[str] = []
+    for key, item in value.items():
+        key_text = str(key)
+        path = f"{prefix}.{key_text}" if prefix else key_text
+        normalized = key_text.strip().casefold().replace("-", "_")
+        if normalized in QUERY_PLAN_VISUALIZATION_FORBIDDEN_KEYS:
+            paths.append(path)
+        paths.extend(_forbidden_query_plan_key_paths(item, prefix=path))
+    return paths
+
+
+def _query_plan_string_values(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [
+            item
+            for child in value.values()
+            for item in _query_plan_string_values(child)
+        ]
+    if isinstance(value, list | tuple | set):
+        return [item for child in value for item in _query_plan_string_values(child)]
+    return []
 
 
 _PROVIDER_BACKED_ROUTES = {
