@@ -429,6 +429,21 @@ Implemented Codex-foundation ownership audit for agent-control links:
   existing owners: `context-budget`, `codex-fluent`, `long-loop-executor`,
   `planning-files`, route memory, and explicit browser/MCP/install gates.
 
+Implemented agent-safety tool trace:
+
+- `agent_safety_tool_trace` is now implemented in
+  `src/research_x/tool_interface/memory_tool_contract.py`.
+- AI-facing tool output must include `trace.agent_safety`, which exposes the
+  local memory-search-only tool boundary, system-side guards, forbidden
+  external actions, loop-control state, provider-like parameter validation, and
+  answer-support prerequisites.
+- This uses the guardrail and loop-control sources as contract visibility:
+  safety is enforced by provider gates, API budget guards, citation/source
+  restoration, DB-backed validation, and answer-authority checks, not by a
+  prompt-only claim.
+- The trace explicitly does not grant provider, network, browser, install,
+  MCP/plugin/connector, destructive-action, or evidence-promotion permission.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -440,6 +455,7 @@ Verification completed for these loops:
 - `uv run pytest tests\test_research_intake.py tests\research_intake\test_source_registry_policy.py tests\research_intake\test_no_network_by_default.py tests\memory\test_evidence_invariant_fixtures.py tests\test_adoption_registry.py -q`
 - `uv run pytest tests\memory\test_source_identity_manifest.py tests\test_query_plan_visualization_boundary.py tests\test_control_artifact_structure_view.py tests\test_pytest_lane_markers.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py -q`
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_codex_bridge.py tests\test_agents_route_memory_preflight.py -q`
+- `uv run pytest tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

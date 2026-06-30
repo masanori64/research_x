@@ -26,6 +26,22 @@ enabled = true
 notes = "Stable AI-facing contract; not the internal workflow JSON."
 
 [[candidates]]
+name = "agent_safety_tool_trace"
+category = "tool_interface"
+owner_surface = "research_x_tool"
+adoption_shape = "adopt"
+status = "implemented"
+source_ref = "S56"
+source_url = "https://qiita.com/ryuichi000persol/items/27789cbca88bd4bf11e0"
+active_artifact = "src/research_x/tool_interface/memory_tool_contract.py"
+first_local_step = "Expose agent_safety trace fields for local tool boundary, system-side guards, forbidden external actions, loop control, and parameter validation."
+promotion_gate = "Safety is enforced by local contracts, provider gates, budget guards, restoration checks, and answer-authority gates; trace visibility does not grant permissions."
+stop_condition = "Stop if the trace grants provider, network, browser, install, MCP/plugin/connector, destructive-action, or evidence-promotion permission, or if tool-output validation no longer requires it."
+provider_or_quota = false
+enabled = true
+notes = "Agent guardrail sources are adopted as local trace/contract visibility only; no agent framework, browser automation, MCP/plugin, dependency, or prompt-only safety model is adopted."
+
+[[candidates]]
 name = "research_x_codex_bridge_contract"
 category = "tool_interface"
 owner_surface = "research_x_bridge"

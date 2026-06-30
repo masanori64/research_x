@@ -119,6 +119,35 @@ def test_answer_trace_reports_restoration_and_fixture_limitation() -> None:
         "allowed_quality_scope": "boundary_wiring_not_model_quality",
         "model_quality_verified": False,
     }
+    agent_safety = payload["trace"]["agent_safety"]
+    assert agent_safety["tool_boundary"] == "research_x_memory_search_only"
+    assert agent_safety["prompt_only_guardrails"] is False
+    assert agent_safety["does_not_grant_permission"] is True
+    assert "provider_gate" in agent_safety["system_side_guards"]
+    assert "api_budget_guard" in agent_safety["system_side_guards"]
+    assert "install_dependency_or_tool" in agent_safety["forbidden_external_actions"]
+    assert (
+        "source_promotion_from_snippet_search_result_or_review_artifact"
+        in agent_safety["forbidden_external_actions"]
+    )
+    assert agent_safety["loop_control"] == {
+        "max_steps": None,
+        "step_count": 0,
+        "within_configured_limit": True,
+        "stop_reason": "enough_evidence",
+    }
+    assert "db_backed_restoration_validation_for_ai_output" in agent_safety[
+        "answer_support_requires"
+    ]
+
+
+def test_validate_tool_output_requires_agent_safety_trace() -> None:
+    payload = workflow_tool_output(_workflow()).as_dict()
+    del payload["trace"]["agent_safety"]
+
+    errors = validate_tool_output(payload)
+
+    assert any("trace missing fields: agent_safety" in error for error in errors)
 
 
 def test_relation_traversal_trace_is_candidate_only_not_promotion() -> None:

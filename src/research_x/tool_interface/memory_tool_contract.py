@@ -65,6 +65,21 @@ NON_EVIDENCE_RESTORE_MARKERS = {
     "wbs_json",
     "wbs_rendered_view",
 }
+AGENT_SAFETY_FORBIDDEN_EXTERNAL_ACTIONS = (
+    "provider_api_call_without_budget_guard",
+    "install_dependency_or_tool",
+    "mcp_plugin_connector_or_hook_configuration",
+    "browser_login_extension_install_or_hidden_api",
+    "destructive_filesystem_or_git_history_action",
+    "source_promotion_from_snippet_search_result_or_review_artifact",
+)
+AGENT_SAFETY_SYSTEM_GUARDS = (
+    "provider_gate",
+    "api_budget_guard",
+    "citation_restoration",
+    "answer_authority_gate",
+    "db_backed_restoration_validation",
+)
 
 
 @dataclass(frozen=True)
@@ -223,6 +238,7 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
             "relation_traversal",
             "pointer_offload_verification",
             "fixture_limitations",
+            "agent_safety",
             "rag_governance",
         }
         - set(trace)
@@ -433,6 +449,11 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
             "provider_like_parameters": _provider_like_parameters(parameters),
         },
         "fixture_limitations": fixture_limitations,
+        "agent_safety": _agent_safety_trace(
+            workflow,
+            status=status,
+            parameters=parameters,
+        ),
         "rag_governance": _rag_governance_trace(
             workflow,
             fixture_limitations=fixture_limitations,
@@ -699,6 +720,51 @@ def _rag_governance_trace(
             "context_budget_visible": True,
         },
     }
+
+
+def _agent_safety_trace(
+    workflow: MemoryWorkflow,
+    *,
+    status: str,
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    max_steps = parameters.get("max_steps")
+    step_count = len(workflow.steps)
+    return {
+        "tool_boundary": "research_x_memory_search_only",
+        "prompt_only_guardrails": False,
+        "system_side_guards": list(AGENT_SAFETY_SYSTEM_GUARDS),
+        "forbidden_external_actions": list(AGENT_SAFETY_FORBIDDEN_EXTERNAL_ACTIONS),
+        "loop_control": {
+            "max_steps": max_steps,
+            "step_count": step_count,
+            "within_configured_limit": _within_configured_step_limit(
+                step_count,
+                max_steps,
+            ),
+            "stop_reason": workflow.stop_reason,
+        },
+        "parameter_validation": {
+            "provider_gate_required": status == "provider_gated",
+            "provider_like_parameters": _provider_like_parameters(parameters),
+        },
+        "answer_support_requires": [
+            "restored_source_bundle",
+            "context_chunk",
+            "citation_ready_marker",
+            "db_backed_restoration_validation_for_ai_output",
+        ],
+        "does_not_grant_permission": True,
+    }
+
+
+def _within_configured_step_limit(step_count: int, max_steps: Any) -> bool:
+    if max_steps is None:
+        return True
+    try:
+        return step_count <= max(0, int(max_steps))
+    except (TypeError, ValueError):
+        return False
 
 
 def _empty_relation_traversal_trace() -> dict[str, Any]:

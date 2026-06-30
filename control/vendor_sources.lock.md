@@ -59,6 +59,7 @@ third-party Skill, connector, provider, or tool.
 | S53 | `sqljoiner` | https://github.com/webofmarius/SQLJoiner | Visual SQL/query-builder UX reference only. GPL-3.0, MySQL focus, credential storage, PHP/Electron dependencies, and SQL execution risks block direct adoption. |
 | S54 | `line-embedding-stabilization` | https://techblog.lycorp.co.jp/ja/techverse2026-62 | Official tech-blog case study for embedding stabilization, cold-start, and drift-aware reranking evaluation. Use only for provider-free synthetic/local eval design unless real embedding provider use is later approved. |
 | S55 | `x-bookmarks-and-unrestored-x-posts` | https://x.com/i/bookmarks, https://help.x.com/en/using-x/bookmarks, and the four user-provided X post URLs | Private/login-required and snippet-only source-restoration boundary reference. X bookmarks and unfetched posts cannot become source bundles or citations without user-provided export or restorable public source content. |
+| S56 | `agent-guardrail-design` | https://qiita.com/ryuichi000persol/items/27789cbca88bd4bf11e0 and https://zenn.dev/nrs/articles/e4a2ae8a9fb785 | Agent safety and loop-control design references. Adopt only as local trace/contract visibility for tool boundaries, forbidden external actions, provider gates, parameter validation, and bounded stop reasons; no agent framework, dependency, MCP/plugin, browser automation, or prompt-only safety claim is adopted. |
 
 ## Source Refs Not Manifest Entries
 

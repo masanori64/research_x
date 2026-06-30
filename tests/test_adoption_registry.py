@@ -154,6 +154,22 @@ def test_okf_metadata_candidate_is_adopted_without_evidence_promotion() -> None:
     assert "OKF-style files are not evidence" in item.notes
 
 
+def test_agent_safety_trace_is_contract_visibility_not_runtime_permission() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    item = candidates["agent_safety_tool_trace"]
+
+    assert item.adoption_shape == "adopt"
+    assert item.status == "implemented"
+    assert item.enabled is True
+    assert item.provider_or_quota is False
+    assert item.source_ref == "S56"
+    assert item.active_artifact == "src/research_x/tool_interface/memory_tool_contract.py"
+    assert "trace visibility does not grant permissions" in item.promotion_gate
+    assert "provider, network, browser, install" in item.stop_condition
+    assert "no agent framework" in item.notes
+    assert "prompt-only safety model" in item.notes
+
+
 def test_f3_and_sqljoiner_references_stay_staged_disabled() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     expected = {
