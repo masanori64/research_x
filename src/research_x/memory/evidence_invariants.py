@@ -30,6 +30,8 @@ NON_EVIDENCE_MARKERS = {
     "citation_excluded",
     "citation-excluded",
     "control_artifact",
+    "source_candidate_metadata",
+    "okf_source_metadata",
     "generated_artifact",
     "edge_hint",
     "graph_edge",
@@ -129,7 +131,19 @@ NON_EVIDENCE_METADATA_KEYS = (
     "restoration_status",
     "source_access_status",
     "source_restoration_status",
+    "source_candidate_metadata",
+    "okf_source_metadata",
 )
+
+OKF_SOURCE_METADATA_REQUIRED_KEYS = {
+    "type",
+    "title",
+    "resource",
+    "tags",
+    "timestamp",
+    "owner",
+    "review_status",
+}
 
 SOURCE_RESTORATION_BLOCK_MARKERS = {
     "login_required",
@@ -263,6 +277,8 @@ def citation_is_not_evidence(citation: CitationAnnotation) -> bool:
         return True
     if citation.metadata.get("answer_support_allowed") is False:
         return True
+    if _has_okf_source_metadata(citation.metadata):
+        return True
     values = [
         citation.evidence_status,
         citation.support_type,
@@ -335,6 +351,8 @@ def chunk_is_not_evidence(chunk: ContextChunk) -> bool:
     if chunk.metadata.get("citation_excluded") is True:
         return True
     if chunk.metadata.get("answer_support_allowed") is False:
+        return True
+    if _has_okf_source_metadata(chunk.metadata):
         return True
     values = [
         chunk.source_kind,
@@ -419,6 +437,14 @@ def _metadata_values(metadata: dict[str, Any], keys: tuple[str, ...]) -> list[An
         if key in metadata:
             values.append(metadata.get(key))
     return values
+
+
+def _has_okf_source_metadata(metadata: dict[str, Any]) -> bool:
+    for key in ("okf_source_metadata", "source_candidate_metadata"):
+        value = metadata.get(key)
+        if isinstance(value, dict) and set(value) >= OKF_SOURCE_METADATA_REQUIRED_KEYS:
+            return True
+    return set(metadata) >= OKF_SOURCE_METADATA_REQUIRED_KEYS
 
 
 def _is_marker(value: Any, markers: set[str]) -> bool:

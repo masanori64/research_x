@@ -52,6 +52,43 @@ QUALITY_SCORES = {
     "unknown": 0.5,
     "low": 0.35,
 }
+OKF_SOURCE_CANDIDATE_FORMAT = "okf_source_candidate_v1"
+OKF_SOURCE_CANDIDATE_REQUIRED_FIELDS = {
+    "type",
+    "title",
+    "resource",
+    "tags",
+    "timestamp",
+    "owner",
+    "review_status",
+}
+OKF_SOURCE_CANDIDATE_REVIEW_STATUSES = {
+    "candidate",
+    "reviewed",
+    "rejected",
+    "staged",
+}
+SOURCE_CANDIDATE_EVIDENCE_STATUS = "not_evidence_until_fetched_and_chunked"
+
+
+@dataclass(frozen=True)
+class OkfSourceMetadata:
+    format: str
+    type: str
+    title: str
+    resource: str
+    tags: tuple[str, ...]
+    timestamp: str
+    owner: str
+    review_status: str
+    evidence_status: str
+    answer_support_allowed: bool
+    citation_excluded: bool
+
+    def as_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["tags"] = list(self.tags)
+        return data
 
 
 @dataclass(frozen=True)
@@ -96,10 +133,13 @@ class SourceSubscription:
     quality_hint: str = "unknown"
     topics: tuple[str, ...] = field(default_factory=tuple)
     policy: SourcePolicy = field(default_factory=SourcePolicy)
+    okf_source_metadata: OkfSourceMetadata | None = None
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["topics"] = list(self.topics)
+        if self.okf_source_metadata is not None:
+            data["okf_source_metadata"] = self.okf_source_metadata.as_dict()
         return data
 
 
@@ -142,10 +182,13 @@ class ResearchCandidate:
     risk_flags: tuple[str, ...]
     citation_excluded: bool
     evidence_status: str
+    okf_source_metadata: OkfSourceMetadata | None = None
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["risk_flags"] = list(self.risk_flags)
+        if self.okf_source_metadata is not None:
+            data["okf_source_metadata"] = self.okf_source_metadata.as_dict()
         return data
 
 
@@ -163,9 +206,13 @@ class FetchSnapshot:
     storage_rights: str
     prompt_injection_review: str
     promotion_gate: str
+    okf_source_metadata: OkfSourceMetadata | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        if self.okf_source_metadata is not None:
+            data["okf_source_metadata"] = self.okf_source_metadata.as_dict()
+        return data
 
 
 @dataclass(frozen=True)
@@ -289,6 +336,7 @@ def validate_registry(registry: SourceRegistry) -> list[str]:
             errors.append(
                 f"{source.source_id}: quality_hint must be one of {sorted(QUALITY_SCORES)}"
             )
+        errors.extend(_validate_okf_source_metadata(source))
     return errors
 
 
@@ -378,6 +426,11 @@ def discover_candidates(
         source_registry={
             "registry_id": registry.registry_id,
             "source_ids": [source.source_id for source in registry.sources],
+            "okf_metadata_source_ids": [
+                source.source_id
+                for source in registry.sources
+                if source.okf_source_metadata is not None
+            ],
             "digest": _hash_dict(registry.as_dict()),
         },
         network_mode=profile.network_mode,
@@ -402,19 +455,35 @@ def validate_run(run: DiscoveryRun | dict[str, Any]) -> list[str]:
     if data.get("provider_freeze_compliant") is not True:
         errors.append("provider_freeze_compliant must be true")
     for candidate in data.get("candidates", []):
+        candidate_id = candidate.get("candidate_id")
         if candidate.get("citation_excluded") is not True:
-            errors.append(f"{candidate.get('candidate_id')}: citation_excluded must be true")
-        if candidate.get("evidence_status") != "not_evidence_until_fetched_and_chunked":
-            errors.append(f"{candidate.get('candidate_id')}: invalid evidence_status")
+            errors.append(f"{candidate_id}: citation_excluded must be true")
+        if candidate.get("evidence_status") != SOURCE_CANDIDATE_EVIDENCE_STATUS:
+            errors.append(f"{candidate_id}: invalid evidence_status")
+        metadata = candidate.get("okf_source_metadata")
+        if metadata is not None:
+            errors.extend(
+                _validate_okf_metadata_dict(
+                    metadata,
+                    context=str(candidate_id),
+                    expected_resource=str(candidate.get("canonical_url") or ""),
+                )
+            )
     for snapshot in data.get("snapshots", []):
+        snapshot_id = snapshot.get("snapshot_id")
         if snapshot.get("fetch_status") != "not_fetched_dry_run":
-            errors.append(f"{snapshot.get('snapshot_id')}: fetch_status must be dry-run")
+            errors.append(f"{snapshot_id}: fetch_status must be dry-run")
         if snapshot.get("fetch_method") != "metadata_only_no_network":
-            errors.append(f"{snapshot.get('snapshot_id')}: fetch_method must be no-network")
+            errors.append(f"{snapshot_id}: fetch_method must be no-network")
         if snapshot.get("raw_content_path") is not None:
-            errors.append(f"{snapshot.get('snapshot_id')}: raw_content_path must be null")
+            errors.append(f"{snapshot_id}: raw_content_path must be null")
         if snapshot.get("source_bundle_ref") is not None:
-            errors.append(f"{snapshot.get('snapshot_id')}: source_bundle_ref must be null")
+            errors.append(f"{snapshot_id}: source_bundle_ref must be null")
+        metadata = snapshot.get("okf_source_metadata")
+        if metadata is not None:
+            errors.extend(
+                _validate_okf_metadata_dict(metadata, context=str(snapshot_id))
+            )
     return errors
 
 
@@ -484,15 +553,54 @@ def write_text(path: Path, text: str) -> None:
 
 
 def _source_from_dict(raw: dict[str, Any]) -> SourceSubscription:
+    title = str(raw.get("title", "")).strip()
+    locator = str(raw.get("locator", "")).strip()
+    topics = _string_tuple(raw.get("topics"))
     return SourceSubscription(
         source_id=str(raw.get("source_id", "")).strip(),
         source_type=str(raw.get("source_type", "")).strip(),
-        locator=str(raw.get("locator", "")).strip(),
+        locator=locator,
         enabled_when=str(raw.get("enabled_when", "always")).strip(),
-        title=str(raw.get("title", "")).strip(),
+        title=title,
         quality_hint=str(raw.get("quality_hint", "unknown")).strip(),
-        topics=_string_tuple(raw.get("topics")),
+        topics=topics,
         policy=_policy_from_dict(raw.get("policy", {})),
+        okf_source_metadata=_okf_source_metadata_from_dict(
+            raw.get("okf_source_metadata"),
+            source_title=title,
+            source_locator=locator,
+            source_type=str(raw.get("source_type", "")).strip(),
+            source_topics=topics,
+        ),
+    )
+
+
+def _okf_source_metadata_from_dict(
+    raw: Any,
+    *,
+    source_title: str,
+    source_locator: str,
+    source_type: str,
+    source_topics: tuple[str, ...],
+) -> OkfSourceMetadata | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raw = {}
+    return OkfSourceMetadata(
+        format=str(raw.get("format", OKF_SOURCE_CANDIDATE_FORMAT)).strip(),
+        type=str(raw.get("type", source_type or "source_candidate")).strip(),
+        title=str(raw.get("title", source_title)).strip(),
+        resource=str(raw.get("resource", source_locator)).strip(),
+        tags=_string_tuple(raw.get("tags", source_topics)),
+        timestamp=str(raw.get("timestamp", "")).strip(),
+        owner=str(raw.get("owner", "")).strip(),
+        review_status=str(raw.get("review_status", "candidate")).strip(),
+        evidence_status=str(
+            raw.get("evidence_status", SOURCE_CANDIDATE_EVIDENCE_STATUS)
+        ).strip(),
+        answer_support_allowed=bool(raw.get("answer_support_allowed", False)),
+        citation_excluded=bool(raw.get("citation_excluded", True)),
     )
 
 
@@ -565,7 +673,8 @@ def _make_candidate(
         scores=_score_candidate(profile, source, title=title, snippet=snippet),
         risk_flags=risk_flags,
         citation_excluded=True,
-        evidence_status="not_evidence_until_fetched_and_chunked",
+        evidence_status=SOURCE_CANDIDATE_EVIDENCE_STATUS,
+        okf_source_metadata=source.okf_source_metadata,
     )
 
 
@@ -583,6 +692,8 @@ def _make_snapshot(
         "source_type": candidate.source_type,
         "snapshot_at": snapshot_at,
     }
+    if source.okf_source_metadata is not None:
+        metadata["okf_source_metadata"] = source.okf_source_metadata.as_dict()
     content_hash = _hash_dict(metadata)
     return FetchSnapshot(
         snapshot_id="snapshot_" + _stable_id(candidate.candidate_id, content_hash),
@@ -597,7 +708,73 @@ def _make_snapshot(
         storage_rights=source.policy.storage_rights,
         prompt_injection_review=source.policy.prompt_injection_review,
         promotion_gate="requires_fetch_extract_chunk_citation",
+        okf_source_metadata=source.okf_source_metadata,
     )
+
+
+def _validate_okf_source_metadata(source: SourceSubscription) -> list[str]:
+    if source.okf_source_metadata is None:
+        return []
+    return _validate_okf_metadata_dict(
+        source.okf_source_metadata.as_dict(),
+        context=source.source_id,
+        expected_resource=source.locator,
+    )
+
+
+def _validate_okf_metadata_dict(
+    metadata: Any,
+    *,
+    context: str,
+    expected_resource: str = "",
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(metadata, dict):
+        return [f"{context}: okf_source_metadata must be a table"]
+
+    missing = sorted(OKF_SOURCE_CANDIDATE_REQUIRED_FIELDS - set(metadata))
+    if missing:
+        errors.append(f"{context}: okf_source_metadata missing fields: {', '.join(missing)}")
+
+    if metadata.get("format") != OKF_SOURCE_CANDIDATE_FORMAT:
+        errors.append(
+            f"{context}: okf_source_metadata.format must be {OKF_SOURCE_CANDIDATE_FORMAT}"
+        )
+
+    for key in ("type", "title", "resource", "timestamp", "owner", "review_status"):
+        if not str(metadata.get(key, "")).strip():
+            errors.append(f"{context}: okf_source_metadata.{key} is required")
+
+    tags = metadata.get("tags")
+    if not isinstance(tags, list | tuple) or not all(str(tag).strip() for tag in tags):
+        errors.append(f"{context}: okf_source_metadata.tags must be non-empty strings")
+
+    review_status = str(metadata.get("review_status", "")).strip()
+    if review_status not in OKF_SOURCE_CANDIDATE_REVIEW_STATUSES:
+        errors.append(
+            f"{context}: okf_source_metadata.review_status must be one of "
+            f"{sorted(OKF_SOURCE_CANDIDATE_REVIEW_STATUSES)}"
+        )
+
+    resource = str(metadata.get("resource", "")).strip()
+    if expected_resource and resource != expected_resource:
+        errors.append(f"{context}: okf_source_metadata.resource must match the locator")
+
+    if metadata.get("evidence_status") != SOURCE_CANDIDATE_EVIDENCE_STATUS:
+        errors.append(
+            f"{context}: okf_source_metadata.evidence_status must be "
+            f"{SOURCE_CANDIDATE_EVIDENCE_STATUS}"
+        )
+    if metadata.get("answer_support_allowed") is not False:
+        errors.append(
+            f"{context}: okf_source_metadata.answer_support_allowed must be false"
+        )
+    if metadata.get("citation_excluded") is not True:
+        errors.append(f"{context}: okf_source_metadata.citation_excluded must be true")
+    if not _valid_iso_timestamp(str(metadata.get("timestamp", ""))):
+        errors.append(f"{context}: okf_source_metadata.timestamp must be ISO-8601")
+
+    return errors
 
 
 def _score_candidate(
@@ -607,7 +784,9 @@ def _score_candidate(
     title: str,
     snippet: str,
 ) -> dict[str, float]:
-    text = " ".join([title, snippet, source.locator, *source.topics]).lower()
+    text = " ".join(
+        [title, snippet, source.locator, *source.topics, *_okf_metadata_terms(source)]
+    ).lower()
     include_hits = sum(1 for topic in profile.include_topics if topic.lower() in text)
     exclude_hits = sum(1 for topic in profile.exclude_topics if topic.lower() in text)
     topic_affinity = include_hits / max(len(profile.include_topics), 1)
@@ -650,6 +829,22 @@ def _looks_like_url(value: str) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
+def _okf_metadata_terms(source: SourceSubscription) -> tuple[str, ...]:
+    metadata = source.okf_source_metadata
+    if metadata is None:
+        return ()
+    return (
+        metadata.format,
+        metadata.type,
+        metadata.title,
+        metadata.resource,
+        metadata.timestamp,
+        metadata.owner,
+        metadata.review_status,
+        *metadata.tags,
+    )
+
+
 def _dedupe_key(value: str) -> str:
     parsed = urlparse(value)
     if parsed.scheme and parsed.netloc:
@@ -678,6 +873,16 @@ def _read_toml(path: Path) -> dict[str, Any]:
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _valid_iso_timestamp(value: str) -> bool:
+    if not value.strip():
+        return False
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return True
 
 
 def _hash_dict(data: dict[str, Any]) -> str:

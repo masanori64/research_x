@@ -240,6 +240,19 @@ allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
 
+[sources.okf_source_metadata]
+format = "okf_source_candidate_v1"
+type = "article"
+title = "Open Knowledge Format Japanese article"
+resource = "https://zenn.dev/knowledgesense/articles/14a874a9f423bb"
+tags = ["knowledge format", "metadata", "source candidates"]
+timestamp = "2026-07-01T00:00:00Z"
+owner = "research_x"
+review_status = "candidate"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+answer_support_allowed = false
+citation_excluded = true
+
 [[sources]]
 source_id = "manual_okf_google_cloud"
 source_type = "manual_url"
@@ -255,6 +268,19 @@ allow_network = false
 allow_provider = false
 storage_rights = "unfetched_public_candidate"
 prompt_injection_review = "required_before_fetch"
+
+[sources.okf_source_metadata]
+format = "okf_source_candidate_v1"
+type = "article"
+title = "Google Cloud Open Knowledge Format article"
+resource = "https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing"
+tags = ["knowledge format", "metadata", "source candidates", "official"]
+timestamp = "2026-07-01T00:00:00Z"
+owner = "research_x"
+review_status = "candidate"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+answer_support_allowed = false
+citation_excluded = true
 
 [[sources]]
 source_id = "manual_rag_knowledge_ops"

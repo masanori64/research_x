@@ -140,6 +140,20 @@ def test_provider_candidates_are_disabled_and_provider_gated() -> None:
     )
 
 
+def test_okf_metadata_candidate_is_adopted_without_evidence_promotion() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    item = candidates["okf_source_metadata_shape"]
+
+    assert item.adoption_shape == "adopt"
+    assert item.status == "implemented"
+    assert item.enabled is True
+    assert item.provider_or_quota is False
+    assert item.active_artifact == "src/research_x/research_intake/pipeline.py"
+    assert "candidate-only" in item.stop_condition
+    assert "source-bundled" in item.stop_condition
+    assert "OKF-style files are not evidence" in item.notes
+
+
 def test_provider_stop_condition_tokens_are_validation_errors(tmp_path: Path) -> None:
     registry = tmp_path / "adoption_registry.toml"
     shutil.copy2(REGISTRY, registry)

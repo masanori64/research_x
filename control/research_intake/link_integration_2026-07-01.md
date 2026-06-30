@@ -212,7 +212,7 @@ Project candidates staged or gated:
 | --- | --- | --- | --- |
 | `kg_typed_edge_authority` | staging | retrieval/eval | typed-edge and contradiction fixtures |
 | `cognee_graph_memory_reference` | provider_gated | external source candidate | architecture comparison only |
-| `okf_source_metadata_shape` | staging | intake metadata | metadata fixture and restoration tests |
+| `okf_source_metadata_shape` | adopt | intake metadata | candidate metadata fixture and non-evidence guards |
 | `rag_knowledge_ops_observability` | staging | workflow trace | coverage/freshness trace fields |
 | `ontology_relation_traversal_eval` | staging | route policy | relation traversal vs semantic recall fixtures |
 | `databricks_rag_governance_checklist` | staging | eval | precision vs faithfulness separation |
@@ -380,6 +380,22 @@ Implemented generated artifact / reverse-spec boundary:
 - This does not adopt Slidev, Playwright MCP, ppt-master, or any model-based
   slide/spec generator. Local render and visual-overlap QA remains staged.
 
+Implemented OKF source-candidate metadata boundary:
+
+- `okf_source_metadata_shape` is now implemented as
+  `okf_source_metadata` on registry sources, dry-run candidates, and
+  metadata-only snapshots.
+- The shape records `type`, `title`, `resource`, `tags`, `timestamp`, `owner`,
+  and `review_status`, plus explicit `citation_excluded`,
+  `answer_support_allowed: false`, and
+  `not_evidence_until_fetched_and_chunked`.
+- `src/research_x/memory/evidence_invariants.py` independently blocks OKF
+  metadata shapes from citation-ready evidence, even if copied without the
+  usual `not_evidence` marker.
+- The OKF links therefore widen source-candidate intake and restoration
+  filtering without fetching remote content, creating source bundles, or
+  promoting metadata into answer support.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -388,6 +404,7 @@ Verification completed for these loops:
 - `uv run pytest tests\tool_interface -q`
 - `uv run pytest tests\vector tests\test_memory.py::test_memory_vector_projection_backend_searches_existing_embeddings tests\test_memory.py::test_memory_vector_backend_benchmark_gates_candidate_dependency tests\test_memory.py::test_memory_vector_backend_benchmark_blocks_non_local_provider tests\test_memory.py::test_memory_vector_backend_benchmark_cli_reports_candidate_gate tests\test_memory.py::test_memory_vector_projection_coverage_detects_stale_source_hash tests\test_memory.py::test_memory_vector_projection_coverage_respects_doc_type_scope tests\test_memory.py::test_memory_portfolio_strict_blocks_diagnostic_provider tests\memory\test_memory_audit_warning_taxonomy.py::test_audit_taxonomy_treats_local_hash_as_expected_provider_gate -q`
 - `uv run pytest tests\memory\test_preview_not_evidence.py tests\tool_interface\test_preview_cannot_be_citation.py tests\test_control_artifact_structure_view.py tests\test_diagram_review_boundary.py -q`
+- `uv run pytest tests\test_research_intake.py tests\research_intake\test_source_registry_policy.py tests\research_intake\test_no_network_by_default.py tests\memory\test_evidence_invariant_fixtures.py tests\test_adoption_registry.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 
@@ -397,6 +414,8 @@ Committed and pushed implementation checkpoints:
 - `7ec4be8` `Expose relation traversal as candidate trace`
 - `d1a39ce` `Expose RAG governance control plane traces`
 - `cd0fe7d` `Gate stale vector projection membership`
+- `c290f48` `Record link integration implementation loops`
+- `2cd1c56` `Block generated review artifacts as evidence`
 
 ## Non-Overlap Scope For Loop 2
 

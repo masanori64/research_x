@@ -68,6 +68,68 @@ def test_source_registry_local_sources_are_metadata_only() -> None:
         assert source.quality_hint in {"official", "high", "medium", "unknown", "low"}
 
 
+def test_okf_source_metadata_shape_is_candidate_only() -> None:
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+    sources = {source.source_id: source for source in registry.sources}
+
+    for source_id in ("manual_okf_zenn", "manual_okf_google_cloud"):
+        source = sources[source_id]
+        metadata = source.okf_source_metadata
+
+        assert metadata is not None
+        assert metadata.as_dict().items() >= {
+            "format": "okf_source_candidate_v1",
+            "type": "article",
+            "resource": source.locator,
+            "owner": "research_x",
+            "review_status": "candidate",
+            "evidence_status": "not_evidence_until_fetched_and_chunked",
+            "answer_support_allowed": False,
+            "citation_excluded": True,
+        }.items()
+        assert metadata.tags
+        assert source.policy.fetch_mode == "metadata_only"
+        assert source.policy.allow_network is False
+        assert source.policy.allow_provider is False
+
+    assert validate_registry(registry) == []
+
+
+def test_okf_source_metadata_rejects_invalid_review_status_and_timestamp(
+    tmp_path: Path,
+) -> None:
+    registry_path = tmp_path / "source_registry.toml"
+    registry_text = Path("control/research_intake/source_registry.toml").read_text(
+        encoding="utf-8"
+    )
+
+    registry_path.write_text(
+        registry_text.replace('review_status = "candidate"', 'review_status = "approved"', 1),
+        encoding="utf-8",
+    )
+    review_errors = validate_registry(load_registry(registry_path))
+
+    assert any(
+        "manual_okf_zenn: okf_source_metadata.review_status must be one of" in error
+        for error in review_errors
+    )
+
+    registry_path.write_text(
+        registry_text.replace(
+            'timestamp = "2026-07-01T00:00:00Z"',
+            'timestamp = "not-a-timestamp"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    timestamp_errors = validate_registry(load_registry(registry_path))
+
+    assert any(
+        "manual_okf_zenn: okf_source_metadata.timestamp must be ISO-8601" in error
+        for error in timestamp_errors
+    )
+
+
 def test_risky_manual_url_candidates_must_stay_disabled(tmp_path: Path) -> None:
     registry_path = tmp_path / "source_registry.toml"
     registry_text = Path("control/research_intake/source_registry.toml").read_text(

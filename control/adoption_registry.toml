@@ -525,17 +525,17 @@ notes = "AI memory platform output is candidate-only and not evidence without re
 name = "okf_source_metadata_shape"
 category = "external_source_candidate"
 owner_surface = "research_x_tool"
-adoption_shape = "staging"
-status = "staged"
+adoption_shape = "adopt"
+status = "implemented"
 source_ref = "S46"
 source_url = "https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing"
-active_artifact = "control/research_intake/source_registry.toml"
-first_local_step = "Map type, title, resource, tags, timestamp, owner, and review status into metadata-only local source-candidate fixtures."
+active_artifact = "src/research_x/research_intake/pipeline.py"
+first_local_step = "Read okf_source_metadata fixtures into source-candidate, candidate, and snapshot payloads without fetching or source-bundle promotion."
 promotion_gate = "Metadata improves restoration and filtering while raw source, fetched source, source bundle, and citation remain separate."
-stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until metadata schema fixtures and source-restoration tests pass."
+stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion; OKF metadata remains candidate-only until fetched, extracted, chunked, cited, and source-bundled."
 provider_or_quota = false
-enabled = false
-notes = "Schema-shape candidate; OKF-style files are not evidence by themselves."
+enabled = true
+notes = "Implemented as dry-run source-candidate metadata with independent evidence-invariant blocking; OKF-style files are not evidence by themselves."
 
 [[candidates]]
 name = "rag_knowledge_ops_observability"

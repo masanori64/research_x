@@ -133,6 +133,40 @@ def test_research_brief_keeps_candidates_out_of_evidence() -> None:
     assert "not_evidence_until_fetched_and_chunked" in brief
 
 
+def test_okf_source_candidates_serialize_full_metadata_shape() -> None:
+    profile = load_profile(Path("control/research_intake/research_x_sources.profile.toml"))
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+
+    run = discover_candidates(profile, registry, limit=20, created_at="2026-07-01T00:00:00Z")
+    payload = run.as_dict()
+    okf_candidates = [
+        candidate
+        for candidate in payload["candidates"]
+        if candidate["source_id"].startswith("manual_okf")
+    ]
+
+    assert okf_candidates
+    for candidate in okf_candidates:
+        metadata = candidate["okf_source_metadata"]
+
+        assert set(metadata) >= {
+            "format",
+            "type",
+            "title",
+            "resource",
+            "tags",
+            "timestamp",
+            "owner",
+            "review_status",
+        }
+        assert metadata["format"] == "okf_source_candidate_v1"
+        assert metadata["resource"] == candidate["canonical_url"]
+        assert metadata["evidence_status"] == "not_evidence_until_fetched_and_chunked"
+        assert metadata["answer_support_allowed"] is False
+        assert candidate["citation_excluded"] is True
+        assert candidate["evidence_status"] == "not_evidence_until_fetched_and_chunked"
+
+
 def test_cli_validate_discover_and_brief_round_trip(tmp_path: Path) -> None:
     run_path = tmp_path / "run.json"
     brief_path = tmp_path / "brief.md"

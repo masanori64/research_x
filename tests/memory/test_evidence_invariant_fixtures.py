@@ -78,6 +78,32 @@ def test_typed_relation_hint_is_not_answerable_evidence() -> None:
     assert assessment.reason == "no_citation_ready_evidence"
 
 
+def test_okf_source_metadata_shape_is_not_answerable_evidence() -> None:
+    okf_metadata = {
+        "type": "article",
+        "title": "Open Knowledge Format article",
+        "resource": "https://example.com/okf",
+        "tags": ["knowledge format", "metadata"],
+        "timestamp": "2026-07-01T00:00:00Z",
+        "owner": "research_x",
+        "review_status": "candidate",
+    }
+    chunk = _chunk(metadata=okf_metadata)
+    citation = _citation(chunk, metadata={"okf_source_metadata": okf_metadata})
+
+    assessment = assess_answerability(
+        question="fixture OKF metadata only",
+        chunks=(chunk,),
+        citations=(citation,),
+    )
+
+    assert chunk_is_not_evidence(chunk) is True
+    assert citation_is_citation_ready(citation) is False
+    assert "not_evidence" in citation_block_reasons(citation)
+    assert assessment.status == "citation_missing"
+    assert assessment.reason == "no_citation_ready_evidence"
+
+
 def test_stale_restore_hint_and_pointer_metadata_block_citation_ready() -> None:
     chunk = _chunk(
         metadata={
