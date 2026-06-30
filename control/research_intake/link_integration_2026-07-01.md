@@ -193,14 +193,14 @@ Project fit:
 
 Codex foundation fit:
 
-- `x-private-source-routing` is a route-memory candidate.
+- `x-private-source-routing` is an active negative route-memory entry.
 - `edge-addons-governance` is a staged extension-review checklist candidate.
 
 Open boundary for next loop:
 
-- Decide whether to add route-memory entries now or wait until repeated X
-  restoration failures produce exact route fingerprints.
-- Define private-source handling tests before any browser/export workflow.
+- Continue watching for more exact X restoration failure fingerprints, but the
+  first action is now route-memory classification, not browser/provider/search.
+- Keep private-source handling tests ahead of any browser/export workflow.
 - Keep Edge-specific extension review outside the project intake registry unless
   a concrete extension becomes a source-acquisition dependency for `research_x`.
 
@@ -236,7 +236,7 @@ Codex foundation candidates staged or gated:
 | `cc-rsg` | reference_only | generated-spec review pattern |
 | `slidev-playwright-visual-review` | staging | presentation QA loop candidate |
 | `ppt-master` | provider_gated | model/API-dependent slide generation candidate |
-| `x-private-source-routing` | staging | private/snippet-only route-memory candidate |
+| `x-private-source-routing` | adopt | active private/snippet-only negative route-memory boundary |
 | `edge-addons-governance` | staging | extension install/privacy review checklist |
 
 ## Loop 2 Review
@@ -457,6 +457,22 @@ Implemented generated-artifact visual review checklist:
   screenshots/decks as evidence. Render and visual-overlap QA remains staged
   behind dependency/browser/install review.
 
+Implemented X private/snippet route-memory boundary:
+
+- `x-private-source-routing` is now active in
+  `C:/Users/maasa/.codex/route_memory/route-memory.json` and source-locked in
+  `C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml`.
+- The canonical first action is to classify X bookmarks, private collections,
+  and snippet-only posts as metadata-only source candidates with
+  `login_required`, `private_locator`, `user_export_required`, `snippet_only`,
+  or `source_not_restored` before browser, provider, or search attempts.
+- The route records failed paths explicitly: citation promotion from snippets,
+  logged-in browser automation, hidden APIs, extension install, provider Reader,
+  and source-bundle promotion without a local export or restored public source.
+- This is Codex control-plane memory only. It is not evidence, not a citation,
+  and not permission for browser login, scraping, installs, connectors, MCP,
+  hidden APIs, provider calls, or quota use.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -470,6 +486,7 @@ Verification completed for these loops:
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_codex_bridge.py tests\test_agents_route_memory_preflight.py -q`
 - `uv run pytest tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
 - `uv run pytest tests\test_visual_review_boundary.py tests\test_control_artifact_structure_view.py tests\test_adoption_registry.py tests\test_pytest_lane_markers.py -q`
+- `uv run pytest tests\test_agents_route_memory_preflight.py tests\test_codex_foundation_boundary.py tests\memory\test_x_source_restoration_status.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

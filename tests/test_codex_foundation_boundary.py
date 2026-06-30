@@ -97,14 +97,18 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
         "edge-addons-governance": "external_tool_governance",
         "x-private-source-routing": "codex_operations",
     }
+    staged_expected = expected.keys() - {"x-private-source-routing"}
 
     for name, group in expected.items():
         candidate = candidates[name]
 
         assert candidate["group"] == group
+        assert name in source_lock
+
+    for name in staged_expected:
+        candidate = candidates[name]
         assert candidate["adoption_shape"] == "staging"
         assert candidate["enabled"] is False
-        assert name in source_lock
 
     assert "No install or runtime hook" in candidates[
         "headroom-context-observability"
@@ -124,7 +128,16 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
     assert "Specific extension IDs require explicit install approval" in candidates[
         "edge-addons-governance"
     ]["promotion_gate"]
-    assert "No login bypass" in candidates["x-private-source-routing"]["promotion_gate"]
+    x_route = candidates["x-private-source-routing"]
+    assert x_route["adoption_shape"] == "adopt"
+    assert x_route["enabled"] is False
+    assert x_route["active_surface"] == (
+        "C:/Users/maasa/.codex/route_memory/route-memory.json"
+    )
+    assert "No login bypass" in x_route["promotion_gate"]
+    assert "source promotion from snippets" in x_route["promotion_gate"]
+    assert "negative route-memory" in x_route["notes"]
+    assert "not an enabled runnable surface" in x_route["notes"]
 
 
 def test_agent_control_links_do_not_create_research_x_runtime_or_skill_surfaces() -> None:
