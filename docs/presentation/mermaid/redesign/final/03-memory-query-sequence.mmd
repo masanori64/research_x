@@ -1,0 +1,38 @@
+sequenceDiagram
+  %% 完成形の1回の memory query シーケンス図: 目的別ルーティングから回答・保留までを見る
+
+  actor User as 人 / AI agent
+  participant API as 安定した検索API
+  participant Policy as ObjectiveRoutePolicy
+  participant Local as local evidence arms
+  participant Gate as API Budget Guard
+  participant Provider as approved provider arms
+  participant Evidence as 根拠化と評価
+  participant Trace as Observability
+
+  User->>API: query / objective / context budget
+  API->>Trace: request開始
+  API->>Policy: 目的別の候補経路を選ぶ
+  Policy->>Local: exact / FTS / metadata / relation / media候補
+  Local-->>Policy: 復元可能な候補
+
+  opt 承認済みProviderが必要
+    Policy->>Gate: 予算・範囲・停止条件を確認
+    alt preflight passed
+      Gate->>Provider: 最小範囲で実行
+      Provider-->>Policy: 追加候補
+    else blocked
+      Gate-->>Policy: provider_gated
+    end
+  end
+
+  Policy->>Evidence: Source Bundle / Context Chunk / Citation を作る
+  Evidence->>Trace: route・品質・停止理由を保存する
+
+  alt citation-ready
+    Evidence-->>API: answer
+    API-->>User: 引用付き回答
+  else unsupported or conflicting
+    Evidence-->>API: abstain / needs_review
+    API-->>User: 回答せず理由を返す
+  end

@@ -1,0 +1,25 @@
+flowchart LR
+  %% 現状の証拠パイプライン図: 検索候補が回答根拠へ昇格する条件を見る
+
+  classDef source fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef candidate fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef ready fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+
+  raw["Raw Source<br/>Xの原本状態"]:::source
+  projection["検索用の投影<br/>再生成できる候補データ"]:::candidate
+  result["Search Result<br/>近そうな候補"]:::candidate
+  restored["Source Bundle<br/>原本へ戻せた状態"]:::ready
+  chunk["Context Chunk<br/>回答に渡せる短い文脈"]:::ready
+  citation["Citation<br/>根拠位置を示せる状態"]:::ready
+  answer["Answer / Abstain<br/>根拠ありなら回答、足りなければ保留"]:::ready
+
+  missing_source["停止<br/>原本へ戻れない"]:::stop
+  missing_citation["停止<br/>引用として弱い"]:::stop
+  control_only["停止<br/>図・WBS・要約は根拠にしない"]:::stop
+
+  raw --> projection --> result
+  result -->|"復元できる"| restored --> chunk --> citation --> answer
+  result -. "復元できない" .-> missing_source
+  chunk -. "支えが足りない" .-> missing_citation
+  projection -. "説明資料だけ" .-> control_only

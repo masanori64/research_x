@@ -1,0 +1,29 @@
+flowchart LR
+  %% 完成形の全体アーキテクチャ図: 最終的に research_x がAIの外部記憶としてどう働くかを見る
+
+  classDef human fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef system fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef data fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef observe fill:#f3f4f6,stroke:#6b7280,color:#17212b
+
+  ai["人 / AI agent<br/>調べたい目的を渡す"]:::human
+
+  subgraph rx["research_x 完成形"]
+    interface["安定した検索API<br/>answer / abstain / needs_review を返す"]:::system
+    source["Source Layer<br/>X原本・メディア・外部source候補"]:::data
+    evidence["Evidence Layer<br/>Source Bundle から Citation まで管理"]:::system
+    retrieval["Retrieval-Eval Layer<br/>local検索・media・provider候補を比較"]:::system
+    observe["Observability<br/>予算・品質・停止理由を追える"]:::observe
+  end
+
+  provider["外部Provider/API<br/>承認済み範囲だけ使う"]:::gate
+  review["レビュー面<br/>WBS・図・評価結果"]:::observe
+
+  ai --> interface
+  source --> evidence --> retrieval --> interface
+  retrieval -. "必要な時だけ" .-> provider
+  provider -. "結果は候補から復元" .-> evidence
+  interface --> observe
+  retrieval --> observe
+  observe --> review

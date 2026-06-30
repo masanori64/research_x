@@ -1,0 +1,29 @@
+flowchart LR
+  %% 現状の全体アーキテクチャ図: いま誰が何を担当し、どこで止まるかを見る
+
+  classDef human fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef owned fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef data fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef review fill:#f3f4f6,stroke:#6b7280,color:#17212b
+
+  person["人<br/>質問・確認・承認"]:::human
+  codex["Codex<br/>query / objective を渡す"]:::human
+
+  subgraph rx["research_x が担当する範囲"]
+    tool["AI向け検索窓口<br/>状態・引用・停止理由を返す"]:::owned
+    local["ローカル検索基盤<br/>SQLite / FTS / 関係 / メタデータ"]:::data
+    evidence["根拠化の処理<br/>Source Bundle / Context Chunk / Citation"]:::owned
+    trace["監査用の記録<br/>route / gate / stop reason"]:::review
+  end
+
+  source["X由来の原本<br/>投稿・ブックマーク・メディア"]:::data
+  provider["外部Provider/API<br/>現状は承認まで停止"]:::gate
+  controls["図・WBS・レビュー資料<br/>説明用で根拠ではない"]:::review
+
+  person --> codex --> tool
+  source --> local --> evidence --> tool
+  tool --> trace
+  evidence --> trace
+  provider -. "provider_gated" .-> tool
+  trace -. "状況を見せる" .-> controls

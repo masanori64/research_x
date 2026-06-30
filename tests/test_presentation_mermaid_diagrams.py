@@ -47,5 +47,5 @@ def test_presentation_mermaid_diagrams_cover_requested_topics() -> None:
 def test_mermaid_diagram_systems_document_presentation_mermaid_lane() -> None:
     text = Path("docs/presentation/diagram-systems.md").read_text(encoding="utf-8")
 
-    assert "docs/presentation/mermaid/*.mmd" in text
+    assert "docs/presentation/mermaid/**/*.mmd" in text
     assert "presentation-review diagrams" in text

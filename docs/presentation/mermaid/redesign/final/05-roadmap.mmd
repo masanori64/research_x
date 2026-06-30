@@ -1,0 +1,30 @@
+flowchart LR
+  %% 完成形のWBS / ロードマップ図: 完了時に揃っているべき能力を見る
+
+  classDef foundation fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef capability fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef operate fill:#f3f4f6,stroke:#6b7280,color:#17212b
+
+  subgraph foundation["完成時の土台"]
+    source["原本保全<br/>X / media / external source候補"]:::foundation
+    evidence["根拠契約<br/>Source Bundle から Citation まで"]:::foundation
+    api["AI向け契約<br/>安定JSONと状態コード"]:::foundation
+  end
+
+  subgraph capability["完成時の検索能力"]
+    portfolio["経路portfolio<br/>local / media / vector / provider候補"]:::capability
+    eval["評価<br/>answerability / conflict / stale / citation"]:::capability
+    feedback["改善<br/>feedback と governance"]:::capability
+  end
+
+  subgraph operations["完成時の運用"]
+    budget["Provider運用<br/>API Budget Guard"]:::gate
+    observe["監査と見える化<br/>trace / usage / stop reason"]:::operate
+    review["人間レビュー<br/>WBS・図・評価結果"]:::operate
+  end
+
+  source --> evidence --> api
+  api --> portfolio --> eval --> feedback
+  portfolio --> budget --> observe
+  eval --> observe --> review

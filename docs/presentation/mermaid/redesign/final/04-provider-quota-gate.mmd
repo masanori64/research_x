@@ -1,0 +1,23 @@
+flowchart TB
+  %% 完成形の provider / quota gate 図: 承認済みProviderを安全に使う時の手順を見る
+
+  classDef ask fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef pass fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef audit fill:#f3f4f6,stroke:#6b7280,color:#17212b
+
+  need["Provider候補が必要"]:::ask
+  approval{"今回の明示承認があるか"}:::ask
+  estimate["オフライン見積もり<br/>件数・token・費用"]:::ask
+  preflight{"API Budget Guard<br/>上限と停止条件を満たすか"}:::ask
+  run["最小範囲で実行<br/>provider arm は候補だけ返す"]:::pass
+  restore["Source Bundleへ復元<br/>根拠化できるものだけ残す"]:::pass
+  ledger["使用量と判断を記録<br/>次の呼び出し前に再確認"]:::audit
+  blocked["停止<br/>承認・価格・上限・復元条件が不明"]:::stop
+
+  need --> approval
+  approval -->|"いいえ"| blocked
+  approval -->|"はい"| estimate --> preflight
+  preflight -->|"失敗"| blocked
+  preflight -->|"通過"| run --> restore --> ledger
+  blocked --> ledger
