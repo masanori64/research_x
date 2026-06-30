@@ -42,6 +42,42 @@ def test_search_result_only_context_is_not_answerable_evidence() -> None:
     assert assessment.reason == "no_citation_ready_evidence"
 
 
+def test_typed_relation_hint_is_not_answerable_evidence() -> None:
+    relation_metadata = {
+        "artifact_kind": "typed_relation_edge",
+        "relation_role": "relation_traversal_hint",
+        "relation_type": "supports",
+        "relations": [
+            {
+                "relation_type": "supports",
+                "source_doc_id": "tweet:newer",
+                "target_doc_id": "tweet:older",
+                "strength": 0.92,
+            }
+        ],
+    }
+    chunk = _chunk(
+        source_kind="memory_relation",
+        metadata=relation_metadata,
+    )
+    citation = _citation(
+        chunk,
+        metadata=relation_metadata,
+    )
+
+    assessment = assess_answerability(
+        question="fixture relation traversal only",
+        chunks=(chunk,),
+        citations=(citation,),
+    )
+
+    assert chunk_is_not_evidence(chunk) is True
+    assert citation_is_citation_ready(citation) is False
+    assert "not_evidence" in citation_block_reasons(citation)
+    assert assessment.status == "citation_missing"
+    assert assessment.reason == "no_citation_ready_evidence"
+
+
 def test_stale_restore_hint_and_pointer_metadata_block_citation_ready() -> None:
     chunk = _chunk(
         metadata={

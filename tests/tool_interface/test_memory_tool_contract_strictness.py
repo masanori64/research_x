@@ -112,9 +112,54 @@ def test_answer_trace_reports_restoration_and_fixture_limitation() -> None:
     )
 
 
+def test_relation_traversal_trace_is_candidate_only_not_promotion() -> None:
+    relation = {
+        "relation_id": "relation:supports:1",
+        "relation_type": "supports",
+        "source_doc_id": "tweet:1",
+        "target_doc_id": "tweet:2",
+        "strength": 0.91,
+        "status": "active",
+    }
+    output = workflow_tool_output(
+        _workflow(
+            citation_metadata={
+                "artifact_kind": "typed_relation_edge",
+                "relation_role": "relation_traversal_hint",
+                "relation_type": "supports",
+                "relations": [relation],
+            },
+            retrieved_hits=[
+                {
+                    "doc_id": "tweet:1",
+                    "evidence": {
+                        "url": "https://x.com/example/status/1",
+                        "relations": [relation],
+                    },
+                    "metadata": {"relation_counts": {"supports": 1}},
+                }
+            ],
+        )
+    )
+
+    trace = output.trace["relation_traversal"]
+
+    assert validate_tool_output(output) == []
+    assert output.status == "needs_review"
+    assert output.evidence_level == "context_chunk"
+    assert output.citations[0].citation_ready is False
+    assert trace["status"] == "visible"
+    assert trace["candidate_only"] is True
+    assert trace["promotion_requires_restored_citation"] is True
+    assert trace["relation_counts"]["supports"] >= 1
+    assert trace["relations"][0]["candidate_only"] is True
+    assert trace["relations"][0]["promotion_requires_restored_citation"] is True
+
+
 def _workflow(
     *,
     citation_metadata: dict[str, Any] | None = None,
+    retrieved_hits: list[dict[str, Any]] | None = None,
     support_type: str = "supports_answer",
     stop_reason: str = "enough_evidence",
 ) -> MemoryWorkflow:
@@ -129,7 +174,8 @@ def _workflow(
         query="fixture question",
         query_plan={"query": "fixture question"},
         parameters={"limit": 1},
-        retrieved_hits=[{"doc_id": "tweet:1", "evidence": {"url": chunk.source_url}}],
+        retrieved_hits=retrieved_hits
+        or [{"doc_id": "tweet:1", "evidence": {"url": chunk.source_url}}],
         context_chunks=(chunk,),
         citation_annotations=(citation,),
     )

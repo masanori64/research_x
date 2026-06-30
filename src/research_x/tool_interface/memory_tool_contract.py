@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from research_x.memory.answer import MemoryAnswer
-from research_x.memory.context import CitationAnnotation
+from research_x.memory.context import CitationAnnotation, ContextBundle
 from research_x.memory.document_hashes import memory_document_source_hash, text_hash
 from research_x.memory.evidence_invariants import (
     citation_block_reasons,
@@ -215,6 +215,7 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
             "provider_gate",
             "citation_quality",
             "citation_restoration",
+            "relation_traversal",
             "pointer_offload_verification",
             "fixture_limitations",
         }
@@ -417,6 +418,7 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
             },
         },
         "citation_restoration": citation_restoration,
+        "relation_traversal": _relation_traversal_trace(workflow),
         "pointer_offload_verification": pointer_offload,
         "non_evidence_artifacts": _non_evidence_artifact_trace(raw_citations),
         "provider_gate": {
@@ -556,6 +558,199 @@ def _non_evidence_artifact_trace(
         "artifact_count": len(results),
         "results": results,
     }
+
+
+def _relation_traversal_trace(workflow: MemoryWorkflow) -> dict[str, Any]:
+    bundle = _workflow_context_bundle(workflow)
+    if bundle is None:
+        return _empty_relation_traversal_trace()
+    relation_counts: dict[str, int] = {}
+    relations: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str, str]] = set()
+    for hit_index, hit in enumerate(bundle.retrieved_hits):
+        if not isinstance(hit, dict):
+            continue
+        hit_doc_id = str(hit.get("doc_id") or "")
+        metadata = _dict_or_empty(hit.get("metadata"))
+        evidence = _dict_or_empty(hit.get("evidence"))
+        _merge_relation_counts(relation_counts, metadata.get("relation_counts"))
+        for relation in _relation_rows(evidence.get("relations")):
+            _append_relation(
+                relations,
+                seen,
+                relation,
+                source="retrieved_hit.evidence.relations",
+                hit_index=hit_index,
+                hit_doc_id=hit_doc_id,
+            )
+        for relation in _relation_rows(metadata.get("relations")):
+            _append_relation(
+                relations,
+                seen,
+                relation,
+                source="retrieved_hit.metadata.relations",
+                hit_index=hit_index,
+                hit_doc_id=hit_doc_id,
+            )
+    for chunk in bundle.context_chunks:
+        metadata = chunk.metadata
+        for relation in _relation_rows(metadata.get("relations")):
+            _append_relation(
+                relations,
+                seen,
+                relation,
+                source="context_chunk.metadata.relations",
+                chunk_id=chunk.chunk_id,
+            )
+        if _metadata_marks_relation_hint(metadata):
+            _append_relation(
+                relations,
+                seen,
+                metadata,
+                source="context_chunk.metadata",
+                chunk_id=chunk.chunk_id,
+            )
+    for citation in _raw_citations(workflow):
+        metadata = citation.metadata
+        for relation in _relation_rows(metadata.get("relations")):
+            _append_relation(
+                relations,
+                seen,
+                relation,
+                source="citation.metadata.relations",
+                citation_id=citation.citation_id,
+            )
+        if _metadata_marks_relation_hint(metadata):
+            _append_relation(
+                relations,
+                seen,
+                metadata,
+                source="citation.metadata",
+                citation_id=citation.citation_id,
+            )
+    for relation in relations:
+        relation_type = str(relation.get("relation_type") or "")
+        if relation_type:
+            relation_counts[relation_type] = relation_counts.get(relation_type, 0) + 1
+    signal_count = sum(relation_counts.values())
+    return {
+        "status": "visible" if signal_count or relations else "none",
+        "candidate_only": True,
+        "promotion_requires_restored_citation": True,
+        "relation_signal_count": signal_count,
+        "relation_count": len(relations),
+        "relation_counts": dict(sorted(relation_counts.items())),
+        "relations": relations[:20],
+    }
+
+
+def _empty_relation_traversal_trace() -> dict[str, Any]:
+    return {
+        "status": "none",
+        "candidate_only": True,
+        "promotion_requires_restored_citation": True,
+        "relation_signal_count": 0,
+        "relation_count": 0,
+        "relation_counts": {},
+        "relations": [],
+    }
+
+
+def _workflow_context_bundle(workflow: MemoryWorkflow) -> ContextBundle | None:
+    if workflow.context_bundle is not None:
+        return workflow.context_bundle
+    if workflow.answer is not None:
+        return workflow.answer.context_bundle
+    return None
+
+
+def _dict_or_empty(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _merge_relation_counts(
+    relation_counts: dict[str, int],
+    raw_counts: Any,
+) -> None:
+    if not isinstance(raw_counts, dict):
+        return
+    for relation_type, count in raw_counts.items():
+        key = str(relation_type or "").strip()
+        if not key:
+            continue
+        try:
+            amount = int(count or 0)
+        except (TypeError, ValueError):
+            continue
+        if amount <= 0:
+            continue
+        relation_counts[key] = relation_counts.get(key, 0) + amount
+
+
+def _relation_rows(value: Any) -> tuple[dict[str, Any], ...]:
+    if isinstance(value, dict):
+        return (value,)
+    if not isinstance(value, list | tuple):
+        return ()
+    return tuple(item for item in value if isinstance(item, dict))
+
+
+def _metadata_marks_relation_hint(metadata: dict[str, Any]) -> bool:
+    relation_marker = str(
+        metadata.get("relation_role")
+        or metadata.get("relation_source")
+        or metadata.get("relation_evidence_status")
+        or metadata.get("artifact_kind")
+        or ""
+    ).casefold()
+    return any(
+        marker in relation_marker
+        for marker in ("relation", "graph_edge", "ontology")
+    ) and bool(str(metadata.get("relation_type") or "").strip())
+
+
+def _append_relation(
+    relations: list[dict[str, Any]],
+    seen: set[tuple[str, str, str, str]],
+    relation: dict[str, Any],
+    *,
+    source: str,
+    hit_index: int | None = None,
+    hit_doc_id: str | None = None,
+    chunk_id: str | None = None,
+    citation_id: str | None = None,
+) -> None:
+    relation_type = str(relation.get("relation_type") or "").strip()
+    if not relation_type:
+        return
+    source_doc_id = str(relation.get("source_doc_id") or relation.get("source_id") or "")
+    target_doc_id = str(relation.get("target_doc_id") or relation.get("target_id") or "")
+    relation_id = str(relation.get("relation_id") or "")
+    key = (relation_id, relation_type, source_doc_id, target_doc_id)
+    if key in seen:
+        return
+    seen.add(key)
+    row = {
+        "relation_id": relation_id or None,
+        "relation_type": relation_type,
+        "source_doc_id": source_doc_id or None,
+        "target_doc_id": target_doc_id or None,
+        "direction": relation.get("direction"),
+        "status": relation.get("status"),
+        "strength": relation.get("strength"),
+        "source": source,
+        "candidate_only": True,
+        "promotion_requires_restored_citation": True,
+    }
+    if hit_index is not None:
+        row["hit_index"] = hit_index
+    if hit_doc_id:
+        row["hit_doc_id"] = hit_doc_id
+    if chunk_id:
+        row["chunk_id"] = chunk_id
+    if citation_id:
+        row["citation_id"] = citation_id
+    relations.append(row)
 
 
 def _raw_citations(workflow: MemoryWorkflow) -> tuple[CitationAnnotation, ...]:

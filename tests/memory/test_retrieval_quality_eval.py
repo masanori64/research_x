@@ -425,6 +425,65 @@ def test_provider_free_fixture_declares_boundary_only_scope(tmp_path: Path) -> N
     )
 
 
+def test_typed_relation_traversal_covers_feature_without_answer_promotion(
+    tmp_path: Path,
+) -> None:
+    bundle = _bundle(
+        "typed-relation",
+        citation_metadata={
+            "artifact_kind": "typed_relation_edge",
+            "relation_role": "relation_traversal_hint",
+            "relation_type": "supports",
+            "relations": [
+                {
+                    "relation_type": "supports",
+                    "source_doc_id": "tweet:source-1",
+                    "target_doc_id": "tweet:source-2",
+                    "strength": 0.91,
+                    "status": "active",
+                }
+            ],
+        },
+    )
+    answer = build_memory_answer(
+        tmp_path / "typed_relation.sqlite3",
+        "fixture typed relation",
+        context_bundle=bundle,
+        store=False,
+    )
+    hits = _hits(bundle)
+    hits[0]["metadata"] = {"relation_counts": {"supports": 1}}
+    case = EvalCase(
+        query="fixture typed relation",
+        required_any_terms=("fixture",),
+        question_type="contradiction_support",
+        required_feature="freshness",
+        expected_answerability_status="citation_missing",
+        forbid_not_evidence_support=True,
+        require_citation_ready=True,
+        provider_free_fixture=True,
+        quality_scope="boundary_wiring_not_model_quality",
+        min_hit_score=0.0,
+    )
+
+    output = workflow_tool_output(_workflow(case.query, bundle, answer))
+    result = memory_evals._evaluate_case(  # noqa: SLF001
+        case,
+        _workflow(case.query, bundle, answer),
+        hits,
+    )
+
+    assert answer.structured["answerability"]["status"] == "citation_missing"
+    assert output.trace["citation_quality"]["not_evidence_count"] == 1
+    assert result.status == "fail"
+    assert result.provider_free_fixture is True
+    assert result.quality_scope == "boundary_wiring_not_model_quality"
+    assert "required feature missing: freshness" not in result.notes
+    assert any(
+        note.startswith("not-evidence support forbidden") for note in result.notes
+    )
+
+
 def test_citation_support_negative_aligns_with_audit(tmp_path: Path) -> None:
     db_path = tmp_path / "audit.sqlite3"
     bundle = _bundle("unsupported")
