@@ -1,33 +1,15 @@
-flowchart LR
-  %% 現状のWBS / ロードマップ図: いまの完成・staging・provider_gated を4層で見る
+flowchart TB
+  %% 現状のWBS / ロードマップ図: 主経路のどこが動き、どこが保留かを見る
 
   classDef done fill:#e9f6ee,stroke:#49745a,color:#17212b
-  classDef staging fill:#fff4cf,stroke:#8a6d1d,color:#17212b
-  classDef gated fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
-  classDef next fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef next fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
 
-  subgraph source["Source Layer"]
-    source_done["原本ストア<br/>実装済み"]:::done
-    source_gate["外部source候補<br/>provider_gated"]:::gated
-  end
+  source["1. 原本を保つ<br/>X原本ストアは動く<br/>外部sourceは保留"]:::done
+  evidence["2. 根拠にする<br/>Source Bundle / Citation は土台あり<br/>media根拠はstaging"]:::next
+  search["3. 探す<br/>SQLite / FTS / 関係は動く<br/>実Provider品質は停止"]:::next
+  tool["4. AIへ返す<br/>状態コードと監査記録は動く<br/>見える化は継続強化"]:::done
+  gate["停止中<br/>Provider・実ログイン・外部取得は承認待ち"]:::gate
 
-  subgraph evidence["Evidence Layer"]
-    evidence_done["Source Bundle / Context Chunk<br/>実装済み"]:::done
-    media_stage["OCR / media evidence<br/>staging"]:::staging
-  end
-
-  subgraph retrieval["Retrieval-Eval Layer"]
-    local_done["SQLite / FTS / relation<br/>実装済み"]:::done
-    vector_stage["vector backend 比較<br/>staging"]:::staging
-    provider_gate["実Provider品質評価<br/>provider_gated"]:::gated
-  end
-
-  subgraph interface["Tool Interface Layer"]
-    tool_done["AI向けJSON契約<br/>実装済み"]:::done
-    observe_next["見える化と監査<br/>継続強化"]:::next
-  end
-
-  source_done --> evidence_done --> local_done --> tool_done
-  source_gate -. "承認後" .-> provider_gate
-  media_stage --> observe_next
-  vector_stage --> provider_gate
+  source --> evidence --> search --> tool
+  gate -. "解除後に各段階へ入る" .-> search

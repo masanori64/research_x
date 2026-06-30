@@ -1,25 +1,21 @@
-flowchart LR
-  %% 現状の証拠パイプライン図: 検索候補が回答根拠へ昇格する条件を見る
+flowchart TB
+  %% 現状の証拠パイプライン図: 候補が根拠へ昇格できるかを見る
 
-  classDef source fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef step fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef candidate fill:#fff4cf,stroke:#8a6d1d,color:#17212b
-  classDef ready fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
 
-  raw["Raw Source<br/>Xの原本状態"]:::source
-  projection["検索用の投影<br/>再生成できる候補データ"]:::candidate
-  result["Search Result<br/>近そうな候補"]:::candidate
-  restored["Source Bundle<br/>原本へ戻せた状態"]:::ready
-  chunk["Context Chunk<br/>回答に渡せる短い文脈"]:::ready
-  citation["Citation<br/>根拠位置を示せる状態"]:::ready
-  answer["Answer / Abstain<br/>根拠ありなら回答、足りなければ保留"]:::ready
+  raw["原本<br/>X投稿・ブックマーク・メディア"]:::step
+  candidate["検索候補<br/>近そうだがまだ根拠ではない"]:::candidate
+  bundle["Source Bundle<br/>元の投稿へ戻せた状態"]:::step
+  citation["Citation<br/>回答の支えを示せる状態"]:::step
+  outcome["返答<br/>引用付き回答または保留"]:::step
 
-  missing_source["停止<br/>原本へ戻れない"]:::stop
-  missing_citation["停止<br/>引用として弱い"]:::stop
-  control_only["停止<br/>図・WBS・要約は根拠にしない"]:::stop
+  stop_restore["止まる<br/>原本へ戻れない"]:::stop
+  stop_citation["止まる<br/>引用として弱い"]:::stop
+  stop_control["根拠にしない<br/>図・WBS・要約"]:::stop
 
-  raw --> projection --> result
-  result -->|"復元できる"| restored --> chunk --> citation --> answer
-  result -. "復元できない" .-> missing_source
-  chunk -. "支えが足りない" .-> missing_citation
-  projection -. "説明資料だけ" .-> control_only
+  raw --> candidate --> bundle --> citation --> outcome
+  candidate -. "復元失敗" .-> stop_restore
+  bundle -. "支え不足" .-> stop_citation
+  candidate -. "説明資料由来" .-> stop_control

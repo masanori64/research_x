@@ -26,6 +26,44 @@ after 60 seconds.
 
 If a diagram fails either test, simplify the message or split the diagram.
 
+## Fixed Mermaid Harness
+
+Use this harness every time a Mermaid diagram is created for this project.
+
+Mermaid diagrams are for humans first. They must explain how `research_x` moves
+from a request to a usable result, not merely list everything that exists in the
+repository.
+
+The main path carries the most visual and textual weight:
+
+```text
+request -> source/search -> evidence restoration -> citation decision -> answer/stop
+```
+
+Secondary capabilities such as acquisition, auth, provider candidates, WBS,
+review artifacts, observability, evals, and governance are still important, but
+they should be shown as supporting or external-design surfaces unless that
+diagram's purpose is specifically about one of them. Do not give every fact the
+same weight just because it appears in a Markdown source.
+
+Before writing Mermaid source, run a design self-review loop:
+
+- What is the one thing this diagram should teach?
+- Is the main path visible within 10 seconds?
+- Are secondary details clearly lower priority than the main path?
+- Could any node be merged, removed, or moved to another diagram?
+- Are arrows mostly one-way and non-crossing?
+- Would a first-time reader understand the labels without knowing class names,
+  file names, commands, or table names?
+- Are ordinary explanations in Japanese, while only proper nouns and established
+  terms remain in English?
+- Does the diagram avoid becoming very tall, very wide, or dense enough to
+  require zooming?
+
+Do not start writing the diagram while this loop still finds material issues.
+Stop the loop only when the remaining findings are duplicates or would require a
+different diagram purpose.
+
 ## Human Readability
 
 Use these as review questions, not as a narrow checklist:

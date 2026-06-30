@@ -1,22 +1,20 @@
-flowchart LR
-  %% 完成形の証拠パイプライン図: text/media/provider候補が同じ証拠条件を通る形を見る
+flowchart TB
+  %% 完成形の証拠パイプライン図: どの検索経路でも同じ根拠条件を通す
 
-  classDef source fill:#e7f0f8,stroke:#49657a,color:#17212b
+  classDef step fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef candidate fill:#fff4cf,stroke:#8a6d1d,color:#17212b
-  classDef ready fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
+  classDef loop fill:#f3f4f6,stroke:#6b7280,color:#17212b
 
-  raw["Raw Source<br/>投稿・ブックマーク・メディア・取得記録"]:::source
-  projections["候補信号<br/>FTS / metadata / relation / vector / OCR"]:::candidate
-  provider["Provider候補<br/>embedding / rerank / Reader"]:::gate
-  restore["復元<br/>tweet・quote・media・accountへ戻す"]:::ready
-  bundle["Source Bundle<br/>根拠束"]:::ready
-  chunk["Context Chunk<br/>回答単位"]:::ready
-  citation["Citation<br/>支えを示す"]:::ready
-  answer["Answer / Abstain<br/>評価結果つきで返す"]:::ready
-  feedback["Feedback / Eval<br/>品質改善へ戻す"]:::candidate
+  raw["原本<br/>投稿・ブックマーク・メディア・取得記録"]:::step
+  signals["候補信号<br/>text / media / relation / provider"]:::candidate
+  restore["復元<br/>tweet・quote・media・accountへ戻す"]:::step
+  citation["Citation<br/>回答の支えを明示する"]:::step
+  answer["返答<br/>回答・棄権・レビュー待ち"]:::step
+  reject["捨てる<br/>戻せない候補は根拠にしない"]:::gate
+  improve["評価とfeedback<br/>次の検索品質へ戻す"]:::loop
 
-  raw --> projections --> restore --> bundle --> chunk --> citation --> answer
-  provider -. "承認済みなら候補を追加" .-> projections
-  answer --> feedback --> projections
-  restore -. "戻せない候補は捨てる" .-> projections
+  raw --> signals --> restore --> citation --> answer
+  signals -. "復元不可" .-> reject
+  answer -. "品質を見る" .-> improve
+  improve -. "候補作りを改善" .-> signals

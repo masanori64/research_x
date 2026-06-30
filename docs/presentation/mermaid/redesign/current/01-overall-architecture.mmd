@@ -1,29 +1,29 @@
-flowchart LR
-  %% 現状の全体アーキテクチャ図: いま誰が何を担当し、どこで止まるかを見る
+flowchart TB
+  %% 現状の全体アーキテクチャ図: 質問から返答までの主経路と、周辺の外部設計面を見る
 
-  classDef human fill:#e7f0f8,stroke:#49657a,color:#17212b
-  classDef owned fill:#e9f6ee,stroke:#49745a,color:#17212b
-  classDef data fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef main fill:#e9f6ee,stroke:#49745a,color:#17212b
+  classDef input fill:#e7f0f8,stroke:#49657a,color:#17212b
   classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
-  classDef review fill:#f3f4f6,stroke:#6b7280,color:#17212b
+  classDef support fill:#f3f4f6,stroke:#6b7280,color:#17212b
 
-  person["人<br/>質問・確認・承認"]:::human
-  codex["Codex<br/>query / objective を渡す"]:::human
+  question["人 / Codex<br/>質問と目的を渡す"]:::input
 
-  subgraph rx["research_x が担当する範囲"]
-    tool["AI向け検索窓口<br/>状態・引用・停止理由を返す"]:::owned
-    local["ローカル検索基盤<br/>SQLite / FTS / 関係 / メタデータ"]:::data
-    evidence["根拠化の処理<br/>Source Bundle / Context Chunk / Citation"]:::owned
-    trace["監査用の記録<br/>route / gate / stop reason"]:::review
+  subgraph core["research_x の主経路"]
+    receive["依頼を受ける<br/>目的・制約・保存可否を確認"]:::main
+    search["手元の記憶を探す<br/>SQLite / FTS / 関係"]:::main
+    restore["原本に戻す<br/>Source Bundle を作る"]:::main
+    decide["返答を決める<br/>Citation か停止理由"]:::main
   end
 
-  source["X由来の原本<br/>投稿・ブックマーク・メディア"]:::data
-  provider["外部Provider/API<br/>現状は承認まで停止"]:::gate
-  controls["図・WBS・レビュー資料<br/>説明用で根拠ではない"]:::review
+  result["返す結果<br/>answer / needs_review / provider_gated"]:::input
 
-  person --> codex --> tool
-  source --> local --> evidence --> tool
-  tool --> trace
-  evidence --> trace
-  provider -. "provider_gated" .-> tool
-  trace -. "状況を見せる" .-> controls
+  subgraph outside["外部設計として見る範囲"]
+    raw["X原本・メディア<br/>検索の出発点"]:::support
+    provider["外部Provider/API<br/>現状は承認まで停止"]:::gate
+    review["WBS・図・監査<br/>説明と確認用"]:::support
+  end
+
+  question --> receive --> search --> restore --> decide --> result
+  raw -. "原本として支える" .-> search
+  provider -. "使わない時は停止" .-> search
+  decide -. "状態を残す" .-> review

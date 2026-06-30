@@ -6,18 +6,18 @@ REDESIGN_DIR = Path("docs/presentation/mermaid/redesign")
 
 EXPECTED = {
     "current": {
-        "01-overall-architecture.mmd": "flowchart LR",
-        "02-evidence-pipeline.mmd": "flowchart LR",
+        "01-overall-architecture.mmd": "flowchart TB",
+        "02-evidence-pipeline.mmd": "flowchart TB",
         "03-memory-query-sequence.mmd": "sequenceDiagram",
         "04-provider-quota-gate.mmd": "flowchart TB",
-        "05-roadmap.mmd": "flowchart LR",
+        "05-roadmap.mmd": "flowchart TB",
     },
     "final": {
-        "01-overall-architecture.mmd": "flowchart LR",
-        "02-evidence-pipeline.mmd": "flowchart LR",
+        "01-overall-architecture.mmd": "flowchart TB",
+        "02-evidence-pipeline.mmd": "flowchart TB",
         "03-memory-query-sequence.mmd": "sequenceDiagram",
         "04-provider-quota-gate.mmd": "flowchart TB",
-        "05-roadmap.mmd": "flowchart LR",
+        "05-roadmap.mmd": "flowchart TB",
     },
 }
 
@@ -69,8 +69,23 @@ def test_redesign_readme_records_source_basis_and_loop() -> None:
     normalized = " ".join(text.split())
 
     assert "not from the existing D2/SVG assets" in normalized
-    assert "Loop 1" in text
-    assert "Loop 2" in text
-    assert "Loop 3" in text
+    assert "Self-review loop" in text
+    assert "Decision: write the diagrams." in text
     assert "current/01-overall-architecture.mmd" in text
     assert "final/01-overall-architecture.mmd" in text
+
+
+def test_diagram_design_harness_records_fixed_mermaid_contract() -> None:
+    text = Path("docs/presentation/diagram-design-harness.md").read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
+
+    assert "Fixed Mermaid Harness" in text
+    assert (
+        "request -> source/search -> evidence restoration -> citation decision -> answer/stop"
+        in normalized
+    )
+    assert "Do not give every fact the same weight" in normalized
+    assert (
+        "Do not start writing the diagram while this loop still finds material issues"
+        in normalized
+    )

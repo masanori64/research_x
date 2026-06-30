@@ -1,26 +1,21 @@
 flowchart TB
-  %% 現状の provider / quota gate 図: no-quota freeze 中に何を許可し、何を止めるかを見る
+  %% 現状の provider / quota gate 図: 今すぐ実行できる作業と止める作業を分ける
 
-  classDef ok fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef ask fill:#fff4cf,stroke:#8a6d1d,color:#17212b
+  classDef ok fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
   classDef record fill:#f3f4f6,stroke:#6b7280,color:#17212b
 
-  request["実行したい作業"]:::ask
-  local_check{"local / fake / monkeypatch だけか"}:::ask
-  secret_check{"ログイン・secrets・ブラウザ状態を使うか"}:::ask
-  provider_check{"外部Provider/APIへ送信するか"}:::ask
+  work["これから実行する作業"]:::ask
+  provider{"外部Provider/APIへ送るか"}:::ask
+  secret{"ログイン・secretsを使うか"}:::ask
+  allowed["進めてよい<br/>ローカル検査・fake・monkeypatch"]:::ok
+  blocked["止める<br/>無料枠・trial・zero-dollar quota も不可"]:::stop
+  approval["承認後だけ<br/>API Budget Guard で最小範囲"]:::stop
+  record["記録する<br/>実行済みか承認待ちか"]:::record
 
-  allowed["許可<br/>静的検査・ローカルfixture・オフライン見積もり"]:::ok
-  secret_stop["停止<br/>資格情報とセッションの承認が必要"]:::stop
-  provider_stop["停止<br/>free-tier / trial / zero-dollar quota も不可"]:::stop
-  budget["承認後の前提<br/>API Budget Guard と最小範囲"]:::stop
-  trace["記録<br/>実行済みか承認待ちかを残す"]:::record
-
-  request --> local_check
-  local_check -->|"はい"| secret_check
-  local_check -->|"いいえ"| provider_check
-  secret_check -->|"いいえ"| allowed --> trace
-  secret_check -->|"はい"| secret_stop --> trace
-  provider_check -->|"はい"| provider_stop --> budget --> trace
-  provider_check -->|"いいえ"| allowed
+  work --> provider
+  provider -->|"はい"| blocked --> approval --> record
+  provider -->|"いいえ"| secret
+  secret -->|"はい"| blocked
+  secret -->|"いいえ"| allowed --> record

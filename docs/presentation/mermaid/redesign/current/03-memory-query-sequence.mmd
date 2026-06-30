@@ -1,34 +1,27 @@
 sequenceDiagram
-  %% 現状の1回の memory query シーケンス図: 1回の依頼がどの状態で返るかを見る
+  %% 現状の1回の memory query シーケンス図: 1回の質問が回答か停止理由になるまでを見る
 
   actor User as 人 / Codex
-  participant Tool as AI向け検索窓口
-  participant Route as 検索方針
-  participant Local as ローカル検索
-  participant Evidence as 根拠化
-  participant Gate as provider gate
-  participant Trace as 監査記録
+  participant RX as research_x
+  participant Search as ローカル検索
+  participant Evidence as 根拠確認
+  participant Trace as 実行記録
 
-  User->>Tool: 質問と目的を渡す
-  Tool->>Trace: 実行開始を記録する
-  Tool->>Route: local-onlyで探せるか決める
+  User->>RX: 質問と目的を渡す
+  RX->>Trace: 開始と制約を記録する
+  RX->>Search: まず手元の記憶を探す
+  Search-->>RX: 候補を返す
+  RX->>Evidence: 原本復元と引用可否を確認する
 
-  alt ローカルで試せる
-    Route->>Local: 候補を探す
-    Local-->>Tool: 候補を返す
-    Tool->>Evidence: 原本復元と引用確認を行う
-    alt citation-ready
-      Evidence-->>Tool: citation_ready
-      Tool->>Trace: answer と引用を保存する
-      Tool-->>User: answer
-    else 根拠不足
-      Evidence-->>Tool: source_not_restored / citation_missing
-      Tool->>Trace: 停止理由を保存する
-      Tool-->>User: needs_review
-    end
-  else 外部Provider/APIが必要
-    Route->>Gate: 承認と予算状態を確認する
-    Gate-->>Tool: provider_gated
-    Tool->>Trace: 外部保留を保存する
-    Tool-->>User: provider_gated
+  alt 引用できる
+    Evidence-->>RX: Citation ready
+    RX->>Trace: answer と引用を残す
+    RX-->>User: 引用付き回答
+  else 原本または引用が足りない
+    Evidence-->>RX: 停止理由
+    RX->>Trace: needs_review / source_not_restored を残す
+    RX-->>User: 回答せず理由を返す
+  else 外部Providerが必要
+    RX->>Trace: provider_gated を残す
+    RX-->>User: 承認待ちとして返す
   end
