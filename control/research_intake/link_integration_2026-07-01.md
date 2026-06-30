@@ -414,6 +414,21 @@ Implemented local guards for F3 / SQLJoiner references:
   the safe control-artifact HTML path, and does not import SQLJoiner code or
   create a database connection surface.
 
+Implemented Codex-foundation ownership audit for agent-control links:
+
+- `headroom-context-observability`, `loop-engineering`, `peerd`,
+  `lighthouse-agentic-browsing-audit`, `edge-addons-governance`, and
+  `x-private-source-routing` are now covered by a project-side boundary test
+  that reads the Codex foundation registry on the owner machine.
+- The audit requires those links to remain staged and disabled in
+  `C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml`, with
+  source-lock coverage in the Codex foundation vendor lock.
+- The same test checks they do not appear as `research_x` adoption candidates
+  and do not create repo-local Skill surfaces under `.agents/skills`.
+- This introduces the agent-control links as governance inputs while preserving
+  existing owners: `context-budget`, `codex-fluent`, `long-loop-executor`,
+  `planning-files`, route memory, and explicit browser/MCP/install gates.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -424,6 +439,7 @@ Verification completed for these loops:
 - `uv run pytest tests\memory\test_preview_not_evidence.py tests\tool_interface\test_preview_cannot_be_citation.py tests\test_control_artifact_structure_view.py tests\test_diagram_review_boundary.py -q`
 - `uv run pytest tests\test_research_intake.py tests\research_intake\test_source_registry_policy.py tests\research_intake\test_no_network_by_default.py tests\memory\test_evidence_invariant_fixtures.py tests\test_adoption_registry.py -q`
 - `uv run pytest tests\memory\test_source_identity_manifest.py tests\test_query_plan_visualization_boundary.py tests\test_control_artifact_structure_view.py tests\test_pytest_lane_markers.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py -q`
+- `uv run pytest tests\test_codex_foundation_boundary.py tests\test_codex_bridge.py tests\test_agents_route_memory_preflight.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

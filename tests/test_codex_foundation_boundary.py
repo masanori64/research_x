@@ -16,6 +16,8 @@ from research_x.tool_interface.codex_bridge import (
 REPO_CODEX_IMPROVEMENT = Path("src/research_x/codex_improvement")
 CODEX_FOUNDATION = Path("C:/Users/maasa/.codex/foundation")
 CODEX_IMPROVEMENT = CODEX_FOUNDATION / "codex_improvement"
+CODEX_FOUNDATION_REGISTRY = CODEX_FOUNDATION / "codex-foundation-registry.toml"
+CODEX_FOUNDATION_SOURCE_LOCK = CODEX_FOUNDATION / "vendor_sources.lock.md"
 REGISTRY = Path("control/adoption_registry.toml")
 
 
@@ -78,3 +80,64 @@ def test_research_x_bridge_stays_thin_without_codex_runtime_ownership() -> None:
             "codex_transcript": "must not cross the bridge",
         }
     ) == ["codex_to_research_x: forbidden field 'codex_transcript'"]
+
+
+def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
+    if not CODEX_FOUNDATION_REGISTRY.exists() or not CODEX_FOUNDATION_SOURCE_LOCK.exists():
+        pytest.skip("global .codex foundation registry is outside the portable repository")
+
+    registry = tomllib.loads(CODEX_FOUNDATION_REGISTRY.read_text(encoding="utf-8"))
+    source_lock = CODEX_FOUNDATION_SOURCE_LOCK.read_text(encoding="utf-8")
+    candidates = {item["name"]: item for item in registry["candidates"]}
+    expected = {
+        "headroom-context-observability": "codex_operations",
+        "loop-engineering": "codex_operations",
+        "peerd": "external_tool_governance",
+        "lighthouse-agentic-browsing-audit": "external_tool_governance",
+        "edge-addons-governance": "external_tool_governance",
+        "x-private-source-routing": "codex_operations",
+    }
+
+    for name, group in expected.items():
+        candidate = candidates[name]
+
+        assert candidate["group"] == group
+        assert candidate["adoption_shape"] == "staging"
+        assert candidate["enabled"] is False
+        assert name in source_lock
+
+    assert "No install or runtime hook" in candidates[
+        "headroom-context-observability"
+    ]["promotion_gate"]
+    assert "context-budget" in candidates[
+        "headroom-context-observability"
+    ]["first_local_step"]
+    assert "codex-fluent" in candidates[
+        "headroom-context-observability"
+    ]["first_local_step"]
+    assert "long-loop-executor" in candidates["loop-engineering"]["promotion_gate"]
+    assert "planning-files" in candidates["loop-engineering"]["promotion_gate"]
+    assert "No MCP server" in candidates["peerd"]["promotion_gate"]
+    assert "Browser automation" in candidates[
+        "lighthouse-agentic-browsing-audit"
+    ]["promotion_gate"]
+    assert "Specific extension IDs require explicit install approval" in candidates[
+        "edge-addons-governance"
+    ]["promotion_gate"]
+    assert "No login bypass" in candidates["x-private-source-routing"]["promotion_gate"]
+
+
+def test_agent_control_links_do_not_create_research_x_runtime_or_skill_surfaces() -> None:
+    candidate_names = (
+        "headroom-context-observability",
+        "loop-engineering",
+        "peerd",
+        "lighthouse-agentic-browsing-audit",
+        "edge-addons-governance",
+        "x-private-source-routing",
+    )
+    repo_text = REGISTRY.read_text(encoding="utf-8")
+
+    for name in candidate_names:
+        assert name not in repo_text
+        assert not Path(".agents/skills", name, "SKILL.md").exists()
