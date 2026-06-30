@@ -100,6 +100,8 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
     staged_expected = expected.keys() - {
         "edge-addons-governance",
         "headroom-context-observability",
+        "lighthouse-agentic-browsing-audit",
+        "peerd",
         "x-private-source-routing",
     }
 
@@ -128,10 +130,31 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
     assert "not session mutation permission" in headroom["notes"]
     assert "long-loop-executor" in candidates["loop-engineering"]["promotion_gate"]
     assert "planning-files" in candidates["loop-engineering"]["promotion_gate"]
-    assert "No MCP server" in candidates["peerd"]["promotion_gate"]
-    assert "Browser automation" in candidates[
-        "lighthouse-agentic-browsing-audit"
-    ]["promotion_gate"]
+    peerd = candidates["peerd"]
+    assert peerd["adoption_shape"] == "adopt"
+    assert peerd["enabled"] is False
+    assert peerd["active_surface"] == (
+        "C:/Users/maasa/.codex/foundation/pipeline/engine/"
+        "codex_pipeline/agent_tool_governance.py"
+    )
+    assert "No MCP server" in peerd["promotion_gate"]
+    assert "browser-session access" in peerd["promotion_gate"]
+    assert "source promotion" in peerd["promotion_gate"]
+    assert "report-only control artifact" in peerd["notes"]
+    assert "not an enabled runnable external-source surface" in peerd["notes"]
+    lighthouse = candidates["lighthouse-agentic-browsing-audit"]
+    assert lighthouse["adoption_shape"] == "adopt"
+    assert lighthouse["enabled"] is False
+    assert lighthouse["active_surface"] == (
+        "C:/Users/maasa/.codex/foundation/pipeline/engine/"
+        "codex_pipeline/agent_tool_governance.py"
+    )
+    assert "Browser automation" in lighthouse["promotion_gate"]
+    assert "MCP setup" in lighthouse["promotion_gate"]
+    assert "external site auditing" in lighthouse["promotion_gate"]
+    assert "source promotion" in lighthouse["promotion_gate"]
+    assert "no Chrome/MCP configuration change" in lighthouse["notes"]
+    assert "no browser permission" in lighthouse["notes"]
     edge_governance = candidates["edge-addons-governance"]
     assert edge_governance["adoption_shape"] == "adopt"
     assert edge_governance["enabled"] is False

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 CONTROL_ARTIFACT_KINDS = {
+    "agent_tool_governance",
     "chatgpt_consultation",
     "codex_review_capture",
     "compressed_summary",

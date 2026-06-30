@@ -69,6 +69,7 @@ def test_control_artifact_rejects_wbs_or_pdg_as_citation_source() -> None:
 @pytest.mark.parametrize(
     "artifact_kind",
     (
+        "agent_tool_governance",
         "diagram_review",
         "compressed_summary",
         "context_headroom_observability",

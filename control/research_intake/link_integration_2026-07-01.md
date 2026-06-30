@@ -60,8 +60,10 @@ Project fit:
 
 Codex foundation fit:
 
-- `headroom-context-observability`, `loop-engineering`, `peerd`, and
-  `lighthouse-agentic-browsing-audit` are staged/reference candidates.
+- `headroom-context-observability`, `peerd`, and
+  `lighthouse-agentic-browsing-audit` are adopted only as foundation-owned
+  report-only control artifacts.
+- `loop-engineering` remains a staged/reference candidate.
 - No new Skill was created. Existing owners remain `long-loop-executor`,
   `planning-files`, `context-budget`, `codex-fluent`, `route-memory`, and
   `skill-security-review`.
@@ -230,8 +232,8 @@ Codex foundation candidates staged or gated:
 | --- | --- | --- |
 | `headroom-context-observability` | adopt | foundation-owned report-only context headroom control artifact |
 | `loop-engineering` | staging | phase/residual loop comparison |
-| `peerd` | staging | MCP/local-memory governance review |
-| `lighthouse-agentic-browsing-audit` | staging | browser/MCP audit checklist |
+| `peerd` | adopt | foundation-owned report-only agent-tool governance control artifact |
+| `lighthouse-agentic-browsing-audit` | adopt | foundation-owned report-only agent-tool governance control artifact |
 | `okf-metadata-notes` | staging | optional Basic Memory metadata comparison |
 | `cognee` | provider_gated | graph memory platform with provider/API surfaces |
 | `cc-rsg` | reference_only | generated-spec review pattern |
@@ -447,9 +449,12 @@ Implemented Codex-foundation ownership audit for agent-control links:
   `lighthouse-agentic-browsing-audit`, `edge-addons-governance`, and
   `x-private-source-routing` are now covered by a project-side boundary test
   that reads the Codex foundation registry on the owner machine.
-- The audit requires those links to remain staged and disabled in
-  `C:/Users/maasa/.codex/foundation/codex-foundation-registry.toml`, with
-  source-lock coverage in the Codex foundation vendor lock.
+- The audit requires `loop-engineering` to remain staged and disabled, while
+  `headroom-context-observability`, `peerd`,
+  `lighthouse-agentic-browsing-audit`, `edge-addons-governance`, and
+  `x-private-source-routing` may only be adopted as disabled governance or
+  route-memory control surfaces in the Codex foundation registry.
+- Source-lock coverage stays in the Codex foundation vendor lock.
 - The same test checks they do not appear as `research_x` adoption candidates
   and do not create repo-local Skill surfaces under `.agents/skills`.
 - This introduces the agent-control links as governance inputs while preserving
@@ -560,6 +565,25 @@ Implemented context/headroom observability control artifact:
   it does not add a project adoption candidate, source-registry entry, Skill, or
   runtime path.
 
+Implemented agent-tool governance control artifact:
+
+- `peerd` and `lighthouse-agentic-browsing-audit` are now owned by the Codex
+  foundation pipeline at
+  `C:/Users/maasa/.codex/foundation/pipeline/engine/codex_pipeline/agent_tool_governance.py`
+  with policy input at
+  `C:/Users/maasa/.codex/foundation/pipeline/policies/agent-tool-governance-policy.yml`.
+- The artifact records tool identity, source-lock state, permission model,
+  local memory CRUD, deletion and retention, memory injection, local file
+  access, browser-session access, MCP/plugin/hook setup, source-acquisition
+  dependency, external network, and install approval as review checks.
+- The artifact is report-only and grants no install, MCP/plugin/hook setup,
+  browser-session access, local file access, local memory injection, provider
+  or quota use, hidden API use, source promotion, citation, or answer-support
+  permission.
+- `research_x` keeps only boundary assertions for this foundation-owned
+  surface; it does not add a project adoption candidate, source-registry entry,
+  Skill, runtime path, browser route, or memory layer.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -580,6 +604,7 @@ Verification completed for these loops:
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_control_artifact_structure_view.py -q`
 - `uv run pytest tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - `uv run pytest tests\test_context_headroom.py tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
+- `uv run pytest tests\test_agent_tool_governance.py tests\test_edge_addons_governance.py tests\test_context_headroom.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - `uv run pytest tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\tool_interface\test_preview_cannot_be_citation.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
 - `uv run pytest tests\test_visual_review_boundary.py tests\test_control_artifact_structure_view.py tests\test_adoption_registry.py tests\research_intake\test_source_registry_policy.py tests\skills\test_vendor_sources_lock.py tests\test_presentation_stage1.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
