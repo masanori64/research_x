@@ -22,6 +22,11 @@ NON_EVIDENCE_ARTIFACT_KINDS = (
     "chatgpt_consultation",
     "codex_review_capture",
     "gpt_pro_plan",
+    "playwright_visual_snapshot",
+    "ppt_master_deck",
+    "reverse_spec",
+    "slidev_deck",
+    "slidev_rendered_view",
 )
 
 

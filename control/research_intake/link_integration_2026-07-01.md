@@ -369,6 +369,17 @@ Implemented embedding stabilization / vector projection boundary:
 - `local_hash` remains diagnostic-only and is still not production semantic
   evidence or answer support.
 
+Implemented generated artifact / reverse-spec boundary:
+
+- `cc_rsg_reverse_spec_review` is now implemented as a control-artifact
+  boundary: `reverse_spec` and `generated_spec` cannot become evidence,
+  citations, or answer support.
+- Slidev/Playwright/ppt-master artifact kinds are explicitly blocked as
+  non-evidence: `slidev_deck`, `slidev_rendered_view`,
+  `playwright_visual_snapshot`, and `ppt_master_deck`.
+- This does not adopt Slidev, Playwright MCP, ppt-master, or any model-based
+  slide/spec generator. Local render and visual-overlap QA remains staged.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -376,6 +387,7 @@ Verification completed for these loops:
 - `uv run pytest tests\test_memory.py::test_memory_eval_records_route_level_fields tests\memory\test_operational_trace_persistence.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\memory\test_retrieval_quality_eval.py -q`
 - `uv run pytest tests\tool_interface -q`
 - `uv run pytest tests\vector tests\test_memory.py::test_memory_vector_projection_backend_searches_existing_embeddings tests\test_memory.py::test_memory_vector_backend_benchmark_gates_candidate_dependency tests\test_memory.py::test_memory_vector_backend_benchmark_blocks_non_local_provider tests\test_memory.py::test_memory_vector_backend_benchmark_cli_reports_candidate_gate tests\test_memory.py::test_memory_vector_projection_coverage_detects_stale_source_hash tests\test_memory.py::test_memory_vector_projection_coverage_respects_doc_type_scope tests\test_memory.py::test_memory_portfolio_strict_blocks_diagnostic_provider tests\memory\test_memory_audit_warning_taxonomy.py::test_audit_taxonomy_treats_local_hash_as_expected_provider_gate -q`
+- `uv run pytest tests\memory\test_preview_not_evidence.py tests\tool_interface\test_preview_cannot_be_citation.py tests\test_control_artifact_structure_view.py tests\test_diagram_review_boundary.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

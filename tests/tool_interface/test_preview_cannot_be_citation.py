@@ -27,6 +27,11 @@ CREATED_AT = "2026-06-27T00:00:00Z"
         "wbs_rendered_view",
         "chatgpt_consultation",
         "gpt_pro_plan",
+        "playwright_visual_snapshot",
+        "ppt_master_deck",
+        "reverse_spec",
+        "slidev_deck",
+        "slidev_rendered_view",
     ),
 )
 def test_not_evidence_artifact_workflow_stays_needs_review(

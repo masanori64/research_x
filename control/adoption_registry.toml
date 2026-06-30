@@ -589,17 +589,17 @@ notes = "Vendor-neutral governance summary is implemented; product services are 
 name = "cc_rsg_reverse_spec_review"
 category = "control_artifact"
 owner_surface = "research_x_tool"
-adoption_shape = "staging"
-status = "staged"
+adoption_shape = "adopt"
+status = "implemented"
 source_ref = "S50"
 source_url = "https://github.com/daishir0/cc-rsg"
-active_artifact = "docs/presentation/diagram-systems.md"
-first_local_step = "Adapt the phase, reference, verification, and question-bank pattern into a local review checklist for generated specs."
+active_artifact = "src/research_x/control_artifacts/model.py"
+first_local_step = "Block reverse_spec and generated_spec artifacts from evidence, citation, and answer support."
 promotion_gate = "Generated specs stay review artifacts and must cite code/source references before influencing implementation decisions."
-stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until a local review fixture proves generated specs cannot become citations."
+stop_condition = "Stop if generated specs affect answer status, citation readiness, default routing, dependency/runtime setup, or evidence promotion."
 provider_or_quota = false
-enabled = false
-notes = "Reverse-spec workflow reference; no Claude Skill or external model execution is imported."
+enabled = true
+notes = "Generated-spec non-evidence boundary is implemented; no Claude Skill or external model execution is imported."
 
 [[candidates]]
 name = "slidev_visual_review_lane"
@@ -615,7 +615,7 @@ promotion_gate = "A local render plus visual-overlap check improves review outpu
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until dependency review and local render verification pass."
 provider_or_quota = false
 enabled = false
-notes = "Presentation-review candidate; generated decks and screenshots remain non-evidence artifacts."
+notes = "Generated deck/snapshot artifact kinds are blocked as non-evidence; local render and visual-overlap QA remains staged."
 
 [[candidates]]
 name = "f3_self_describing_artifact_reference"

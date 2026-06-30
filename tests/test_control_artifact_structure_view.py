@@ -76,6 +76,11 @@ def test_control_artifact_rejects_wbs_or_pdg_as_citation_source() -> None:
         "wbs_rendered_view",
         "chatgpt_consultation",
         "gpt_pro_plan",
+        "playwright_visual_snapshot",
+        "ppt_master_deck",
+        "reverse_spec",
+        "slidev_deck",
+        "slidev_rendered_view",
     ),
 )
 def test_control_artifact_rejects_phase8_artifact_kinds_as_citation_sources(
