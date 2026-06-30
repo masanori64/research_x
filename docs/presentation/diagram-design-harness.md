@@ -3,6 +3,10 @@
 This harness is for diagrams made in the `research_x` presentation lane. It is a
 human-review contract, not a claim source and not answer evidence.
 
+Choose the creation system from `docs/presentation/diagram-systems.md` before
+drawing. Do not create custom diagram renderers to bypass an official/upstream
+tool's intended use.
+
 ## Goal
 
 Create diagrams for first-time human readers.

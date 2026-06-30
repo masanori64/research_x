@@ -168,7 +168,6 @@ PATH_MARKERS: dict[str, tuple[str, ...]] = {
     "tests/test_test_diagnostics.py": ("contract", "unit"),
     "tests/test_twikit_adapter.py": ("browser", "integration"),
     "tests/test_twscrape_raw_adapter.py": ("browser", "integration"),
-    "tests/test_uml_assets.py": ("contract", "control_artifact"),
     "tests/test_wbs_viewer_canary.py": ("control_artifact", "wbs_control"),
     "tests/test_x_store.py": ("integration",),
     "tests/tool_interface/test_codex_bridge_boundary.py": (

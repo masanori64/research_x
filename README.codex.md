@@ -13,8 +13,7 @@ Read in this order:
 3. `C:/Users/maasa/.codex/route_memory/route-memory.json`: only when choosing a recurring
    browser/upload/download/tool-bridge/provider/search route or avoiding a known
    failure class.
-4. `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`: authoritative pointer/hash/restore
-   index for offloaded Codex work context.
+4. `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`: authoritative pointer/hash/restore index for offloaded Codex work context.
 5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when current
    Source/Evidence/Retrieval-Eval/Tool Interface layer state, gates, stop
    conditions, or next actions are needed.
@@ -118,8 +117,7 @@ static provider/network scans. Marker lanes do not make provider-free fixtures r
 - Historical mixed WBS archive:
   `C:/Users/maasa/.codex/foundation/work_state/research-x-pre-layer-wbs-archive-20260625.json`
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html`
-- Presentation generation flow:
-  `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
+- Presentation/diagram routing (D2 + Marp): `docs/presentation/diagram-systems.md`, `docs/presentation/diagram-design-harness.md`, `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
 Use research_x WBS only for current 4-layer runtime work state; viewer-only
@@ -129,8 +127,9 @@ foundation tasks out of it. Use adoption/source-lock files for candidate
 decisions, the Codex foundation work-state archive for externalized Skill
 lifecycle/self-improvement/route-memory leaves, Route Memory for recurring
 operation-route success/failure selection, and Pointer Map for path/hash/size
-restore hints. D2 + Marp remains the presentation/deck boundary. Keep Markdown for
-durable reasons, invariants, stop conditions, and pointers.
+restore hints. Diagram-system routing lives in `docs/presentation/diagram-systems.md`;
+there is no custom UML/SVG generator lane. Keep Markdown for durable reasons,
+invariants, stop conditions, and pointers.
 
 ## Repo Skills
 

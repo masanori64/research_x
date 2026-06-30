@@ -6,6 +6,7 @@ from pathlib import Path
 PACKAGE_JSON = Path("package.json")
 PACKAGE_LOCK = Path("package-lock.json")
 PRESENTATION_CONFIG = Path("docs/presentation/presentation.config.yaml")
+DIAGRAM_SYSTEMS = Path("docs/presentation/diagram-systems.md")
 DIAGRAM_DESIGN_HARNESS = Path("docs/presentation/diagram-design-harness.md")
 PREFLIGHT = Path("scripts/presentation/preflight.mjs")
 RENDER_D2 = Path("scripts/presentation/render-d2.mjs")
@@ -47,7 +48,6 @@ def test_stage1_scripts_keep_provider_plugin_and_extra_tooling_out() -> None:
 
     assert "PptxGenJS" not in combined
     assert "Structurizr" not in combined
-    assert "PlantUML" not in combined
     assert "Repomix" not in combined
     assert "providerApi: false" in combined
     assert "plugin: false" in combined
@@ -61,12 +61,12 @@ def test_presentation_config_names_d2_marp_and_stage2_sources() -> None:
     config = PRESENTATION_CONFIG.read_text(encoding="utf-8")
 
     assert "diagram_source: d2" in config
+    assert "diagram_systems: docs/presentation/diagram-systems.md" in config
     assert "diagram_design_harness: docs/presentation/diagram-design-harness.md" in config
     assert "slide_renderer: marp" in config
     assert "facts_source: docs/presentation/project-facts.json" in config
     assert "slides_source: docs/presentation/slides.md" in config
     assert "PptxGenJS" not in config
-    assert "PlantUML" not in config
     assert "Structurizr" not in config
 
 
@@ -87,3 +87,26 @@ def test_diagram_design_harness_preserves_human_readability_intent() -> None:
 
     assert "These are examples of what to avoid. They are not the whole rule." in text
     assert "diagramDesignHarness" in PREFLIGHT.read_text(encoding="utf-8")
+    assert "diagramSystems" in PREFLIGHT.read_text(encoding="utf-8")
+
+
+def test_diagram_systems_route_by_creation_system_and_retire_custom_uml() -> None:
+    text = DIAGRAM_SYSTEMS.read_text(encoding="utf-8")
+
+    for phrase in (
+        "diagram creation-system routing",
+        "D2",
+        "Marp",
+        "Mermaid",
+        "WBS Viewer",
+        "The previous custom UML lane was removed",
+        "Do not recreate a custom SVG generator",
+        "Strict UML is not a current repository lane",
+    ):
+        assert phrase in text
+
+    assert "scripts/uml/build-research-x-uml.mjs" in text
+    assert "docs/uml/" in text
+    assert not Path("scripts/uml").exists()
+    assert not Path("docs/uml").exists()
+    assert not Path("tests/test_uml_assets.py").exists()
