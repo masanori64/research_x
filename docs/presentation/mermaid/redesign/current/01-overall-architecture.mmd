@@ -1,34 +1,37 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 flowchart TB
-  %% 現状の全体アーキテクチャ図: 質問から返答までの主経路を読む
+  %% 現状の全体アーキテクチャ図: 広い候補生成と狭い回答権限を分けて見る
 
   classDef main fill:#ffffff,stroke:#111111,color:#111111
-  classDef note fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
   classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
+  classDef side fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
 
-  start["人 / Codex<br/>質問と目的"]:::main
-  receive["依頼を受ける<br/>制約を確認"]:::main
-  lens["検索方針<br/>SearchLens"]:::main
-  routes["候補を探す<br/>SQLite / FTS / 関係"]:::main
-  source["原本へ戻す<br/>Source Bundle"]:::main
-  judge["返答を決める<br/>Citation / 停止理由"]:::main
-  result["AIへ返す<br/>status / citations / trace"]:::main
-
-  local["X原本・メディア<br/>検索の出発点"]:::note
-  provider["外部Provider/API<br/>承認まで停止"]:::gate
-  review["図・WBS・監査<br/>説明用"]:::note
-
-  subgraph row1["依頼から検索方針まで"]
+  subgraph row1["依頼から候補生成まで"]
     direction LR
-    start --> receive --> lens
+    request["人 / Codex<br/>query・objective<br/>context budget"]:::main
+    bridge["Narrow Codex Bridge<br/>入力を狭く受ける"]:::main
+    policy["SearchLens / ObjectiveRoutePolicy<br/>関心・重み・候補ルート"]:::main
+    routes["Route Portfolio [wide]<br/>local: exact / SQLite FTS / BM25 / metadata / relation<br/>projection: memory_documents / retrieval text / local topic hints<br/>provider-backed: semantic / OCR / Reader / rerank / LLM-context / managed RAG"]:::gate
+    request --> bridge --> policy --> routes
   end
 
   subgraph row2["候補から返答まで"]
     direction LR
-    routes --> source --> judge --> result
+    candidates["Search Results / Candidates<br/>score・why_relevant・skip reason<br/>evidence_level = candidate"]:::main
+    bundle["Source Bundle<br/>元投稿・media・authorへ戻す"]:::main
+    chunk["Context Chunk<br/>回答用に切る"]:::main
+    cite["Citation<br/>claimに結びつける"]:::main
+    authority["AnswerAuthorityGatekeeper<br/>claim supportを確認"]:::main
+    answer["Answer Boundary<br/>answer / needs_review / source_not_restored<br/>citation_missing / hypothesis_only / provider_gated"]:::main
+    candidates --> bundle --> chunk --> cite --> authority --> answer
   end
 
-  lens --> routes
-  local -. "参照" .-> routes
-  provider -. "停止状態も記録" .-> routes
-  result -. "状態を残す" .-> review
+  trace["Workflow Trace Sidecar<br/>route・guard・failure・stop reason"]:::side
+  source["Source Layer<br/>tweets・bookmarks・media・raw_payloads"]:::side
+  guard["ProviderApiBudgetGuard<br/>現状は承認まで停止"]:::gate
+
+  routes --> candidates
+  source -. "原本として復元に使う" .-> bundle
+  routes -. "provider-backedは実行前に通す" .-> guard
+  guard -. "provider_gatedも記録" .-> candidates
+  answer -. "実行状態を残す" .-> trace

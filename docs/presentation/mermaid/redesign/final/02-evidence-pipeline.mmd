@@ -1,22 +1,37 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart LR
-  %% 完成形の証拠パイプライン図: どの検索経路でも同じ根拠条件を通す
+stateDiagram-v2
+  %% 完成形の証拠パイプライン図: Mermaid UML stateDiagramでevidence levelの昇格を見る
+  direction LR
 
-  classDef main fill:#ffffff,stroke:#111111,color:#111111
-  classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef note fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
+  state "raw source<br/>posts・media・provider run artifacts" as RawSource
+  state "searchable projection<br/>memory_documents・retrieval text・OCR/VLM text<br/>証拠ではなく再生成可能" as Projection
+  state "candidate signal<br/>local / semantic / media / provider<br/>answer authorityなし" as Candidate
+  state "source bundle<br/>tweet・quote・media・author・URL・timestamp・hash" as SourceBundle
+  state "context chunk<br/>bounded answer input" as ContextChunk
+  state "citation annotation<br/>source ID と chunk を固定" as Citation
+  state "claim support<br/>specific answer claimを支える" as ClaimSupport
+  state "answer_support<br/>回答に使える" as AnswerSupport
+  state "Answer Boundary<br/>answer / abstain / review" as AnswerBoundary
+  state "source_not_restored" as SourceNotRestored
+  state "citation_missing" as CitationMissing
+  state "hypothesis_only / needs_review" as HypothesisOnly
+  state "provider_gated" as ProviderGated
+  state "eval / audit / feedback<br/>restoration rate・citation coverage・route gaps" as Feedback
 
-  raw["原本<br/>投稿・メディア・取得記録"]:::main
-  signal["候補信号<br/>local / media / provider<br/>まだ根拠ではない"]:::main
-  evidence["根拠に昇格<br/>Source Bundle<br/>Context Chunk<br/>Citation"]:::main
-  support["回答権限<br/>Claim Supportを確認"]:::main
-  boundary["Answer Boundary<br/>回答・棄権・仮説"]:::main
+  [*] --> RawSource
+  RawSource --> Projection
+  Projection --> Candidate
 
-  reject["捨てる<br/>戻せない候補は根拠にしない"]:::stop
-  feedback["評価とfeedback<br/>次の候補作りを改善"]:::note
+  Candidate --> SourceBundle: restore_pathあり
+  SourceBundle --> ContextChunk
+  ContextChunk --> Citation
+  Citation --> ClaimSupport
+  ClaimSupport --> AnswerSupport
+  AnswerSupport --> AnswerBoundary
 
-  raw --> signal --> evidence --> support --> boundary
-  signal -. "復元不可" .-> reject
-  support -. "支え不足" .-> reject
-  evidence -. "品質を見る" .-> feedback
-  feedback -. "改善" .-> signal
+  Candidate --> SourceNotRestored: restore不可
+  ContextChunk --> CitationMissing: annotation不可
+  Citation --> HypothesisOnly: claim支え不足
+  Candidate --> ProviderGated: guard停止
+  AnswerBoundary --> Feedback
+  Feedback --> Candidate: 改善

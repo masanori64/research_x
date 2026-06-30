@@ -4,16 +4,30 @@ sequenceDiagram
 
   actor User as 人 / Codex
   participant RX as research_x
-  participant Route as 候補生成
-  participant Gate as 回答権限
+  participant Policy as SearchLens / ObjectiveRoutePolicy
+  participant Routes as Route Portfolio
+  participant Guard as ProviderApiBudgetGuard
+  participant Evidence as Source Bundle / Context / Citation
+  participant Authority as AnswerAuthorityGatekeeper
+  participant Boundary as Answer Boundary
+  participant Trace as Workflow Trace
 
-  User->>RX: 質問と目的を渡す
-  RX->>Route: SearchLensで候補ルートを選ぶ
-  opt 外部Providerが必要
-    Route-->>RX: ProviderApiBudgetGuardで停止または候補
+  User->>RX: 質問・目的・context budget
+  RX->>Trace: sidecar trace を開始
+  RX->>Policy: 関心・制約・保存可否を整理
+  Policy->>Routes: local / media / provider候補ルートを選ぶ
+
+  par local lanes
+    Routes-->>Routes: exact / SQLite FTS / BM25 / metadata / relation
+  and provider-backed lanes
+    Routes->>Guard: semantic / OCR / Reader / rerank / LLM-context を確認
+    Guard-->>Trace: provider_gated または実行可を記録
   end
-  Route-->>RX: 候補を返す
-  RX->>Gate: Source Bundle / Citation / 主張支えを確認する
-  Gate-->>RX: 回答可否と停止理由
-  Note over RX: route / guard / evidence を記録
-  RX-->>User: status と citations を返す
+
+  Routes-->>RX: candidates と skip reason
+  RX->>Evidence: Source Bundle / Context Chunk / Citationへ復元
+  Evidence->>Authority: claim support を確認
+  Authority->>Boundary: answer support または停止理由
+  Boundary-->>RX: answer / needs_review / source_not_restored / citation_missing / hypothesis_only / provider_gated
+  RX->>Trace: route・guard・evidence・stop reasonを保存
+  RX-->>User: status・citations・traceを返す

@@ -8,16 +8,16 @@ REDESIGN_DIR = Path("docs/presentation/mermaid/redesign")
 EXPECTED = {
     "current": {
         "01-overall-architecture.mmd": "flowchart",
-        "02-evidence-pipeline.mmd": "flowchart",
+        "02-evidence-pipeline.mmd": "stateDiagram-v2",
         "03-memory-query-sequence.mmd": "sequenceDiagram",
-        "04-provider-quota-gate.mmd": "flowchart",
+        "04-provider-quota-gate.mmd": "stateDiagram-v2",
         "05-roadmap.mmd": "flowchart",
     },
     "final": {
         "01-overall-architecture.mmd": "flowchart",
-        "02-evidence-pipeline.mmd": "flowchart",
+        "02-evidence-pipeline.mmd": "stateDiagram-v2",
         "03-memory-query-sequence.mmd": "sequenceDiagram",
-        "04-provider-quota-gate.mmd": "flowchart",
+        "04-provider-quota-gate.mmd": "stateDiagram-v2",
         "05-roadmap.mmd": "flowchart",
     },
 }
@@ -55,7 +55,7 @@ def test_redesign_mermaid_diagrams_are_not_bound_to_slides_or_d2_assets() -> Non
             if first_line == "flowchart":
                 assert "UML" not in text
             else:
-                assert "Mermaid UML sequenceDiagram" in text
+                assert "Mermaid UML" in text
             assert "direction:" not in text
             assert "shape:" not in text
             assert "style." not in text
@@ -79,6 +79,38 @@ def test_redesign_current_and_final_sets_cover_same_five_topics() -> None:
         )
         for marker in TOPIC_MARKERS:
             assert marker in combined, f"{set_name} missing {marker}"
+
+
+def test_redesign_diagrams_keep_project_specific_depth() -> None:
+    combined = "\n".join(
+        path.read_text(encoding="utf-8")
+        for set_name in EXPECTED
+        for path in (REDESIGN_DIR / set_name).glob("*.mmd")
+    )
+
+    for marker in (
+        "Route Portfolio [wide]",
+        "SQLite FTS / BM25",
+        "metadata",
+        "relation",
+        "semantic",
+        "Corpus2Skill",
+        "OCR",
+        "Reader",
+        "LLM-context",
+        "managed RAG",
+        "ProviderApiBudgetGuard",
+        "provider_gated",
+        "Source Bundle",
+        "Context Chunk",
+        "Citation",
+        "AnswerAuthorityGatekeeper",
+        "Answer Boundary",
+        "Workflow Trace",
+        "restoration rate",
+        "citation coverage",
+    ):
+        assert marker in combined
 
 
 def test_redesign_readme_records_source_basis_and_loop() -> None:

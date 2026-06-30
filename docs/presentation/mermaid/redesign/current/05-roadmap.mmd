@@ -1,26 +1,30 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart TB
-  %% 現状のWBS / ロードマップ図: 現在どこが動き、どこが停止中かを見る
+flowchart LR
+  %% 現状のWBS / ロードマップ図: 動いている土台と、次に本物化する層を見る
 
   classDef main fill:#ffffff,stroke:#111111,color:#111111
   classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
+  classDef side fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
 
-  source["1. 原本を保つ<br/>X原本ストア"]:::main
-  evidence["2. 根拠にする<br/>復元・引用を強化"]:::main
-  search["3. 探す<br/>ローカル候補を固める"]:::main
-  answer["4. 返す<br/>status と監査記録"]:::main
-  provider["停止中<br/>Provider / 実ログイン"]:::gate
-
-  subgraph row1["今ある土台"]
-    direction LR
-    source --> evidence
+  subgraph base["今ある土台"]
+    direction TB
+    source["1. 原本を保つ<br/>X取得済みDB<br/>tweets / bookmarks / media"]:::main
+    projection["2. 検索用に写す<br/>memory_documents<br/>retrieval text / labels"]:::main
+    local["3. ローカルで探す<br/>SQLite FTS / BM25<br/>metadata / relation"]:::main
   end
 
-  subgraph row2["次に固める主経路"]
-    direction LR
-    search --> answer
+  subgraph next["次に固める主経路"]
+    direction TB
+    evidence["4. 根拠へ戻す<br/>Source Bundle<br/>Context Chunk<br/>Citation"]:::main
+    authority["5. 回答権限を見る<br/>AnswerAuthorityGatekeeper<br/>claim support"]:::main
+    tool["6. AIへ返す<br/>status / citations / trace"]:::main
   end
 
-  source --> search
-  evidence --> search
-  provider -. "承認後にだけ入れる" .-> search
+  provider["停止中<br/>ProviderApiBudgetGuard<br/>semantic / OCR / Reader / rerankは保留"]:::gate
+  audit["継続強化<br/>eval / audit / restoration rate<br/>provider-gated lanes"]:::side
+
+  source --> projection --> local
+  evidence --> authority --> tool
+  base --> next
+  provider -. "承認後に候補ルートへ追加" .-> local
+  tool -. "失敗理由を戻す" .-> audit

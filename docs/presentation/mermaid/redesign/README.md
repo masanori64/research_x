@@ -91,6 +91,16 @@ Self-review loop:
   Decision: final-state diagrams show a matured version of the same path:
   choose routes, branch guarded provider lanes, restore, chunk, cite, check
   answer authority, cross Answer Boundary, observe, and improve.
+- Finding: over-compressing Route Portfolio into a generic "候補を探す" box
+  removes the project-specific architecture.
+  Decision: keep concrete route families visible: SQLite FTS / BM25, metadata,
+  relation expansion, semantic candidates, Corpus2Skill, OCR, Reader,
+  LLM-context, managed RAG, and provider_gated skips.
+- Finding: provider guard and evidence promotion are state changes, not just
+  decorative boxes.
+  Decision: use Mermaid UML-capable `stateDiagram-v2` for the evidence pipeline
+  and provider/quota guard diagrams, and `sequenceDiagram` for memory query
+  interactions.
 - Finding: no remaining issue changes the diagram purpose, node set, or reading
   order without creating a different diagram.
   Decision: write the diagrams.

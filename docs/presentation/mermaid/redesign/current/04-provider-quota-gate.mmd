@@ -1,18 +1,23 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart LR
-  %% 現状の provider / quota guard 図: provider-backed候補ルートだけを実行前に止める
+stateDiagram-v2
+  %% 現状の provider / quota guard 図: Mermaid UML stateDiagramで停止状態を見る
+  direction LR
 
-  classDef main fill:#ffffff,stroke:#111111,color:#111111
-  classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
+  state "候補ルート" as CandidateRoute
+  state "使ってよい<br/>provider送信なし" as LocalAllowed
+  state "候補として返す<br/>まだ根拠ではない" as CandidateOnly
+  state "provider-backed lane<br/>semantic / OCR / Reader / rerank<br/>external search / LLM-context" as ProviderNeeded
+  state "provider_gated<br/>無料枠・trial・zero-dollar quotaも停止" as Frozen
+  state "traceに残す<br/>route・skip reason・guard state" as Trace
+  state "後続で昇格確認<br/>Source Bundle / Context Chunk / Citation<br/>AnswerAuthorityGatekeeper" as EvidenceGate
 
-  route["候補ルート"]:::main
-  need{"provider / network / quota<br/>を使うか"}:::main
-  local["使わない<br/>local / fake / static"]:::main
-  blocked["provider_gated<br/>無料枠も停止"]:::stop
-  candidate["候補として返す<br/>まだ根拠ではない"]:::main
-  promote["後続で確認<br/>Source Bundle / Citation / 回答権限"]:::main
+  [*] --> CandidateRoute
+  CandidateRoute --> LocalAllowed: local / fake / static / monkeypatch
+  LocalAllowed --> CandidateOnly
 
-  route --> need
-  need -->|"いいえ"| local --> candidate
-  need -->|"はい"| blocked --> candidate
-  candidate --> promote
+  CandidateRoute --> ProviderNeeded: provider / network / quota が必要
+  ProviderNeeded --> Frozen
+  Frozen --> Trace
+  Trace --> CandidateOnly
+
+  CandidateOnly --> EvidenceGate

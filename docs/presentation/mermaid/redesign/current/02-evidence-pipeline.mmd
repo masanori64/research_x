@@ -1,22 +1,32 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart LR
-  %% 現状の証拠パイプライン図: 候補と根拠を混ぜない
+stateDiagram-v2
+  %% 現状の証拠パイプライン図: Mermaid UML stateDiagramで候補が根拠へ昇格する条件を見る
+  direction LR
 
-  classDef main fill:#ffffff,stroke:#111111,color:#111111
-  classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef note fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
+  state "原本<br/>X投稿・ブックマーク・メディア" as RawSource
+  state "検索用ビュー<br/>memory_documents / OCR text / labels<br/>再生成可能で証拠ではない" as SearchProjection
+  state "検索候補<br/>SQLite FTS / BM25 / metadata / relation<br/>まだ根拠ではない" as Candidate
+  state "Source Bundle<br/>tweet・quote・media・authorへ戻る" as SourceBundle
+  state "Context Chunk<br/>回答に入る範囲へ切る" as ContextChunk
+  state "Citation<br/>source ID と claim を結ぶ" as Citation
+  state "Claim Support<br/>主張ごとの支えを見る" as ClaimSupport
+  state "Answer Boundary<br/>answer / review / hypothesis_only" as AnswerBoundary
+  state "source_not_restored<br/>候補止まり" as SourceNotRestored
+  state "citation_missing<br/>根拠にしない" as CitationMissing
+  state "needs_review<br/>回答支えにしない" as NeedsReview
+  state "control artifact<br/>説明用で根拠ではない" as ControlArtifact
 
-  raw["原本<br/>X投稿・メディア"]:::main
-  hit["検索候補<br/>SQLite / FTS / 関係<br/>まだ根拠ではない"]:::main
-  evidence["根拠に昇格<br/>Source Bundle<br/>Context Chunk<br/>Citation"]:::main
-  claim["回答権限<br/>主張支えを確認"]:::main
-  boundary["Answer Boundary<br/>answer / review / hypothesis"]:::main
+  [*] --> RawSource
+  RawSource --> SearchProjection
+  SearchProjection --> Candidate
 
-  restore_stop["止める<br/>原本へ戻れない"]:::stop
-  weak_stop["止める<br/>引用または主張支えが弱い"]:::stop
-  control_note["図・WBS・要約<br/>根拠にしない"]:::note
+  Candidate --> SourceBundle: 復元できた
+  SourceBundle --> ContextChunk
+  ContextChunk --> Citation
+  Citation --> ClaimSupport
+  ClaimSupport --> AnswerBoundary
 
-  raw --> hit --> evidence --> claim --> boundary
-  hit -. "復元失敗" .-> restore_stop
-  evidence -. "説明資料由来" .-> control_note
-  claim -. "支え不足" .-> weak_stop
+  Candidate --> SourceNotRestored: 復元できない
+  ContextChunk --> CitationMissing: citation不可
+  ClaimSupport --> NeedsReview: 主張支え不足
+  Candidate --> ControlArtifact: 図・WBS・要約由来

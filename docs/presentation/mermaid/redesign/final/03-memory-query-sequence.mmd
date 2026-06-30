@@ -1,23 +1,41 @@
 %%{init: {"theme":"base","sequence":{"mirrorActors":false},"themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 sequenceDiagram
-  %% 完成形の1回の memory query シーケンス図: Mermaid UML sequenceDiagramで相互作用を見る
+  %% 完成形の1回の memory query シーケンス図: Mermaid UML sequenceDiagramで引用付き回答または棄権までを見る
 
   actor User as 人 / AI agent
   participant RX as research_x API
-  participant Route as 候補生成
-  participant Gate as 回答権限
+  participant Lens as SearchLens / RetrievalPolicy
+  participant Route as ObjectiveRoutePolicy / Route Portfolio
+  participant Guard as ProviderApiBudgetGuard
+  participant Evidence as Source Bundle / Context / Citation
+  participant Authority as AnswerAuthorityGatekeeper
+  participant Boundary as Answer Boundary
+  participant Trace as Workflow Trace / Eval
 
-  User->>RX: query / objective / context budget
-  RX->>Route: SearchLensで候補経路を選ぶ
-  opt provider-backed route
-    Route-->>RX: ProviderApiBudgetGuardで候補または provider_gated
+  User->>RX: query / objective / context budget / reviewed source candidate
+  RX->>Trace: sidecar trace を開始
+  RX->>Lens: corpus scope・source weights・inference stance
+  Lens->>Route: 目的に合う候補経路を選ぶ
+
+  par local candidate routes
+    Route-->>Route: exact / SQLite FTS / BM25 / metadata / relation
+  and expansion routes
+    Route-->>Route: semantic vectors / Corpus2Skill / graph-topic hints
+  and provider-backed routes
+    Route->>Guard: OCR / Reader / rerank / external search / managed RAG
+    Guard-->>Route: candidate or provider_gated skip
   end
-  Route-->>RX: candidates
-  RX->>Gate: Source Bundle / Context / Citation / Claim Support
-  Gate-->>RX: answer support または停止理由
-  Note over RX: 品質と停止理由を保存する
-  alt 回答できる
+
+  Route->>Evidence: candidates + restore_path + skip reason
+  Evidence->>Evidence: source bundle -> context chunk -> citation
+  Evidence->>Authority: specific claim supportを確認
+  Authority->>Boundary: answer_support または停止理由
+  Boundary->>Trace: answerability・citation coverage・route gapsを保存
+
+  alt citation-ready supportあり
+    Boundary-->>RX: answer with citations
     RX-->>User: 引用付き回答
-  else 回答すべきでない
-    RX-->>User: 棄権・レビュー・仮説止まり
+  else support不足
+    Boundary-->>RX: abstain / needs_review / source_not_restored / citation_missing / hypothesis_only / provider_gated
+    RX-->>User: 理由つきで返す
   end
