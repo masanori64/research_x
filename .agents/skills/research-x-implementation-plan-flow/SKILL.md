@@ -40,7 +40,7 @@ automatically.
 
 - Candidate names, source refs, current status, and intended value.
 - Current anchors: code paths, docs, tests, WBS leaves, adoption registry,
-  source lock, and provider gates.
+  source lock, and `ProviderApiBudgetGuard` / provider guard state.
 - Constraints such as no-quota freeze, no install, no external action, no
   automatic Skill edits, and user priority.
 

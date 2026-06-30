@@ -10,20 +10,21 @@ flowchart TB
 
   subgraph core["research_x の主経路"]
     receive["依頼を受ける<br/>目的・制約・保存可否を確認"]:::main
-    search["手元の記憶を探す<br/>SQLite / FTS / 関係"]:::main
-    restore["原本に戻す<br/>Source Bundle を作る"]:::main
-    decide["返答を決める<br/>Citation か停止理由"]:::main
+    policy["検索方針を決める<br/>SearchLens / ObjectiveRoutePolicy"]:::main
+    search["候補を探す<br/>local route portfolio"]:::main
+    restore["根拠へ戻す<br/>Source Bundle / Context Chunk / Citation"]:::main
+    decide["回答権限を見る<br/>AnswerAuthorityGatekeeper"]:::main
   end
 
-  result["返す結果<br/>answer / needs_review / provider_gated"]:::input
+  result["返す結果<br/>Answer Boundary status"]:::input
 
   subgraph outside["外部設計として見る範囲"]
     raw["X原本・メディア<br/>検索の出発点"]:::support
-    provider["外部Provider/API<br/>現状は承認まで停止"]:::gate
+    provider["外部Provider/API<br/>ProviderApiBudgetGuard で停止"]:::gate
     review["WBS・図・監査<br/>説明と確認用"]:::support
   end
 
-  question --> receive --> search --> restore --> decide --> result
+  question --> receive --> policy --> search --> restore --> decide --> result
   raw -. "原本として支える" .-> search
-  provider -. "使わない時は停止" .-> search
+  provider -. "provider-backed候補だけ" .-> search
   decide -. "状態を残す" .-> review

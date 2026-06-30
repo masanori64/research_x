@@ -6,10 +6,10 @@ flowchart TB
   classDef gate fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
 
   source["1. 原本を保つ<br/>X原本ストアは動く<br/>外部sourceは保留"]:::done
-  evidence["2. 根拠にする<br/>Source Bundle / Citation は土台あり<br/>media根拠はstaging"]:::next
-  search["3. 探す<br/>SQLite / FTS / 関係は動く<br/>実Provider品質は停止"]:::next
-  tool["4. AIへ返す<br/>状態コードと監査記録は動く<br/>見える化は継続強化"]:::done
-  gate["停止中<br/>Provider・実ログイン・外部取得は承認待ち"]:::gate
+  evidence["2. 根拠にする<br/>Source Bundle / Context Chunk / Citation<br/>AnswerAuthorityGatekeeper を強化"]:::next
+  search["3. 探す<br/>SearchLens / ObjectiveRoutePolicy / local route portfolio<br/>実Provider品質は停止"]:::next
+  tool["4. AIへ返す<br/>Answer Boundary status と監査記録<br/>見える化は継続強化"]:::done
+  gate["停止中<br/>ProviderApiBudgetGuard がProvider・実ログイン・外部取得を保留"]:::gate
 
   source --> evidence --> search --> tool
   gate -. "解除後に各段階へ入る" .-> search

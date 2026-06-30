@@ -6,15 +6,18 @@ outputs.
 
 It is not a search contract and not a provider-call contract. Its job is to keep evidence,
 candidate signals, derived outputs, and answer claims separated across local memory workflows.
+The current final flow is owned by `docs/presentation/final-runtime-flow.md` and
+`docs/presentation/final-design-flow.md`; detailed mechanics are owned by
+`docs/memory-pipeline-v2.md`.
 
 ## Minimum Contract
 
 1. Classify the artifact layer.
    - Identify whether each item is raw source, searchable document, search result, context chunk,
-     citation annotation, answer, workflow trace, offload pointer, visual plan, generated summary,
-     OCR/VLM observation, or hint.
+     source bundle, citation annotation, answer, workflow trace, offload pointer, visual plan,
+     generated summary, OCR/VLM observation, or hint.
    - Preserve the invariant:
-     `raw source != searchable document != search result != context chunk != citation != answer`.
+     `raw source != searchable document != search result != source bundle != context chunk != citation != answer`.
 
 2. Preserve restoration paths.
    - Keep tweet, quote, media, author, bookmark account, URL, relation, time, source hash, run ID,
@@ -25,6 +28,7 @@ candidate signals, derived outputs, and answer claims separated across local mem
    - Answer claims need citation-ready context chunks and citation annotations.
    - Visual briefs, compressed summaries, OCR text, VLM observations, route scores, and generated
      labels remain derived artifacts unless promoted through explicit evidence contracts.
+   - `AnswerAuthorityGatekeeper` is the narrow promotion boundary from candidate to answer support.
 
 4. Expose workflow state.
    - Route choice, fallback, provider skip, evidence level, citation support, budget/offload state,
@@ -33,7 +37,7 @@ candidate signals, derived outputs, and answer claims separated across local mem
 
 5. Preserve answer boundaries.
    - Use `answer`, `abstain`, `needs_review`, `citation_missing`, `source_not_restored`,
-     `provider_gated`, or `blocked` when evidence is incomplete.
+     `hypothesis_only`, `provider_gated`, or `blocked` when evidence is incomplete.
    - Do not make unsupported generated text look like completed evidence.
 
 ## Skill-Specific Ownership

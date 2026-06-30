@@ -12,7 +12,7 @@ provider permission, or architecture decisions.
 ## Purpose
 
 - Expose hidden progress, route choices, skip reasons, evidence level, citation
-  support, provider gates, budgets, media/OCR state, and completion state.
+  support, provider guard state, budgets, media/OCR state, and completion state.
 - Treat unclear state as an implementation or interface gap, not just wording.
 - Keep app, CLI, and trace surfaces consistent over the same stored state.
 

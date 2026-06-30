@@ -9,10 +9,11 @@ flowchart TB
   request["人 / AI agent<br/>調べたい目的を渡す"]:::input
 
   subgraph core["research_x 完成形の主経路"]
-    route["目的に合わせて経路を選ぶ<br/>local / media / provider候補"]:::main
-    restore["候補を原本へ戻す<br/>Source Bundle にそろえる"]:::main
-    cite["根拠を判定する<br/>Citation / conflict / stale"]:::main
-    respond["返答する<br/>answer / abstain / needs_review"]:::main
+    lens["SearchLens<br/>人間側の関心と重みを反映"]:::main
+    route["ObjectiveRoutePolicy<br/>local / media / provider候補を選ぶ"]:::main
+    restore["候補を根拠へ戻す<br/>Source Bundle / Context Chunk / Citation"]:::main
+    authority["AnswerAuthorityGatekeeper<br/>claim support を判定"]:::main
+    respond["Answer Boundary<br/>answer / abstain / review / hypothesis"]:::main
   end
 
   subgraph support["外部設計として見る範囲"]
@@ -21,7 +22,7 @@ flowchart TB
     feedback["評価と改善<br/>失敗例を次の検索へ戻す"]:::side
   end
 
-  request --> route --> restore --> cite --> respond
-  provider -. "候補を増やすだけ" .-> route
+  request --> lens --> route --> restore --> authority --> respond
+  provider -. "ProviderApiBudgetGuard後の候補だけ" .-> route
   respond -. "状態を残す" .-> observe
   observe -. "改善に使う" .-> feedback

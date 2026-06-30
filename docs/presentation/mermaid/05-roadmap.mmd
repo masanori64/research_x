@@ -13,13 +13,13 @@ flowchart TB
   end
 
   subgraph improve["次に固めること"]
-    quality["検索品質<br/>重複・復元・評価を詰める"]:::next
+    quality["検索と回答権限<br/>SearchLens・復元・claim support を詰める"]:::next
     observable["見える化<br/>状態・停止理由・監査を追える"]:::next
     scope["委託範囲<br/>local-only と承認作業を分ける"]:::next
   end
 
   subgraph gated["承認後に進めること"]
-    provider["実Provider評価<br/>embedding / OCR / rerank など"]:::gate
+    provider["実Provider評価<br/>ProviderApiBudgetGuard 後の候補ルート"]:::gate
     login["実ログイン運用<br/>secrets とセッション管理"]:::gate
     operation["運用設計<br/>予算・SLA・責任分界"]:::future
   end

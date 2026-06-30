@@ -3,11 +3,13 @@ name: research-x-provider-gate
 description: "Use before any provider-facing or quota-sensitive work in research_x: embeddings, rerank, OCR, Reader, external search, LLM context, classifiers, answer engines, managed RAG, API lane estimates, budget guard, no-quota freeze, pricing, or real API verification."
 ---
 
-# research-x Provider Gate
+# research-x Provider Guard
 
-No-quota and provider/API boundary for `research_x`. This Skill decides whether a
-path may send provider/network requests or spend quota; it does not choose the
-architecture by itself and does not make provider output citation-ready.
+No-quota and provider/API boundary for `research_x`. This Skill maps to
+`ProviderApiBudgetGuard`: it decides whether a provider-backed, network, or
+quota-consuming lane may execute. It does not choose the architecture by itself,
+does not gate local retrieval lanes, and does not make provider output
+citation-ready.
 
 ## Purpose
 
@@ -42,7 +44,7 @@ architecture by itself and does not make provider output citation-ready.
 
 ## Outputs
 
-- Gate status: `local_allowed`, `provider_gated`, `needs_budget_evidence`,
+- Guard status: `local_allowed`, `provider_gated`, `needs_budget_evidence`,
   `approved_smallest_limit`, or `blocked`.
 - Skip reason, allowed local substitute, and required approval/evidence.
 - Budget guard and verification notes when provider use is explicitly approved.

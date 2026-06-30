@@ -6,17 +6,22 @@ Adapter source URLs, readiness notes, blockers, and source-backed evidence live 
 `src/research_x/adapters/catalog.py`. Keep this file focused on operational provider chaining,
 auth/session handling, shared store behavior, and current smoke expectations.
 
-Memory-search architecture belongs in `docs/memory-pipeline-v2.md`. Historical memory-search
-decisions live in `docs/memory-pipeline-archive.md`; use the archive index and read only targeted
-sections when prior research is needed. Acquisition output is raw evidence for that pipeline: do not
-replace stored tweets, bookmarks, media, quote edges, provider runs, or raw payloads with labels,
-summaries, embeddings, or answers.
+Final memory-search flow belongs in `docs/presentation/final-runtime-flow.md` and
+`docs/presentation/final-design-flow.md`; detailed evidence mechanics belong in
+`docs/memory-pipeline-v2.md`. Historical memory-search decisions live in
+`docs/memory-pipeline-archive.md`; use the archive index and read only targeted sections when prior
+research is needed.
+
+Acquisition output is the raw Source Layer for that flow. Do not replace stored tweets, bookmarks,
+media, quote edges, provider runs, or raw payloads with labels, summaries, embeddings, diagrams, or
+answers.
 
 For native media recall, acquisition remains responsible only for preserving media provenance:
 `media_id`, `tweet_id`, `url`, `local_path`, `download_status`, and raw downloadable media when
-available. Gemini Embedding 2 media vectors are built later by the memory pipeline from saved local
-files and must restore back to the original tweet/media source bundle before they can be used as
-evidence.
+available. Native media vectors are built later by candidate routes from saved local files. A raw
+media vector match remains candidate-only; image-content evidence requires restoration to the
+tweet/media source bundle, a bounded context chunk, citation annotation, claim-support check, and
+`AnswerAuthorityGatekeeper`.
 
 Provider-chain decisions use the same decision quality rule as memory-search decisions. Inspect the
 repo state first; when the answer is uncertain, check primary sources before secondary/community
@@ -27,8 +32,9 @@ uncertainty.
 ## External Research Intake Boundary
 
 The 2026-06-10 `_codex_inbox` research-intake design maps to this file only for acquisition,
-fetching, auth, storage-rights, and network/provider policy. The memory/search object model and
-evidence contract stay in `docs/memory-pipeline-v2.md`.
+fetching, auth, storage-rights, and network/provider policy. The final request-to-result order stays
+in the two final flow docs; the memory/search object model and evidence contract stay in
+`docs/memory-pipeline-v2.md`.
 
 Future automated intake must keep these boundaries:
 
@@ -43,14 +49,14 @@ Future automated intake must keep these boundaries:
   context chunks.
 - Provider-backed search or extraction such as Serper, Brave, Jina, OpenAI, Gemini, Voyage, Cohere,
   or Mistral remains blocked by the no-quota freeze unless the user explicitly lifts it in the
-  current conversation and the API Budget Guard preflight passes.
+  current conversation and `ProviderApiBudgetGuard` / API Budget Guard preflight passes.
 - Proxy-backed collection such as Webshare is rejected by default until legal/ToS/rate-limit,
   account, privacy, and security review is complete.
 - ChatGPT conversation import must use official export data or explicit user-provided files, not
   unofficial backend endpoints.
 - Discovery ranks, snippets, community comments, AI summaries, and generated research briefs are
-  candidate or review signals. They are not evidence until the source is fetched/restored, chunked,
-  and cited through the memory pipeline.
+  candidate or review signals. They are not evidence until the source is fetched or restored,
+  promoted to a source bundle, chunked, cited, and checked at `AnswerAuthorityGatekeeper`.
 
 ## Provider Roles
 

@@ -180,9 +180,11 @@ Prompt-dependent triggers:
   Xiaohei-style explanatory visual plan: use
   `C:/Users/maasa/.codex/skills/research-x-publishing-illustration/SKILL.md`; generated images still require the
   normal explicit image-generation gate and are never evidence;
-- structural diagram, route diagram, state-machine diagram, or presentation diagram request: use
-  the D2 + Marp presentation build-tool boundary for deck diagrams and keep generated diagrams as
-  review/presentation artifacts, not evidence or answer support;
+- structural diagram, route diagram, state-machine diagram, or presentation diagram request: choose
+  the creation system through `docs/presentation/diagram-systems.md`, use
+  `docs/presentation/diagram-design-harness.md`, and keep generated diagrams as
+  review/presentation artifacts, not evidence or answer support. Mermaid requests must be generated
+  from the final flow docs, not by refactoring D2/SVG assets;
 - `/goal` or goal-like target state: use the human-on-the-loop execution rules in this file and
   continue phase by phase until the target or a real oversight gate is reached;
 - sub-agent policy prompt: when the user permits, bans, pauses, mentions, or asks to follow/check
@@ -201,23 +203,30 @@ matched Skill still has unfinished non-duplicate work, continue instead of final
 
 ## Project Architecture
 
-For the memory-search project, read `docs/memory-pipeline-v2.md` before making design changes. It is
-the current source of truth for the AI-callable evidence pipeline. `PROJECT.md` tracks the
-implementation milestones, and `README.codex.md` is the compact repository reference for Codex.
+For the memory-search project, read `docs/presentation/final-runtime-flow.md` and
+`docs/presentation/final-design-flow.md` before changing the final human-facing runtime/design
+flow. These two files are the current provisional source of truth for the final flow used by
+diagrams and explanation. `docs/memory-pipeline-v2.md` remains the detailed evidence contract and
+implementation-boundary reference. `PROJECT.md` tracks the implementation milestones, and
+`README.codex.md` is the compact repository reference for Codex.
 
-The memory-search architecture is Evidence/Skill/Workflow first. Real API embeddings are optional
-recall arms inside a workflow-gated portfolio, not the top-level system objective. Diagnostic
-`local_hash` embeddings are wiring checks only and must not be treated as production evidence or a
-promotion candidate.
+The memory-search architecture is evidence-first: broad candidate routes feed a narrow
+answer-authority promotion boundary. Real API embeddings are optional provider-backed candidate
+arms behind `ProviderApiBudgetGuard`, not the top-level system objective. Diagnostic `local_hash`
+embeddings are wiring checks only and must not be treated as production evidence or a promotion
+candidate.
 
 For Gemini Embedding 2, keep text recall and native media recall as separate contracts. Text
 embedding uses `memory_embeddings`; raw image/PDF/video/audio embedding must use a media-specific
 contract that can restore `media_id -> tweet_id -> source bundle -> citation` before it can be
-eligible for workflow promotion. A raw media vector match is a candidate signal, not image-content
-evidence unless OCR/caption/VLM text has been turned into citation-ready context chunks.
+eligible for answer-support promotion through context chunk, citation, claim-support, and
+`AnswerAuthorityGatekeeper` checks. A raw media vector match is a candidate signal, not
+image-content evidence unless OCR/caption/VLM text has been turned into citation-ready context
+chunks.
 
 Do not create additional memory-architecture Markdown files unless the user explicitly asks. Update
-the existing source-of-truth file instead, so Codex does not have to scan a spreading design surface.
+the narrow owning file instead: the two final flow files for final runtime/design order, and
+`docs/memory-pipeline-v2.md` for detailed evidence-contract mechanics.
 
 ## Markdown Governance
 
@@ -229,7 +238,11 @@ Keep Markdown stable and sparse:
 - `README.md`: human/GitHub repository entry point only. Do not read it for routine Codex work
   unless the task is explicitly about public README content.
 - `PROJECT.md`: short milestone tracker only.
-- `docs/memory-pipeline-v2.md`: detailed memory/search architecture and decision notes.
+- `docs/presentation/final-runtime-flow.md` and
+  `docs/presentation/final-design-flow.md`: current provisional source of truth for the final
+  runtime/design flow used by human diagrams and explanations.
+- `docs/memory-pipeline-v2.md`: detailed evidence contract, memory/search architecture mechanics,
+  and decision notes.
 - `docs/memory-pipeline-archive.md`: indexed historical notes; inspect the index first and read
   only targeted sections when prior research is needed.
 - `docs/pipeline.md`: acquisition/auth/provider pipeline details.

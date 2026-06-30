@@ -13,17 +13,23 @@ flowchart TB
   bundle["Source Bundle<br/>元の投稿まで戻れる根拠束"]:::evidence
   context["Context Chunk<br/>回答に渡す短い文脈"]:::evidence
   citation["Citation<br/>どこを根拠にしたか示せる状態"]:::evidence
-  answer["回答<br/>引用つきで返す"]:::evidence
+  support["Claim Support<br/>主張ごとに支えを確認"]:::evidence
+  authority["AnswerAuthorityGatekeeper<br/>回答に使ってよいか判定"]:::evidence
+  boundary["Answer Boundary<br/>answer / abstain / needs_review<br/>source_not_restored / citation_missing / hypothesis_only / provider_gated / blocked"]:::evidence
 
   no_source["止まる<br/>候補から原本へ戻れない"]:::stop
   no_citation["止まる<br/>引用として足りない"]:::stop
+  no_support["止まる<br/>主張を支えられない"]:::stop
 
   raw -->|"検索用に投影"| document
   document -->|"探す"| hit
   hit -->|"原本へ戻す"| bundle
   bundle -->|"回答に使う範囲を切る"| context
   context -->|"根拠位置を確認"| citation
-  citation --> answer
+  citation -->|"主張単位で確認"| support
+  support --> authority
+  authority --> boundary
 
   hit -. "復元失敗" .-> no_source
   context -. "根拠不足" .-> no_citation
+  support -. "支え不足" .-> no_support

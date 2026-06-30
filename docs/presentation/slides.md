@@ -54,7 +54,7 @@ style: |
 
 - 図は説明とレビューのためのものです
 - 回答根拠になるのは、復元できる出典・文脈・引用だけです
-- 外部Provider/APIを使う作業は、承認と予算確認の後に進めます
+- 外部Provider/APIを使う候補ルートは、承認と予算確認の後に進めます
 
 ---
 
@@ -91,19 +91,19 @@ style: |
 
 ![1回の memory query](assets/memory-query-sequence.svg)
 
-<p class="small">1回の問い合わせは、計画、検索、出典復元、文脈化、引用確認、結果保存までを1つの実行単位として扱う。</p>
+<p class="small">1回の問い合わせは、検索方針、候補ルート、provider guard、出典復元、文脈化、引用、回答権限、Answer Boundary を分けて扱い、trace は横で記録する。</p>
 
 ---
 
-# 4. provider / quota gate
+# 4. provider / quota guard
 
 <!-- claim: claim-provider-gate -->
 <!-- claim: claim-sier-boundary -->
 <!-- _class: diagram -->
 
-![provider / quota gate](assets/runtime-boundary.svg)
+![provider / quota guard](assets/runtime-boundary.svg)
 
-<p class="small">fake/local provider、静的検査、monkeypatch済みテストは進められる。real API、secrets、ログイン、quota消費は止めて確認する。</p>
+<p class="small">fake/local provider、静的検査、monkeypatch済みテストは進められる。real API、Reader、OCR、外部検索、quota消費は ProviderApiBudgetGuard で止めて確認する。</p>
 
 ---
 
@@ -131,7 +131,7 @@ style: |
 1. 全体アーキテクチャ
 2. 証拠パイプライン
 3. 1回の memory query
-4. provider / quota gate
+4. provider / quota guard
 5. WBS / ロードマップ
 
 </div>

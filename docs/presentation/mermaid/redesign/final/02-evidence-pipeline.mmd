@@ -9,12 +9,16 @@ flowchart TB
   raw["原本<br/>投稿・ブックマーク・メディア・取得記録"]:::step
   signals["候補信号<br/>text / media / relation / provider"]:::candidate
   restore["復元<br/>tweet・quote・media・accountへ戻す"]:::step
-  citation["Citation<br/>回答の支えを明示する"]:::step
-  answer["返答<br/>回答・棄権・レビュー待ち"]:::step
+  chunk["Context Chunk<br/>回答入力の範囲へ切る"]:::step
+  citation["Citation<br/>根拠位置を明示する"]:::step
+  support["Claim Support<br/>主張ごとの支えを確認"]:::step
+  authority["AnswerAuthorityGatekeeper<br/>回答権限を判定する"]:::step
+  answer["Answer Boundary<br/>回答・棄権・レビュー・仮説止まり"]:::step
   reject["捨てる<br/>戻せない候補は根拠にしない"]:::gate
   improve["評価とfeedback<br/>次の検索品質へ戻す"]:::loop
 
-  raw --> signals --> restore --> citation --> answer
+  raw --> signals --> restore --> chunk --> citation --> support --> authority --> answer
   signals -. "復元不可" .-> reject
+  support -. "claim不足" .-> reject
   answer -. "品質を見る" .-> improve
   improve -. "候補作りを改善" .-> signals

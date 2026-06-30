@@ -3,28 +3,33 @@ sequenceDiagram
 
   actor User as 人 / AI agent
   participant RX as research_x API
-  participant Route as 経路選択
-  participant Evidence as 根拠確認
-  participant Guard as API Budget Guard
+  participant Lens as SearchLens
+  participant Route as ObjectiveRoutePolicy / Route Portfolio
+  participant Guard as ProviderApiBudgetGuard
+  participant Evidence as Source Bundle / Context / Citation
+  participant Authority as AnswerAuthorityGatekeeper
+  participant Boundary as Answer Boundary
   participant Trace as 監査と評価
 
   User->>RX: query / objective / context budget
-  RX->>Trace: 依頼と制約を記録する
-  RX->>Route: 目的に合う候補経路を選ぶ
+  RX->>Trace: sidecar trace を開始する
+  RX->>Lens: 関心・重み・探索姿勢を確認する
+  Lens->>Route: 目的に合う候補経路を選ぶ
 
-  opt 承認済みProviderが必要
+  opt provider-backed route
     Route->>Guard: 予算と停止条件を確認する
-    Guard-->>Route: 実行可またはprovider_gated
+    Guard-->>Route: provider candidates or provider_gated skip
   end
 
-  Route->>Evidence: 候補をSource Bundleへ復元する
-  Evidence->>Evidence: Citation・矛盾・古さを確認する
-  Evidence->>Trace: 品質と停止理由を保存する
+  Route->>Evidence: 候補を source bundle / context chunk / citation へ復元する
+  Evidence->>Authority: claim support を確認する
+  Authority->>Boundary: answer support または停止理由
+  Boundary->>Trace: 品質と停止理由を保存する
 
   alt 回答できる
-    Evidence-->>RX: citation-ready answer
+    Boundary-->>RX: answer with citations
     RX-->>User: 引用付き回答
   else 回答すべきでない
-    Evidence-->>RX: abstain / needs_review
+    Boundary-->>RX: abstain / needs_review / hypothesis_only / provider_gated
     RX-->>User: 理由つきで返す
   end

@@ -1,17 +1,17 @@
 flowchart TB
-  %% 完成形の provider / quota gate 図: 承認済みProviderを候補生成として安全に使う
+  %% 完成形の provider / quota guard 図: 承認済みProviderを候補生成として安全に使う
 
   classDef ask fill:#fff4cf,stroke:#8a6d1d,color:#17212b
   classDef ok fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
   classDef record fill:#f3f4f6,stroke:#6b7280,color:#17212b
 
-  need["Providerが必要"]:::ask
+  need["provider-backed 候補ルート"]:::ask
   approval{"今回の明示承認があるか"}:::ask
   estimate["先に見積もる<br/>件数・token・費用"]:::ask
-  guard{"API Budget Guard<br/>上限内か"}:::ask
+  guard{"ProviderApiBudgetGuard<br/>上限内か"}:::ask
   run["最小範囲で実行<br/>結果は候補として扱う"]:::ok
-  restore["原本へ戻す<br/>Citation にならない候補は捨てる"]:::ok
+  restore["後続で昇格確認<br/>Source Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper"]:::ok
   stop["止める<br/>承認・価格・上限が不明"]:::stop
   ledger["記録する<br/>使用量と次の停止点"]:::record
 

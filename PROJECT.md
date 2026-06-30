@@ -14,7 +14,9 @@ interests.
 session memory, retrospectives, Skill/Plugin/MCP governance, and external Codex
 foundation candidates belong in `maasa/.codex`. This project keeps only the thin
 bridge needed for AI tool use: query/objective/context-budget/source-candidate in,
-evidence status, citations, answer/abstain/provider-gated state, and audit trace out.
+evidence status, citations, Answer Boundary status, and audit trace out. Answer Boundary
+status is `answer`, `abstain`, `needs_review`, `source_not_restored`,
+`citation_missing`, `hypothesis_only`, `provider_gated`, or `blocked`.
 The proposal-only self-improvement package is external-owned at
 `C:/Users/maasa/.codex/foundation/codex_improvement`; do not restore it under
 `src/research_x`.
@@ -22,9 +24,11 @@ The proposal-only self-improvement package is external-owned at
 ## Canonical Pointers
 
 - Current evidence architecture: `docs/memory-pipeline-v2.md`
+- Current provisional final flows: `docs/presentation/final-runtime-flow.md`,
+  `docs/presentation/final-design-flow.md`
 - Current work state: `tools/wbs_viewer/projects/research-x-work-state.json`
 - Context/offload pointer index: `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`
-- Presentation generation flow:
+- Historical D2/Marp presentation-generation plan:
   `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Acquisition/auth/provider pipeline: `docs/pipeline.md`
 - Historical rationale archive: `docs/memory-pipeline-archive.md`
@@ -45,14 +49,14 @@ permission.
 
 - No real provider API, free-tier, trial-credit, or zero-dollar quota use while the
   no-quota freeze is active.
-- Provider execution hard blocks live at the request boundary through the API
-  budget gate; request-shape tests inspect builders only and are not model-quality
-  proof.
+- Provider-backed lanes are blocked before execution by `ProviderApiBudgetGuard`;
+  local lanes remain candidate routes. Request-shape tests inspect builders only
+  and are not model-quality proof.
 - `store=True` workflow trace writes are operational audit rows only; they do not
   authorize raw source, governance, feedback, provider, or answer-support mutation.
 - Provider, Reader, external search, OCR, rerank, classifier, answer, embedding,
-  managed-RAG, and real-model prompt checks require explicit approval plus the API
-  Budget Guard preflight.
+  managed-RAG, and real-model prompt checks require explicit approval plus
+  `ProviderApiBudgetGuard` / API Budget Guard preflight.
 - Dependency installs, model downloads, plugins, MCP servers, hooks, browser-edit
   defaults, connector changes, and third-party Skill enablement are separate gates.
 - Source candidates from X/GPT/ChatGPT/community material remain source candidates
@@ -67,10 +71,8 @@ permission.
 - The current machine-readable adoption boundary is `control/adoption_registry.toml`.
   It is the registry for what this project owns, what it only bridges to
   `maasa/.codex`, and what remains provider-gated or historical.
-- GPT review ZIPs must include provider execution source files, git branch/commit
-  provenance, command-manifest required-artifact coverage, observed-zero API-budget
-  deltas, semantic memory/adoption/Pointer Map audit validation, and optional
-  GitHub Actions status only as non-evidence control artifact review context.
+- GPT review ZIPs must include provider source, git provenance, required-artifact
+  coverage, observed-zero API-budget deltas, and non-evidence control status.
 
 ## Current Tracker Rule
 
@@ -92,8 +94,10 @@ file when a top-level boundary or canonical pointer changes.
   `uv run ruff check <targets>` commands.
 - If pytest is slow or appears stuck, use
   `uv run python -m research_x test-diagnose ...` before narrowing coverage by hand.
-- Update `docs/memory-pipeline-v2.md` before code only when the evidence contract or
-  architecture boundary changes.
+- Update `docs/presentation/final-runtime-flow.md` and
+  `docs/presentation/final-design-flow.md` when final runtime/design order changes;
+  update `docs/memory-pipeline-v2.md` when the evidence contract or architecture
+  boundary mechanics change.
 - Keep `PROJECT.md` under 100 lines and free of phase tables, 35-item lists, and
   historical progress logs.
 - Never stage `.secrets/` or `runs/`.

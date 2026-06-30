@@ -26,7 +26,7 @@ classes: {
   }
 }
 
-ask: "外部Provider/APIを使いたい作業か？" {
+ask: "provider / network / quota を使う候補ルートか？" {
   shape: diamond
   style.fill: ${warn}
   style.stroke: "#8a6d1d"
@@ -49,10 +49,10 @@ local: {
   }
 }
 
-gate: {
-  label: "承認が必要"
+guard: {
+  label: "ProviderApiBudgetGuard"
   grid-columns: 3
-  budget: "API Budget Guard\n料金・上限・停止条件" {
+  budget: "料金・上限・停止条件\nfree-tierも対象" {
     class: box
     class: stop
   }
@@ -68,27 +68,33 @@ gate: {
 
 end: {
   grid-columns: 2
-  proceed: "進める\nローカル検証として記録" {
+  proceed: "候補を作る\nまだ回答根拠ではない" {
     class: box
     class: ok
   }
-  stop: "止める\n承認・予算・範囲を確認" {
+  stop: "provider_gated\n承認・予算・範囲を確認" {
     class: box
     class: stop
   }
 }
 
-local -> gate: "外部APIを使うなら"
-gate -> end: "判断"
+evidence: "後続の根拠確認\nSource Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper" {
+  class: box
+  class: ok
+}
+
+local -> guard: "provider-backedへ変えるなら"
+guard -> end: "判断"
 
 ask -> local.fake: "いいえ"
 local.fake -> local.static
 local.static -> local.tests
 local.tests -> end.proceed
+end.proceed -> evidence
 
-ask -> gate.budget: "はい" {
+ask -> guard.budget: "はい" {
   style.stroke: "#b42318"
 }
-gate.budget -> gate.secrets
-gate.secrets -> gate.provider
-gate.provider -> end.stop
+guard.budget -> guard.secrets
+guard.secrets -> guard.provider
+guard.provider -> end.stop

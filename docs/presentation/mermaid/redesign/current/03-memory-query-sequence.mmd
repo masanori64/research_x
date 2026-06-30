@@ -3,25 +3,28 @@ sequenceDiagram
 
   actor User as 人 / Codex
   participant RX as research_x
-  participant Search as ローカル検索
-  participant Evidence as 根拠確認
+  participant Policy as SearchLens / ObjectiveRoutePolicy
+  participant Routes as Route Portfolio
+  participant Guard as ProviderApiBudgetGuard
+  participant Evidence as Source Bundle / Context / Citation
+  participant Authority as AnswerAuthorityGatekeeper
+  participant Boundary as Answer Boundary
   participant Trace as 実行記録
 
   User->>RX: 質問と目的を渡す
-  RX->>Trace: 開始と制約を記録する
-  RX->>Search: まず手元の記憶を探す
-  Search-->>RX: 候補を返す
-  RX->>Evidence: 原本復元と引用可否を確認する
+  RX->>Trace: sidecar trace を開始する
+  RX->>Policy: 関心・目的・制約を整理する
+  Policy->>Routes: 候補ルートを選ぶ
 
-  alt 引用できる
-    Evidence-->>RX: Citation ready
-    RX->>Trace: answer と引用を残す
-    RX-->>User: 引用付き回答
-  else 原本または引用が足りない
-    Evidence-->>RX: 停止理由
-    RX->>Trace: needs_review / source_not_restored を残す
-    RX-->>User: 回答せず理由を返す
-  else 外部Providerが必要
-    RX->>Trace: provider_gated を残す
-    RX-->>User: 承認待ちとして返す
+  opt provider-backed ルートが必要
+    Routes->>Guard: 実行可否を確認する
+    Guard-->>Trace: provider_gated または実行可を記録する
   end
+
+  Routes-->>RX: candidates
+  RX->>Evidence: source bundle / context chunk / citation を確認する
+  Evidence->>Authority: claim support を見る
+  Authority->>Boundary: answer support または停止理由
+  Boundary-->>RX: answer / needs_review / source_not_restored / citation_missing / hypothesis_only / provider_gated
+  RX->>Trace: route / guard / evidence / stop reason を残す
+  RX-->>User: citations と status を返す

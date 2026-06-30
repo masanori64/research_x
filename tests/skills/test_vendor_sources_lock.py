@@ -36,7 +36,9 @@ def test_retired_diagram_tool_is_reference_only_after_decommission() -> None:
     assert "Reference-only historical source" in vendor_lock
     assert "local tool lane has been decommissioned" in vendor_lock
     assert "Do not install, restore, invoke, register MCP" in vendor_lock
-    assert "D2/Marp boundary" in vendor_lock
+    assert "D2/Marp remain build-tool boundaries" in vendor_lock
+    assert "docs/presentation/final-runtime-flow.md" in vendor_lock
+    assert "docs/presentation/final-design-flow.md" in vendor_lock
 
 
 def test_codex_foundation_candidates_stay_out_of_research_x_vendor_lock() -> None:

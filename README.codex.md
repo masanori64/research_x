@@ -10,16 +10,15 @@ Read in this order:
 1. `AGENTS.md`: mandatory rules, no-quota freeze, uv command policy, publish
    policy, notification, and native repo Skill dispatcher.
 2. `README.codex.md`: this compact orientation.
-3. `C:/Users/maasa/.codex/route_memory/route-memory.json`: only when choosing a recurring
-   browser/upload/download/tool-bridge/provider/search route or avoiding a known
-   failure class.
-4. `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`: authoritative pointer/hash/restore index for offloaded Codex work context.
-5. `tools/wbs_viewer/projects/research-x-work-state.json`: only when current
-   Source/Evidence/Retrieval-Eval/Tool Interface layer state, gates, stop
-   conditions, or next actions are needed.
-6. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
-   architecture boundary changes.
-7. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
+3. `C:/Users/maasa/.codex/route_memory/route-memory.json`: only for recurring operation routes.
+4. `C:/Users/maasa/.codex/foundation/context_offloads/research_x/pointer-map.json`: offload restore index.
+5. `tools/wbs_viewer/projects/research-x-work-state.json`: current layer work state and gates.
+6. `docs/presentation/final-runtime-flow.md` and
+   `docs/presentation/final-design-flow.md`: only when the final human-facing
+   runtime/design flow or diagrams change.
+7. `docs/memory-pipeline-v2.md`: only when the memory evidence contract or active
+   architecture boundary mechanics change.
+8. `docs/memory-pipeline-archive.md`: only after inspecting its index and only when
    historical rationale is needed.
 
 Avoid routine reads of `C:/Users/maasa/.codex/foundation/project_reviews/research_x_chatgpt_control/x-url-analysis-20260622/*.md`; that
@@ -31,8 +30,17 @@ Build and operate a local, user-specific X data memory system that an AI can cal
 as an external search tool:
 
 ```text
-X acquisition DB -> searchable documents -> source bundles
--> context chunks -> citations -> bounded workflows -> eval/audit
+Narrow Codex Bridge
+-> Source Layer
+-> Searchable Documents / Retrieval Projections
+-> SearchLens / RetrievalPolicy
+-> ObjectiveRoutePolicy
+-> Retrieval And Route Portfolio
+-> Search Results / Candidates
+-> AnswerAuthorityGatekeeper
+-> Answer Boundary
+-> Tool Interface Layer
+-> Eval / Audit / Feedback
 ```
 
 Core invariant:
@@ -41,6 +49,9 @@ Core invariant:
 raw source != searchable document != search result != source bundle
 != context chunk != citation != answer
 ```
+
+Candidate output becomes answer support only after source bundles, context chunks,
+citations, and claim-level support checks pass through `AnswerAuthorityGatekeeper`.
 
 WBS, rendered diagrams, screenshots, pointer maps, ChatGPT captures, sub-agent
 notes, route-memory registries, and compressed summaries are control or review
@@ -56,9 +67,10 @@ artifacts. They are not evidence or answer support.
 - `research_x` owns only the AI-callable X memory-search tool and its evidence,
   retrieval, citation, eval, observability, and provider-budget contracts.
 - The bridge is query/objective/context-budget/source-candidate in, and
-  `answer|abstain|needs_review|provider_gated|blocked` plus citations and audit
-  trace out. Codex transcripts, Skill auto-edit authority, provider execution
-  permission, and root instructions do not cross into `research_x`.
+  `answer|abstain|needs_review|source_not_restored|citation_missing|hypothesis_only|provider_gated|blocked`
+  plus citations and audit trace out. Codex transcripts, Skill auto-edit
+  authority, provider execution permission, and root instructions do not cross
+  into `research_x`.
 - Proposal-only Codex self-improvement implementation lives at
   `C:/Users/maasa/.codex/foundation/codex_improvement`; there must be no
   `src/research_x/codex_improvement` package.
@@ -117,19 +129,22 @@ static provider/network scans. Marker lanes do not make provider-free fixtures r
 - Historical mixed WBS archive:
   `C:/Users/maasa/.codex/foundation/work_state/research-x-pre-layer-wbs-archive-20260625.json`
 - WBS viewer: `tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html`
-- Presentation/diagram routing (D2 + Marp): `docs/presentation/diagram-systems.md`, `docs/presentation/diagram-design-harness.md`, `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
+- Current final flows: `docs/presentation/final-runtime-flow.md`, `docs/presentation/final-design-flow.md`
+- Presentation/diagram routing (D2 + Marp): `docs/presentation/diagram-systems.md`,
+  `docs/presentation/diagram-design-harness.md`; historical D2/Marp plan:
+  `C:/Users/maasa/.codex/foundation/project_plans/research_x/2026-06-24-presentation-generation-flow.md`
 - Operation route memory: `C:/Users/maasa/.codex/route_memory/route-memory.json`
 
-Use research_x WBS only for current 4-layer runtime work state; viewer-only
-display settings stay there as display config, not evidence. Keep historical
-35-item consultation lists, candidate inventories, source-review prose, and Codex
-foundation tasks out of it. Use adoption/source-lock files for candidate
-decisions, the Codex foundation work-state archive for externalized Skill
-lifecycle/self-improvement/route-memory leaves, Route Memory for recurring
-operation-route success/failure selection, and Pointer Map for path/hash/size
-restore hints. Diagram-system routing lives in `docs/presentation/diagram-systems.md`;
-there is no custom UML/SVG generator lane. Keep Markdown for durable reasons,
-invariants, stop conditions, and pointers.
+Use research_x WBS only for current Source, Evidence, Retrieval/Eval, Tool
+Interface, and gate work state; viewer-only display settings stay there as
+display config, not evidence. Keep historical 35-item consultation lists,
+candidate inventories, source-review prose, and Codex foundation tasks out of it.
+Use adoption/source-lock files for candidate decisions, the Codex foundation
+work-state archive for externalized Skill lifecycle/self-improvement/route-memory
+leaves, Route Memory for recurring operation-route success/failure selection, and
+Pointer Map for path/hash/size restore hints. Final diagram content follows the
+two final flow docs; diagram-system routing lives in
+`docs/presentation/diagram-systems.md`. Keep Markdown sparse and durable.
 
 ## Repo Skills
 

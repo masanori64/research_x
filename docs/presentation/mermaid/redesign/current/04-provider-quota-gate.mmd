@@ -1,21 +1,23 @@
 flowchart TB
-  %% 現状の provider / quota gate 図: 今すぐ実行できる作業と止める作業を分ける
+  %% 現状の provider / quota guard 図: provider-backed候補ルートだけを実行前に止める
 
   classDef ask fill:#fff4cf,stroke:#8a6d1d,color:#17212b
   classDef ok fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
   classDef record fill:#f3f4f6,stroke:#6b7280,color:#17212b
 
-  work["これから実行する作業"]:::ask
-  provider{"外部Provider/APIへ送るか"}:::ask
+  work["候補ルート"]:::ask
+  provider{"provider / network / quota を使うか"}:::ask
   secret{"ログイン・secretsを使うか"}:::ask
-  allowed["進めてよい<br/>ローカル検査・fake・monkeypatch"]:::ok
-  blocked["止める<br/>無料枠・trial・zero-dollar quota も不可"]:::stop
-  approval["承認後だけ<br/>API Budget Guard で最小範囲"]:::stop
-  record["記録する<br/>実行済みか承認待ちか"]:::record
+  allowed["進めてよい<br/>local / fake / static / monkeypatch"]:::ok
+  blocked["provider_gated<br/>無料枠・trial・zero-dollar quota も不可"]:::stop
+  approval["承認後だけ<br/>ProviderApiBudgetGuard で最小範囲"]:::stop
+  candidate["候補として返す<br/>まだ根拠ではない"]:::record
+  evidence["後続で確認<br/>Source Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper"]:::ok
 
   work --> provider
-  provider -->|"はい"| blocked --> approval --> record
+  provider -->|"はい"| blocked --> approval --> candidate
   provider -->|"いいえ"| secret
   secret -->|"はい"| blocked
-  secret -->|"いいえ"| allowed --> record
+  secret -->|"いいえ"| allowed --> candidate
+  candidate --> evidence

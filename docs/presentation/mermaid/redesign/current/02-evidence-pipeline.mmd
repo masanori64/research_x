@@ -8,14 +8,19 @@ flowchart TB
   raw["原本<br/>X投稿・ブックマーク・メディア"]:::step
   candidate["検索候補<br/>近そうだがまだ根拠ではない"]:::candidate
   bundle["Source Bundle<br/>元の投稿へ戻せた状態"]:::step
-  citation["Citation<br/>回答の支えを示せる状態"]:::step
-  outcome["返答<br/>引用付き回答または保留"]:::step
+  chunk["Context Chunk<br/>回答に渡せる短い文脈"]:::step
+  citation["Citation<br/>根拠位置を示す"]:::step
+  support["Claim Support<br/>主張ごとに支えを確認"]:::step
+  authority["AnswerAuthorityGatekeeper<br/>回答に使えるか判定"]:::step
+  outcome["Answer Boundary<br/>answer / needs_review / hypothesis_only"]:::step
 
   stop_restore["止まる<br/>原本へ戻れない"]:::stop
   stop_citation["止まる<br/>引用として弱い"]:::stop
+  stop_support["止まる<br/>主張を支えられない"]:::stop
   stop_control["根拠にしない<br/>図・WBS・要約"]:::stop
 
-  raw --> candidate --> bundle --> citation --> outcome
+  raw --> candidate --> bundle --> chunk --> citation --> support --> authority --> outcome
   candidate -. "復元失敗" .-> stop_restore
-  bundle -. "支え不足" .-> stop_citation
+  chunk -. "支え不足" .-> stop_citation
+  support -. "claim不足" .-> stop_support
   candidate -. "説明資料由来" .-> stop_control

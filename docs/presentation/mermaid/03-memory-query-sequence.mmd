@@ -3,40 +3,43 @@ sequenceDiagram
 
   actor Human as 人 / AI agent
   participant Tool as memory workflow
-  participant Search as ローカル検索
-  participant Source as 出典復元
-  participant Citation as 引用確認
+  participant Lens as SearchLens / RetrievalPolicy
+  participant Policy as ObjectiveRoutePolicy
+  participant Routes as Route Portfolio
+  participant Guard as ProviderApiBudgetGuard
+  participant Evidence as Source Bundle / Context / Citation
+  participant Authority as AnswerAuthorityGatekeeper
+  participant Boundary as Answer Boundary
   participant Trace as 実行記録
-  participant Gate as provider gate
 
   Human->>Tool: 質問を渡す
-  Tool->>Trace: 実行を開始する
-  Tool->>Tool: 質問の意図と検索方針を決める
-  Tool->>Search: ローカル候補を探す
-  Search-->>Tool: 検索結果を返す
-  Tool->>Source: 候補から原本へ戻す
+  Tool->>Trace: sidecar trace を開始する
+  Tool->>Lens: 関心・重み・探索姿勢を確認する
+  Lens->>Policy: 検索方針を渡す
+  Policy->>Routes: 候補ルートを選ぶ
 
-  alt 出典に戻れる
-    Source-->>Tool: Source Bundle を返す
-    Tool->>Citation: 文脈と引用可能性を確認する
-    alt 引用できる
-      Citation-->>Tool: Citation-ready
-      Tool->>Trace: answer と引用状態を保存する
-      Tool-->>Human: 引用付き回答を返す
-    else 引用できない
-      Citation-->>Tool: 根拠不足
-      Tool->>Trace: needs_review と理由を保存する
-      Tool-->>Human: レビュー待ちを返す
+  par ローカル候補ルート
+    Routes-->>Tool: local candidates
+  and provider-backed ルート
+    Routes->>Guard: 実行可否と予算を確認する
+    alt 承認済み
+      Guard-->>Routes: provider candidates
+      Routes-->>Tool: provider-backed candidates
+    else freeze / 予算不明
+      Guard-->>Trace: provider_gated を記録する
+      Guard-->>Tool: provider_gated skip
     end
-  else 出典に戻れない
-    Source-->>Tool: 復元失敗
-    Tool->>Trace: needs_review と理由を保存する
-    Tool-->>Human: 回答せずに止まる
   end
 
-  opt 外部Provider/APIが必要
-    Tool->>Gate: 承認と予算を確認する
-    Gate-->>Tool: provider_gated
-    Tool->>Trace: 外部保留として保存する
-    Tool-->>Human: 承認待ちを返す
+  Tool->>Evidence: candidate を source bundle に戻す
+  Evidence->>Evidence: context chunk と citation を作る
+  Evidence->>Authority: claim support を判定する
+  alt 回答に使える
+    Authority-->>Boundary: answer support
+    Boundary-->>Tool: answer
+  else 復元・引用・主張支えが不足
+    Authority-->>Boundary: source_not_restored / citation_missing / hypothesis_only / needs_review
+    Boundary-->>Tool: stop status
   end
+  Tool->>Trace: route / guard / evidence / stop reason を記録する
+  Tool-->>Human: Answer Boundary status と citations を返す

@@ -37,7 +37,14 @@ repository.
 The main path carries the most visual and textual weight:
 
 ```text
-request -> source/search -> evidence restoration -> citation decision -> answer/stop
+request
+-> SearchLens / ObjectiveRoutePolicy
+-> Route Portfolio
+   -> local candidates
+   -> provider-backed branch -> ProviderApiBudgetGuard -> candidate or provider_gated
+-> source bundle / context chunk / citation
+-> AnswerAuthorityGatekeeper
+-> Answer Boundary
 ```
 
 Secondary capabilities such as acquisition, auth, provider candidates, WBS,
@@ -57,6 +64,8 @@ Before writing Mermaid source, run a design self-review loop:
   file names, commands, or table names?
 - Are ordinary explanations in Japanese, while only proper nouns and established
   terms remain in English?
+- Does every route remain candidate-only until source bundle, context chunk,
+  citation, and AnswerAuthorityGatekeeper are visible or intentionally scoped out?
 - Does the diagram avoid becoming very tall, very wide, or dense enough to
   require zooming?
 
@@ -101,7 +110,8 @@ Use concrete names when they anchor the reader:
 
 - product or repository names, such as `research_x`;
 - established domain terms, such as `Source Bundle` or `Citation`;
-- runtime or tool names, such as `SQLite`, `D2`, `Marp`, or `API Budget Guard`.
+- runtime or tool names, such as `SQLite`, `D2`, `Marp`,
+  `ProviderApiBudgetGuard`, or `API Budget Guard`.
 
 Do not use concrete names as a substitute for explanation. If a file, class,
 table, or command name appears, the surrounding label must say what role it plays

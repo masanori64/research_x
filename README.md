@@ -14,8 +14,10 @@ reference. Use [README.codex.md](README.codex.md) and the source-of-truth docs l
   local SQLite database.
 - Provides a local app for account setup, acquisition jobs, media download, AI labeling, DB viewing,
   and run monitoring.
-- Builds an AI-callable memory-search layer with source bundles, context chunks, citations,
-  workflow traces, evals, OCR/media contracts, provider gates, and budget monitoring.
+- Builds an AI-callable memory-search layer whose retrieval can be broad, but whose answers must pass
+  source-bundle restoration, context chunks, citation annotation, and answer-authority checks.
+- Keeps provider-backed lanes behind `ProviderApiBudgetGuard`; provider output is only a candidate
+  signal until it restores to citation-ready local evidence.
 
 ## Main Commands
 
@@ -51,17 +53,29 @@ Do not commit passwords, cookies, storage states, API keys, or real account secr
 - [README.codex.md](README.codex.md): compact Codex-facing repository reference.
 - [AGENTS.md](AGENTS.md): always-read agent rules, no-quota freeze, command policy, and Skill routing.
 - [PROJECT.md](PROJECT.md): short memory-search milestone tracker and current gates.
+- [docs/presentation/final-runtime-flow.md](docs/presentation/final-runtime-flow.md): current
+  provisional request-to-result runtime flow.
+- [docs/presentation/final-design-flow.md](docs/presentation/final-design-flow.md): current
+  provisional design names and diagram rules.
 - [docs/memory-pipeline-v2.md](docs/memory-pipeline-v2.md): current AI-callable evidence pipeline
-  architecture.
+  mechanics and enforceable evidence contract.
 - [docs/memory-pipeline-archive.md](docs/memory-pipeline-archive.md): indexed historical decision
   notes; use targeted sections only.
 - [docs/pipeline.md](docs/pipeline.md): acquisition/auth/provider pipeline details.
 
 ## Current Status
 
-The acquisition base and local app are implemented. The memory-search foundation is implemented
-through schema, derived documents, relations, source bundles, context chunks, citations, workflows,
-evals, OCR/media contracts, provider gates, budget guard, and no-spend preflight surfaces.
+The acquisition base and local app are implemented. The current target architecture is:
+
+```text
+wide candidate generation
+  -> narrow AnswerAuthorityGatekeeper
+  -> citation-backed answer or explicit abstention
+```
+
+The memory-search foundation includes schema, derived documents, relations, source bundles, context
+chunks, citations, workflows, evals, OCR/media contracts, provider guards, budget guard, and
+no-spend preflight surfaces.
 
 Real external provider usage is intentionally gated. Provider API calls, including free-tier and
 trial quota, are not allowed unless explicitly permitted in the current conversation and guarded by

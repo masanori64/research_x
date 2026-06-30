@@ -47,15 +47,15 @@ actors: {
 
 middle: {
   grid-columns: 3
-  plan: "1. 読み取る\n質問の意図と検索方針" {
+  lens: "SearchLens\n関心・重み・探索姿勢" {
     class: box
     class: work
   }
-  search: "2. 探す\nローカル検索で候補を出す" {
+  policy: "ObjectiveRoutePolicy\n候補ルートを選ぶ" {
     class: box
     class: work
   }
-  restore: "3. 戻す\n候補から元の出典へ戻る" {
+  routes: "Route Portfolio\nlocal候補とprovider-backed候補" {
     class: box
     class: work
   }
@@ -63,21 +63,33 @@ middle: {
 
 bottom: {
   grid-columns: 3
-  context: "4. 整える\n回答に渡す文脈を作る" {
+  guard: "ProviderApiBudgetGuard\nprovider-backedだけ実行前に止める" {
     class: box
-    class: work
+    class: stop
   }
-  cite: "5. 確かめる\n引用できるか確認" {
+  evidence: "Source Bundle / Context Chunk / Citation\n候補を回答入力へ昇格できるか確認" {
     class: box
     class: data
   }
-  result: "6. 返す\nanswer / needs_review / provider_gated" {
+  authority: "AnswerAuthorityGatekeeper\n主張を支えられるか判定" {
+    class: box
+    class: work
+  }
+}
+
+finish: {
+  grid-columns: 2
+  result: "Answer Boundary\nanswer / abstain / needs_review\nsource_not_restored / citation_missing / hypothesis_only / provider_gated" {
+    class: box
+    class: data
+  }
+  trace_sidecar: "実行記録 sidecar\nroute / guard / evidence / stop reason" {
     class: box
     class: data
   }
 }
 
-halt: "途中で止まる条件\n出典に戻れない・引用不足・外部API承認待ち" {
+halt: "途中で止まる条件\nprovider_gated・復元失敗・引用不足・主張を支えない" {
   class: box
   class: stop
 }
@@ -85,25 +97,33 @@ halt: "途中で止まる条件\n出典に戻れない・引用不足・外部AP
 actors -> middle: "実行開始"
 middle -> bottom: "根拠確認へ"
 bottom -> halt: "止まる時"
+bottom -> finish: "回答境界へ"
 
 actors.user -> actors.cli
-actors.cli -> middle.plan
-middle.plan -> middle.search
-middle.search -> middle.restore
-middle.restore -> bottom.context
-bottom.context -> bottom.cite
-bottom.cite -> bottom.result
-bottom.result -> actors.trace
+actors.cli -> middle.lens
+middle.lens -> middle.policy
+middle.policy -> middle.routes
+middle.routes -> bottom.guard: "provider-backed"
+middle.routes -> bottom.evidence: "local candidates"
+bottom.guard -> bottom.evidence: "承認済み候補"
+bottom.evidence -> bottom.authority
+bottom.authority -> finish.result
+finish.result -> finish.trace_sidecar
+finish.trace_sidecar -> actors.trace
 
-middle.restore -> halt: "復元できない" {
+bottom.guard -> halt: "承認・予算なし" {
   style.stroke: "#b42318"
   style.stroke-dash: 5
 }
-bottom.cite -> halt: "引用できない" {
+bottom.evidence -> halt: "復元・引用できない" {
   style.stroke: "#b42318"
   style.stroke-dash: 5
 }
-halt -> actors.trace: "理由を残す" {
+bottom.authority -> halt: "主張を支えない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+halt -> finish.trace_sidecar: "理由を残す" {
   style.stroke: "#b42318"
   style.stroke-dash: 5
 }

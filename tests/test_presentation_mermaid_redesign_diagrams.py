@@ -25,7 +25,7 @@ TOPIC_MARKERS = (
     "全体アーキテクチャ図",
     "証拠パイプライン図",
     "1回の memory query シーケンス図",
-    "provider / quota gate 図",
+    "provider / quota guard 図",
     "WBS / ロードマップ図",
 )
 
@@ -68,7 +68,8 @@ def test_redesign_readme_records_source_basis_and_loop() -> None:
     text = (REDESIGN_DIR / "README.md").read_text(encoding="utf-8")
     normalized = " ".join(text.split())
 
-    assert "not from the existing D2/SVG assets" in normalized
+    assert "must follow the final flow docs and project requirements" in normalized
+    assert "not existing D2/SVG assets" in normalized
     assert "Self-review loop" in text
     assert "Decision: write the diagrams." in text
     assert "current/01-overall-architecture.mmd" in text
@@ -80,10 +81,14 @@ def test_diagram_design_harness_records_fixed_mermaid_contract() -> None:
     normalized = " ".join(text.split())
 
     assert "Fixed Mermaid Harness" in text
-    assert (
-        "request -> source/search -> evidence restoration -> citation decision -> answer/stop"
-        in normalized
+    expected_path = (
+        "request -> SearchLens / ObjectiveRoutePolicy -> Route Portfolio "
+        "-> local candidates -> provider-backed branch -> ProviderApiBudgetGuard "
+        "-> candidate or provider_gated -> source bundle / context chunk / citation "
+        "-> AnswerAuthorityGatekeeper -> Answer Boundary"
     )
+    assert expected_path in normalized
+    assert "source bundle, context chunk, citation, and AnswerAuthorityGatekeeper" in normalized
     assert "Do not give every fact the same weight" in normalized
     assert (
         "Do not start writing the diagram while this loop still finds material issues"

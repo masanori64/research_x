@@ -1,6 +1,6 @@
 ---
 name: research-x-doc-governance
-description: Use when updating or reorganizing research_x Markdown such as AGENTS.md, README.md, README.codex.md, PROJECT.md, docs/memory-pipeline-v2.md, docs/memory-pipeline-archive.md, or docs/pipeline.md, especially for Markdown bloat, source-of-truth drift, archive moves, git savepoint placement, or scope cleanup.
+description: Use when updating or reorganizing research_x Markdown such as AGENTS.md, README.md, README.codex.md, PROJECT.md, docs/presentation/final-runtime-flow.md, docs/presentation/final-design-flow.md, docs/memory-pipeline-v2.md, docs/memory-pipeline-archive.md, or docs/pipeline.md, especially for Markdown bloat, source-of-truth drift, archive moves, git savepoint placement, or scope cleanup.
 ---
 
 # research-x Doc Governance
@@ -22,6 +22,8 @@ run source reviews, or manage global Codex context exports.
 
 - Editing or reorganizing `AGENTS.md`, `README.codex.md`, `README.md`,
   `PROJECT.md`, `docs/memory-pipeline-v2.md`,
+  `docs/presentation/final-runtime-flow.md`,
+  `docs/presentation/final-design-flow.md`,
   `docs/memory-pipeline-archive.md`, or `docs/pipeline.md`.
 - Markdown bloat, source-of-truth drift, archive moves, savepoint placement, or
   scope cleanup is part of the task.
@@ -55,6 +57,8 @@ run source reviews, or manage global Codex context exports.
 1. Classify the change: durable rule, compact reference, public README,
    milestone, active architecture, historical note, or pointer.
 2. Update the narrowest existing file.
+   Use the two final flow docs for final runtime/design order and diagram
+   explanation, and `docs/memory-pipeline-v2.md` for detailed evidence mechanics.
 3. Move bulky or obsolete architecture notes to
    `docs/memory-pipeline-archive.md` with an index entry.
 4. Keep `PROJECT.md` short and current.

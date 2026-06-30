@@ -62,11 +62,23 @@ row2: {
 }
 
 row3: {
-  grid-columns: 2
-  answer: "回答\n引用つきで返す" {
+  grid-columns: 3
+  support: "Claim Support\n主張ごとに支えを確認" {
     class: box
     class: evidence
   }
+  authority: "AnswerAuthorityGatekeeper\n回答に使ってよいか判定" {
+    class: box
+    class: evidence
+  }
+  boundary: "Answer Boundary\nanswer / abstain / needs_review\nsource_not_restored / citation_missing / hypothesis_only / provider_gated" {
+    class: box
+    class: evidence
+  }
+}
+
+row4: {
+  grid-columns: 1
   needs_review: "止まる\n引用不足・復元失敗・承認待ち" {
     class: box
     class: stop
@@ -74,20 +86,27 @@ row3: {
 }
 
 row1 -> row2: "候補から根拠へ"
-row2 -> row3: "引用できる形へ"
+row2 -> row3: "回答に使えるか確認"
+row3 -> row4: "足りない時"
 
 row1.raw -> row1.doc
 row1.doc -> row1.result
 row1.result -> row2.bundle: "復元できたら"
 row2.bundle -> row2.chunk
 row2.chunk -> row2.citation
-row2.citation -> row3.answer
+row2.citation -> row3.support
+row3.support -> row3.authority
+row3.authority -> row3.boundary
 
-row1.result -> row3.needs_review: "根拠に戻れない" {
+row1.result -> row4.needs_review: "根拠に戻れない" {
   style.stroke: "#b42318"
   style.stroke-dash: 5
 }
-row2.chunk -> row3.needs_review: "引用に足りない" {
+row2.chunk -> row4.needs_review: "引用に足りない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+row3.support -> row4.needs_review: "主張を支えない" {
   style.stroke: "#b42318"
   style.stroke-dash: 5
 }

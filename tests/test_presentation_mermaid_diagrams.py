@@ -38,7 +38,7 @@ def test_presentation_mermaid_diagrams_cover_requested_topics() -> None:
         "全体アーキテクチャ図",
         "証拠パイプライン図",
         "1回の memory query シーケンス図",
-        "provider / quota gate 図",
+        "provider / quota guard 図",
         "WBS / ロードマップ図",
     ):
         assert phrase in combined
@@ -49,3 +49,4 @@ def test_mermaid_diagram_systems_document_presentation_mermaid_lane() -> None:
 
     assert "docs/presentation/mermaid/**/*.mmd" in text
     assert "presentation-review diagrams" in text
+    assert "not by refactoring D2/SVG assets" in text

@@ -1,21 +1,25 @@
 flowchart TB
-  %% provider / quota gate 図: 何をそのまま進め、何で止めるか
+  %% provider / quota guard 図: provider-backed 候補ルートだけを実行前に止める
 
   classDef ok fill:#e9f6ee,stroke:#49745a,color:#17212b
   classDef check fill:#fff4cf,stroke:#8a6d1d,color:#17212b
   classDef stop fill:#fbe4e4,stroke:#b42318,color:#17212b,stroke-width:2px
 
-  start["これから実行する作業"]:::check
-  asks_provider{"外部Provider/APIを呼ぶか？"}:::check
+  route["候補ルート"]:::check
+  local["local / fake / static<br/>そのまま候補を作る"]:::ok
+  asks_provider{"provider / network / quota を使うか？"}:::check
+  guard["ProviderApiBudgetGuard<br/>承認・価格・上限・停止条件を確認"]:::stop
   asks_secret{"ログイン・secretsを使うか？"}:::check
-  local["進めてよい<br/>fake/local provider<br/>静的検査<br/>monkeypatch済みテスト"]:::ok
-  budget["止める<br/>API Budget Guardで料金・上限・停止条件を確認"]:::stop
   secret_gate["止める<br/>資格情報・セッションの扱いを確認"]:::stop
-  blocked["承認があるまで実行しない<br/>free-tier / trial / zero-dollar quota も対象"]:::stop
-  record["結果を記録する<br/>ローカル検証か承認待ちかを残す"]:::ok
+  blocked["provider_gated<br/>free-tier / trial / zero-dollar quota も止める"]:::stop
+  candidate["候補として返す<br/>まだ回答根拠ではない"]:::ok
+  evidence["後続で確認<br/>Source Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper"]:::ok
 
-  start --> asks_provider
-  asks_provider -->|"いいえ"| asks_secret
-  asks_provider -->|"はい"| budget --> blocked --> record
-  asks_secret -->|"いいえ"| local --> record
+  route --> asks_provider
+  asks_provider -->|"いいえ"| local --> candidate
+  asks_provider -->|"はい"| guard
+  guard -->|"承認済み"| asks_secret
+  guard -->|"freeze / 予算不明"| blocked
+  asks_secret -->|"いいえ"| candidate
   asks_secret -->|"はい"| secret_gate --> blocked
+  candidate --> evidence

@@ -1,6 +1,6 @@
 ---
 name: research-x-memory-workflow
-description: "Use when implementing or reviewing research_x memory-search pipeline work: Evidence/Source Bundle First, ObjectiveRoutePolicy, source restoration, context chunks, citations, API lanes, OCR/media, evals, workflow traces, app observability, retrieval strategy, or AI-callable local search."
+description: "Use when implementing or reviewing research_x memory-search pipeline work: Evidence/Source Bundle First, SearchLens/RetrievalPolicy, ObjectiveRoutePolicy, AnswerAuthorityGatekeeper, source restoration, context chunks, citations, API lanes, OCR/media, evals, workflow traces, app observability, retrieval strategy, or AI-callable local search."
 ---
 
 # research-x Memory Workflow
@@ -18,6 +18,7 @@ implementation beyond requiring traceable evidence state.
 - Prevent generated labels, summaries, scores, media observations, and local
   hashes from becoming evidence by accident.
 - Keep AI-callable answers bounded by evidence status and citations.
+- Keep wide candidate generation separate from narrow answer-authority promotion.
 
 ## Use When
 
@@ -40,7 +41,8 @@ implementation beyond requiring traceable evidence state.
 
 ## Inputs
 
-- Current architecture docs, especially `docs/memory-pipeline-v2.md`.
+- Current architecture docs, especially `docs/presentation/final-runtime-flow.md`,
+  `docs/presentation/final-design-flow.md`, and `docs/memory-pipeline-v2.md`.
 - Source bundle, raw source, searchable document, context chunk, citation,
   workflow trace, eval, or retrieval-route artifacts.
 - Current milestone state from `PROJECT.md` when prioritizing work.
@@ -49,24 +51,27 @@ implementation beyond requiring traceable evidence state.
 
 - Code/doc/test changes that preserve evidence boundaries.
 - Evidence status, citation-readiness, route/eval warnings, and restoration gaps.
-- Handoff requirements for provider gate, observability, prompt contract, or
+- Handoff requirements for provider guard, observability, prompt contract, or
   publishing output when those owners are involved.
 
 ## Steps
 
-1. Read `docs/memory-pipeline-v2.md` before changing architecture.
+1. Read the two final flow docs before changing runtime/design order; read
+   `docs/memory-pipeline-v2.md` before changing evidence mechanics.
 2. Check `PROJECT.md` for current milestone state and gates.
 3. Keep source-bundle restoration central: every retrieval arm must return to
    tweet, quote, media, author, bookmark account, URL, relation, time, and source
    hash where applicable.
-4. Route provider/API/quota permission to `research-x-provider-gate`; keep local
+4. Keep `SearchLens / RetrievalPolicy`, `ObjectiveRoutePolicy`,
+   `ProviderApiBudgetGuard`, and `AnswerAuthorityGatekeeper` distinct.
+5. Route provider/API/quota permission to `research-x-provider-gate`; keep local
    verification fake-first unless that gate is explicitly opened.
-5. Verify with explicit `uv` commands and scoped tests.
+6. Verify with explicit `uv` commands and scoped tests.
 
 ## Safety Gates
 
 - Real provider APIs are owned by `research-x-provider-gate`; approved lanes
-  still require API Budget Guard.
+  still require `ProviderApiBudgetGuard`.
 - Diagnostic `local_hash` embeddings are wiring checks only.
 - OCR/caption/VLM text must stay separate from raw media and corrected text until
   promoted through citation-ready context chunks.
@@ -85,8 +90,8 @@ implementation beyond requiring traceable evidence state.
 
 ## Verification
 
-- Confirm `raw source != searchable document != search result != context chunk
-  != citation != answer`.
+- Confirm `raw source != searchable document != search result != source bundle
+  != context chunk != citation != answer`.
 - Confirm retrieval/eval reports restoration rate, unsupported context chunks,
   route gaps, and provider-gated lanes separately.
 - Confirm every promoted answer can return to source bundle and citation IDs.

@@ -3,10 +3,12 @@
 This file stores historical decision notes and source-review logs moved out of
 docs/memory-pipeline-v2.md so the active architecture source stays small.
 
-The current source of truth remains docs/memory-pipeline-v2.md. During normal implementation, read
-that file first. Use this archive like a private-stack catalogue: inspect the index below, then open
-only the relevant section when a current decision needs historical context, rejected alternatives,
-or old source links. Do not scan the whole archive by default.
+Current runtime/design order is owned by `docs/presentation/final-runtime-flow.md` and
+`docs/presentation/final-design-flow.md`; detailed evidence mechanics are owned by
+`docs/memory-pipeline-v2.md`. During normal implementation, read the active source-of-truth family
+first. Use this archive like a private-stack catalogue: inspect the index below, then open only the
+relevant section when a current decision needs historical context, rejected alternatives, or old
+source links. Do not scan the whole archive by default.
 
 ## Archive Index
 

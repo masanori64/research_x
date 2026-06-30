@@ -42,7 +42,7 @@ limited to static inspection, local/fake providers, monkeypatched tests, and off
 
 ## Skill-Specific Ownership
 
-- `research-x-provider-gate`: owns quota freeze, API Budget Guard, pricing checks, and fake/local
+- `research-x-provider-gate`: owns quota freeze, `ProviderApiBudgetGuard`, pricing checks, and fake/local
   provider boundaries.
 - `research-x-decision-loop`: owns whether provider evidence is enough to justify a design or
   promotion decision.

@@ -6,10 +6,10 @@ flowchart TB
   classDef operate fill:#f3f4f6,stroke:#6b7280,color:#17212b
 
   foundation["土台が完成<br/>原本を失わず、候補と根拠を分ける"]:::foundation
-  evidence["根拠化が完成<br/>どの経路でもSource BundleとCitationへ戻す"]:::foundation
-  retrieval["検索能力が完成<br/>local / media / provider候補を目的別に選ぶ"]:::capability
-  quality["品質判断が完成<br/>answerability・矛盾・古さを評価する"]:::capability
-  operation["運用が完成<br/>予算・監査・レビューで止め時が見える"]:::operate
-  memory["AIの外部記憶として使える<br/>答える・棄権する・レビューへ回す"]:::operate
+  evidence["根拠化が完成<br/>Source Bundle / Context Chunk / Citation / claim support"]:::foundation
+  retrieval["検索能力が完成<br/>SearchLens / ObjectiveRoutePolicy で候補を選ぶ"]:::capability
+  quality["回答権限が完成<br/>AnswerAuthorityGatekeeper と Answer Boundary"]:::capability
+  operation["運用が完成<br/>ProviderApiBudgetGuard・監査・レビューで止め時が見える"]:::operate
+  memory["AIの外部記憶として使える<br/>答える・棄権する・仮説止まり・レビューへ回す"]:::operate
 
   foundation --> evidence --> retrieval --> quality --> operation --> memory

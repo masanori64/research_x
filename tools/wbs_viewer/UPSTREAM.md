@@ -47,6 +47,8 @@ Known runtime constraints:
 - Generated visuals are review artifacts, not project evidence.
 - Holiday shading and remaining-business-day labels are planning/display aids, not legal or
   source-evidence authority.
+- Current runtime/design authority remains in `docs/presentation/final-runtime-flow.md` and
+  `docs/presentation/final-design-flow.md`; the WBS viewer only visualizes work state.
 
 ## Decision
 
@@ -62,6 +64,8 @@ Allowed now:
 Not allowed by this review:
 
 - Treat WBS JSON or rendered visuals as architecture source of truth.
+- Treat WBS JSON or rendered visuals as replacements for source bundles, context chunks,
+  citations, `AnswerAuthorityGatekeeper`, or final-flow docs.
 - Enable any plugin, MCP server, hook, provider, or external service.
 - Modify upstream files in place for project-specific behavior.
 - Store secrets, credentials, provider keys, or private tokens in WBS JSON.

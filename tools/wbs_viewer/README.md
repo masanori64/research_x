@@ -44,7 +44,9 @@ Role split:
 - `projects/research-x-work-state.json` is the project-owned work-state file.
 - `UPSTREAM.md` and `control/vendor_sources.lock.md` own provenance, pinning,
   and adoption gates.
-- `docs/memory-pipeline-v2.md` owns the evidence boundary only; it should not
+- `docs/presentation/final-runtime-flow.md` and
+  `docs/presentation/final-design-flow.md` own final runtime/design order.
+- `docs/memory-pipeline-v2.md` owns detailed evidence mechanics; it should not
   accumulate viewer behavior.
 
 The project-owned WBS file owns operational state:
@@ -56,5 +58,6 @@ The project-owned WBS file owns operational state:
 - viewer-only calendar display configuration such as top-level `holidays`.
 
 WBS must not carry long rationale, source review prose, context chunks, citations,
-answer support, legal/business-calendar authority, or provider execution permission.
+answer support, final architecture authority, legal/business-calendar authority,
+or provider execution permission.
 Codex edits the JSON source; browser editing remains optional human review.
