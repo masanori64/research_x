@@ -97,7 +97,10 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
         "edge-addons-governance": "external_tool_governance",
         "x-private-source-routing": "codex_operations",
     }
-    staged_expected = expected.keys() - {"x-private-source-routing"}
+    staged_expected = expected.keys() - {
+        "edge-addons-governance",
+        "x-private-source-routing",
+    }
 
     for name, group in expected.items():
         candidate = candidates[name]
@@ -125,9 +128,16 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
     assert "Browser automation" in candidates[
         "lighthouse-agentic-browsing-audit"
     ]["promotion_gate"]
-    assert "Specific extension IDs require explicit install approval" in candidates[
-        "edge-addons-governance"
-    ]["promotion_gate"]
+    edge_governance = candidates["edge-addons-governance"]
+    assert edge_governance["adoption_shape"] == "adopt"
+    assert edge_governance["enabled"] is False
+    assert edge_governance["active_surface"] == (
+        "C:/Users/maasa/.codex/foundation/pipeline/engine/"
+        "codex_pipeline/edge_addons_governance.py"
+    )
+    assert "store listing alone is not trust" in edge_governance["promotion_gate"]
+    assert "no action permission" in edge_governance["promotion_gate"]
+    assert "not an enabled runnable external-source surface" in edge_governance["notes"]
     x_route = candidates["x-private-source-routing"]
     assert x_route["adoption_shape"] == "adopt"
     assert x_route["enabled"] is False

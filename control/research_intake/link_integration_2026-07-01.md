@@ -238,7 +238,7 @@ Codex foundation candidates staged or gated:
 | `slidev-playwright-visual-review` | staging | presentation QA loop candidate |
 | `ppt-master` | provider_gated | model/API-dependent slide generation candidate |
 | `x-private-source-routing` | adopt | active private/snippet-only negative route-memory boundary |
-| `edge-addons-governance` | staging | extension install/privacy review checklist |
+| `edge-addons-governance` | adopt | foundation-owned extension governance control artifact |
 
 ## Loop 2 Review
 
@@ -490,6 +490,25 @@ Implemented source-governance ownership coverage:
   are still unfetched, metadata-only, not evidence, not citations, not runtime
   permission, and not automatic adoption.
 
+Implemented Edge extension governance control artifact:
+
+- `edge-addons-governance` is now owned by the Codex foundation pipeline at
+  `C:/Users/maasa/.codex/foundation/pipeline/engine/codex_pipeline/edge_addons_governance.py`
+  with policy input at
+  `C:/Users/maasa/.codex/foundation/pipeline/policies/browser-extension-policy.yml`.
+- The artifact records extension ID, store URL, publisher, permissions,
+  privacy/data-flow, update risk, local file access, browser session access,
+  source-acquisition dependency, and install approval status as review checks.
+- The foundation registry points to the local control artifact, but the
+  candidate remains `enabled = false` because it is not a runnable extension
+  surface.
+- The artifact always carries control-artifact/non-evidence markers and grants
+  no install, browser-session, MCP/connector, hidden API, scraping, source
+  promotion, citation, or answer-support permission.
+- `research_x` keeps only boundary assertions for this foundation-owned surface;
+  it does not add an Edge source-registry entry, adoption candidate, Skill, or
+  runtime path.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -507,6 +526,8 @@ Verification completed for these loops:
 - `uv run pytest tests\research_intake\test_source_registry_policy.py tests\test_research_intake.py tests\test_adoption_registry.py -q`
 - `uv run python -m research_x.research_intake.cli validate`
 - `uv run python -m research_x adoption audit --json`
+- `uv run pytest tests\test_codex_foundation_boundary.py tests\test_control_artifact_structure_view.py -q`
+- `uv run pytest tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

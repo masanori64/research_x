@@ -72,6 +72,7 @@ def test_control_artifact_rejects_wbs_or_pdg_as_citation_source() -> None:
         "diagram_review",
         "compressed_summary",
         "context_offload_preview",
+        "edge_addons_governance",
         "html_structure_view",
         "wbs_rendered_view",
         "chatgpt_consultation",

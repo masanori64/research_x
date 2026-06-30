@@ -12,6 +12,7 @@ CONTROL_ARTIFACT_KINDS = {
     "context_preview",
     "d2_source",
     "diagram_review",
+    "edge_addons_governance",
     "generated_diagram",
     "generated_spec",
     "gpt_pro_plan",
