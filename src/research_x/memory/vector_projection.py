@@ -293,7 +293,17 @@ def vector_projection_coverage(
     missing = max(0, expected_documents - current)
     index_path = metadata.get("index_path")
     index_exists = bool(index_path and Path(index_path).exists())
-    status = "ok" if current == projection_documents and stale == 0 and index_exists else "stale"
+    status = (
+        "ok"
+        if (
+            current == projection_documents
+            and current == expected_documents
+            and stale == 0
+            and missing == 0
+            and index_exists
+        )
+        else "stale"
+    )
     return VectorProjectionCoverage(
         db_path=str(path),
         generation_id=row["generation_id"],
