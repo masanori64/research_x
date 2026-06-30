@@ -1,23 +1,21 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart TB
+flowchart LR
   %% 完成形の provider / quota guard 図: 承認済みProviderを候補生成として安全に使う
 
-  classDef ask fill:#ffffff,stroke:#111111,color:#111111
-  classDef ok fill:#ffffff,stroke:#111111,color:#111111
+  classDef main fill:#ffffff,stroke:#111111,color:#111111
   classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef record fill:#ffffff,stroke:#111111,color:#111111
 
-  need["provider-backed 候補ルート"]:::ask
-  approval{"今回の明示承認があるか"}:::ask
-  estimate["先に見積もる<br/>件数・token・費用"]:::ask
-  guard{"ProviderApiBudgetGuard<br/>上限内か"}:::ask
-  run["最小範囲で実行<br/>結果は候補として扱う"]:::ok
-  restore["後続で昇格確認<br/>Source Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper"]:::ok
+  route["provider-backed<br/>候補ルート"]:::main
+  approval{"明示承認<br/>があるか"}:::main
+  estimate["先に見積もる<br/>件数・費用"]:::main
+  guard{"上限内か<br/>ProviderApiBudgetGuard"}:::main
+  run["最小範囲で実行<br/>候補として扱う"]:::main
+  restore["後続で昇格確認<br/>Source Bundle / Citation"]:::main
   stop["止める<br/>承認・価格・上限が不明"]:::stop
-  ledger["記録する<br/>使用量と次の停止点"]:::record
+  record["記録する<br/>使用量と次の停止点"]:::main
 
-  need --> approval
-  approval -->|"いいえ"| stop --> ledger
+  route --> approval
+  approval -->|"いいえ"| stop --> record
   approval -->|"はい"| estimate --> guard
   guard -->|"失敗"| stop
-  guard -->|"通過"| run --> restore --> ledger
+  guard -->|"通過"| run --> restore --> record

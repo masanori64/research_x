@@ -7,18 +7,18 @@ REDESIGN_DIR = Path("docs/presentation/mermaid/redesign")
 
 EXPECTED = {
     "current": {
-        "01-overall-architecture.mmd": "flowchart TB",
-        "02-evidence-pipeline.mmd": "flowchart TB",
+        "01-overall-architecture.mmd": "flowchart",
+        "02-evidence-pipeline.mmd": "flowchart",
         "03-memory-query-sequence.mmd": "sequenceDiagram",
-        "04-provider-quota-gate.mmd": "flowchart TB",
-        "05-roadmap.mmd": "flowchart TB",
+        "04-provider-quota-gate.mmd": "flowchart",
+        "05-roadmap.mmd": "flowchart",
     },
     "final": {
-        "01-overall-architecture.mmd": "flowchart TB",
-        "02-evidence-pipeline.mmd": "flowchart TB",
+        "01-overall-architecture.mmd": "flowchart",
+        "02-evidence-pipeline.mmd": "flowchart",
         "03-memory-query-sequence.mmd": "sequenceDiagram",
-        "04-provider-quota-gate.mmd": "flowchart TB",
-        "05-roadmap.mmd": "flowchart TB",
+        "04-provider-quota-gate.mmd": "flowchart",
+        "05-roadmap.mmd": "flowchart",
     },
 }
 
@@ -47,11 +47,15 @@ def test_redesign_mermaid_diagrams_are_not_bound_to_slides_or_d2_assets() -> Non
             path = REDESIGN_DIR / set_name / name
             text = path.read_text(encoding="utf-8")
 
-            assert first_line in text.splitlines()[:3], path
+            assert any(line.startswith(first_line) for line in text.splitlines()[:3]), path
             assert name not in slides
             assert ".svg" not in text
             assert ".d2" not in text
             assert "D2" not in text
+            if first_line == "flowchart":
+                assert "UML" not in text
+            else:
+                assert "Mermaid UML sequenceDiagram" in text
             assert "direction:" not in text
             assert "shape:" not in text
             assert "style." not in text
@@ -83,6 +87,8 @@ def test_redesign_readme_records_source_basis_and_loop() -> None:
 
     assert "must follow the final flow docs and project requirements" in normalized
     assert "not existing D2/SVG assets" in normalized
+    assert "docs/presentation/diagram-systems.md" in normalized
+    assert "Mermaid-supported diagram type boundary" in normalized
     assert "Self-review loop" in text
     assert "Decision: write the diagrams." in text
     assert "current/01-overall-architecture.mmd" in text
@@ -107,3 +113,6 @@ def test_diagram_design_harness_records_fixed_mermaid_contract() -> None:
         "Do not start writing the diagram while this loop still finds material issues"
         in normalized
     )
+    assert "Calling a flowchart or boxes-and-arrows drawing UML" in normalized
+    assert "real Mermaid UML-capable syntax" in normalized
+    assert "do not label an ordinary flowchart as UML" in normalized.replace("`", "")

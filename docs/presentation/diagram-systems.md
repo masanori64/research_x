@@ -19,7 +19,7 @@ citations, or answer evidence.
 | --- | --- | --- | --- |
 | D2 | `docs/presentation/diagrams/*.d2`, rendered to `docs/presentation/assets/*.svg` | D2 is a text-to-diagram language for declarative diagramming. Its official docs include layout, containers, classes, sequence diagrams, and UML class diagrams. | Use when the requested output is the D2/Marp presentation lane. D2 source must be written from the final flow docs, not treated as the source for Mermaid rewrites. |
 | Marp | `docs/presentation/slides.md`, built to `docs/presentation/dist/*.pptx` | Marp is the Markdown presentation ecosystem; Marp CLI converts Markdown slide decks into outputs such as HTML/PDF/PPTX. | Owns slide/deck assembly and claim markers. It does not own architecture content. |
-| Mermaid | `docs/control/codex/dashboard/mermaid/*.mmd`, `docs/presentation/mermaid/**/*.mmd` | Mermaid renders Markdown-inspired text definitions and officially supports multiple diagram types, including flowchart, sequence, class, state, ER, journey, Gantt, pie, requirement, Gitgraph, mindmap, timeline, quadrant, Sankey, XY chart, block, packet, architecture, Kanban, and radar diagrams. | Use when the requested output is text-native Mermaid, dashboard review, or Mermaid presentation review. Mermaid source must be generated from the final flow docs, not by refactoring D2/SVG assets. |
+| Mermaid | `docs/control/codex/dashboard/mermaid/*.mmd`, `docs/presentation/mermaid/**/*.mmd` | Mermaid renders Markdown-inspired text definitions and officially supports multiple diagram types, including flowchart, sequence, class, state, ER, journey, Gantt, pie, requirement, Gitgraph, mindmap, timeline, quadrant, Sankey, XY chart, block, packet, architecture, Kanban, and radar diagrams. Its class diagram syntax is UML-oriented, and sequence/state diagrams are first-class Mermaid diagram types. | Use when the requested output is text-native Mermaid, dashboard review, Mermaid presentation review, or Mermaid-backed UML. Mermaid source must be generated from the final flow docs, not by refactoring D2/SVG assets. Local preview/rendering uses the official Mermaid CLI package. |
 | WBS Viewer | `tools/wbs_viewer/vendor/single-file-wbs-v1.3.0/wbs_viewer.html` plus `tools/wbs_viewer/projects/research-x-work-state.json` | The vendored upstream describes a dependency-free single-file WBS/Gantt viewer with a progress-axis view and progress line, opened locally in Chrome/Chromium. | Owns project work-state visualization only. Keep WBS as WBS; do not route architecture or evidence diagrams here. |
 
 ## Removed System
@@ -48,10 +48,14 @@ replacement.
 - Codex control-dashboard and presentation-review diagrams: Mermaid is allowed;
   choose a Mermaid diagram type that matches the official Mermaid diagram syntax
   instead of forcing all visuals into flowcharts.
+- Mermaid UML requests: use real Mermaid UML-capable syntax. Use
+  `sequenceDiagram` for interactions, `classDiagram` for structure and
+  relationships, and `stateDiagram-v2` for lifecycle/status behavior. Do not
+  call a `flowchart` UML.
 - WBS, Gantt, progress-line, and work-state review: use WBS Viewer.
-- Strict UML is not a current repository lane. If a future task needs strict UML,
-  first choose and document an official/upstream UML-capable tool; do not infer
-  one from habit or create a custom renderer.
+- Strict UML means the diagram source uses a real UML-capable diagram type, not
+  just boxes and arrows that look similar. In this repository, Mermaid can own
+  that lane when the requested UML type is supported by Mermaid.
 
 ## Official/Upstream Pointers
 

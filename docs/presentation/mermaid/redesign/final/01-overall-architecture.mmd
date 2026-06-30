@@ -3,27 +3,29 @@ flowchart TB
   %% 完成形の全体アーキテクチャ図: AIの外部記憶として質問から答えまでを閉じる
 
   classDef main fill:#ffffff,stroke:#111111,color:#111111
-  classDef input fill:#ffffff,stroke:#111111,color:#111111
+  classDef note fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
   classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef side fill:#ffffff,stroke:#111111,color:#111111
 
-  request["人 / AI agent<br/>調べたい目的を渡す"]:::input
+  request["人 / AI agent<br/>目的を渡す"]:::main
+  route["候補経路を選ぶ<br/>SearchLens<br/>ObjectiveRoutePolicy"]:::main
+  local["ローカル候補<br/>SQLite / FTS / 関係"]:::main
+  provider["外部Provider/API<br/>ProviderApiBudgetGuard後だけ"]:::gate
+  evidence["根拠へ戻す<br/>Source Bundle / Citation"]:::main
+  authority["回答権限<br/>主張支えを確認"]:::main
+  answer["Answer Boundary<br/>答える / 止める"]:::main
+  audit["監査と改善<br/>失敗理由を戻す"]:::note
 
-  subgraph core["research_x 完成形の主経路"]
-    lens["SearchLens<br/>人間側の関心と重みを反映"]:::main
-    route["ObjectiveRoutePolicy<br/>local / media / provider候補を選ぶ"]:::main
-    restore["候補を根拠へ戻す<br/>Source Bundle / Context Chunk / Citation"]:::main
-    authority["AnswerAuthorityGatekeeper<br/>claim support を判定"]:::main
-    respond["Answer Boundary<br/>answer / abstain / review / hypothesis"]:::main
+  subgraph row1["質問を候補に変える"]
+    direction LR
+    request --> route --> local
+    route -. "必要な時だけ" .-> provider
+    provider -. "候補として合流" .-> local
   end
 
-  subgraph support["外部設計として見る範囲"]
-    provider["外部Provider/API<br/>承認済み範囲だけ"]:::gate
-    observe["監査と見える化<br/>費用・品質・停止理由"]:::side
-    feedback["評価と改善<br/>失敗例を次の検索へ戻す"]:::side
+  subgraph row2["候補を回答にできるか見る"]
+    direction LR
+    evidence --> authority --> answer
   end
 
-  request --> lens --> route --> restore --> authority --> respond
-  provider -. "ProviderApiBudgetGuard後の候補だけ" .-> route
-  respond -. "状態を残す" .-> observe
-  observe -. "改善に使う" .-> feedback
+  local --> evidence
+  answer -. "状態を残す" .-> audit

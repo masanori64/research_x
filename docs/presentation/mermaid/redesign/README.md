@@ -21,6 +21,8 @@ Primary sources:
 - user requirement: create two sets of five human-readable Mermaid diagrams;
 - `docs/presentation/final-runtime-flow.md`: provisional final runtime flow;
 - `docs/presentation/final-design-flow.md`: provisional final design flow;
+- `docs/presentation/diagram-systems.md`: official/upstream diagram-system
+  routing and Mermaid-supported diagram type boundary;
 - `docs/presentation/diagram-design-harness.md`: fixed Mermaid harness and
   readability rules;
 - `README.codex.md` and `PROJECT.md`: project goal, active gates, and core
@@ -76,6 +78,11 @@ Self-review loop:
   than a human explanation.
   Decision: use monochrome styling and make meaning come from labels, grouping,
   line weight, and reading order.
+- Finding: a Mermaid `flowchart` can look UML-like while still not being a UML
+  diagram type.
+  Decision: when a diagram is UML in Mermaid, use the real Mermaid diagram type
+  for that purpose, such as `sequenceDiagram`, `classDiagram`, or
+  `stateDiagram-v2`.
 - Finding: provider and auth details are important but are not the main story of
   most diagrams.
   Decision: show provider lanes as guarded candidate branches except in the

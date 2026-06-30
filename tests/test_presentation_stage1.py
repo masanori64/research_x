@@ -13,7 +13,7 @@ RENDER_D2 = Path("scripts/presentation/render-d2.mjs")
 BUILD = Path("scripts/presentation/build.mjs")
 
 
-def test_stage1_package_surface_is_limited_to_d2_and_marp() -> None:
+def test_stage1_package_surface_is_limited_to_presentation_renderers() -> None:
     package = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
 
     assert package["name"] == "research-x-presentation-tools"
@@ -26,6 +26,7 @@ def test_stage1_package_surface_is_limited_to_d2_and_marp() -> None:
     }
     assert package["devDependencies"] == {
         "@marp-team/marp-cli": "4.4.0",
+        "@mermaid-js/mermaid-cli": "^11.16.0",
         "@terrastruct/d2": "0.1.33",
     }
 
@@ -35,8 +36,10 @@ def test_stage1_lockfile_pins_selected_packages() -> None:
     root = lock["packages"][""]
 
     assert root["devDependencies"]["@marp-team/marp-cli"] == "4.4.0"
+    assert root["devDependencies"]["@mermaid-js/mermaid-cli"] == "^11.16.0"
     assert root["devDependencies"]["@terrastruct/d2"] == "0.1.33"
     assert lock["packages"]["node_modules/@marp-team/marp-cli"]["version"] == "4.4.0"
+    assert lock["packages"]["node_modules/@mermaid-js/mermaid-cli"]["version"] == "11.16.0"
     assert lock["packages"]["node_modules/@terrastruct/d2"]["version"] == "0.1.33"
 
 
@@ -92,6 +95,8 @@ def test_diagram_design_harness_preserves_human_readability_intent() -> None:
 
 def test_diagram_systems_route_by_creation_system_and_retire_custom_uml() -> None:
     text = DIAGRAM_SYSTEMS.read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
+    normalized_without_backticks = normalized.replace("`", "")
 
     for phrase in (
         "diagram creation-system routing",
@@ -99,11 +104,16 @@ def test_diagram_systems_route_by_creation_system_and_retire_custom_uml() -> Non
         "Marp",
         "Mermaid",
         "WBS Viewer",
+        "Mermaid UML requests",
+        "sequenceDiagram",
+        "classDiagram",
+        "stateDiagram-v2",
         "The previous custom UML lane was removed",
         "Do not recreate a custom SVG generator",
-        "Strict UML is not a current repository lane",
+        "Do not call a flowchart UML",
+        "Mermaid can own that lane",
     ):
-        assert phrase in text
+        assert phrase in normalized_without_backticks
 
     assert "scripts/uml/build-research-x-uml.mjs" in text
     assert "docs/uml/" in text

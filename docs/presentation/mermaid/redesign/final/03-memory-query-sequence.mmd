@@ -1,36 +1,23 @@
-%%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
+%%{init: {"theme":"base","sequence":{"mirrorActors":false},"themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 sequenceDiagram
-  %% 完成形の1回の memory query シーケンス図: 経路選択から引用付き回答または棄権までを見る
+  %% 完成形の1回の memory query シーケンス図: Mermaid UML sequenceDiagramで相互作用を見る
 
   actor User as 人 / AI agent
   participant RX as research_x API
-  participant Lens as SearchLens
-  participant Route as ObjectiveRoutePolicy / Route Portfolio
-  participant Guard as ProviderApiBudgetGuard
-  participant Evidence as Source Bundle / Context / Citation
-  participant Authority as AnswerAuthorityGatekeeper
-  participant Boundary as Answer Boundary
-  participant Trace as 監査と評価
+  participant Route as 候補生成
+  participant Gate as 回答権限
 
   User->>RX: query / objective / context budget
-  RX->>Trace: sidecar trace を開始する
-  RX->>Lens: 関心・重み・探索姿勢を確認する
-  Lens->>Route: 目的に合う候補経路を選ぶ
-
+  RX->>Route: SearchLensで候補経路を選ぶ
   opt provider-backed route
-    Route->>Guard: 予算と停止条件を確認する
-    Guard-->>Route: provider candidates or provider_gated skip
+    Route-->>RX: ProviderApiBudgetGuardで候補または provider_gated
   end
-
-  Route->>Evidence: 候補を source bundle / context chunk / citation へ復元する
-  Evidence->>Authority: claim support を確認する
-  Authority->>Boundary: answer support または停止理由
-  Boundary->>Trace: 品質と停止理由を保存する
-
+  Route-->>RX: candidates
+  RX->>Gate: Source Bundle / Context / Citation / Claim Support
+  Gate-->>RX: answer support または停止理由
+  Note over RX: 品質と停止理由を保存する
   alt 回答できる
-    Boundary-->>RX: answer with citations
     RX-->>User: 引用付き回答
   else 回答すべきでない
-    Boundary-->>RX: abstain / needs_review / hypothesis_only / provider_gated
-    RX-->>User: 理由つきで返す
+    RX-->>User: 棄権・レビュー・仮説止まり
   end

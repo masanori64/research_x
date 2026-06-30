@@ -104,6 +104,10 @@ These are examples of what to avoid. They are not the whole rule.
   clearer.
 - Red/yellow/green/blue fills used as the main way to explain status, priority,
   or route class.
+- Calling a flowchart or boxes-and-arrows drawing UML when it is only UML-like.
+  If the requested output is UML in Mermaid, write real Mermaid UML-capable
+  syntax such as `sequenceDiagram`, `classDiagram`, or `stateDiagram-v2`; do not
+  label an ordinary `flowchart` as UML.
 - A diagram that is technically accurate but unreadable for someone seeing the
   project for the first time.
 

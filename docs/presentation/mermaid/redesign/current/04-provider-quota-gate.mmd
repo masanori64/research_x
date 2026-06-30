@@ -1,24 +1,18 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart TB
+flowchart LR
   %% 現状の provider / quota guard 図: provider-backed候補ルートだけを実行前に止める
 
-  classDef ask fill:#ffffff,stroke:#111111,color:#111111
-  classDef ok fill:#ffffff,stroke:#111111,color:#111111
+  classDef main fill:#ffffff,stroke:#111111,color:#111111
   classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef record fill:#ffffff,stroke:#111111,color:#111111
 
-  work["候補ルート"]:::ask
-  provider{"provider / network / quota を使うか"}:::ask
-  secret{"ログイン・secretsを使うか"}:::ask
-  allowed["進めてよい<br/>local / fake / static / monkeypatch"]:::ok
-  blocked["provider_gated<br/>無料枠・trial・zero-dollar quota も不可"]:::stop
-  approval["承認後だけ<br/>ProviderApiBudgetGuard で最小範囲"]:::stop
-  candidate["候補として返す<br/>まだ根拠ではない"]:::record
-  evidence["後続で確認<br/>Source Bundle / Context Chunk / Citation / AnswerAuthorityGatekeeper"]:::ok
+  route["候補ルート"]:::main
+  need{"provider / network / quota<br/>を使うか"}:::main
+  local["使わない<br/>local / fake / static"]:::main
+  blocked["provider_gated<br/>無料枠も停止"]:::stop
+  candidate["候補として返す<br/>まだ根拠ではない"]:::main
+  promote["後続で確認<br/>Source Bundle / Citation / 回答権限"]:::main
 
-  work --> provider
-  provider -->|"はい"| blocked --> approval --> candidate
-  provider -->|"いいえ"| secret
-  secret -->|"はい"| blocked
-  secret -->|"いいえ"| allowed --> candidate
-  candidate --> evidence
+  route --> need
+  need -->|"いいえ"| local --> candidate
+  need -->|"はい"| blocked --> candidate
+  candidate --> promote

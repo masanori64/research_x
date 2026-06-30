@@ -1,25 +1,22 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart TB
+flowchart LR
   %% 完成形の証拠パイプライン図: どの検索経路でも同じ根拠条件を通す
 
-  classDef step fill:#ffffff,stroke:#111111,color:#111111
-  classDef candidate fill:#ffffff,stroke:#111111,color:#111111
-  classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
-  classDef loop fill:#ffffff,stroke:#111111,color:#111111
+  classDef main fill:#ffffff,stroke:#111111,color:#111111
+  classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
+  classDef note fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
 
-  raw["原本<br/>投稿・ブックマーク・メディア・取得記録"]:::step
-  signals["候補信号<br/>text / media / relation / provider"]:::candidate
-  restore["復元<br/>tweet・quote・media・accountへ戻す"]:::step
-  chunk["Context Chunk<br/>回答入力の範囲へ切る"]:::step
-  citation["Citation<br/>根拠位置を明示する"]:::step
-  support["Claim Support<br/>主張ごとの支えを確認"]:::step
-  authority["AnswerAuthorityGatekeeper<br/>回答権限を判定する"]:::step
-  answer["Answer Boundary<br/>回答・棄権・レビュー・仮説止まり"]:::step
-  reject["捨てる<br/>戻せない候補は根拠にしない"]:::gate
-  improve["評価とfeedback<br/>次の検索品質へ戻す"]:::loop
+  raw["原本<br/>投稿・メディア・取得記録"]:::main
+  signal["候補信号<br/>local / media / provider<br/>まだ根拠ではない"]:::main
+  evidence["根拠に昇格<br/>Source Bundle<br/>Context Chunk<br/>Citation"]:::main
+  support["回答権限<br/>Claim Supportを確認"]:::main
+  boundary["Answer Boundary<br/>回答・棄権・仮説"]:::main
 
-  raw --> signals --> restore --> chunk --> citation --> support --> authority --> answer
-  signals -. "復元不可" .-> reject
-  support -. "claim不足" .-> reject
-  answer -. "品質を見る" .-> improve
-  improve -. "候補作りを改善" .-> signals
+  reject["捨てる<br/>戻せない候補は根拠にしない"]:::stop
+  feedback["評価とfeedback<br/>次の候補作りを改善"]:::note
+
+  raw --> signal --> evidence --> support --> boundary
+  signal -. "復元不可" .-> reject
+  support -. "支え不足" .-> reject
+  evidence -. "品質を見る" .-> feedback
+  feedback -. "改善" .-> signal

@@ -1,27 +1,22 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
-flowchart TB
-  %% 現状の証拠パイプライン図: 候補が根拠へ昇格できるかを見る
+flowchart LR
+  %% 現状の証拠パイプライン図: 候補と根拠を混ぜない
 
-  classDef step fill:#ffffff,stroke:#111111,color:#111111
-  classDef candidate fill:#ffffff,stroke:#111111,color:#111111
+  classDef main fill:#ffffff,stroke:#111111,color:#111111
   classDef stop fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
+  classDef note fill:#ffffff,stroke:#111111,color:#111111,stroke-dasharray: 5 5
 
-  raw["原本<br/>X投稿・ブックマーク・メディア"]:::step
-  candidate["検索候補<br/>近そうだがまだ根拠ではない"]:::candidate
-  bundle["Source Bundle<br/>元の投稿へ戻せた状態"]:::step
-  chunk["Context Chunk<br/>回答に渡せる短い文脈"]:::step
-  citation["Citation<br/>根拠位置を示す"]:::step
-  support["Claim Support<br/>主張ごとに支えを確認"]:::step
-  authority["AnswerAuthorityGatekeeper<br/>回答に使えるか判定"]:::step
-  outcome["Answer Boundary<br/>answer / needs_review / hypothesis_only"]:::step
+  raw["原本<br/>X投稿・メディア"]:::main
+  hit["検索候補<br/>SQLite / FTS / 関係<br/>まだ根拠ではない"]:::main
+  evidence["根拠に昇格<br/>Source Bundle<br/>Context Chunk<br/>Citation"]:::main
+  claim["回答権限<br/>主張支えを確認"]:::main
+  boundary["Answer Boundary<br/>answer / review / hypothesis"]:::main
 
-  stop_restore["止まる<br/>原本へ戻れない"]:::stop
-  stop_citation["止まる<br/>引用として弱い"]:::stop
-  stop_support["止まる<br/>主張を支えられない"]:::stop
-  stop_control["根拠にしない<br/>図・WBS・要約"]:::stop
+  restore_stop["止める<br/>原本へ戻れない"]:::stop
+  weak_stop["止める<br/>引用または主張支えが弱い"]:::stop
+  control_note["図・WBS・要約<br/>根拠にしない"]:::note
 
-  raw --> candidate --> bundle --> chunk --> citation --> support --> authority --> outcome
-  candidate -. "復元失敗" .-> stop_restore
-  chunk -. "支え不足" .-> stop_citation
-  support -. "claim不足" .-> stop_support
-  candidate -. "説明資料由来" .-> stop_control
+  raw --> hit --> evidence --> claim --> boundary
+  hit -. "復元失敗" .-> restore_stop
+  evidence -. "説明資料由来" .-> control_note
+  claim -. "支え不足" .-> weak_stop

@@ -1,16 +1,26 @@
 %%{init: {"theme":"base","themeVariables":{"background":"#ffffff","primaryColor":"#ffffff","primaryBorderColor":"#111111","primaryTextColor":"#111111","secondaryColor":"#ffffff","secondaryBorderColor":"#111111","secondaryTextColor":"#111111","tertiaryColor":"#ffffff","tertiaryBorderColor":"#111111","tertiaryTextColor":"#111111","lineColor":"#111111","textColor":"#111111","mainBkg":"#ffffff","secondBkg":"#ffffff","actorBkg":"#ffffff","actorBorder":"#111111","actorTextColor":"#111111","activationBkgColor":"#ffffff","activationBorderColor":"#111111","noteBkgColor":"#ffffff","noteBorderColor":"#111111","labelBoxBkgColor":"#ffffff","labelBoxBorderColor":"#111111","signalColor":"#111111","signalTextColor":"#111111","loopTextColor":"#111111"}}}%%
 flowchart TB
-  %% 現状のWBS / ロードマップ図: 主経路のどこが動き、どこが保留かを見る
+  %% 現状のWBS / ロードマップ図: 現在どこが動き、どこが停止中かを見る
 
-  classDef done fill:#ffffff,stroke:#111111,color:#111111
-  classDef next fill:#ffffff,stroke:#111111,color:#111111
+  classDef main fill:#ffffff,stroke:#111111,color:#111111
   classDef gate fill:#ffffff,stroke:#111111,color:#111111,stroke-width:2px
 
-  source["1. 原本を保つ<br/>X原本ストアは動く<br/>外部sourceは保留"]:::done
-  evidence["2. 根拠にする<br/>Source Bundle / Context Chunk / Citation<br/>AnswerAuthorityGatekeeper を強化"]:::next
-  search["3. 探す<br/>SearchLens / ObjectiveRoutePolicy / local route portfolio<br/>実Provider品質は停止"]:::next
-  tool["4. AIへ返す<br/>Answer Boundary status と監査記録<br/>見える化は継続強化"]:::done
-  gate["停止中<br/>ProviderApiBudgetGuard がProvider・実ログイン・外部取得を保留"]:::gate
+  source["1. 原本を保つ<br/>X原本ストア"]:::main
+  evidence["2. 根拠にする<br/>復元・引用を強化"]:::main
+  search["3. 探す<br/>ローカル候補を固める"]:::main
+  answer["4. 返す<br/>status と監査記録"]:::main
+  provider["停止中<br/>Provider / 実ログイン"]:::gate
 
-  source --> evidence --> search --> tool
-  gate -. "解除後に各段階へ入る" .-> search
+  subgraph row1["今ある土台"]
+    direction LR
+    source --> evidence
+  end
+
+  subgraph row2["次に固める主経路"]
+    direction LR
+    search --> answer
+  end
+
+  source --> search
+  evidence --> search
+  provider -. "承認後にだけ入れる" .-> search
