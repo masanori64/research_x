@@ -8,6 +8,7 @@ CONTROL_ARTIFACT_KINDS = {
     "chatgpt_consultation",
     "codex_review_capture",
     "compressed_summary",
+    "context_headroom_observability",
     "context_offload_preview",
     "context_preview",
     "d2_source",

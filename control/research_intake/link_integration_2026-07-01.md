@@ -228,7 +228,7 @@ Codex foundation candidates staged or gated:
 
 | Candidate | Shape | Reason |
 | --- | --- | --- |
-| `headroom-context-observability` | staging | context/session visibility signal |
+| `headroom-context-observability` | adopt | foundation-owned report-only context headroom control artifact |
 | `loop-engineering` | staging | phase/residual loop comparison |
 | `peerd` | staging | MCP/local-memory governance review |
 | `lighthouse-agentic-browsing-audit` | staging | browser/MCP audit checklist |
@@ -509,6 +509,26 @@ Implemented Edge extension governance control artifact:
   it does not add an Edge source-registry entry, adoption candidate, Skill, or
   runtime path.
 
+Implemented context/headroom observability control artifact:
+
+- `headroom-context-observability` is now owned by the Codex foundation pipeline
+  at
+  `C:/Users/maasa/.codex/foundation/pipeline/engine/codex_pipeline/context_headroom.py`
+  with policy input at
+  `C:/Users/maasa/.codex/foundation/pipeline/policies/context-headroom-policy.yml`.
+- The artifact records context window, estimated used/remaining tokens,
+  consumption rate, subagent counts, active goal state, route-memory preflight,
+  artifact queue count, risk band, and recommended mitigations.
+- It routes mitigation recommendations through existing `context-budget`,
+  `codex-fluent`, `planning-files`, `long-loop-executor`, and route-memory
+  surfaces instead of creating a new Skill or automatic session policy.
+- The artifact is report-only and grants no automatic compaction, session
+  mutation, hook install, Skill creation, provider/quota use, citation, evidence,
+  or answer-support permission.
+- `research_x` keeps only boundary assertions for this foundation-owned surface;
+  it does not add a project adoption candidate, source-registry entry, Skill, or
+  runtime path.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -528,6 +548,7 @@ Verification completed for these loops:
 - `uv run python -m research_x adoption audit --json`
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_control_artifact_structure_view.py -q`
 - `uv run pytest tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
+- `uv run pytest tests\test_context_headroom.py tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

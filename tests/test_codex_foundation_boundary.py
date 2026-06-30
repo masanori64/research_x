@@ -99,6 +99,7 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
     }
     staged_expected = expected.keys() - {
         "edge-addons-governance",
+        "headroom-context-observability",
         "x-private-source-routing",
     }
 
@@ -113,15 +114,18 @@ def test_agent_control_links_stay_in_codex_foundation_registry_only() -> None:
         assert candidate["adoption_shape"] == "staging"
         assert candidate["enabled"] is False
 
-    assert "No install or runtime hook" in candidates[
-        "headroom-context-observability"
-    ]["promotion_gate"]
-    assert "context-budget" in candidates[
-        "headroom-context-observability"
-    ]["first_local_step"]
-    assert "codex-fluent" in candidates[
-        "headroom-context-observability"
-    ]["first_local_step"]
+    headroom = candidates["headroom-context-observability"]
+    assert headroom["adoption_shape"] == "adopt"
+    assert headroom["enabled"] is False
+    assert headroom["active_surface"] == (
+        "C:/Users/maasa/.codex/foundation/pipeline/engine/"
+        "codex_pipeline/context_headroom.py"
+    )
+    assert "No install" in headroom["promotion_gate"]
+    assert "automatic compaction" in headroom["promotion_gate"]
+    assert "context-budget" in headroom["promotion_gate"]
+    assert "codex-fluent" in headroom["promotion_gate"]
+    assert "not session mutation permission" in headroom["notes"]
     assert "long-loop-executor" in candidates["loop-engineering"]["promotion_gate"]
     assert "planning-files" in candidates["loop-engineering"]["promotion_gate"]
     assert "No MCP server" in candidates["peerd"]["promotion_gate"]
