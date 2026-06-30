@@ -311,6 +311,81 @@ Presentation boundary findings:
   `reverse_spec`, all with `not_evidence: true` and
   `answer_support_allowed: false`.
 
+## Loop 3-5 Local Implementations
+
+The next non-overlapping loops moved from registry-only intake to local,
+provider-free implementation gates. These changes intentionally avoid provider
+API calls, installs, browser login, extension setup, managed RAG services, and
+new graph/vector dependencies.
+
+Implemented source-restoration boundary:
+
+- `x_source_restoration_status` is now implemented in
+  `src/research_x/memory/evidence_invariants.py` with fixture coverage in
+  `tests/memory/test_x_source_restoration_status.py`.
+- `login_required`, `snippet_only`, `source_unavailable`,
+  `source_not_restored`, `user_export_required`, `private_locator`, and
+  `private_collection` block citation readiness even when other lineage fields
+  look restored.
+- This maps the X bookmark/private/snippet group into a local answer-authority
+  invariant, not a browser/login/scraping route.
+
+Implemented typed relation / ontology boundary:
+
+- `kg_typed_edge_authority` and `ontology_relation_traversal_eval` are now
+  represented as candidate-only relation trace and eval fixtures.
+- `workflow_tool_output.trace.relation_traversal` exposes relation counts and
+  relation rows with `candidate_only: true` and
+  `promotion_requires_restored_citation: true`.
+- Relation artifacts such as `typed_relation_edge`,
+  `relation_traversal_hint`, `memory_relation`, `graph_edge`, and
+  `ontology_relation` are blocked from citation-ready evidence.
+- This preserves the useful Graph RAG idea, explicit typed edges, while
+  refusing the unsafe shortcut where an edge itself becomes answer support.
+
+Implemented Knowledge Ops / RAG governance boundary:
+
+- `rag_knowledge_ops_observability` is now implemented as
+  `knowledge_ops_trace` in workflow metadata and as
+  `trace.rag_governance.knowledge_ops` in tool output.
+- `databricks_rag_governance_checklist` is implemented as
+  `eval_control_plane_summary`, covering source coverage, freshness,
+  retrieval precision, answer faithfulness, provider-free fixture scope, and
+  context-budget signals.
+- Both surfaces explicitly use
+  `evidence_role: control_plane_not_answer_evidence` and
+  `answer_support_allowed: false`.
+- This makes hidden RAG workflow state visible without adopting managed search,
+  Databricks services, notification services, or cloud sync.
+
+Implemented embedding stabilization / vector projection boundary:
+
+- `embedding_stabilization_eval` is now implemented through local
+  `local_hash`/vector-projection fixtures.
+- `vector_projection_coverage` now requires `missing_memberships == 0` and
+  `current_memberships == expected_documents` before returning `ok`.
+- Provider-free tests cover an ok diagnostic projection, missing membership as
+  `stale`, and cold-start threshold failures as `needs_review`.
+- `local_hash` remains diagnostic-only and is still not production semantic
+  evidence or answer support.
+
+Verification completed for these loops:
+
+- `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
+- `uv run pytest tests\tool_interface\test_memory_tool_contract_strictness.py tests\tool_interface\test_preview_cannot_be_citation.py tests\memory\test_evidence_invariant_fixtures.py tests\memory\test_retrieval_quality_eval.py tests\memory\test_retrieval_dedup_provenance.py -q`
+- `uv run pytest tests\test_memory.py::test_memory_eval_records_route_level_fields tests\memory\test_operational_trace_persistence.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\memory\test_retrieval_quality_eval.py -q`
+- `uv run pytest tests\tool_interface -q`
+- `uv run pytest tests\vector tests\test_memory.py::test_memory_vector_projection_backend_searches_existing_embeddings tests\test_memory.py::test_memory_vector_backend_benchmark_gates_candidate_dependency tests\test_memory.py::test_memory_vector_backend_benchmark_blocks_non_local_provider tests\test_memory.py::test_memory_vector_backend_benchmark_cli_reports_candidate_gate tests\test_memory.py::test_memory_vector_projection_coverage_detects_stale_source_hash tests\test_memory.py::test_memory_vector_projection_coverage_respects_doc_type_scope tests\test_memory.py::test_memory_portfolio_strict_blocks_diagnostic_provider tests\memory\test_memory_audit_warning_taxonomy.py::test_audit_taxonomy_treats_local_hash_as_expected_provider_gate -q`
+- Targeted `ruff check` runs passed for every edited implementation/test
+  surface.
+
+Committed and pushed implementation checkpoints:
+
+- `a532575` `Block unrestored X source citations`
+- `7ec4be8` `Expose relation traversal as candidate trace`
+- `d1a39ce` `Expose RAG governance control plane traces`
+- `cd0fe7d` `Gate stale vector projection membership`
+
 ## Non-Overlap Scope For Loop 2
 
 Loop 2 must not repeat the group summaries above. It should investigate only
