@@ -310,6 +310,15 @@ allow_provider = false
 storage_rights = "dependency_provider_review_before_fetch"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S45"
+adoption_candidate = "cognee_graph_memory_reference"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "external_ai_memory_candidate_only_until_source_bundle_context_chunk_citation"
+notes = "Provider-gated runtime source; platform output is candidate-only and not evidence without research_x source restoration."
+
 [[sources]]
 source_id = "manual_okf_zenn"
 source_type = "manual_url"

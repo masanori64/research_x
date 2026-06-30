@@ -210,18 +210,18 @@ Project candidates staged or gated:
 
 | Candidate | Shape | Owner | First useful local check |
 | --- | --- | --- | --- |
-| `kg_typed_edge_authority` | staging | retrieval/eval | typed-edge and contradiction fixtures |
-| `cognee_graph_memory_reference` | provider_gated | external source candidate | architecture comparison only |
+| `kg_typed_edge_authority` | adopt | retrieval/eval | typed-edge and contradiction fixtures |
+| `cognee_graph_memory_reference` | provider_gated | external source candidate | local external AI-memory non-evidence invariant; runtime gated |
 | `okf_source_metadata_shape` | adopt | intake metadata | candidate metadata fixture and non-evidence guards |
-| `rag_knowledge_ops_observability` | staging | workflow trace | coverage/freshness trace fields |
-| `ontology_relation_traversal_eval` | staging | route policy | relation traversal vs semantic recall fixtures |
-| `databricks_rag_governance_checklist` | staging | eval | precision vs faithfulness separation |
-| `cc_rsg_reverse_spec_review` | staging | control artifact | generated-spec non-evidence test |
+| `rag_knowledge_ops_observability` | adopt | workflow trace | coverage/freshness trace fields |
+| `ontology_relation_traversal_eval` | adopt | route policy | relation traversal vs semantic recall fixtures |
+| `databricks_rag_governance_checklist` | adopt | eval | precision vs faithfulness separation |
+| `cc_rsg_reverse_spec_review` | adopt | control artifact | generated-spec non-evidence test |
 | `slidev_visual_review_lane` | staging | presentation | local render/visual QA comparison |
 | `f3_self_describing_artifact_reference` | staging | artifact manifest | inert manifest identity, no Wasm execution |
 | `sqljoiner_query_visualization_reference` | staging | control artifact | owned read-only query-plan visualization |
-| `embedding_stabilization_eval` | staging | retrieval eval | synthetic drift/cold-start fixtures |
-| `x_source_restoration_status` | staging | source restoration | login/snippet/private status fixtures |
+| `embedding_stabilization_eval` | adopt | retrieval eval | synthetic drift/cold-start fixtures |
+| `x_source_restoration_status` | adopt | source restoration | login/snippet/private status fixtures |
 | `agent_control_source_ownership_coverage` | adopt | research intake | enabled manual URL ownership metadata |
 
 Codex foundation candidates staged or gated:
@@ -358,6 +358,32 @@ Implemented Knowledge Ops / RAG governance boundary:
   `answer_support_allowed: false`.
 - This makes hidden RAG workflow state visible without adopting managed search,
   Databricks services, notification services, or cloud sync.
+
+Implemented Cognee / external AI-memory evidence boundary:
+
+- `cognee_graph_memory_reference` remains provider-gated and disabled, but
+  `src/research_x/memory/evidence_invariants.py` now explicitly recognizes
+  external AI-memory and graph-memory platform outputs as non-evidence.
+- New markers include `external_ai_memory`, `external_graph_memory`,
+  `ai_memory_platform_output`, `graph_memory_platform_output`,
+  `cognee_graph_memory`, `cognee_memory_output`, and
+  `memory_platform_snapshot`.
+- Metadata keys such as `memory_platform_output`, `memory_platform_role`,
+  `graph_memory_role`, `external_memory_status`, and
+  `external_memory_source` are inspected even when the payload is copied into a
+  local context chunk without the usual `not_evidence` marker.
+- `src/research_x/tool_interface/memory_tool_contract.py` now carries the same
+  marker vocabulary into AI-facing restore validation, so a forged
+  `answer`/`citation_ready` JSON payload with `external_graph_memory` or
+  `ai_memory_platform_output` is rejected as unrestored and non-evidence.
+- `manual_cognee_repo` has `source_governance` tying the disabled source entry
+  to `S45` and `cognee_graph_memory_reference`; the vendor lock explicitly
+  states that external memory-platform output is not a source bundle, context
+  chunk, citation, evidence, or answer support by itself.
+- This adopts the useful Cognee lesson, external memory graph output must pass
+  through restored source bundle, context chunk, citation, and answer-authority
+  gates, without installing Cognee, using Docker/MCP/plugin setup, cloud, API
+  keys, provider calls, or quota.
 
 Implemented embedding stabilization / vector projection boundary:
 
@@ -549,6 +575,7 @@ Verification completed for these loops:
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_control_artifact_structure_view.py -q`
 - `uv run pytest tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
 - `uv run pytest tests\test_context_headroom.py tests\test_edge_addons_governance.py tests\test_evidence_boundary.py tests\test_dashboard_renderer.py tests\test_foundation_manifest.py -q`
+- `uv run pytest tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\tool_interface\test_preview_cannot_be_citation.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

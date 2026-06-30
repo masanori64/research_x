@@ -232,6 +232,21 @@ def test_slidev_visual_review_lane_stays_staged_with_local_checklist_only() -> N
     assert "render and visual-overlap QA remains staged" in item.notes
 
 
+def test_cognee_reference_is_local_invariant_coverage_without_runtime_adoption() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    item = candidates["cognee_graph_memory_reference"]
+
+    assert item.adoption_shape == "provider_gated"
+    assert item.status == "provider_gated"
+    assert item.enabled is False
+    assert item.provider_or_quota is True
+    assert item.active_artifact == "src/research_x/memory/evidence_invariants.py"
+    assert "local evidence-invariant fixtures" in item.first_local_step
+    assert "source bundle, context chunk, citation" in item.promotion_gate
+    assert "MCP, plugin, Docker, cloud, and LLM_API_KEY" in item.promotion_gate
+    assert "Cognee runtime remains disabled" in item.notes
+
+
 def test_provider_stop_condition_tokens_are_validation_errors(tmp_path: Path) -> None:
     registry = tmp_path / "adoption_registry.toml"
     shutil.copy2(REGISTRY, registry)

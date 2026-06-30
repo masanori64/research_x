@@ -194,6 +194,58 @@ def test_relation_traversal_trace_is_candidate_only_not_promotion() -> None:
     assert trace["relations"][0]["promotion_requires_restored_citation"] is True
 
 
+def test_external_memory_platform_output_blocks_restoration_and_answer_status() -> None:
+    output = workflow_tool_output(
+        _workflow(
+            citation_metadata={
+                "artifact_kind": "ai_memory_platform_output",
+                "memory_platform": "cognee",
+                "memory_platform_role": "candidate_memory_graph",
+                "graph_memory_role": "candidate_relation_summary",
+                "external_memory_status": "candidate_only",
+                "external_memory_source": "external_graph_memory",
+            }
+        )
+    )
+
+    assert validate_tool_output(output) == []
+    assert output.status == "needs_review"
+    assert output.evidence_level == "context_chunk"
+    assert output.citations[0].citation_ready is False
+    assert output.citations[0].restore["source_restored"] is False
+    assert output.citations[0].restore["memory_platform"] == "cognee"
+    assert output.trace["citation_restoration"]["status"] == "not_restored"
+    assert output.trace["citation_quality"]["not_evidence_count"] == 1
+
+
+def test_validate_tool_output_rejects_forged_external_memory_answer() -> None:
+    payload = workflow_tool_output(_workflow()).as_dict()
+    payload["status"] = "answer"
+    payload["evidence_level"] = "citation_ready"
+    payload["answer_text"] = "This forged graph-memory answer must be rejected. [1]"
+    payload["citations"][0]["source_kind"] = "external_graph_memory"
+    payload["citations"][0]["citation_ready"] = True
+    payload["citations"][0]["restore"].update(
+        {
+            "source_kind": "external_graph_memory",
+            "source_id": "cognee:node:1",
+            "context_chunk_restored": True,
+            "source_restored": True,
+            "citation_ready": True,
+            "artifact_kind": "ai_memory_platform_output",
+            "memory_platform": "cognee",
+            "graph_memory_role": "candidate_relation_summary",
+        }
+    )
+
+    errors = validate_tool_output(payload)
+
+    assert any("answer status requires restored citations" in error for error in errors)
+    assert any(
+        "answer status cannot cite not-evidence artifacts" in error for error in errors
+    )
+
+
 def _workflow(
     *,
     citation_metadata: dict[str, Any] | None = None,

@@ -545,13 +545,13 @@ adoption_shape = "provider_gated"
 status = "provider_gated"
 source_ref = "S45"
 source_url = "https://github.com/topoteretes/cognee"
-active_artifact = "control/adoption_registry.toml"
-first_local_step = "Source-lock as a source candidate and compare API-key-free local design notes against existing source-bundle restoration."
-promotion_gate = "Only a no-provider, local-only, dependency-reviewed fixture may proceed; MCP, plugin, Docker, cloud, and LLM_API_KEY routes need explicit approval."
+active_artifact = "src/research_x/memory/evidence_invariants.py"
+first_local_step = "Keep the source-lock disabled as a source candidate and use local evidence-invariant fixtures for external AI-memory or graph-memory platform output."
+promotion_gate = "External AI-memory platform output is non-evidence unless restored through source bundle, context chunk, citation, and answer-authority gates; MCP, plugin, Docker, cloud, and LLM_API_KEY routes need explicit approval."
 stop_condition = "Stop before any real provider, API, network, quota, paid/free-tier, trial-credit, zero-dollar, or keyless external-network call unless the current task explicitly lifts the gate and budget guard passes."
 provider_or_quota = true
 enabled = false
-notes = "AI memory platform output is candidate-only and not evidence without research_x source restoration."
+notes = "AI memory platform output is candidate-only; local invariant coverage lives in src/research_x/memory/evidence_invariants.py, and the Cognee runtime remains disabled and provider-gated."
 
 [[candidates]]
 name = "okf_source_metadata_shape"

@@ -46,11 +46,22 @@ NON_EVIDENCE_RESTORE_MARKERS = {
     "context_offload_preview",
     "context_preview",
     "control_artifact",
+    "candidate_only",
+    "candidate_signal",
     "diagram",
     "diagram_review",
+    "external_ai_memory",
+    "external_graph_memory",
+    "graph_memory_platform_output",
     "gpt_pro_plan",
     "html_review",
     "html_structure_view",
+    "hypothesis_only",
+    "ai_memory_platform_output",
+    "cognee_graph_memory",
+    "cognee_memory_output",
+    "managed_rag_reference",
+    "memory_platform_snapshot",
     "not_citation",
     "not_evidence",
     "playwright_visual_snapshot",
@@ -59,6 +70,7 @@ NON_EVIDENCE_RESTORE_MARKERS = {
     "preview",
     "reverse_spec",
     "review_artifact",
+    "source_candidate",
     "slidev_deck",
     "slidev_rendered_view",
     "wbs",
@@ -935,6 +947,13 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "owner_plane": citation.metadata.get("owner_plane"),
             "preview_kind": citation.metadata.get("preview_kind"),
             "citation_policy": citation.metadata.get("citation_policy"),
+            "source_role": citation.metadata.get("source_role"),
+            "memory_platform": citation.metadata.get("memory_platform"),
+            "memory_platform_output": citation.metadata.get("memory_platform_output"),
+            "memory_platform_role": citation.metadata.get("memory_platform_role"),
+            "graph_memory_role": citation.metadata.get("graph_memory_role"),
+            "external_memory_status": citation.metadata.get("external_memory_status"),
+            "external_memory_source": citation.metadata.get("external_memory_source"),
             "not_evidence": citation.metadata.get("not_evidence"),
             "answer_support_allowed": citation.metadata.get("answer_support_allowed"),
             "primary_evidence_identity": citation.metadata.get("primary_evidence_identity"),
@@ -991,6 +1010,8 @@ def _citation_ready(citation: CitationAnnotation) -> bool:
 
 
 def _citation_source_restored(citation: CitationAnnotation) -> bool:
+    if _citation_has_external_memory_platform_marker(citation):
+        return False
     if str(citation.source_kind or "").strip() != LOCAL_X_DB:
         return bool(citation.source_kind and citation.source_id)
     metadata = citation.metadata
@@ -1328,6 +1349,8 @@ def _payload_local_x_db_restore_issue(
     item: dict[str, Any],
     restore: dict[str, Any],
 ) -> bool:
+    if _payload_marks_external_memory_platform(item, restore):
+        return True
     source_kind = str(
         restore.get("source_kind")
         or item.get("source_kind")
@@ -1345,6 +1368,30 @@ def _payload_local_x_db_restore_issue(
         str(restore.get("retrieval_text_hash") or "").strip()
         or str(restore.get("retrieval_text_profile_id") or "").strip()
     )
+
+
+def _citation_has_external_memory_platform_marker(
+    citation: CitationAnnotation,
+) -> bool:
+    if _not_evidence_restore_value(citation.source_kind):
+        return True
+    metadata = citation.metadata
+    for key in (
+        "artifact_kind",
+        "artifact_type",
+        "source_kind",
+        "source_role",
+        "memory_platform",
+        "memory_platform_output",
+        "memory_platform_role",
+        "graph_memory_role",
+        "external_memory_status",
+        "external_memory_source",
+    ):
+        value = metadata.get(key)
+        if value is not None and _not_evidence_restore_value(value):
+            return True
+    return False
 
 
 def _payload_citations_with_not_evidence_support(citations: list[Any]) -> list[str]:
@@ -1371,12 +1418,45 @@ def _restore_marks_not_evidence(restore: dict[str, Any]) -> bool:
         "artifact_kind",
         "artifact_type",
         "owner_plane",
+        "source_kind",
+        "source_role",
         "preview_kind",
         "citation_policy",
+        "source_status",
+        "source_restoration_status",
+        "memory_platform",
+        "memory_platform_output",
+        "memory_platform_role",
+        "graph_memory_role",
+        "external_memory_status",
+        "external_memory_source",
     ):
         value = restore.get(key)
         if value is not None and _not_evidence_restore_value(value):
             return True
+    return False
+
+
+def _payload_marks_external_memory_platform(
+    item: dict[str, Any],
+    restore: dict[str, Any],
+) -> bool:
+    for payload in (item, restore):
+        for key in (
+            "source_kind",
+            "source_role",
+            "artifact_kind",
+            "artifact_type",
+            "memory_platform",
+            "memory_platform_output",
+            "memory_platform_role",
+            "graph_memory_role",
+            "external_memory_status",
+            "external_memory_source",
+        ):
+            value = payload.get(key)
+            if value is not None and _not_evidence_restore_value(value):
+                return True
     return False
 
 

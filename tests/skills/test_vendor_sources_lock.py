@@ -41,6 +41,17 @@ def test_retired_diagram_tool_is_reference_only_after_decommission() -> None:
     assert "docs/presentation/final-design-flow.md" in vendor_lock
 
 
+def test_cognee_vendor_lock_blocks_platform_output_promotion() -> None:
+    vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")
+
+    assert "| S45 | `cognee` |" in vendor_lock
+    assert "install, MCP/plugin setup, Docker, LLM_API_KEY usage" in vendor_lock
+    assert "cloud use, and provider calls remain disabled" in vendor_lock
+    assert "external memory-platform output is not a source bundle" in vendor_lock
+    assert "context chunk, citation, evidence, or answer support" in vendor_lock
+    assert "source-bundle and citation pipeline" in vendor_lock
+
+
 def test_codex_foundation_candidates_stay_out_of_research_x_vendor_lock() -> None:
     manifest = tomllib.loads(Path(".codex/skill_manifest.lock").read_text(encoding="utf-8"))
     vendor_lock = Path("control/vendor_sources.lock.md").read_text(encoding="utf-8")

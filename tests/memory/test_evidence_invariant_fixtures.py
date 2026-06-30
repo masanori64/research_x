@@ -78,6 +78,99 @@ def test_typed_relation_hint_is_not_answerable_evidence() -> None:
     assert assessment.reason == "no_citation_ready_evidence"
 
 
+def test_external_graph_memory_output_is_not_answerable_evidence() -> None:
+    chunk = _chunk(
+        source_kind="external_graph_memory",
+        metadata={
+            "artifact_kind": "ai_memory_platform_output",
+            "memory_platform": "cognee",
+            "graph_memory_role": "candidate_relation_summary",
+            "relations": [
+                {
+                    "source_node": "tweet:source",
+                    "target_node": "claim:summary",
+                    "relation_type": "mentions",
+                }
+            ],
+        },
+    )
+    citation = _citation(
+        chunk,
+        metadata={
+            "artifact_kind": "ai_memory_platform_output",
+            "memory_platform": "cognee",
+            "graph_memory_role": "candidate_relation_summary",
+        },
+    )
+
+    assessment = assess_answerability(
+        question="fixture external graph memory only",
+        chunks=(chunk,),
+        citations=(citation,),
+    )
+
+    assert chunk_is_not_evidence(chunk) is True
+    assert citation_is_citation_ready(citation) is False
+    assert "not_evidence" in citation_block_reasons(citation)
+    assert assessment.status == "citation_missing"
+    assert assessment.reason == "no_citation_ready_evidence"
+
+
+def test_memory_platform_snapshot_metadata_is_not_answerable_evidence() -> None:
+    platform_metadata = {
+        "memory_platform_output": {
+            "kind": "memory_platform_snapshot",
+            "platform": "cognee",
+            "claim_count": 3,
+        },
+        "external_memory_source": "third_party_graph_memory",
+        "external_memory_status": "candidate_only",
+    }
+    chunk = _chunk(
+        source_kind="local_x_db",
+        metadata=platform_metadata,
+    )
+    citation = _citation(
+        chunk,
+        metadata=platform_metadata,
+    )
+
+    assessment = assess_answerability(
+        question="fixture memory platform snapshot only",
+        chunks=(chunk,),
+        citations=(citation,),
+    )
+
+    assert chunk_is_not_evidence(chunk) is True
+    assert citation_is_citation_ready(citation) is False
+    assert "not_evidence" in citation_block_reasons(citation)
+    assert assessment.status == "citation_missing"
+    assert assessment.reason == "no_citation_ready_evidence"
+
+
+def test_external_memory_candidate_only_status_is_not_answerable_evidence() -> None:
+    chunk = _chunk(
+        source_kind="local_x_db",
+        metadata={"external_memory_status": "candidate_only"},
+    )
+    citation = _citation(
+        chunk,
+        metadata={"external_memory_status": "candidate_only"},
+    )
+
+    assessment = assess_answerability(
+        question="fixture external memory candidate only",
+        chunks=(chunk,),
+        citations=(citation,),
+    )
+
+    assert chunk_is_not_evidence(chunk) is True
+    assert citation_is_citation_ready(citation) is False
+    assert "not_evidence" in citation_block_reasons(citation)
+    assert assessment.status == "citation_missing"
+    assert assessment.reason == "no_citation_ready_evidence"
+
+
 def test_okf_source_metadata_shape_is_not_answerable_evidence() -> None:
     okf_metadata = {
         "type": "article",
