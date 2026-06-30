@@ -199,6 +199,22 @@ def test_f3_and_sqljoiner_references_stay_staged_disabled() -> None:
     ].notes
 
 
+def test_slidev_visual_review_lane_stays_staged_with_local_checklist_only() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    item = candidates["slidev_visual_review_lane"]
+
+    assert item.adoption_shape == "staging"
+    assert item.status == "staged"
+    assert item.enabled is False
+    assert item.provider_or_quota is False
+    assert item.active_artifact == "src/research_x/control_artifacts/visual_review.py"
+    assert "dependency-free visual-review checklist" in item.first_local_step
+    assert "dependency install" in item.stop_condition
+    assert "runtime import" in item.stop_condition
+    assert "evidence promotion" in item.stop_condition
+    assert "render and visual-overlap QA remains staged" in item.notes
+
+
 def test_provider_stop_condition_tokens_are_validation_errors(tmp_path: Path) -> None:
     registry = tmp_path / "adoption_registry.toml"
     shutil.copy2(REGISTRY, registry)

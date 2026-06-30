@@ -444,6 +444,19 @@ Implemented agent-safety tool trace:
 - The trace explicitly does not grant provider, network, browser, install,
   MCP/plugin/connector, destructive-action, or evidence-promotion permission.
 
+Implemented generated-artifact visual review checklist:
+
+- `slidev_visual_review_lane` remains staged and disabled, but now has a local
+  owner in `src/research_x/control_artifacts/visual_review.py`.
+- The builder emits review-only `visual_review` control-artifact payloads for
+  generated deck and snapshot artifacts such as `slidev_deck`,
+  `slidev_rendered_view`, `playwright_visual_snapshot`, and `ppt_master_deck`.
+- The checklist covers blank render, missing assets, overlap, readability,
+  viewport/frame fit, and non-evidence boundaries.
+- This does not install Slidev, run Playwright, use ppt-master, or promote
+  screenshots/decks as evidence. Render and visual-overlap QA remains staged
+  behind dependency/browser/install review.
+
 Verification completed for these loops:
 
 - `uv run pytest tests\memory\test_x_source_restoration_status.py tests\memory\test_citation_ready_requires_lineage.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_preview_cannot_be_citation.py -q`
@@ -456,6 +469,7 @@ Verification completed for these loops:
 - `uv run pytest tests\memory\test_source_identity_manifest.py tests\test_query_plan_visualization_boundary.py tests\test_control_artifact_structure_view.py tests\test_pytest_lane_markers.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py -q`
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_codex_bridge.py tests\test_agents_route_memory_preflight.py -q`
 - `uv run pytest tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
+- `uv run pytest tests\test_visual_review_boundary.py tests\test_control_artifact_structure_view.py tests\test_adoption_registry.py tests\test_pytest_lane_markers.py -q`
 - Targeted `ruff check` runs passed for every edited implementation/test
   surface.
 

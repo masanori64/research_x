@@ -73,6 +73,7 @@ REVIEW_VIEW_KINDS = {
     "lifecycle_report",
     "query_plan_review",
     "structure_view",
+    "visual_review",
 }
 DIAGRAM_KINDS_NEEDING_REFS = {"architecture", "workflow"}
 

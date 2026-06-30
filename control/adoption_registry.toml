@@ -625,13 +625,13 @@ adoption_shape = "staging"
 status = "staged"
 source_ref = "S51"
 source_url = "https://sli.dev/"
-active_artifact = "docs/presentation/diagram-systems.md"
-first_local_step = "Compare Slidev componentized deck review against the existing D2 and Marp presentation boundary using local static fixtures only."
+active_artifact = "src/research_x/control_artifacts/visual_review.py"
+first_local_step = "Use dependency-free visual-review checklist payloads for generated deck/snapshot artifacts before any renderer or browser automation is adopted."
 promotion_gate = "A local render plus visual-overlap check improves review output without changing the source-of-truth flow docs."
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion until dependency review and local render verification pass."
 provider_or_quota = false
 enabled = false
-notes = "Generated deck/snapshot artifact kinds are blocked as non-evidence; local render and visual-overlap QA remains staged."
+notes = "Generated deck/snapshot artifact kinds are blocked as non-evidence; visual-review checklist payloads are local, but render and visual-overlap QA remains staged."
 
 [[candidates]]
 name = "f3_self_describing_artifact_reference"
