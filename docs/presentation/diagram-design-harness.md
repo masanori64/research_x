@@ -64,6 +64,7 @@ Before writing Mermaid source, run a design self-review loop:
   file names, commands, or table names?
 - Are ordinary explanations in Japanese, while only proper nouns and established
   terms remain in English?
+- Is the diagram readable without relying on chromatic color?
 - Does every route remain candidate-only until source bundle, context chunk,
   citation, and AnswerAuthorityGatekeeper are visible or intentionally scoped out?
 - Does the diagram avoid becoming very tall, very wide, or dense enough to
@@ -101,6 +102,8 @@ These are examples of what to avoid. They are not the whole rule.
   diagram without explaining what they mean.
 - English labels used for ordinary explanation when a Japanese label would be
   clearer.
+- Red/yellow/green/blue fills used as the main way to explain status, priority,
+  or route class.
 - A diagram that is technically accurate but unreadable for someone seeing the
   project for the first time.
 

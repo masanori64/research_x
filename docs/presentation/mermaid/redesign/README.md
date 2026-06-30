@@ -3,6 +3,14 @@
 These Mermaid diagrams are review artifacts that must follow the final flow docs
 and project requirements, not existing D2/SVG assets.
 
+This redesign set is exactly two groups of five diagrams:
+
+- `current/`: current-state explanation;
+- `final/`: completed-state explanation.
+
+Do not mix in the older root `docs/presentation/mermaid/*.mmd` review set when
+showing this redesign set.
+
 They are control and review artifacts. They are not source bundles, context
 chunks, citations, answer support, or provider/API permission.
 
@@ -24,6 +32,13 @@ Primary sources:
 
 The existing Mermaid diagrams are review artifacts and must be checked against
 the two provisional final flow docs before reuse.
+
+Visual style:
+
+- use monochrome Mermaid styling only;
+- do not use chromatic color to encode meaning;
+- distinguish gate, stop, support, and main-path nodes with labels, grouping,
+  stroke weight, and layout instead of red/yellow/green/blue fills.
 
 ## Design Loop Record
 
@@ -53,6 +68,14 @@ Self-review loop:
   diagram.
 - Finding: long horizontal flows and deep vertical inventories force zooming.
   Decision: keep each diagram to a small main path plus a few supporting boxes.
+- Finding: showing the older root Mermaid set together with `current` and
+  `final` creates three categories when the requested shape is 2 x 5.
+  Decision: preview and review this redesign as exactly `current` five diagrams
+  plus `final` five diagrams.
+- Finding: colored fills can make the diagram look like status decoration rather
+  than a human explanation.
+  Decision: use monochrome styling and make meaning come from labels, grouping,
+  line weight, and reading order.
 - Finding: provider and auth details are important but are not the main story of
   most diagrams.
   Decision: show provider lanes as guarded candidate branches except in the

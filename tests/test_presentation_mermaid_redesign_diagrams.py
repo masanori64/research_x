@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 REDESIGN_DIR = Path("docs/presentation/mermaid/redesign")
@@ -20,6 +21,8 @@ EXPECTED = {
         "05-roadmap.mmd": "flowchart TB",
     },
 }
+
+MONOCHROME_HEX = {"#ffffff", "#111111"}
 
 TOPIC_MARKERS = (
     "全体アーキテクチャ図",
@@ -44,7 +47,7 @@ def test_redesign_mermaid_diagrams_are_not_bound_to_slides_or_d2_assets() -> Non
             path = REDESIGN_DIR / set_name / name
             text = path.read_text(encoding="utf-8")
 
-            assert text.startswith(first_line), path
+            assert first_line in text.splitlines()[:3], path
             assert name not in slides
             assert ".svg" not in text
             assert ".d2" not in text
@@ -52,6 +55,16 @@ def test_redesign_mermaid_diagrams_are_not_bound_to_slides_or_d2_assets() -> Non
             assert "direction:" not in text
             assert "shape:" not in text
             assert "style." not in text
+
+
+def test_redesign_mermaid_diagrams_are_monochrome() -> None:
+    for set_name, expected_files in EXPECTED.items():
+        for name in expected_files:
+            path = REDESIGN_DIR / set_name / name
+            text = path.read_text(encoding="utf-8").lower()
+            hex_values = {match.group(0) for match in re.finditer(r"#[0-9a-f]{6}", text)}
+
+            assert hex_values <= MONOCHROME_HEX, f"{path} uses chromatic colors: {hex_values}"
 
 
 def test_redesign_current_and_final_sets_cover_same_five_topics() -> None:
