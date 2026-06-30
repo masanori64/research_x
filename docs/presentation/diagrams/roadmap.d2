@@ -1,0 +1,93 @@
+direction: down
+
+vars: {
+  done: "#e7f5ed"
+  active: "#fff4cf"
+  gated: "#fbe4e4"
+  future: "#e7f0f8"
+  ink: "#22313f"
+}
+
+classes: {
+  box: {
+    style.border-radius: 5
+    style.stroke: "#4f6578"
+    style.font-color: ${ink}
+  }
+  done: {
+    style.fill: ${done}
+  }
+  active: {
+    style.fill: ${active}
+  }
+  gated: {
+    style.fill: ${gated}
+    style.stroke: "#b42318"
+  }
+  future: {
+    style.fill: ${future}
+  }
+}
+
+now: {
+  label: "今ある土台"
+  grid-columns: 3
+  local: "ローカル実行\nuv / Python / SQLite" {
+    class: box
+    class: done
+  }
+  evidence: "証拠の分離\n原本・候補・引用・回答" {
+    class: box
+    class: done
+  }
+  tests: "安全な検証\nfake/local provider と静的検査" {
+    class: box
+    class: done
+  }
+}
+
+next: {
+  label: "次に固めること"
+  grid-columns: 3
+  quality: "検索品質\n重複・復元・評価を詰める" {
+    class: box
+    class: active
+  }
+  ui: "見える化\n状態・停止理由・監査を追える" {
+    class: box
+    class: active
+  }
+  scope: "委託範囲\nlocal-only と承認作業を分ける" {
+    class: box
+    class: active
+  }
+}
+
+gates: {
+  label: "承認後に進めること"
+  grid-columns: 3
+  provider: "実Provider評価\nembedding / OCR / rerank など" {
+    class: box
+    class: gated
+  }
+  secrets: "実ログイン運用\nsecrets とセッション管理" {
+    class: box
+    class: gated
+  }
+  production: "運用設計\n予算・SLA・責任分界" {
+    class: box
+    class: future
+  }
+}
+
+now -> next: "次へ"
+next -> gates: "承認後"
+
+now.local -> now.evidence
+now.evidence -> now.tests
+now.tests -> next.quality
+next.quality -> next.ui
+next.ui -> next.scope
+next.scope -> gates.provider
+gates.provider -> gates.secrets
+gates.secrets -> gates.production

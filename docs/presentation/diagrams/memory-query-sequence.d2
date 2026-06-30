@@ -1,0 +1,109 @@
+direction: down
+
+vars: {
+  actor: "#e7f0f8"
+  work: "#e7f5ed"
+  data: "#fff4cf"
+  stop: "#fbe4e4"
+  ink: "#22313f"
+}
+
+classes: {
+  box: {
+    style.border-radius: 5
+    style.stroke: "#4f6578"
+    style.font-color: ${ink}
+  }
+  actor: {
+    style.fill: ${actor}
+  }
+  work: {
+    style.fill: ${work}
+  }
+  data: {
+    style.fill: ${data}
+  }
+  stop: {
+    style.fill: ${stop}
+    style.stroke: "#b42318"
+  }
+}
+
+actors: {
+  grid-columns: 3
+  user: "人 / AI agent\n質問を出す" {
+    class: box
+    class: actor
+  }
+  cli: "memory workflow\n1回の検索実行" {
+    class: box
+    class: work
+  }
+  trace: "実行記録\n状態と停止理由を保存" {
+    class: box
+    class: data
+  }
+}
+
+middle: {
+  grid-columns: 3
+  plan: "1. 読み取る\n質問の意図と検索方針" {
+    class: box
+    class: work
+  }
+  search: "2. 探す\nローカル検索で候補を出す" {
+    class: box
+    class: work
+  }
+  restore: "3. 戻す\n候補から元の出典へ戻る" {
+    class: box
+    class: work
+  }
+}
+
+bottom: {
+  grid-columns: 3
+  context: "4. 整える\n回答に渡す文脈を作る" {
+    class: box
+    class: work
+  }
+  cite: "5. 確かめる\n引用できるか確認" {
+    class: box
+    class: data
+  }
+  result: "6. 返す\nanswer / needs_review / provider_gated" {
+    class: box
+    class: data
+  }
+}
+
+halt: "途中で止まる条件\n出典に戻れない・引用不足・外部API承認待ち" {
+  class: box
+  class: stop
+}
+
+actors -> middle: "実行開始"
+middle -> bottom: "根拠確認へ"
+bottom -> halt: "止まる時"
+
+actors.user -> actors.cli
+actors.cli -> middle.plan
+middle.plan -> middle.search
+middle.search -> middle.restore
+middle.restore -> bottom.context
+bottom.context -> bottom.cite
+bottom.cite -> bottom.result
+bottom.result -> actors.trace
+
+middle.restore -> halt: "復元できない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+bottom.cite -> halt: "引用できない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+halt -> actors.trace: "理由を残す" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}

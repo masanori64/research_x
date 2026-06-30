@@ -5,217 +5,145 @@ paginate: true
 size: 16:9
 style: |
   section {
-    color: #1f2933;
+    color: #22313f;
     font-family: "Aptos", "Yu Gothic", "Meiryo", "Segoe UI", sans-serif;
     letter-spacing: 0;
-    padding: 54px 72px;
+    padding: 46px 64px;
   }
   h1 {
     color: #244766;
-    font-size: 40px;
-    margin-bottom: 22px;
+    font-size: 38px;
+    margin-bottom: 16px;
   }
   h2 {
     color: #244766;
-    font-size: 28px;
+    font-size: 27px;
   }
   p, li {
-    font-size: 21px;
-    line-height: 1.34;
-  }
-  table {
-    font-size: 16px;
-  }
-  th {
-    background: #e8eef4;
-  }
-  code {
-    font-size: 0.8em;
+    font-size: 20px;
+    line-height: 1.38;
   }
   section.diagram img {
     display: block;
-    margin: 22px auto 0;
-    max-height: 410px;
-    max-width: 100%;
+    margin: 16px auto 0;
+    max-height: 455px;
+    max-width: 96%;
+  }
+  .lead {
+    font-size: 24px;
+    line-height: 1.38;
+    max-width: 880px;
   }
   .small {
     font-size: 17px;
+    line-height: 1.36;
+  }
+  .two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
   }
 ---
 
-# research_x プロジェクト概要
-
-下請けSI事業者向け 開発者説明資料
+# research_x を5枚で見る
 
 <!-- claim: claim-project-purpose -->
-
-- 既存XコレクションDBを、AIエージェントがローカル検索できる memory/search system にする
-- 重点は「検索できること」より、出典・文脈・引用可能性を壊さないこと
-- 本資料は実装レビュー、見積もり、引き継ぎの前提共有を目的とする
-
----
-
-# この資料で合わせたい理解
-
 <!-- claim: claim-sier-context -->
 
-SI事業者側に期待する理解は、画面や単体機能ではなく、責務境界です。
+<p class="lead">Xの投稿・ブックマーク・メディアを、AI agent がローカルで探せる形に整えるプロジェクトです。大事なのは、検索候補をそのまま根拠扱いしないことです。</p>
 
-| 観点 | 見るべきこと |
-| --- | --- |
-| 取得 | Xデータをどのprovider chainで集めるか |
-| 保存 | tweet/bookmark/media/edgeをどう正規化するか |
-| 検索 | 検索結果をいつ証拠として扱えるか |
-| 回答 | citation-readyでない場合にどう止めるか |
-| 運用 | provider/API/secretsを誰が承認するか |
-| 表現 | C4 Context/Containerまで。UMLクラス図・シーケンス図は出さない |
+- 図は説明とレビューのためのものです
+- 回答根拠になるのは、復元できる出典・文脈・引用だけです
+- 外部Provider/APIを使う作業は、承認と予算確認の後に進めます
 
 ---
 
-# C4 Context: システム境界
+# 1. 全体アーキテクチャ
 
 <!-- claim: claim-runtime-architecture -->
-<!-- _class: diagram -->
-
-![Runtime boundary](assets/runtime-boundary.svg)
-
-<p class="small">research_xを中心に、利用者、AIエージェント、既存X SQLite、外部Provider/API承認ゲート、資料生成レーンを分けて見る。</p>
-
----
-
-# C4 Container: 実装コンテナ
-
 <!-- claim: claim-c4-container-boundary -->
+<!-- claim: claim-acquisition-chain -->
+<!-- claim: claim-bookmark-store -->
 <!-- _class: diagram -->
 
-![C4 container](assets/c4-container.svg)
+![全体アーキテクチャ](assets/c4-container.svg)
 
-<p class="small">UML詳細図ではなく、SI事業者が見積もり・分担・レビューで使う主要実装単位に絞る。</p>
-
----
-
-# 取得パイプライン
-
-<!-- claim: claim-acquisition-chain -->
-
-profile/search/url/bookmarks ごとに provider chain を切り替え、1つのproviderに依存しない構成です。
-
-| target | chainの考え方 |
-| --- | --- |
-| profile | `twscrape_raw -> scweet -> twikit -> ... -> scrapy` |
-| search | `scweet` を先頭にした検索向けchain |
-| url | URL解決向けに `twscrape_raw/twikit` を優先 |
-| bookmarks | private session前提でbookmark専用providerを含める |
-
-失敗は `timeout`、`rate_limited`、`auth_failed`、`schema_drift`、`dom_drift` 等へ分類し、attemptごとに evidence JSON を残します。
+<p class="small">人、AI agent、開発者/運用者から見て、research_x がどこまでを担当し、どこから承認ゲートになるかを分けて見る。</p>
 
 ---
 
-# Bookmark と共有Store
-
-<!-- claim: claim-bookmark-store -->
-
-Bookmarkはログインユーザー固有のデータなので、通常tweet取得とは別の注意が必要です。
-
-| 保存先 | 意味 |
-| --- | --- |
-| `tweets` | tweet本体のcanonical row |
-| `account_bookmarks` | どのログインaccountがbookmarkしたか |
-| `collection_items` | どの取得run/targetで観測したか |
-| `tweet_edges` | quote/reply等の関係 |
-| `media` / `media/` | media provenanceと保存済みlocal file |
-
-同じtweetが通常取得とbookmark取得の両方で見つかっても、別物に増殖させない設計です。
-
----
-
-# Evidence-first Memory Pipeline
+# 2. 証拠パイプライン
 
 <!-- claim: claim-evidence-invariant -->
+<!-- claim: claim-memory-schema -->
 <!-- _class: diagram -->
 
-![Evidence pipeline](assets/memory-evidence-flow.svg)
+![証拠パイプライン](assets/memory-evidence-flow.svg)
 
-<p class="small">検索結果は候補であり、source bundle復元とcitation checkを通るまで回答根拠ではない。</p>
-
----
-
-# SQLite主要テーブル群
-
-<!-- claim: claim-memory-schema -->
-
-| グループ | 代表テーブル | 役割 |
-| --- | --- | --- |
-| 検索投影 | `memory_documents`, `memory_document_fts` | rebuildableな検索対象 |
-| 証拠入力 | `memory_context_chunks`, `memory_citation_annotations` | 回答入力と引用注釈 |
-| 実行追跡 | `memory_workflow_runs`, `memory_workflow_steps` | route/status/stop_reason |
-| 評価 | `memory_eval_runs`, `memory_eval_results`, `memory_eval_gate_results` | local eval/audit |
-| 予算 | `memory_api_budget_policies`, `memory_api_usage_events` | provider利用管理 |
-| 統制 | `memory_governance_records`, `memory_security_boundaries` | governance/security境界 |
+<p class="small">検索結果は候補です。Source Bundle へ戻せて、Context Chunk と Citation を作れて初めて、回答に使えます。</p>
 
 ---
 
-# Workflow 実行単位
+# 3. 1回の memory query
 
 <!-- claim: claim-workflow-execution -->
+<!-- _class: diagram -->
 
-`run_memory_workflow()` は1回の問い合わせを、状態付きの実行単位として扱います。
+![1回の memory query](assets/memory-query-sequence.svg)
 
-1. `plan`: query plan / route plan / objective route plan を作る
-2. `context`: local searchからsource-backed context bundleを作る
-3. `llm_context`: 承認時のみ外部/LLM contextを追加
-4. `answer`: 承認時のみ回答生成し、citation状態を記録
-5. `finish`: `status` と `stop_reason` を保存
-
-重要なのは、うまく答えられない場合も `needs_review`、`provider_gated`、`citation_missing` として止まれることです。
+<p class="small">1回の問い合わせは、計画、検索、出典復元、文脈化、引用確認、結果保存までを1つの実行単位として扱う。</p>
 
 ---
 
-# Provider/API Gate
+# 4. provider / quota gate
 
 <!-- claim: claim-provider-gate -->
-
-現時点のデフォルトは no-quota freeze です。
-
-| 禁止または承認待ち | 理由 |
-| --- | --- |
-| real embedding / OCR / rerank / Reader | provider quota消費 |
-| classifier / answer engine / external search | API Budget Guard前提 |
-| free-tier / trial / zero-dollar quota | 「無料」でもquota消費 |
-| model download / MCP / plugin / hook | 別の導入・運用リスク |
-
-SI事業者の作業では、fake/local provider、静的検査、monkeypatch済みテスト、offline estimate を先に使います。
-
----
-
-# 開発入口と作業境界
-
-<!-- claim: claim-dev-entrypoints -->
 <!-- claim: claim-sier-boundary -->
+<!-- _class: diagram -->
 
-| 分類 | 最初に見るもの / 原則 |
-| --- | --- |
-| CLI | `uv run python -m research_x --help`, `uv run python -m research_x memory --help` |
-| テスト | `uv run pytest ...`, `uv run python -m research_x test-diagnose ...` |
-| 資料 | `presentation validate-facts/slides`, `npm run presentation:build` |
-| 実行可 | local/fake provider、静的検査、deterministic test、互換性を明示したmigration |
-| 要承認 | real API、secrets/session、model download、MCP/plugin/hook、破壊的DB変更 |
+![provider / quota gate](assets/runtime-boundary.svg)
 
-Python tooling は必ず `uv run ...` 経由。provider-backed command は承認なしに実行しません。
+<p class="small">fake/local provider、静的検査、monkeypatch済みテストは進められる。real API、secrets、ログイン、quota消費は止めて確認する。</p>
 
 ---
 
-# 現状・未確定事項・次アクション
+# 5. WBS / ロードマップ
 
 <!-- claim: claim-current-open-items -->
 <!-- claim: claim-control-artifacts -->
+<!-- _class: diagram -->
 
-| 区分 | 状態 |
-| --- | --- |
-| local architecture | evidence-first boundary とCLI入口は整理済み |
-| presentation lane | D2/Marp build、facts/slides validator、PPTX生成済み |
-| provider品質検証 | no-quota freeze中。実API評価は未実施 |
-| SI事業者への委託範囲 | 契約スコープ、SLA、運用責任分界は別途決定 |
-| 注意 | WBS、pointer map、diagram、PPTX、ChatGPT相談結果は証拠ではない |
+![WBS / ロードマップ](assets/roadmap.svg)
 
-次は、SI事業者に渡す作業範囲を local-only / provider-gated / secret-sensitive に分けて見積もることです。
+<p class="small">現状の土台、次に固めること、承認後に進めることを混ぜない。図やPPTXは確認用であり、回答根拠ではない。</p>
+
+---
+
+# 読み方
+
+<!-- claim: claim-dev-entrypoints -->
+
+<div class="two">
+<div>
+
+## 初見で見る順番
+
+1. 全体アーキテクチャ
+2. 証拠パイプライン
+3. 1回の memory query
+4. provider / quota gate
+5. WBS / ロードマップ
+
+</div>
+<div>
+
+## 判断の基準
+
+- 英語名は固有名だけ残す
+- 抽象名より、何をする場所かを書く
+- 矢印は主な流れだけに絞る
+- 止まる条件を赤で見せる
+- 図は根拠ではなく確認用
+
+</div>
+</div>
