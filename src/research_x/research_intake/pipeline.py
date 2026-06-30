@@ -32,6 +32,19 @@ PROVIDER_SOURCE_TYPES = {
     "external_search_provider",
 }
 DISABLED_VALUES = {"disabled", "never", "false", "off"}
+MANUAL_URL_ENABLED_RISK_TOKENS = {
+    "provider",
+    "dependency",
+    "extension",
+    "license",
+    "private",
+    "user_export",
+    "not_restored",
+    "credential",
+    "mcp",
+    "plugin",
+    "cloud",
+}
 QUALITY_SCORES = {
     "official": 1.0,
     "high": 0.85,
@@ -262,6 +275,16 @@ def validate_registry(registry: SourceRegistry) -> list[str]:
             errors.append(f"{source.source_id}: policy.fetch_mode must be metadata_only")
         if source.source_type == "manual_url" and not _looks_like_url(source.locator):
             errors.append(f"{source.source_id}: manual_url locator must be http(s)")
+        if source.source_type == "manual_url" and _source_enabled(source):
+            storage_rights = source.policy.storage_rights.casefold()
+            matched_risk_tokens = sorted(
+                token for token in MANUAL_URL_ENABLED_RISK_TOKENS if token in storage_rights
+            )
+            if matched_risk_tokens:
+                errors.append(
+                    f"{source.source_id}: risky manual_url storage_rights requires disabled "
+                    "registry state: " + ", ".join(matched_risk_tokens)
+                )
         if source.quality_hint not in QUALITY_SCORES:
             errors.append(
                 f"{source.source_id}: quality_hint must be one of {sorted(QUALITY_SCORES)}"

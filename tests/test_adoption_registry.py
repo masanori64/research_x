@@ -28,6 +28,15 @@ def test_research_x_adoption_registry_is_valid() -> None:
     assert audit["counts"]["codex_foundation:bridge"] == 1
 
 
+def test_adoption_registry_policy_keeps_external_action_gates_machine_readable() -> None:
+    registry = tomllib.loads(REGISTRY.read_text(encoding="utf-8"))
+    policy = registry["policy"]
+
+    assert policy["provider_api_only_hard_block"] is True
+    assert policy["external_action_requires_approval"] is True
+    assert policy["install_mcp_connector_extension_gate"] is True
+
+
 def test_research_x_registry_covers_plan_candidate_families() -> None:
     text = REGISTRY.read_text(encoding="utf-8").casefold()
     required_names = {

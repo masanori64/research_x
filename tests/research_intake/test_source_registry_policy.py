@@ -51,6 +51,7 @@ def test_source_registry_has_no_codex_foundation_or_unresolved_source_lock_entri
     assert "source-lock-needed:" not in text
     assert "Codex Skills" not in text
     assert "codex ai tools" not in text
+    assert "Edge Add-ons" not in text
 
 
 def test_source_registry_local_sources_are_metadata_only() -> None:
@@ -65,6 +66,33 @@ def test_source_registry_local_sources_are_metadata_only() -> None:
         assert source.policy.allow_network is False
         assert source.policy.allow_provider is False
         assert source.quality_hint in {"official", "high", "medium", "unknown", "low"}
+
+
+def test_risky_manual_url_candidates_must_stay_disabled(tmp_path: Path) -> None:
+    registry_path = tmp_path / "source_registry.toml"
+    registry_text = Path("control/research_intake/source_registry.toml").read_text(
+        encoding="utf-8"
+    )
+    registry_path.write_text(
+        registry_text.replace(
+            'source_id = "manual_cognee_repo"\n'
+            'source_type = "manual_url"\n'
+            'locator = "https://github.com/topoteretes/cognee"\n'
+            'enabled_when = "disabled"',
+            'source_id = "manual_cognee_repo"\n'
+            'source_type = "manual_url"\n'
+            'locator = "https://github.com/topoteretes/cognee"\n'
+            'enabled_when = "always"',
+        ),
+        encoding="utf-8",
+    )
+
+    errors = validate_registry(load_registry(registry_path))
+
+    assert any(
+        "manual_cognee_repo: risky manual_url storage_rights requires disabled" in error
+        for error in errors
+    )
 
 
 def test_research_intake_skill_locks_discovery_not_evidence() -> None:

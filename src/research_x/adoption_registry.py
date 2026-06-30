@@ -231,6 +231,8 @@ def _candidate_from_raw(raw: dict[str, Any]) -> AdoptionCandidate:
 def _validate_policy(policy: dict[str, Any], errors: list[str]) -> None:
     expected = {
         "provider_api_only_hard_block": True,
+        "external_action_requires_approval": True,
+        "install_mcp_connector_extension_gate": True,
         "research_x_is_codex_foundation": False,
         "codex_foundation_home": "C:/Users/maasa/.codex",
     }

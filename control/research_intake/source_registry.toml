@@ -49,6 +49,486 @@ storage_rights = "synthetic"
 prompt_injection_review = "not_applicable_synthetic"
 
 [[sources]]
+source_id = "manual_agent_guardrails_qiita"
+source_type = "manual_url"
+locator = "https://qiita.com/ryuichi000persol/items/27789cbca88bd4bf11e0"
+enabled_when = "always"
+title = "AI agent guardrail design article"
+quality_hint = "medium"
+topics = ["agent safety", "tool control", "guardrails"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_headroom_qiita"
+source_type = "manual_url"
+locator = "https://qiita.com/ksonoda/items/a1a97be8fed52c34ec89"
+enabled_when = "always"
+title = "Headroom and context budget article"
+quality_hint = "medium"
+topics = ["context budget", "session hygiene", "agent operations"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_peerd_repo"
+source_type = "manual_url"
+locator = "https://github.com/NotASithLord/peerd"
+enabled_when = "always"
+title = "peerd local browser or memory agent repository"
+quality_hint = "medium"
+topics = ["agent safety", "MCP", "local memory"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_loop_engineering_repo"
+source_type = "manual_url"
+locator = "https://github.com/cobusgreyling/loop-engineering"
+enabled_when = "always"
+title = "Loop engineering repository"
+quality_hint = "medium"
+topics = ["agent loop", "human gate", "workflow verification"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_takt_loop_zenn"
+source_type = "manual_url"
+locator = "https://zenn.dev/nrs/articles/e4a2ae8a9fb785"
+enabled_when = "always"
+title = "takt loop engineering article"
+quality_hint = "medium"
+topics = ["agent loop", "review loop", "human gate"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_agent_safety_tan_go238"
+source_type = "manual_url"
+locator = "https://zenn.dev/tan_go238/articles/783a3fc3f11f8d"
+enabled_when = "always"
+title = "AI agent safety and operations article"
+quality_hint = "medium"
+topics = ["agent safety", "guardrails", "context management"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_mellowlaunch_agent_article"
+source_type = "manual_url"
+locator = "https://qiita.com/mellowlaunch/items/3ad3dd2812d6bf1cad58"
+enabled_when = "always"
+title = "AI agent and MCP operations article"
+quality_hint = "medium"
+topics = ["agent safety", "MCP", "browser automation"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_ai_unit_test_article"
+source_type = "manual_url"
+locator = "https://zenn.dev/keitayamamoto/articles/d053a6cc096287"
+enabled_when = "always"
+title = "AI unit test implementation article"
+quality_hint = "medium"
+topics = ["AI testing", "unit tests", "quality assurance"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_lighthouse_agentic_browsing"
+source_type = "manual_url"
+locator = "https://dev.classmethod.jp/articles/lighthouse-agentic-browsing-mcp-audit/"
+enabled_when = "always"
+title = "Lighthouse Agentic Browsing and MCP audit article"
+quality_hint = "medium"
+topics = ["browser audit", "MCP", "agent safety"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_kg_puzzle"
+source_type = "manual_url"
+locator = "https://zenn.dev/knowledge_graph/articles/kg-puzzle-agent-langgraph"
+enabled_when = "always"
+title = "Knowledge graph puzzle agent article"
+quality_hint = "medium"
+topics = ["knowledge graph", "typed relations", "answer authority"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_cognee_repo"
+source_type = "manual_url"
+locator = "https://github.com/topoteretes/cognee"
+enabled_when = "disabled"
+title = "Cognee AI memory and graph RAG repository"
+quality_hint = "medium"
+topics = ["Graph RAG", "AI memory", "provider gated"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "dependency_provider_review_before_fetch"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_okf_zenn"
+source_type = "manual_url"
+locator = "https://zenn.dev/knowledgesense/articles/14a874a9f423bb"
+enabled_when = "always"
+title = "Open Knowledge Format Japanese article"
+quality_hint = "medium"
+topics = ["knowledge format", "metadata", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_okf_google_cloud"
+source_type = "manual_url"
+locator = "https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing"
+enabled_when = "always"
+title = "Google Cloud Open Knowledge Format article"
+quality_hint = "official"
+topics = ["knowledge format", "metadata", "source candidates"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_rag_knowledge_ops"
+source_type = "manual_url"
+locator = "https://zenn.dev/yottayoshida/articles/rag-knowledge-ops-agent-search"
+enabled_when = "always"
+title = "RAG Knowledge Ops and Agent Search article"
+quality_hint = "medium"
+topics = ["RAG operations", "observability", "source freshness"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_claude_ontology"
+source_type = "manual_url"
+locator = "https://zenn.dev/takupeso/articles/claude-ontology-knowledge-structuring"
+enabled_when = "always"
+title = "Claude ontology and knowledge structuring article"
+quality_hint = "medium"
+topics = ["ontology", "typed relations", "retrieval policy"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_databricks_rag_workflow"
+source_type = "manual_url"
+locator = "https://www.databricks.com/jp/blog/rag-workflow"
+enabled_when = "always"
+title = "Databricks RAG workflow article"
+quality_hint = "official"
+topics = ["RAG workflow", "governance", "evaluation"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_cc_rsg_web"
+source_type = "manual_url"
+locator = "https://zenn.dev/daishiro/articles/cc-rsg-web-release"
+enabled_when = "always"
+title = "cc-rsg-web reverse specification article"
+quality_hint = "medium"
+topics = ["documentation generation", "review artifact", "specification"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_cc_rsg_repo"
+source_type = "manual_url"
+locator = "https://github.com/daishir0/cc-rsg"
+enabled_when = "always"
+title = "cc-rsg reverse specification repository"
+quality_hint = "medium"
+topics = ["documentation generation", "review artifact", "specification"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_sios_marp_slidev"
+source_type = "manual_url"
+locator = "https://tech-lab.sios.jp/archives/52940"
+enabled_when = "always"
+title = "Marp and Slidev comparison article"
+quality_hint = "medium"
+topics = ["presentation", "Marp", "Slidev"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_marp_official"
+source_type = "manual_url"
+locator = "https://marp.app/"
+enabled_when = "always"
+title = "Marp official documentation"
+quality_hint = "official"
+topics = ["presentation", "Marp", "review artifact"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_slidev_official"
+source_type = "manual_url"
+locator = "https://sli.dev/"
+enabled_when = "always"
+title = "Slidev official documentation"
+quality_hint = "official"
+topics = ["presentation", "Slidev", "visual QA"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_f3_repo"
+source_type = "manual_url"
+locator = "https://github.com/future-file-format/f3"
+enabled_when = "disabled"
+title = "F3 research file format repository"
+quality_hint = "medium"
+topics = ["data format", "archive", "restore manifest"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "dependency_review_before_fetch"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_sqljoiner_repo"
+source_type = "manual_url"
+locator = "https://github.com/webofmarius/SQLJoiner"
+enabled_when = "disabled"
+title = "SQLJoiner visual query builder repository"
+quality_hint = "medium"
+topics = ["query visualization", "SQL safety", "control artifact"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "license_dependency_review_before_fetch"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_line_embedding_stabilization"
+source_type = "manual_url"
+locator = "https://techblog.lycorp.co.jp/ja/techverse2026-62"
+enabled_when = "always"
+title = "LY embedding stabilization article"
+quality_hint = "official"
+topics = ["embedding drift", "cold start", "retrieval eval"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "unfetched_public_candidate"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_x_bookmarks"
+source_type = "manual_url"
+locator = "https://x.com/i/bookmarks"
+enabled_when = "disabled"
+title = "X bookmarks private locator"
+quality_hint = "low"
+topics = ["X bookmarks", "private locator", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "private_user_export_required"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_x_bookmarks_help"
+source_type = "manual_url"
+locator = "https://help.x.com/en/using-x/bookmarks"
+enabled_when = "disabled"
+title = "X Help about bookmarks"
+quality_hint = "official"
+topics = ["X bookmarks", "private locator", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "private_user_export_required"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_x_mocchicc_2071109107919327339"
+source_type = "manual_url"
+locator = "https://x.com/mocchicc/status/2071109107919327339?s=20"
+enabled_when = "disabled"
+title = "X post snippet-only Codex session bloat signal"
+quality_hint = "low"
+topics = ["snippet only", "Codex operations", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "public_content_not_restored"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_x_calloc134_2071179492517872046"
+source_type = "manual_url"
+locator = "https://x.com/calloc134/status/2071179492517872046?s=20"
+enabled_when = "disabled"
+title = "X post snippet-only Slidev Playwright signal"
+quality_hint = "low"
+topics = ["snippet only", "presentation", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "public_content_not_restored"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_x_zjp1997720_2071129331699745263"
+source_type = "manual_url"
+locator = "https://x.com/zjp1997720/status/2071129331699745263?s=20"
+enabled_when = "disabled"
+title = "X post snippet-only Lazy Codex signal"
+quality_hint = "low"
+topics = ["snippet only", "Codex plugin", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "public_content_not_restored"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "manual_x_connect24h_2071164027930300556"
+source_type = "manual_url"
+locator = "https://x.com/connect24h/status/2071164027930300556?s=20"
+enabled_when = "disabled"
+title = "X post snippet-only PowerPoint generation signal"
+quality_hint = "low"
+topics = ["snippet only", "presentation", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "public_content_not_restored"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
 source_id = "future_serper_external_search"
 source_type = "serper"
 locator = "research_x external source candidates"
