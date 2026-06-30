@@ -126,6 +126,19 @@ def test_operational_workflow_persists_source_restored_trace(tmp_path: Path) -> 
     assert workflow_row["stop_reason"] == "enough_evidence"
     assert workflow_metadata["stop_condition_audit"]["answer_status"] == "ok"
     assert workflow_metadata["stop_condition_audit"]["has_local_context"] is True
+    knowledge_ops = workflow_metadata["knowledge_ops_trace"]
+    assert knowledge_ops["evidence_role"] == "control_plane_not_answer_evidence"
+    assert knowledge_ops["answer_support_allowed"] is False
+    assert knowledge_ops["search_hit_count"] >= 1
+    assert knowledge_ops["included_count"] >= 1
+    assert knowledge_ops["reflected_count"] >= 1
+    assert knowledge_ops["stale_count"] >= 0
+    assert knowledge_ops["samples"]["included_source_ids"]
+    assert output.trace["rag_governance"]["evidence_role"] == (
+        "control_plane_not_answer_evidence"
+    )
+    assert output.trace["rag_governance"]["answer_support_allowed"] is False
+    assert output.trace["rag_governance"]["knowledge_ops"]["included_count"] >= 1
 
 
 def test_store_false_eval_does_not_create_operational_trace(tmp_path: Path) -> None:

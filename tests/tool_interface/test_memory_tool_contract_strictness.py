@@ -110,6 +110,15 @@ def test_answer_trace_reports_restoration_and_fixture_limitation() -> None:
         payload["trace"]["fixture_limitations"]["quality_scope"]
         == "boundary_wiring_not_model_quality"
     )
+    rag_governance = payload["trace"]["rag_governance"]
+    assert rag_governance["evidence_role"] == "control_plane_not_answer_evidence"
+    assert rag_governance["answer_support_allowed"] is False
+    assert rag_governance["provider_free_fixture_scope"] == {
+        "provider_free_fixture": True,
+        "quality_scope": "boundary_wiring_not_model_quality",
+        "allowed_quality_scope": "boundary_wiring_not_model_quality",
+        "model_quality_verified": False,
+    }
 
 
 def test_relation_traversal_trace_is_candidate_only_not_promotion() -> None:

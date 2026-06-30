@@ -16,6 +16,7 @@ from research_x.memory.context import (
     build_context_bundle,
 )
 from research_x.memory.context_budget import ContextBudgetPolicy, budgeted_json
+from research_x.memory.evidence_invariants import chunk_is_not_evidence, chunk_is_stale
 from research_x.memory.llm_context import LLMContextBundle, fetch_llm_context_to_context
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.schema import ensure_memory_schema
@@ -889,6 +890,10 @@ def _finish_workflow(
     finished_at = _utc_now()
     final_metadata = {
         **metadata,
+        "knowledge_ops_trace": _knowledge_ops_source_state_trace(
+            context_bundle=context_bundle,
+            answer=answer,
+        ),
         "stop_condition_audit": _stop_condition_audit(
             metadata=metadata,
             steps=tuple(steps),
@@ -922,6 +927,130 @@ def _finish_workflow(
         context_bundle=context_bundle,
         answer=answer,
     )
+
+
+def _knowledge_ops_source_state_trace(
+    *,
+    context_bundle: ContextBundle | None,
+    answer: MemoryAnswer | None,
+) -> dict[str, Any]:
+    if context_bundle is None:
+        return {
+            "evidence_role": "control_plane_not_answer_evidence",
+            "answer_support_allowed": False,
+            "search_hit_count": 0,
+            "included_count": 0,
+            "excluded_count": 0,
+            "changed_count": 0,
+            "stale_count": 0,
+            "reflected_count": 0,
+            "provider_gated_count": 0,
+            "samples": {},
+        }
+    hit_ids = [str(hit.get("doc_id") or "") for hit in context_bundle.retrieved_hits]
+    not_evidence_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if chunk_is_not_evidence(chunk)
+    ]
+    included_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if not chunk_is_not_evidence(chunk)
+    ]
+    reflected_ids = (
+        [chunk.source_id for chunk in answer.selected_context_chunks]
+        if answer is not None
+        else []
+    )
+    changed_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if _metadata_marks_changed(chunk.metadata)
+    ]
+    stale_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if chunk_is_stale(chunk)
+    ]
+    provider_gated_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if _metadata_marks_provider_gated(chunk.metadata)
+    ]
+    return {
+        "evidence_role": "control_plane_not_answer_evidence",
+        "answer_support_allowed": False,
+        "search_hit_count": len(context_bundle.retrieved_hits),
+        "included_count": len(included_ids),
+        "excluded_count": max(
+            0,
+            len(context_bundle.retrieved_hits) - len(context_bundle.context_chunks),
+        )
+        + len(set(not_evidence_ids)),
+        "changed_count": len(set(changed_ids)),
+        "stale_count": len(set(stale_ids)),
+        "reflected_count": len(set(reflected_ids)),
+        "provider_gated_count": len(set(provider_gated_ids)),
+        "samples": {
+            "search_hit_ids": _sample_ids(hit_ids),
+            "included_source_ids": _sample_ids(included_ids),
+            "excluded_source_ids": _sample_ids(not_evidence_ids),
+            "changed_source_ids": _sample_ids(changed_ids),
+            "stale_source_ids": _sample_ids(stale_ids),
+            "reflected_source_ids": _sample_ids(reflected_ids),
+            "provider_gated_source_ids": _sample_ids(provider_gated_ids),
+        },
+    }
+
+
+def _metadata_marks_changed(metadata: dict[str, Any]) -> bool:
+    markers = (
+        "changed",
+        "drift",
+        "modified",
+        "conflict",
+        "superseded",
+        "lineage_variant",
+    )
+    values = (
+        metadata.get("source_doc_hash_status"),
+        metadata.get("retrieval_text_status"),
+        metadata.get("retrieval_text_freshness"),
+        metadata.get("lineage_variant_warning"),
+        metadata.get("freshness_status"),
+        metadata.get("answerability_status"),
+    )
+    return any(
+        any(marker in str(value or "").casefold() for marker in markers)
+        for value in values
+    )
+
+
+def _metadata_marks_provider_gated(metadata: dict[str, Any]) -> bool:
+    values = (
+        metadata.get("provider_gate"),
+        metadata.get("provider_gated"),
+        metadata.get("source_access_status"),
+        metadata.get("source_restoration_status"),
+    )
+    return any(
+        str(value or "").strip().casefold()
+        in {"provider_gated", "external_context_needed", "quota_gated"}
+        for value in values
+    )
+
+
+def _sample_ids(values: list[str], *, limit: int = 8) -> list[str]:
+    sample: list[str] = []
+    for value in values:
+        clean = str(value or "").strip()
+        if not clean or clean in sample:
+            continue
+        sample.append(clean)
+        if len(sample) >= limit:
+            break
+    return sample
 
 
 def _stop_condition_audit(

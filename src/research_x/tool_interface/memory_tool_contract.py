@@ -218,6 +218,7 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
             "relation_traversal",
             "pointer_offload_verification",
             "fixture_limitations",
+            "rag_governance",
         }
         - set(trace)
     ):
@@ -427,6 +428,10 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
             "provider_like_parameters": _provider_like_parameters(parameters),
         },
         "fixture_limitations": fixture_limitations,
+        "rag_governance": _rag_governance_trace(
+            workflow,
+            fixture_limitations=fixture_limitations,
+        ),
         "budget": {
             "max_steps": parameters.get("max_steps"),
             "step_count": len(workflow.steps),
@@ -641,6 +646,53 @@ def _relation_traversal_trace(workflow: MemoryWorkflow) -> dict[str, Any]:
         "relation_count": len(relations),
         "relation_counts": dict(sorted(relation_counts.items())),
         "relations": relations[:20],
+    }
+
+
+def _rag_governance_trace(
+    workflow: MemoryWorkflow,
+    *,
+    fixture_limitations: dict[str, Any],
+) -> dict[str, Any]:
+    knowledge_ops = workflow.metadata.get("knowledge_ops_trace")
+    if not isinstance(knowledge_ops, dict):
+        knowledge_ops = {
+            "evidence_role": "control_plane_not_answer_evidence",
+            "answer_support_allowed": False,
+            "search_hit_count": (
+                len(workflow.context_bundle.retrieved_hits)
+                if workflow.context_bundle is not None
+                else 0
+            ),
+            "included_count": (
+                len(workflow.context_bundle.context_chunks)
+                if workflow.context_bundle is not None
+                else 0
+            ),
+            "excluded_count": 0,
+            "changed_count": 0,
+            "stale_count": 0,
+            "reflected_count": 0,
+            "provider_gated_count": 0,
+            "samples": {},
+        }
+    return {
+        "evidence_role": "control_plane_not_answer_evidence",
+        "answer_support_allowed": False,
+        "knowledge_ops": knowledge_ops,
+        "provider_free_fixture_scope": {
+            "provider_free_fixture": fixture_limitations.get("provider_free_fixture"),
+            "quality_scope": fixture_limitations.get("quality_scope"),
+            "allowed_quality_scope": "boundary_wiring_not_model_quality",
+            "model_quality_verified": False,
+        },
+        "governance_checks": {
+            "source_coverage_visible": True,
+            "freshness_visible": True,
+            "retrieval_precision_visible": True,
+            "answer_faithfulness_visible": True,
+            "context_budget_visible": True,
+        },
     }
 
 

@@ -423,6 +423,14 @@ def test_provider_free_fixture_declares_boundary_only_scope(tmp_path: Path) -> N
         note.startswith("provider-free fixture missing boundary-only quality scope")
         for note in invalid_result.notes
     )
+    summary = memory_evals.eval_control_plane_summary((valid_result, invalid_result))
+    assert summary["evidence_role"] == "control_plane_not_answer_evidence"
+    assert summary["answer_support_allowed"] is False
+    assert summary["provider_free_fixture_scope"]["count"] == 2
+    assert summary["provider_free_fixture_scope"]["scope_violation_count"] == 1
+    assert summary["provider_free_fixture_scope"]["model_quality_verified"] is False
+    assert summary["source_coverage"]["cases_with_context"] == 2
+    assert summary["answer_faithfulness"]["non_ready_citation_count"] == 0
 
 
 def test_typed_relation_traversal_covers_feature_without_answer_promotion(

@@ -4700,6 +4700,11 @@ def test_memory_eval_records_route_level_fields(tmp_path: Path) -> None:
     assert stored_run[1] == 1
     assert stored_results == 1
     assert listed_runs[0]["run_id"] == stored_run_id
+    assert loaded_run["control_plane_summary"]["evidence_role"] == (
+        "control_plane_not_answer_evidence"
+    )
+    assert loaded_run["control_plane_summary"]["answer_support_allowed"] is False
+    assert loaded_run["control_plane_summary"]["source_coverage"]["case_count"] == 1
     assert loaded_run["results"][0]["route"] == "quote_context"
     assert loaded_run["results"][0]["question_type"] == "multi_hop_evidence"
 

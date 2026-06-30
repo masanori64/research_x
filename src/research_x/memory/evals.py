@@ -374,6 +374,14 @@ def eval_results_json(results: tuple[MemoryEvalResult, ...]) -> str:
     )
 
 
+def eval_control_plane_summary(
+    results: tuple[MemoryEvalResult, ...],
+) -> dict[str, Any]:
+    return _eval_control_plane_summary_from_mappings(
+        [asdict(result) for result in results]
+    )
+
+
 def store_memory_eval_results(
     db_path: str | Path,
     results: tuple[MemoryEvalResult, ...],
@@ -517,9 +525,11 @@ def load_memory_eval_run(db_path: str | Path, run_id: str) -> dict[str, Any]:
             """,
             (run_id,),
         ).fetchall()
+    result_rows = [_eval_result_row(row) for row in results]
     return {
         "run": _eval_run_row(run),
-        "results": [_eval_result_row(row) for row in results],
+        "control_plane_summary": _eval_control_plane_summary_from_mappings(result_rows),
+        "results": result_rows,
     }
 
 
@@ -554,6 +564,7 @@ def format_eval_runs(runs: tuple[dict[str, Any], ...]) -> str:
 
 def format_eval_run(payload: dict[str, Any]) -> str:
     run = payload["run"]
+    summary = payload.get("control_plane_summary") or {}
     lines = [
         (
             f"run: {run['run_id']} status={run['status']} cases={run['case_count']} "
@@ -561,6 +572,15 @@ def format_eval_run(payload: dict[str, Any]) -> str:
         ),
         f"finished: {run['finished_at']}",
         f"cases_path: {run.get('cases_path') or '-'}",
+        (
+            "control_plane: "
+            f"scope={summary.get('evidence_role') or '-'} "
+            f"provider_free={summary.get('provider_free_fixture_scope', {}).get('count', 0)} "
+            f"scope_violations="
+            f"{summary.get('provider_free_fixture_scope', {}).get('scope_violation_count', 0)} "
+            f"stale_support={summary.get('freshness', {}).get('stale_support_count', 0)} "
+            f"non_ready={summary.get('answer_faithfulness', {}).get('non_ready_citation_count', 0)}"
+        ),
         "results:",
     ]
     for result in payload["results"]:
@@ -602,6 +622,121 @@ def format_eval_results(results: tuple[MemoryEvalResult, ...]) -> str:
             f"first={result.first_doc_id or '-'} terms={terms} query={result.query}{notes}"
         )
     return "\n".join(lines)
+
+
+def _eval_control_plane_summary_from_mappings(
+    results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    provider_free = [
+        result for result in results if bool(result.get("provider_free_fixture"))
+    ]
+    scope_violations = [
+        result
+        for result in provider_free
+        if result.get("quality_scope") != "boundary_wiring_not_model_quality"
+    ]
+    source_kinds = sorted(
+        {
+            str(source_kind)
+            for result in results
+            for source_kind in _sequence(result.get("source_kinds"))
+            if str(source_kind).strip()
+        }
+    )
+    return {
+        "evidence_role": "control_plane_not_answer_evidence",
+        "answer_support_allowed": False,
+        "source_coverage": {
+            "case_count": len(results),
+            "cases_with_hits": sum(1 for result in results if _int(result.get("hits")) > 0),
+            "cases_with_context": sum(
+                1 for result in results if _int(result.get("context_chunks")) > 0
+            ),
+            "source_kinds": source_kinds,
+        },
+        "freshness": {
+            "stale_support_count": sum(
+                _int(result.get("stale_support_count")) for result in results
+            ),
+            "searched_after_sufficient_evidence_count": sum(
+                1
+                for result in results
+                if bool(result.get("searched_after_sufficient_evidence"))
+            ),
+            "redundant_search_count": sum(
+                _int(result.get("redundant_search_count")) for result in results
+            ),
+        },
+        "retrieval_precision": {
+            "zero_hit_count": sum(1 for result in results if _int(result.get("hits")) == 0),
+            "needs_review_count": sum(
+                1 for result in results if result.get("status") == "needs_review"
+            ),
+            "fail_count": sum(1 for result in results if result.get("status") == "fail"),
+            "min_best_score": _min_best_score(results),
+        },
+        "answer_faithfulness": {
+            "non_ready_citation_count": sum(
+                _int(result.get("non_ready_citation_count")) for result in results
+            ),
+            "not_evidence_support_count": sum(
+                _int(result.get("not_evidence_support_count")) for result in results
+            ),
+            "duplicate_support_count": sum(
+                _int(result.get("duplicate_support_count")) for result in results
+            ),
+            "dedup_lineage_policy_violation_count": sum(
+                _int(result.get("dedup_lineage_policy_violation_count"))
+                for result in results
+            ),
+            "citation_missing_count": sum(
+                1
+                for result in results
+                if result.get("answerability_status") == "citation_missing"
+            ),
+        },
+        "provider_free_fixture_scope": {
+            "count": len(provider_free),
+            "quality_scope": "boundary_wiring_not_model_quality",
+            "scope_violation_count": len(scope_violations),
+            "model_quality_verified": False,
+        },
+        "context_budget": {
+            "redundant_search_count": sum(
+                _int(result.get("redundant_search_count")) for result in results
+            ),
+            "searched_after_sufficient_evidence_count": sum(
+                1
+                for result in results
+                if bool(result.get("searched_after_sufficient_evidence"))
+            ),
+        },
+    }
+
+
+def _sequence(value: Any) -> tuple[Any, ...]:
+    if isinstance(value, tuple):
+        return value
+    if isinstance(value, list):
+        return tuple(value)
+    return ()
+
+
+def _int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _min_best_score(results: list[dict[str, Any]]) -> float | None:
+    scores = []
+    for result in results:
+        try:
+            scores.append(float(result.get("best_score") or 0.0))
+        except (TypeError, ValueError):
+            continue
+    return min(scores) if scores else None
 
 
 def _eval_case_from_mapping(record: Any) -> EvalCase:
