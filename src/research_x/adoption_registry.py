@@ -13,8 +13,12 @@ SOURCE_REF_RE = re.compile(r"^S\d{2}$")
 ALLOWED_ADOPTION_SHAPES = {
     "adopt",
     "bridge",
+    "eval_only",
     "staging",
+    "staged_not_implemented",
     "provider_gated",
+    "reference_only",
+    "rejected",
     "historical",
 }
 ALLOWED_OWNER_SURFACES = {
@@ -25,11 +29,43 @@ ALLOWED_OWNER_SURFACES = {
     "historical",
 }
 ALLOWED_STATUSES = {
+    "boundary_implemented",
+    "eval_only",
     "implemented",
+    "reference_only",
+    "rejected",
     "staged",
+    "staged_not_implemented",
     "provider_gated",
     "historical",
     "external_owned",
+}
+DEFERRED_ADOPTION_SHAPES = {
+    "bridge",
+    "eval_only",
+    "provider_gated",
+    "reference_only",
+    "rejected",
+    "staging",
+    "staged_not_implemented",
+}
+NON_RUNTIME_ADOPTION_SHAPES = {
+    "eval_only",
+    "reference_only",
+    "rejected",
+    "staging",
+    "staged_not_implemented",
+}
+EXPECTED_STATUS_BY_SHAPE = {
+    "adopt": {"implemented"},
+    "bridge": {"external_owned"},
+    "eval_only": {"boundary_implemented", "eval_only"},
+    "historical": {"historical"},
+    "provider_gated": {"provider_gated"},
+    "reference_only": {"boundary_implemented", "reference_only"},
+    "rejected": {"rejected"},
+    "staging": {"staged"},
+    "staged_not_implemented": {"staged_not_implemented"},
 }
 PROVIDER_STOP_CONDITION_TOKENS = {
     "provider",
@@ -222,7 +258,7 @@ def _deferred_candidate_entry(
     candidate: AdoptionCandidate,
     repo_root: Path,
 ) -> dict[str, Any]:
-    if candidate.adoption_shape not in {"staging", "provider_gated", "bridge"}:
+    if candidate.adoption_shape not in DEFERRED_ADOPTION_SHAPES:
         return {}
     active_artifact = _resolve_active_artifact(repo_root, candidate.active_artifact)
     active_artifact_exists = active_artifact.exists()
@@ -258,6 +294,14 @@ def _deferred_reason(candidate: AdoptionCandidate) -> str:
         return "provider_or_quota_gate_active"
     if candidate.adoption_shape == "bridge":
         return "external_owner_bridge_only"
+    if candidate.adoption_shape == "eval_only":
+        return "eval_or_boundary_only_without_runtime_adoption"
+    if candidate.adoption_shape == "reference_only":
+        return "reference_only_without_runtime_adoption"
+    if candidate.adoption_shape == "staged_not_implemented":
+        return "staged_not_implemented"
+    if candidate.adoption_shape == "rejected":
+        return "rejected_not_adopted"
     if candidate.owner_surface == "research_x_tool":
         return "local_boundary_without_runtime_adoption"
     return "staged_without_runtime_adoption"
@@ -325,6 +369,12 @@ def _validate_candidate(
         errors.append(f"{candidate.name}: invalid adoption_shape {candidate.adoption_shape!r}")
     if candidate.status not in ALLOWED_STATUSES:
         errors.append(f"{candidate.name}: invalid status {candidate.status!r}")
+    expected_statuses = EXPECTED_STATUS_BY_SHAPE.get(candidate.adoption_shape)
+    if expected_statuses is not None and candidate.status not in expected_statuses:
+        errors.append(
+            f"{candidate.name}: status {candidate.status!r} does not match "
+            f"adoption_shape {candidate.adoption_shape!r}"
+        )
     if not candidate.first_local_step.strip():
         errors.append(f"{candidate.name}: first_local_step is required")
     if not candidate.promotion_gate.strip():
@@ -352,6 +402,8 @@ def _validate_candidate(
             )
     if candidate.adoption_shape == "provider_gated" and candidate.enabled:
         errors.append(f"{candidate.name}: provider_gated candidate cannot be enabled")
+    if candidate.adoption_shape in NON_RUNTIME_ADOPTION_SHAPES and candidate.enabled:
+        errors.append(f"{candidate.name}: non-runtime candidate cannot be enabled")
     if candidate.owner_surface == "codex_foundation":
         if candidate.adoption_shape != "bridge":
             errors.append(f"{candidate.name}: research_x may keep only bridge entries for .codex")

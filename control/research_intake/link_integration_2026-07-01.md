@@ -208,21 +208,21 @@ Open boundary for next loop:
 
 ## Cross-Group Adoption Matrix
 
-Project candidates staged or gated:
+Project candidates staged, gated, or boundary-only:
 
 | Candidate | Shape | Owner | First useful local check |
 | --- | --- | --- | --- |
-| `kg_typed_edge_authority` | adopt | retrieval/eval | typed-edge and contradiction fixtures |
+| `kg_typed_edge_authority` | eval_only | retrieval/eval | typed-edge and contradiction fixtures |
 | `cognee_graph_memory_reference` | provider_gated | external source candidate | local external AI-memory non-evidence invariant; runtime gated |
-| `okf_source_metadata_shape` | adopt | intake metadata | candidate metadata fixture and non-evidence guards |
-| `rag_knowledge_ops_observability` | adopt | workflow trace | coverage/freshness trace fields |
-| `ontology_relation_traversal_eval` | adopt | route policy | relation traversal vs semantic recall fixtures |
-| `databricks_rag_governance_checklist` | adopt | eval | precision vs faithfulness separation |
-| `cc_rsg_reverse_spec_review` | adopt | control artifact | generated-spec non-evidence test |
-| `slidev_visual_review_lane` | adopt | presentation | local visual QA evaluator; renderer/browser capture still gated |
+| `okf_source_metadata_shape` | reference_only | intake metadata | candidate metadata fixture and non-evidence guards |
+| `rag_knowledge_ops_observability` | eval_only | workflow trace | coverage/freshness trace fields |
+| `ontology_relation_traversal_eval` | eval_only | route policy | relation traversal vs semantic recall fixtures |
+| `databricks_rag_governance_checklist` | eval_only | eval | precision vs faithfulness separation |
+| `cc_rsg_reverse_spec_review` | reference_only | control artifact | generated-spec non-evidence test |
+| `slidev_visual_review_lane` | eval_only | presentation | local visual QA evaluator; renderer/browser capture still gated |
 | `f3_self_describing_artifact_reference` | staging | artifact manifest | inert manifest identity, no Wasm execution |
 | `sqljoiner_query_visualization_reference` | staging | control artifact | owned read-only query-plan visualization |
-| `embedding_stabilization_eval` | adopt | retrieval eval | synthetic drift/cold-start fixtures |
+| `embedding_stabilization_eval` | eval_only | retrieval eval | synthetic drift/cold-start fixtures |
 | `x_source_restoration_status` | adopt | source restoration | login/snippet/private status fixtures |
 | `agent_control_source_ownership_coverage` | adopt | research intake | enabled manual URL ownership metadata |
 
@@ -240,7 +240,7 @@ Codex foundation candidates staged or gated:
 | `slidev-playwright-visual-review` | staging | presentation QA loop candidate |
 | `ppt-master` | provider_gated | model/API-dependent slide generation candidate |
 | `x-private-source-routing` | adopt | active private/snippet-only negative route-memory boundary |
-| `edge-addons-governance` | adopt | foundation-owned extension governance control artifact |
+| `edge-addons-governance` | adopt | foundation-owned report-only extension governance control artifact |
 
 ## Loop 2 Review
 
@@ -249,9 +249,10 @@ non-overlapping boundaries.
 
 Registry and gate findings:
 
-- `S56 edge-addons-store` belonged to the Codex foundation, not the project
-  source lock. It was removed from project source intake and kept as
-  `edge-addons-governance` in the Codex foundation.
+- The earlier Edge Add-ons store candidate belonged to the Codex foundation, not
+  the project source lock. It was removed from project source intake and kept as
+  `edge-addons-governance` in the Codex foundation. Current project source ref
+  `S56` is `agent-guardrail-design`, not Edge Add-ons.
 - Multi-locator candidates need explicit source-candidate rows for official or
   primary surfaces. Added rows cover Google Cloud OKF, cc-rsg GitHub, Marp
   official docs, Slidev official docs, and X Help bookmarks.
@@ -636,6 +637,59 @@ Committed and pushed implementation checkpoints:
 - `cd0fe7d` `Gate stale vector projection membership`
 - `c290f48` `Record link integration implementation loops`
 - `2cd1c56` `Block generated review artifacts as evidence`
+
+## Loop 6 Freeze And Reclassification
+
+Loop 6 stopped new link-derived implementation work and re-read the registry
+against the final `research_x` design invariant:
+
+```text
+route output cannot become answer support
+control artifact cannot become evidence
+only AnswerAuthorityGatekeeper can promote
+```
+
+Two read-only reviews found that several external-link candidates were too easy
+to misread as runtime adoption because they used `adopt`, `implemented`, and
+`enabled = true` even when the actual project value was only a boundary,
+negative invariant, eval fixture, or reference pattern.
+
+Current registry policy after this loop:
+
+- External links default to non-runtime states unless they protect a core
+  `research_x` evidence invariant.
+- `eval_only` means local eval or trace boundary may exist, but the source does
+  not become implementation authority and the runtime is not enabled.
+- `reference_only` means the source informs local boundary vocabulary or review
+  shape only; it is not a runtime dependency, source bundle, citation, or answer
+  authority.
+- `boundary_implemented` means local guard code or tests exist, not that the
+  upstream tool, framework, service, renderer, or article design is adopted.
+- `adopt` remains reserved for project-owned core behavior such as the stable
+  tool contract, Codex bridge, current local baselines, and hard negative
+  evidence invariants like X source-restoration blockers.
+
+Reclassified from runtime-looking adoption to boundary-only:
+
+| Candidate | Previous shape | Current shape | Reason |
+| --- | --- | --- | --- |
+| `agent_safety_tool_trace` | adopt | eval_only | Agent-safety articles are reference material for local trace checks, not an agent framework or runtime route. |
+| `kg_typed_edge_authority` | adopt | eval_only | Typed edges are candidate/eval signals; the name must not imply answer authority. |
+| `okf_source_metadata_shape` | adopt | reference_only | OKF-style metadata helps candidate organization but is not a source bundle or citation. |
+| `rag_knowledge_ops_observability` | adopt | eval_only | Knowledge Ops fields are workflow visibility, not managed search adoption. |
+| `ontology_relation_traversal_eval` | adopt | eval_only | Relation traversal remains provider-free fixture coverage, not a default route or external ontology. |
+| `databricks_rag_governance_checklist` | adopt | eval_only | Vendor workflow concepts become local eval boundaries only; no managed RAG service is adopted. |
+| `cc_rsg_reverse_spec_review` | adopt | reference_only | Generated-spec tools inform non-evidence boundaries only. |
+| `slidev_visual_review_lane` | adopt | eval_only | Local visual QA can inspect existing artifacts; Slidev/Playwright runtime remains staged. |
+| `embedding_stabilization_eval` | adopt | eval_only | Synthetic drift checks are eval-only; no embedding quality or provider claim is adopted. |
+
+Items left as `adopt` after re-check:
+
+- `x_source_restoration_status`: core negative invariant for private,
+  login-required, snippet-only, or unrestored X material.
+- `agent_control_source_ownership_coverage`: source-intake metadata guard that
+  prevents metadata-only URLs from granting runtime permission, citation
+  readiness, or automatic adoption.
 
 ## Non-Overlap Scope For Loop 2
 

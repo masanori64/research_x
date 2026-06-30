@@ -142,33 +142,34 @@ def test_provider_candidates_are_disabled_and_provider_gated() -> None:
     )
 
 
-def test_okf_metadata_candidate_is_adopted_without_evidence_promotion() -> None:
+def test_okf_metadata_candidate_is_reference_only_without_evidence_promotion() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     item = candidates["okf_source_metadata_shape"]
 
-    assert item.adoption_shape == "adopt"
-    assert item.status == "implemented"
-    assert item.enabled is True
+    assert item.adoption_shape == "reference_only"
+    assert item.status == "boundary_implemented"
+    assert item.enabled is False
     assert item.provider_or_quota is False
     assert item.active_artifact == "src/research_x/research_intake/pipeline.py"
     assert "candidate-only" in item.stop_condition
     assert "source-bundled" in item.stop_condition
-    assert "OKF-style files are not evidence" in item.notes
+    assert "reference material" in item.notes
+    assert "not evidence" in item.notes
 
 
-def test_agent_safety_trace_is_contract_visibility_not_runtime_permission() -> None:
+def test_agent_safety_trace_is_eval_only_not_runtime_permission() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     item = candidates["agent_safety_tool_trace"]
 
-    assert item.adoption_shape == "adopt"
-    assert item.status == "implemented"
-    assert item.enabled is True
+    assert item.adoption_shape == "eval_only"
+    assert item.status == "boundary_implemented"
+    assert item.enabled is False
     assert item.provider_or_quota is False
     assert item.source_ref == "S56"
     assert item.active_artifact == "src/research_x/tool_interface/memory_tool_contract.py"
     assert "trace visibility does not grant permissions" in item.promotion_gate
     assert "provider, network, browser, install" in item.stop_condition
-    assert "no agent framework" in item.notes
+    assert "reference material" in item.notes
     assert "prompt-only safety model" in item.notes
 
 
@@ -240,13 +241,13 @@ def test_deferred_audit_exposes_local_boundaries_without_runtime_adoption() -> N
     assert cognee["deferred_reason"] == "provider_or_quota_gate_active"
 
 
-def test_slidev_visual_review_lane_adopts_local_evaluator_only() -> None:
+def test_slidev_visual_review_lane_is_eval_only_boundary() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     item = candidates["slidev_visual_review_lane"]
 
-    assert item.adoption_shape == "adopt"
-    assert item.status == "implemented"
-    assert item.enabled is True
+    assert item.adoption_shape == "eval_only"
+    assert item.status == "boundary_implemented"
+    assert item.enabled is False
     assert item.provider_or_quota is False
     assert item.active_artifact == "src/research_x/control_artifacts/visual_review.py"
     assert "dependency-free visual-review evaluation" in item.first_local_step
@@ -255,8 +256,32 @@ def test_slidev_visual_review_lane_adopts_local_evaluator_only() -> None:
     assert "installs dependencies" in item.stop_condition
     assert "Slidev/Playwright/ppt-master runtime code" in item.stop_condition
     assert "evidence promotion" in item.stop_condition
-    assert "Local visual QA evaluator is implemented" in item.notes
-    assert "renderer/browser/dependency capture remains staged" in item.notes
+    assert "eval/boundary-only" in item.notes
+    assert "runtime adoption remain staged" in item.notes
+
+
+def test_external_link_boundary_candidates_do_not_become_runtime_adoptions() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    boundary_only = {
+        "agent_safety_tool_trace": "eval_only",
+        "kg_typed_edge_authority": "eval_only",
+        "okf_source_metadata_shape": "reference_only",
+        "rag_knowledge_ops_observability": "eval_only",
+        "ontology_relation_traversal_eval": "eval_only",
+        "databricks_rag_governance_checklist": "eval_only",
+        "cc_rsg_reverse_spec_review": "reference_only",
+        "slidev_visual_review_lane": "eval_only",
+        "embedding_stabilization_eval": "eval_only",
+    }
+
+    for name, adoption_shape in boundary_only.items():
+        item = candidates[name]
+        assert item.adoption_shape == adoption_shape
+        assert item.status == "boundary_implemented"
+        assert item.enabled is False
+        assert item.provider_or_quota is False
+        normalized_stop = item.stop_condition.replace("-", " ")
+        assert "evidence promotion" in normalized_stop
 
 
 def test_cognee_reference_is_local_invariant_coverage_without_runtime_adoption() -> None:

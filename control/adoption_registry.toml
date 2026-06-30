@@ -29,8 +29,8 @@ notes = "Stable AI-facing contract; not the internal workflow JSON."
 name = "agent_safety_tool_trace"
 category = "tool_interface"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S56"
 source_url = "https://qiita.com/ryuichi000persol/items/27789cbca88bd4bf11e0"
 active_artifact = "src/research_x/tool_interface/memory_tool_contract.py"
@@ -38,8 +38,8 @@ first_local_step = "Expose agent_safety trace fields for local tool boundary, sy
 promotion_gate = "Safety is enforced by local contracts, provider gates, budget guards, restoration checks, and answer-authority gates; trace visibility does not grant permissions."
 stop_condition = "Stop if the trace grants provider, network, browser, install, MCP/plugin/connector, destructive-action, or evidence-promotion permission, or if tool-output validation no longer requires it."
 provider_or_quota = false
-enabled = true
-notes = "Agent guardrail sources are adopted as local trace/contract visibility only; no agent framework, browser automation, MCP/plugin, dependency, or prompt-only safety model is adopted."
+enabled = false
+notes = "Agent guardrail sources are reference material for a local boundary trace; no agent framework, browser automation, MCP/plugin, dependency, runtime route, or prompt-only safety model is adopted."
 
 [[candidates]]
 name = "agent_control_source_ownership_coverage"
@@ -525,8 +525,8 @@ notes = "Raw media vector match remains a candidate signal."
 name = "kg_typed_edge_authority"
 category = "retrieval_eval"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S44"
 source_url = "https://zenn.dev/knowledge_graph/articles/kg-puzzle-agent-langgraph"
 active_artifact = "src/research_x/tool_interface/memory_tool_contract.py"
@@ -534,8 +534,8 @@ first_local_step = "Expose typed relation traversal as candidate-only trace and 
 promotion_gate = "Typed edges improve source restoration, contradiction visibility, or abstention without replacing source bundles or citations."
 stop_condition = "Stop if relation traces affect answer status, citation readiness, default routing, dependency/runtime setup, or evidence promotion."
 provider_or_quota = false
-enabled = true
-notes = "Local candidate-only relation trace is implemented; no graph runtime is imported."
+enabled = false
+notes = "Typed-edge source material is eval/boundary-only; local candidate-only relation trace exists, but no graph runtime, authority shortcut, default route, or answer promotion is adopted."
 
 [[candidates]]
 name = "cognee_graph_memory_reference"
@@ -557,8 +557,8 @@ notes = "AI memory platform output is candidate-only; local invariant coverage l
 name = "okf_source_metadata_shape"
 category = "external_source_candidate"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "reference_only"
+status = "boundary_implemented"
 source_ref = "S46"
 source_url = "https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing"
 active_artifact = "src/research_x/research_intake/pipeline.py"
@@ -566,15 +566,15 @@ first_local_step = "Read okf_source_metadata fixtures into source-candidate, can
 promotion_gate = "Metadata improves restoration and filtering while raw source, fetched source, source bundle, and citation remain separate."
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion; OKF metadata remains candidate-only until fetched, extracted, chunked, cited, and source-bundled."
 provider_or_quota = false
-enabled = true
-notes = "Implemented as dry-run source-candidate metadata with independent evidence-invariant blocking; OKF-style files are not evidence by themselves."
+enabled = false
+notes = "OKF is reference material for candidate metadata shape; local boundary fixtures exist, but OKF-style files are not evidence or runtime adoption by themselves."
 
 [[candidates]]
 name = "rag_knowledge_ops_observability"
 category = "retrieval_eval"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S47"
 source_url = "https://zenn.dev/yottayoshida/articles/rag-knowledge-ops-agent-search"
 active_artifact = "src/research_x/memory/workflow.py"
@@ -582,15 +582,15 @@ first_local_step = "Read workflow metadata knowledge_ops_trace for included, exc
 promotion_gate = "Knowledge-Ops fields expose source coverage and freshness without managed search, cloud storage, or notification services."
 stop_condition = "Stop before dependency install, model download, runtime import, managed/cloud service execution, notification service execution, default-route promotion, or evidence promotion; implemented trace must remain control_plane_not_answer_evidence."
 provider_or_quota = false
-enabled = true
-notes = "Workflow and tool-output control-plane traces are implemented; cloud Agent Search execution is not adopted."
+enabled = false
+notes = "Knowledge Ops sources are eval/boundary-only; workflow trace fields are local control-plane visibility, not managed search, cloud Agent Search, or runtime adoption."
 
 [[candidates]]
 name = "ontology_relation_traversal_eval"
 category = "retrieval_eval"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S48"
 source_url = "https://zenn.dev/takupeso/articles/claude-ontology-knowledge-structuring"
 active_artifact = "tests/memory/test_retrieval_quality_eval.py"
@@ -598,15 +598,15 @@ first_local_step = "Use provider-free fixtures where relation_counts can satisfy
 promotion_gate = "Route policy chooses typed-edge traversal only when relations are explicit, current, and restorable."
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion; relation traversal must stay candidate-only until restored context and citations exist."
 provider_or_quota = false
-enabled = true
-notes = "Relation traversal visibility is implemented as local trace/eval fixture; no external ontology or MCP memory is enabled."
+enabled = false
+notes = "Ontology traversal is eval/boundary-only; provider-free fixtures check relation visibility, but no external ontology, MCP memory, default route, or authority shortcut is enabled."
 
 [[candidates]]
 name = "databricks_rag_governance_checklist"
 category = "retrieval_eval"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S49"
 source_url = "https://www.databricks.com/jp/blog/rag-workflow"
 active_artifact = "src/research_x/memory/evals.py"
@@ -614,15 +614,15 @@ first_local_step = "Use eval_control_plane_summary and rag_governance trace for 
 promotion_gate = "Vendor-neutral checklist items become local fixture assertions without adopting managed RAG services."
 stop_condition = "Stop before dependency install, model download, runtime import, managed/cloud service execution, default-route promotion, or evidence promotion; governance checks must remain control_plane_not_answer_evidence."
 provider_or_quota = false
-enabled = true
-notes = "Vendor-neutral governance summary is implemented; product services are not adopted."
+enabled = false
+notes = "Vendor RAG workflow material is eval/boundary-only; local governance summaries may exist, but product services and implementation authority are not adopted."
 
 [[candidates]]
 name = "cc_rsg_reverse_spec_review"
 category = "control_artifact"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "reference_only"
+status = "boundary_implemented"
 source_ref = "S50"
 source_url = "https://github.com/daishir0/cc-rsg"
 active_artifact = "src/research_x/control_artifacts/model.py"
@@ -630,15 +630,15 @@ first_local_step = "Block reverse_spec and generated_spec artifacts from evidenc
 promotion_gate = "Generated specs stay review artifacts and must cite code/source references before influencing implementation decisions."
 stop_condition = "Stop if generated specs affect answer status, citation readiness, default routing, dependency/runtime setup, or evidence promotion."
 provider_or_quota = false
-enabled = true
-notes = "Generated-spec non-evidence boundary is implemented; no Claude Skill or external model execution is imported."
+enabled = false
+notes = "cc-rsg is reference material for generated-spec review boundaries; local non-evidence blockers exist, but no Claude Skill, external model execution, or generated-spec authority is adopted."
 
 [[candidates]]
 name = "slidev_visual_review_lane"
 category = "control_artifact"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S51"
 source_url = "https://sli.dev/"
 active_artifact = "src/research_x/control_artifacts/visual_review.py"
@@ -646,8 +646,8 @@ first_local_step = "Run dependency-free visual-review evaluation on already-rend
 promotion_gate = "Local snapshot, asset, overlap, readability, frame, and non-evidence checks improve review output without changing the source-of-truth flow docs."
 stop_condition = "Stop if visual review launches a renderer/browser, installs dependencies, imports Slidev/Playwright/ppt-master runtime code, grants default-route promotion, or permits evidence promotion."
 provider_or_quota = false
-enabled = true
-notes = "Local visual QA evaluator is implemented for already-rendered artifacts; renderer/browser/dependency capture remains staged."
+enabled = false
+notes = "Slidev is eval/boundary-only; local visual QA can inspect already-rendered artifacts, but renderer/browser/dependency capture and Slidev runtime adoption remain staged."
 
 [[candidates]]
 name = "f3_self_describing_artifact_reference"
@@ -685,8 +685,8 @@ notes = "GPL/MySQL UI reference only; local query-plan review payload is owned c
 name = "embedding_stabilization_eval"
 category = "retrieval_eval"
 owner_surface = "research_x_tool"
-adoption_shape = "adopt"
-status = "implemented"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
 source_ref = "S54"
 source_url = "https://techblog.lycorp.co.jp/ja/techverse2026-62"
 active_artifact = "src/research_x/memory/vector_projection.py"
@@ -694,8 +694,8 @@ first_local_step = "Run provider-free local_hash/vector projection fixtures for 
 promotion_gate = "Eval reports include restoration rate, citation coverage, and answerability, not only vector similarity metrics."
 stop_condition = "Stop before dependency install, model download, runtime import, default-route promotion, or evidence promotion; local_hash remains diagnostic-only and missing memberships keep projection coverage stale."
 provider_or_quota = false
-enabled = true
-notes = "Provider-free vector projection membership and cold-start fixtures are implemented; real embedding providers remain gated elsewhere."
+enabled = false
+notes = "Embedding stabilization is eval/boundary-only; provider-free vector projection fixtures exist, but real embedding quality claims, provider use, and answer support are not adopted."
 
 [[candidates]]
 name = "x_source_restoration_status"
