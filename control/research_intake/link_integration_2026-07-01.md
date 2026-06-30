@@ -443,6 +443,23 @@ Implemented local guards for F3 / SQLJoiner references:
   the safe control-artifact HTML path, and does not import SQLJoiner code or
   create a database connection surface.
 
+Implemented deferred-adoption transparency for non-promoted references:
+
+- `src/research_x/adoption_registry.py` now emits a `deferred` section in the
+  adoption audit for `staging`, `provider_gated`, and Codex-bridge entries.
+- The audit distinguishes disabled candidates that already have a local boundary
+  artifact from candidates that remain provider/quota-gated or externally owned.
+- `f3_self_describing_artifact_reference` and
+  `sqljoiner_query_visualization_reference` therefore show up as
+  `local_boundary_without_runtime_adoption`: the local guards exist, but F3
+  readers, Wasm decoders, SQLJoiner code, database connections, dependency
+  installs, runtime imports, default-route promotion, and evidence promotion
+  remain disabled.
+- `cognee_graph_memory_reference` remains visible as
+  `provider_or_quota_gate_active`; the local non-evidence invariant does not
+  enable Cognee runtime, Docker, MCP/plugin setup, cloud use, API keys, provider
+  calls, or quota.
+
 Implemented Codex-foundation ownership audit for agent-control links:
 
 - `headroom-context-observability`, `loop-engineering`, `peerd`,
@@ -594,6 +611,7 @@ Verification completed for these loops:
 - `uv run pytest tests\memory\test_preview_not_evidence.py tests\tool_interface\test_preview_cannot_be_citation.py tests\test_control_artifact_structure_view.py tests\test_diagram_review_boundary.py -q`
 - `uv run pytest tests\test_research_intake.py tests\research_intake\test_source_registry_policy.py tests\research_intake\test_no_network_by_default.py tests\memory\test_evidence_invariant_fixtures.py tests\test_adoption_registry.py -q`
 - `uv run pytest tests\memory\test_source_identity_manifest.py tests\test_query_plan_visualization_boundary.py tests\test_control_artifact_structure_view.py tests\test_pytest_lane_markers.py tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py -q`
+- `uv run pytest tests\test_adoption_registry.py -q`
 - `uv run pytest tests\test_codex_foundation_boundary.py tests\test_codex_bridge.py tests\test_agents_route_memory_preflight.py -q`
 - `uv run pytest tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py -q`
 - `uv run pytest tests\test_visual_review_boundary.py tests\test_control_artifact_structure_view.py tests\test_adoption_registry.py tests\test_pytest_lane_markers.py -q`

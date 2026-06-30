@@ -150,11 +150,31 @@ def adoption_audit(
 ) -> dict[str, Any]:
     errors = validate_adoption_registry(path, repo_root=repo_root)
     candidates = () if errors else adoption_candidates(path)
+    root = Path(repo_root)
+    deferred_entries = (
+        []
+        if errors
+        else [_deferred_candidate_entry(candidate, root) for candidate in candidates]
+    )
+    deferred_entries = [entry for entry in deferred_entries if entry]
     summary: dict[str, Any] = {
         "status": "failed" if errors else "ok",
         "errors": errors,
         "counts": {},
         "candidates": [candidate.as_dict() for candidate in candidates],
+        "deferred": {
+            "count": len(deferred_entries),
+            "local_boundary_present_count": sum(
+                1 for entry in deferred_entries if entry["local_boundary_present"]
+            ),
+            "provider_gated_count": sum(
+                1 for entry in deferred_entries if entry["adoption_shape"] == "provider_gated"
+            ),
+            "runtime_disabled_count": sum(
+                1 for entry in deferred_entries if entry["runtime_enabled"] is False
+            ),
+            "entries": deferred_entries,
+        },
     }
     for candidate in candidates:
         key = f"{candidate.owner_surface}:{candidate.adoption_shape}"
@@ -188,7 +208,59 @@ def format_adoption_audit(
     lines = ["adoption registry ok"]
     for key, count in sorted(audit["counts"].items()):
         lines.append(f"- {key}: {count}")
+    deferred = audit.get("deferred", {})
+    if isinstance(deferred, dict):
+        lines.append(f"- deferred runtime-disabled candidates: {deferred.get('count', 0)}")
+        lines.append(
+            "- deferred candidates with local boundary artifact: "
+            f"{deferred.get('local_boundary_present_count', 0)}"
+        )
     return "\n".join(lines) + "\n"
+
+
+def _deferred_candidate_entry(
+    candidate: AdoptionCandidate,
+    repo_root: Path,
+) -> dict[str, Any]:
+    if candidate.adoption_shape not in {"staging", "provider_gated", "bridge"}:
+        return {}
+    active_artifact = _resolve_active_artifact(repo_root, candidate.active_artifact)
+    active_artifact_exists = active_artifact.exists()
+    local_boundary_present = (
+        candidate.owner_surface == "research_x_tool"
+        and active_artifact_exists
+        and candidate.enabled is False
+    )
+    return {
+        "name": candidate.name,
+        "adoption_shape": candidate.adoption_shape,
+        "status": candidate.status,
+        "owner_surface": candidate.owner_surface,
+        "active_artifact": candidate.active_artifact,
+        "active_artifact_exists": active_artifact_exists,
+        "local_boundary_present": local_boundary_present,
+        "runtime_enabled": candidate.enabled,
+        "provider_or_quota": candidate.provider_or_quota,
+        "stop_condition": candidate.stop_condition,
+        "deferred_reason": _deferred_reason(candidate),
+    }
+
+
+def _resolve_active_artifact(repo_root: Path, active_artifact: str) -> Path:
+    artifact_path = Path(active_artifact)
+    if artifact_path.is_absolute():
+        return artifact_path
+    return repo_root / artifact_path
+
+
+def _deferred_reason(candidate: AdoptionCandidate) -> str:
+    if candidate.adoption_shape == "provider_gated":
+        return "provider_or_quota_gate_active"
+    if candidate.adoption_shape == "bridge":
+        return "external_owner_bridge_only"
+    if candidate.owner_surface == "research_x_tool":
+        return "local_boundary_without_runtime_adoption"
+    return "staged_without_runtime_adoption"
 
 
 def _candidate_from_raw(raw: dict[str, Any]) -> AdoptionCandidate:

@@ -26,6 +26,8 @@ def test_research_x_adoption_registry_is_valid() -> None:
     assert audit["counts"]["research_x_tool:adopt"] >= 4
     assert audit["counts"]["research_x_tool:provider_gated"] >= 5
     assert audit["counts"]["codex_foundation:bridge"] == 1
+    assert audit["deferred"]["runtime_disabled_count"] == audit["deferred"]["count"]
+    assert audit["deferred"]["local_boundary_present_count"] >= 2
 
 
 def test_adoption_registry_policy_keeps_external_action_gates_machine_readable() -> None:
@@ -216,6 +218,28 @@ def test_f3_and_sqljoiner_references_stay_staged_disabled() -> None:
     ].notes
 
 
+def test_deferred_audit_exposes_local_boundaries_without_runtime_adoption() -> None:
+    audit = adoption_audit(REGISTRY)
+    entries = {entry["name"]: entry for entry in audit["deferred"]["entries"]}
+
+    for name in (
+        "f3_self_describing_artifact_reference",
+        "sqljoiner_query_visualization_reference",
+    ):
+        entry = entries[name]
+        assert entry["adoption_shape"] == "staging"
+        assert entry["runtime_enabled"] is False
+        assert entry["active_artifact_exists"] is True
+        assert entry["local_boundary_present"] is True
+        assert entry["deferred_reason"] == "local_boundary_without_runtime_adoption"
+        assert "evidence promotion" in entry["stop_condition"]
+
+    cognee = entries["cognee_graph_memory_reference"]
+    assert cognee["adoption_shape"] == "provider_gated"
+    assert cognee["provider_or_quota"] is True
+    assert cognee["deferred_reason"] == "provider_or_quota_gate_active"
+
+
 def test_slidev_visual_review_lane_adopts_local_evaluator_only() -> None:
     candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
     item = candidates["slidev_visual_review_lane"]
@@ -314,6 +338,7 @@ def test_adoption_audit_cli_emits_json(capsys) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "ok"
     assert payload["counts"]["research_x_tool:staging"] >= 8
+    assert payload["deferred"]["local_boundary_present_count"] >= 2
 
 
 def test_global_codex_foundation_registry_exists_when_running_on_owner_machine() -> None:
