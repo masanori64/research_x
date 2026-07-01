@@ -691,6 +691,224 @@ Items left as `adopt` after re-check:
   prevents metadata-only URLs from granting runtime permission, citation
   readiness, or automatic adoption.
 
+## Loop 7 Non-Overlap Source-Boundary Audit
+
+Loop 7 used sub-agent review outputs only for boundaries not already covered by
+the group summaries or implementation notes. No provider/API/quota calls,
+installs, MCP/plugin setup, logged-in browser operation, DB connection, or
+extension enablement were performed.
+
+RAG and knowledge-boundary findings:
+
+- The Graph RAG / ontology material is represented correctly as relation trace
+  and eval boundary work, but the final relation ontology is not complete.
+  Missing completion candidates include `supersedes`, `depends_on`,
+  `derived_from`, `same_claim_as`, `can_view`, `as_of`, `valid_from/to`,
+  `authority_source`, and `viewpoint`.
+- `okf_source_metadata_shape` is stricter than the public OKF pattern. It should
+  be described as a `research_x` source-candidate profile inspired by OKF, not
+  as generic OKF compliance.
+- Knowledge Ops is currently workflow trace visibility, not a full source
+  lifecycle state machine. Future non-overlap work should model discovered,
+  eligible, fetched, extracted, chunked, indexed, retrieved, reflected,
+  cited/excluded, stale, and user-export-required states.
+
+Acquisition and login-boundary findings:
+
+- AWS Summit Japan 2026 was not represented in the prior registry/report even
+  though the user list included an AWS login/event item. Added `S58` and two
+  disabled source entries for the public event page and registration login
+  portal.
+- `manual_x_bookmarks_help` is a public official help page and is now separated
+  from the private `x.com/i/bookmarks` locator. The help page can be a public
+  policy reference; it is not a bookmark export, restored post, source bundle,
+  citation, or answer support.
+- Event sources need separate restoration states for public event metadata,
+  registration portal, login-only attendee material, livestream/archive
+  material, and user-provided exports.
+
+Data/search/DB findings:
+
+- `manual_f3_repo` and `manual_sqljoiner_repo` were disabled metadata-only
+  sources but lacked explicit `source_governance`. Both now record owner,
+  source ref, adoption candidate, evidence status, and promotion boundary.
+- F3 remains a reference for inert manifest identity only. No F3 reader, Wasm
+  decoder, dependency, archive-format adoption, evidence, or citation path is
+  enabled.
+- SQLJoiner remains a UX reference for owned query-plan review payloads only.
+  No SQLJoiner code, SQL execution, DB connection, credential store,
+  dependency, evidence, or citation path is enabled.
+- `embedding_stabilization_eval` is intentionally `eval_only`; the local work is
+  provider-free drift/cold-start fixture coverage, not an implementation of
+  LINE's production embedding stabilization method and not an embedding-quality
+  claim.
+
+Agent-control findings:
+
+- `agent_safety_tool_trace` is correctly reclassified as `eval_only`, but the
+  current trace is mostly static vocabulary. A future non-overlap loop should
+  inspect whether actual rejected external actions, provider-like parameter
+  detections, loop-stop reasons, and validation outcomes are captured per run.
+- The `peerd` source adds useful vocabulary for orchestrator/actor separation,
+  keyed/keyless capability boundaries, untrusted observations, and memory
+  injection risk. These should remain Codex-foundation tool-governance fields,
+  not `research_x` runtime behavior.
+- Codex official docs should be treated as the primary source for AGENTS.md
+  hierarchy, concise instruction surfaces, sub-agent token overhead, and hook
+  trust boundaries. Community articles remain secondary signals.
+- `manual_mellowlaunch_agent_article` may be over-classified as MCP/browser
+  automation material. A later source-normalization loop should split Codex
+  context-control material from MCP/browser-operation material.
+- LazyCodex is currently represented only through snippet-only X material, but
+  its public GitHub repository is restorable. If it is kept, it belongs in the
+  Codex foundation plugin/hook governance lane as a disabled source candidate,
+  not as an X snippet citation.
+
+Generated-artifact findings:
+
+- `cc-rsg` contributes more than a generated-spec non-evidence marker. Its
+  question bank, phase/state file, REF coverage, and unresolved-implicit-
+  knowledge loop are candidates for future control artifacts.
+- Slidev should not replace the current Marp/D2/Mermaid lane. Useful ideas to
+  port are componentization, design-token review, and limiting visual change
+  blast radius under the existing presentation boundary.
+- Slidev PPTX export and `ppt-master` output have different semantics: Slidev
+  PPTX can be image-based and not text-editable, while `ppt-master` presents as
+  editable PowerPoint generation with provider/install surfaces. Future output
+  semantics review should track editability, text selectability, speaker notes,
+  template adherence, and regeneration cost.
+- Current visual review is geometry-heavy. A future `visual_review_v2` can add
+  narrative hierarchy, claim/support visibility, deck consistency, template
+  drift, missing notes/footnotes, and artifact editability while staying
+  review-only and non-evidence.
+
+Loop 7 local verification:
+
+- `uv run python -m research_x.research_intake.cli validate`
+- `uv run pytest tests\research_intake\test_source_registry_policy.py tests\test_adoption_registry.py tests\test_research_intake.py -q`
+- `uv run pytest tests\research_intake tests\test_research_intake.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_memory_tool_contract_strictness.py -q`
+
+Loop 7 Codex foundation verification:
+
+- `uv run pytest pipeline\tests\test_agent_tool_governance.py pipeline\tests\test_edge_addons_governance.py pipeline\tests\test_context_headroom.py pipeline\tests\test_evidence_boundary.py pipeline\tests\test_dashboard_renderer.py pipeline\tests\test_foundation_manifest.py -q`
+- `uv run pytest tests\test_codex_vendor_sources_lock.py tests\test_route_memory_registry.py tests\test_context_offload_pointer_map.py tests\test_offline_canaries.py -q`
+
+Next non-overlap scope after Loop 7:
+
+1. Define the completed relation ontology shape without importing a graph
+   runtime: relation type list, direction, temporal validity, authority, view,
+   access, and citation-anchor requirements.
+2. Design a source lifecycle state machine for Knowledge Ops that is broader
+   than current trace fields but still local and provider-free.
+3. Normalize agent-control sources: split Codex context-control articles from
+   MCP/browser-operation sources, add official Codex/Chrome primary sources as
+   foundation references where needed, and keep community articles secondary.
+4. Design generated-artifact output semantics review for editability,
+   text-selectability, notes, template adherence, regeneration cost, and
+   artifact authority.
+5. Consider a foundation-only route for event/login-wall sentinels that
+   generalizes X/AWS/ChatGPT login-required locators without granting browser
+   operation or source promotion.
+
+## Loop 8 Boundary Completion
+
+Loop 8 took the non-overlapping Loop 7 scope and implemented the parts that are
+locally verifiable without providers, installs, browser automation, source
+fetching, or runtime adoption.
+
+Relation ontology contract:
+
+- Added `src/research_x/memory/relation_ontology.py` as a local ontology
+  contract for relation trace review.
+- The contract names relation type, direction, temporal validity, authority
+  source, viewpoint, access scope, citation anchor, and candidate-only
+  dimensions.
+- Known relation types now include existing project relations and the wider
+  design vocabulary: `supports`, `contradicts`, `supersedes`, `depends_on`,
+  `derived_from`, `same_claim_as`, `can_view`, `bookmark_of_tweet`,
+  `has_media`, `quotes`, `same_url`, `same_topic`, `newer_than`,
+  `older_than`, and obsolete/stale relation markers.
+- `workflow_tool_output.trace.relation_traversal.relation_ontology` exposes
+  observed relation types, unknown relation types, missing anchor/temporal/
+  authority counts, and type specs.
+- This is still `candidate_only`, `answer_support_allowed: false`, and
+  `runtime_graph_adopted: false`; no graph DB, external ontology runtime,
+  MCP memory, default route, or authority shortcut was introduced.
+
+Source lifecycle state machine:
+
+- Added `src/research_x/memory/source_lifecycle.py` as a Knowledge Ops source
+  lifecycle trace vocabulary.
+- The state machine now covers `discovered`, `eligible`, `fetched`,
+  `extracted`, `source_bundled`, `chunked`, `indexed`, `retrieved`,
+  `included`, `reflected`, `cited`, `citation_ready`, `excluded`, `changed`,
+  `stale`, `provider_gated`, and `user_export_required`.
+- `memory.workflow` now includes `source_lifecycle` inside
+  `knowledge_ops_trace`, including blocked counts and samples for provider
+  gated or user-export-required sources.
+- The lifecycle trace has `runtime_source_mutation_allowed: false`; it records
+  state, but does not fetch, mutate, cite, answer, call managed search, or
+  promote source candidates.
+
+Generated-artifact output semantics review:
+
+- Extended `src/research_x/control_artifacts/visual_review.py` with
+  `artifact_output_semantics_review`.
+- The new review checks editability disclosure, text selectability,
+  notes/unresolved-question manifest, template adherence, regeneration cost,
+  artifact authority, narrative hierarchy, claim-support visibility, and
+  non-evidence status.
+- `control_artifact_review_status` now treats output-semantics checklists as
+  `needs_review` until evaluated, and marks evaluated artifacts `ready` only
+  when every semantics gate passes.
+- Failure cases explicitly cover hidden provider/install regeneration and
+  generated artifacts claiming `citation_ready` or answer-support authority.
+- This complements visual geometry review; it does not launch renderers,
+  browsers, Slidev, Playwright, ppt-master, image generation, or providers.
+
+Registry updates:
+
+- Added disabled boundary-only adoption candidates:
+  `relation_ontology_contract`,
+  `knowledge_ops_source_lifecycle_state_machine`, and
+  `artifact_output_semantics_review`.
+- These candidates are `eval_only`, `boundary_implemented`,
+  `provider_or_quota = false`, and `enabled = false`.
+- Existing source refs remain the authority: `S48` for ontology,
+  `S47` for Knowledge Ops lifecycle, and `S51` for output semantics; related
+  `S44`, `S49`, and `S50` remain comparison material.
+
+Loop 8 focused verification so far:
+
+- `uv run python -m py_compile src\research_x\control_artifacts\visual_review.py src\research_x\memory\relation_ontology.py src\research_x\memory\source_lifecycle.py src\research_x\memory\workflow.py src\research_x\tool_interface\memory_tool_contract.py`
+- `uv run ruff check src\research_x\control_artifacts\visual_review.py src\research_x\control_artifacts\__init__.py src\research_x\memory\relation_ontology.py src\research_x\memory\source_lifecycle.py src\research_x\memory\workflow.py src\research_x\tool_interface\memory_tool_contract.py tests\memory\test_relation_ontology.py tests\memory\test_source_lifecycle_trace.py tests\memory\test_operational_trace_persistence.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_visual_review_boundary.py`
+- `uv run pytest tests\memory\test_relation_ontology.py tests\memory\test_source_lifecycle_trace.py tests\test_visual_review_boundary.py tests\tool_interface\test_memory_tool_contract_strictness.py::test_relation_traversal_trace_is_candidate_only_not_promotion tests\memory\test_operational_trace_persistence.py::test_operational_workflow_persists_source_restored_trace -q`
+- `uv run python -m research_x.research_intake.cli validate`
+- `uv run pytest tests\memory\test_relation_ontology.py tests\memory\test_source_lifecycle_trace.py tests\memory\test_operational_trace_persistence.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\test_visual_review_boundary.py tests\test_adoption_registry.py -q`
+- `uv run pytest tests\research_intake tests\test_research_intake.py tests\test_adoption_registry.py tests\skills\test_vendor_sources_lock.py tests\memory\test_evidence_invariant_fixtures.py tests\tool_interface\test_memory_tool_contract_strictness.py tests\memory\test_relation_ontology.py tests\memory\test_source_lifecycle_trace.py tests\test_visual_review_boundary.py -q`
+- `uv run python -m research_x adoption audit --json`
+
+Latest results: focused Loop 8 tests passed with `54 passed`, the broader
+source/adoption/evidence boundary lane passed with `89 passed`, and adoption
+audit returned `status: ok`.
+
+Next non-overlap scope after Loop 8:
+
+1. Normalize Codex foundation source ownership for official Codex docs,
+   Chrome Lighthouse Agentic Browsing docs, LazyCodex GitHub, and the
+   context-control/MCP-browser-operation split.
+2. Decide whether event/login-wall sentinels should become a foundation-only
+   route-memory family that generalizes X, AWS, ChatGPT Library/login, and
+   other private locators without granting browser operation.
+3. Inspect actual per-run agent safety traces for rejected external actions,
+   provider-like parameter detections, validation outcomes, and loop-stop
+   reasons; keep community articles secondary to project-owned traces.
+4. Review whether source lifecycle state is sufficient as trace JSON or needs a
+   future DB-backed current-state table; do not add DB mutation until a concrete
+   workflow requires it.
+5. Re-check generated artifacts beyond Slidev/Marp, especially reverse specs
+   and PPTX/image-flattened decks, for output-semantics coverage gaps.
+
 ## Non-Overlap Scope For Loop 2
 
 Loop 2 must not repeat the group summaries above. It should investigate only

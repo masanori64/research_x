@@ -71,6 +71,7 @@ EVIDENCE_ROLES = {
     "source_restored",
 }
 REVIEW_VIEW_KINDS = {
+    "artifact_output_semantics_review",
     "diagram_review",
     "guard_report",
     "lifecycle_report",
@@ -188,6 +189,21 @@ def control_artifact_review_status(payload: Mapping[str, Any]) -> str:
 
         visual_errors = validate_visual_review_payload(dict(payload))
         if any("evaluation is required for ready status" not in error for error in visual_errors):
+            return "rejected"
+        evaluation = payload.get("evaluation")
+        if not isinstance(evaluation, Mapping):
+            return "needs_review"
+        return "ready" if evaluation.get("status") == "pass" else "needs_review"
+    if payload.get("view_kind") == "artifact_output_semantics_review":
+        from research_x.control_artifacts.visual_review import (
+            validate_output_semantics_review_payload,
+        )
+
+        semantics_errors = validate_output_semantics_review_payload(dict(payload))
+        if any(
+            "evaluation is required for ready status" not in error
+            for error in semantics_errors
+        ):
             return "rejected"
         evaluation = payload.get("evaluation")
         if not isinstance(evaluation, Mapping):

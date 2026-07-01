@@ -4,12 +4,16 @@ import pytest
 from PIL import Image, ImageDraw
 
 from research_x.control_artifacts import (
+    OUTPUT_SEMANTICS_REQUIRED_GATES,
     VISUAL_REVIEW_REQUIRED_GATES,
+    build_output_semantics_review_payload,
     build_visual_review_payload,
     control_artifact_review_status,
+    evaluate_output_semantics_review,
     evaluate_visual_review_snapshot,
     render_control_artifact_html,
     validate_control_artifact_payload,
+    validate_output_semantics_review_payload,
     validate_visual_review_payload,
 )
 from research_x.control_artifacts.sanitize import validate_safe_review_html
@@ -218,6 +222,83 @@ def test_visual_review_validation_rejects_unsupported_kind_and_remote_snapshot(
     assert any("unsupported visual artifact kind" in error for error in errors)
     assert any("remote snapshot paths are not allowed" in error for error in errors)
     assert control_artifact_review_status(payload) == "rejected"
+
+
+def test_output_semantics_checklist_payload_stays_needs_review() -> None:
+    payload = build_output_semantics_review_payload(
+        artifact_id="semantic-checklist",
+        artifact_path="outputs/review/deck.md",
+        artifact_kind="slidev_deck",
+        output_format="markdown",
+    )
+
+    assert validate_control_artifact_payload(payload) == []
+    assert any(
+        "output semantics evaluation is required for ready status" in error
+        for error in validate_output_semantics_review_payload(payload)
+    )
+    assert control_artifact_review_status(payload) == "needs_review"
+    assert {gate["gate_id"] for gate in payload["gates"]} == {
+        gate_id for gate_id, _label in OUTPUT_SEMANTICS_REQUIRED_GATES
+    }
+
+
+def test_output_semantics_evaluator_passes_disclosed_review_only_artifact(
+    tmp_path,
+) -> None:
+    artifact = tmp_path / "deck.md"
+    artifact.write_text("# Deck", encoding="utf-8")
+
+    payload = evaluate_output_semantics_review(
+        artifact_id="semantic-pass",
+        artifact_path=str(artifact),
+        artifact_kind="slidev_deck",
+        output_format="markdown",
+        editability="editable_source",
+        text_selectability="selectable",
+        notes_status="present",
+        template_status="reviewed",
+        regeneration_status="local_source_available",
+        artifact_authority="review_only",
+        narrative_hierarchy_status="reviewed",
+        claim_support_status="visible_refs",
+    )
+
+    assert validate_control_artifact_payload(payload) == []
+    assert validate_output_semantics_review_payload(payload) == []
+    assert payload["evaluation"]["status"] == "pass"
+    assert payload["evaluation"]["not_evidence"] is True
+    assert payload["evaluation"]["answer_support_allowed"] is False
+    assert control_artifact_review_status(payload) == "ready"
+    assert {gate["status"] for gate in payload["gates"]} == {"pass"}
+
+
+def test_output_semantics_evaluator_blocks_hidden_provider_and_citation_claim(
+    tmp_path,
+) -> None:
+    artifact = tmp_path / "deck.png"
+    artifact.write_bytes(b"not-a-real-render")
+
+    payload = evaluate_output_semantics_review(
+        artifact_id="semantic-fail",
+        artifact_path=str(artifact),
+        artifact_kind="playwright_visual_snapshot",
+        output_format="png",
+        editability="not_editable_disclosed",
+        text_selectability="image_flattened_disclosed",
+        notes_status="absent_disclosed",
+        template_status="deviation_disclosed",
+        regeneration_status="provider_or_install_hidden",
+        artifact_authority="citation_ready",
+        narrative_hierarchy_status="needs_human_review_disclosed",
+        claim_support_status="unsupported_reasons_visible",
+    )
+
+    assert validate_output_semantics_review_payload(payload) == []
+    assert payload["evaluation"]["status"] == "fail"
+    assert _check(payload, "regeneration_cost_check")["status"] == "fail"
+    assert _check(payload, "artifact_authority_check")["status"] == "fail"
+    assert control_artifact_review_status(payload) == "needs_review"
 
 
 def _write_snapshot(path, *, blank: bool) -> None:

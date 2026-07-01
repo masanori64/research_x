@@ -17,8 +17,25 @@ VISUAL_REVIEW_REQUIRED_GATES = (
     ("frame_check", "Primary content is fully inside the expected viewport or slide frame."),
     ("non_evidence_check", "Visual artifact is review-only and cannot support answers."),
 )
+OUTPUT_SEMANTICS_REQUIRED_GATES = (
+    ("editability_disclosure_check", "Editable source/native output status is disclosed."),
+    ("text_selectability_check", "Text selectability or image-flattening status is disclosed."),
+    ("notes_manifest_check", "Speaker notes or unresolved-question manifest status is disclosed."),
+    ("template_adherence_check", "Theme/template adherence status is reviewed."),
+    ("regeneration_cost_check", "Regeneration inputs, dependencies, and gates are disclosed."),
+    ("artifact_authority_check", "Artifact authority stays review-only or derived."),
+    ("narrative_hierarchy_check", "Narrative hierarchy is reviewable."),
+    ("claim_support_visibility_check", "Claims expose support references or unsupported reasons."),
+    ("non_evidence_check", "Output artifact is review-only and cannot support answers."),
+)
 
 VISUAL_REVIEW_GATE_STATUSES = {"pass", "fail", "needs_review"}
+OUTPUT_SEMANTICS_GATE_STATUSES = VISUAL_REVIEW_GATE_STATUSES
+OUTPUT_SEMANTICS_ARTIFACT_KINDS = VISUAL_REVIEW_ARTIFACT_KINDS | {
+    "generated_spec",
+    "reverse_spec",
+    "review_artifact",
+}
 
 try:
     from PIL import Image, ImageStat
@@ -98,9 +115,7 @@ def validate_visual_review_payload(payload: dict[str, Any]) -> list[str]:
             if artifact.get("not_evidence") is not True:
                 errors.append(f"{view_id}: source artifact not_evidence must be true")
             if artifact.get("answer_support_allowed") is not False:
-                errors.append(
-                    f"{view_id}: source artifact answer_support_allowed must be false"
-                )
+                errors.append(f"{view_id}: source artifact answer_support_allowed must be false")
     expected_gate_ids = {gate_id for gate_id, _label in VISUAL_REVIEW_REQUIRED_GATES}
     gates = payload.get("gates")
     evaluation = payload.get("evaluation")
@@ -139,9 +154,7 @@ def validate_visual_review_payload(payload: dict[str, Any]) -> list[str]:
     if not isinstance(checks, list) or not checks:
         errors.append(f"{view_id}: visual review evaluation checks are required")
         return errors
-    check_ids = {
-        str(check.get("gate_id") or "") for check in checks if isinstance(check, dict)
-    }
+    check_ids = {str(check.get("gate_id") or "") for check in checks if isinstance(check, dict)}
     if check_ids != expected_gate_ids:
         errors.append(f"{view_id}: visual review checks do not match required gate set")
     for check in checks:
@@ -153,6 +166,241 @@ def validate_visual_review_payload(payload: dict[str, Any]) -> list[str]:
             errors.append(f"{view_id}: invalid visual review check status {check_status!r}")
         if not isinstance(check.get("issues", []), list):
             errors.append(f"{view_id}: visual review check issues must be a list")
+    return errors
+
+
+def build_output_semantics_review_payload(
+    *,
+    artifact_id: str,
+    artifact_path: str,
+    artifact_kind: str,
+    title: str = "Artifact Output Semantics Review",
+    generated_at: str = "review_pre_execution",
+    owner_plane: str = "research_x_tool",
+    output_format: str = "unknown",
+) -> dict[str, Any]:
+    return {
+        "view_id": f"artifact-semantics-{artifact_id}",
+        "view_kind": "artifact_output_semantics_review",
+        "title": title,
+        "generated_at": generated_at,
+        "owner_plane": owner_plane,
+        "source_artifacts": [
+            {
+                "artifact_id": artifact_id,
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "not_evidence": True,
+                "answer_support_allowed": False,
+                "evidence_role": "control",
+                "evidence_status": "not_evidence",
+            }
+        ],
+        "sections": [
+            {
+                "heading": "Output Format",
+                "items": [output_format],
+            },
+            {
+                "heading": "Semantics Checks",
+                "items": [label for _gate_id, label in OUTPUT_SEMANTICS_REQUIRED_GATES],
+            },
+            {
+                "heading": "Boundary",
+                "body": (
+                    "Generated decks, specs, exports, screenshots, and rendered views "
+                    "are output artifacts only; source truth and citation support must "
+                    "come from restored evidence."
+                ),
+            },
+        ],
+        "gates": [
+            {"gate_id": gate_id, "label": label, "status": "active"}
+            for gate_id, label in OUTPUT_SEMANTICS_REQUIRED_GATES
+        ],
+        "not_evidence": True,
+        "answer_support_allowed": False,
+    }
+
+
+def evaluate_output_semantics_review(
+    *,
+    artifact_id: str,
+    artifact_path: str,
+    artifact_kind: str,
+    output_format: str,
+    editability: str = "unknown",
+    text_selectability: str = "unknown",
+    notes_status: str = "unknown",
+    template_status: str = "unknown",
+    regeneration_status: str = "unknown",
+    artifact_authority: str = "review_only",
+    narrative_hierarchy_status: str = "unknown",
+    claim_support_status: str = "unknown",
+    title: str = "Artifact Output Semantics Evaluation",
+    generated_at: str = "local_output_semantics_review",
+) -> dict[str, Any]:
+    payload = build_output_semantics_review_payload(
+        artifact_id=artifact_id,
+        artifact_path=artifact_path,
+        artifact_kind=artifact_kind,
+        title=title,
+        generated_at=generated_at,
+        output_format=output_format,
+    )
+    checks = [
+        _semantics_check(
+            "editability_disclosure_check",
+            editability,
+            pass_values={"editable_source", "native_editable", "not_editable_disclosed"},
+            fail_values={"claims_editable_without_manifest"},
+        ),
+        _semantics_check(
+            "text_selectability_check",
+            text_selectability,
+            pass_values={"selectable", "image_flattened_disclosed", "not_applicable"},
+            fail_values={"claims_selectable_without_manifest"},
+        ),
+        _semantics_check(
+            "notes_manifest_check",
+            notes_status,
+            pass_values={"present", "absent_disclosed", "not_applicable"},
+            fail_values={"claims_notes_without_manifest"},
+        ),
+        _semantics_check(
+            "template_adherence_check",
+            template_status,
+            pass_values={"reviewed", "not_applicable", "deviation_disclosed"},
+            fail_values={"template_claim_unverified"},
+        ),
+        _semantics_check(
+            "regeneration_cost_check",
+            regeneration_status,
+            pass_values={"local_source_available", "gated_disclosed", "not_reproducible_disclosed"},
+            fail_values={"provider_or_install_hidden"},
+        ),
+        _semantics_check(
+            "artifact_authority_check",
+            artifact_authority,
+            pass_values={
+                "review_only",
+                "derived_from_source",
+                "source_truth_required",
+                "citation_excluded",
+            },
+            fail_values={"source_truth", "citation_ready", "answer_support"},
+        ),
+        _semantics_check(
+            "narrative_hierarchy_check",
+            narrative_hierarchy_status,
+            pass_values={"reviewed", "not_applicable", "needs_human_review_disclosed"},
+            fail_values={"claims_reviewed_without_manifest"},
+        ),
+        _semantics_check(
+            "claim_support_visibility_check",
+            claim_support_status,
+            pass_values={"visible_refs", "unsupported_reasons_visible", "no_claims"},
+            fail_values={"claims_without_support_visibility"},
+        ),
+        _check("non_evidence_check", "pass", []),
+    ]
+    gate_status = {check["gate_id"]: check["status"] for check in checks}
+    payload["gates"] = [
+        {**gate, "status": gate_status.get(str(gate["gate_id"]), "needs_review")}
+        for gate in payload["gates"]
+    ]
+    payload["evaluation"] = {
+        "status": _overall_status(checks),
+        "checks": checks,
+        "semantics": {
+            "output_format": output_format,
+            "editability": editability,
+            "text_selectability": text_selectability,
+            "notes_status": notes_status,
+            "template_status": template_status,
+            "regeneration_status": regeneration_status,
+            "artifact_authority": artifact_authority,
+            "narrative_hierarchy_status": narrative_hierarchy_status,
+            "claim_support_status": claim_support_status,
+        },
+        "not_evidence": True,
+        "answer_support_allowed": False,
+    }
+    payload["sections"].append(
+        {
+            "heading": "Evaluation Result",
+            "items": [f"{check['gate_id']}: {check['status']}" for check in checks],
+        }
+    )
+    return payload
+
+
+def validate_output_semantics_review_payload(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    view_id = str(payload.get("view_id") or "<unknown>")
+    if payload.get("view_kind") != "artifact_output_semantics_review":
+        errors.append(f"{view_id}: view_kind must be artifact_output_semantics_review")
+    source_artifacts = payload.get("source_artifacts")
+    if isinstance(source_artifacts, list) and source_artifacts:
+        artifact = source_artifacts[0]
+        if isinstance(artifact, dict):
+            artifact_kind = str(artifact.get("artifact_kind") or "")
+            if artifact_kind not in OUTPUT_SEMANTICS_ARTIFACT_KINDS:
+                errors.append(f"{view_id}: unsupported output artifact kind {artifact_kind!r}")
+            artifact_path = str(artifact.get("artifact_path") or "")
+            if _is_remote_path(artifact_path):
+                errors.append(f"{view_id}: remote artifact paths are not allowed")
+            if artifact.get("not_evidence") is not True:
+                errors.append(f"{view_id}: source artifact not_evidence must be true")
+            if artifact.get("answer_support_allowed") is not False:
+                errors.append(f"{view_id}: source artifact answer_support_allowed must be false")
+    expected_gate_ids = {gate_id for gate_id, _label in OUTPUT_SEMANTICS_REQUIRED_GATES}
+    gates = payload.get("gates")
+    evaluation = payload.get("evaluation")
+    allowed_statuses = (
+        OUTPUT_SEMANTICS_GATE_STATUSES
+        if evaluation is not None
+        else {*OUTPUT_SEMANTICS_GATE_STATUSES, "active"}
+    )
+    if isinstance(gates, list):
+        gate_ids = {str(gate.get("gate_id") or "") for gate in gates if isinstance(gate, dict)}
+        if gate_ids != expected_gate_ids:
+            errors.append(f"{view_id}: output semantics gates do not match required gate set")
+        for gate in gates:
+            if not isinstance(gate, dict):
+                continue
+            status = str(gate.get("status") or "")
+            if status not in allowed_statuses:
+                errors.append(f"{view_id}: invalid output semantics gate status {status!r}")
+    if evaluation is None:
+        errors.append(f"{view_id}: output semantics evaluation is required for ready status")
+        return errors
+    if not isinstance(evaluation, dict):
+        errors.append(f"{view_id}: output semantics evaluation must be an object")
+        return errors
+    if evaluation.get("not_evidence") is not True:
+        errors.append(f"{view_id}: evaluation.not_evidence must be true")
+    if evaluation.get("answer_support_allowed") is not False:
+        errors.append(f"{view_id}: evaluation.answer_support_allowed must be false")
+    status = str(evaluation.get("status") or "")
+    if status not in OUTPUT_SEMANTICS_GATE_STATUSES:
+        errors.append(f"{view_id}: invalid output semantics evaluation status {status!r}")
+    checks = evaluation.get("checks")
+    if not isinstance(checks, list) or not checks:
+        errors.append(f"{view_id}: output semantics evaluation checks are required")
+        return errors
+    check_ids = {str(check.get("gate_id") or "") for check in checks if isinstance(check, dict)}
+    if check_ids != expected_gate_ids:
+        errors.append(f"{view_id}: output semantics checks do not match required gate set")
+    for check in checks:
+        if not isinstance(check, dict):
+            errors.append(f"{view_id}: output semantics check must be an object")
+            continue
+        check_status = str(check.get("status") or "")
+        if check_status not in OUTPUT_SEMANTICS_GATE_STATUSES:
+            errors.append(f"{view_id}: invalid output semantics check status {check_status!r}")
+        if not isinstance(check.get("issues", []), list):
+            errors.append(f"{view_id}: output semantics check issues must be a list")
     return errors
 
 
@@ -215,10 +463,7 @@ def evaluate_visual_review_snapshot(
     payload["sections"].append(
         {
             "heading": "Evaluation Result",
-            "items": [
-                f"{check['gate_id']}: {check['status']}"
-                for check in checks
-            ],
+            "items": [f"{check['gate_id']}: {check['status']}" for check in checks],
         }
     )
     return payload
@@ -366,6 +611,26 @@ def _non_evidence_check() -> dict[str, Any]:
         "pass",
         [],
         {"not_evidence": True, "answer_support_allowed": False},
+    )
+
+
+def _semantics_check(
+    gate_id: str,
+    value: str,
+    *,
+    pass_values: set[str],
+    fail_values: set[str],
+) -> dict[str, Any]:
+    normalized = str(value or "unknown").strip().casefold()
+    if normalized in pass_values:
+        return _check(gate_id, "pass", [], {"value": normalized})
+    if normalized in fail_values:
+        return _check(gate_id, "fail", [normalized], {"value": normalized})
+    return _check(
+        gate_id,
+        "needs_review",
+        [f"undisclosed:{normalized or 'unknown'}"],
+        {"value": normalized},
     )
 
 

@@ -586,6 +586,22 @@ enabled = false
 notes = "Knowledge Ops sources are eval/boundary-only; workflow trace fields are local control-plane visibility, not managed search, cloud Agent Search, or runtime adoption."
 
 [[candidates]]
+name = "knowledge_ops_source_lifecycle_state_machine"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
+source_ref = "S47"
+source_url = "https://zenn.dev/yottayoshida/articles/rag-knowledge-ops-agent-search"
+active_artifact = "src/research_x/memory/source_lifecycle.py"
+first_local_step = "Expose source lifecycle states for discovered, eligible, fetched, extracted, source_bundled, chunked, indexed, retrieved, included, reflected, cited, citation_ready, excluded, changed, stale, provider_gated, and user_export_required."
+promotion_gate = "Lifecycle states improve workflow auditability without fetching, mutating, citing, or answering until restored source bundles, context chunks, citations, and answer-authority checks exist."
+stop_condition = "Stop if lifecycle states trigger provider/API calls, managed search, source mutation, default-route promotion, citation readiness by themselves, answer support, or evidence promotion."
+provider_or_quota = false
+enabled = false
+notes = "Knowledge Ops lifecycle is eval/boundary-only; the state machine is a local trace vocabulary, not a managed search workflow, DB mutation plan, source fetcher, notification service, or source-bundle promotion path."
+
+[[candidates]]
 name = "ontology_relation_traversal_eval"
 category = "retrieval_eval"
 owner_surface = "research_x_tool"
@@ -600,6 +616,22 @@ stop_condition = "Stop before dependency install, model download, runtime import
 provider_or_quota = false
 enabled = false
 notes = "Ontology traversal is eval/boundary-only; provider-free fixtures check relation visibility, but no external ontology, MCP memory, default route, or authority shortcut is enabled."
+
+[[candidates]]
+name = "relation_ontology_contract"
+category = "retrieval_eval"
+owner_surface = "research_x_tool"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
+source_ref = "S48"
+source_url = "https://zenn.dev/takupeso/articles/claude-ontology-knowledge-structuring"
+active_artifact = "src/research_x/memory/relation_ontology.py"
+first_local_step = "Expose a local relation ontology contract for relation type, direction, temporal validity, authority source, viewpoint, access scope, citation anchor, and candidate-only boundaries."
+promotion_gate = "Relation ontology improves trace review and missing-dimension visibility without replacing restored context chunks, citations, or answer-authority checks."
+stop_condition = "Stop if relation ontology becomes a graph runtime, MCP memory, provider route, default retrieval route, authority shortcut, citation readiness source, answer support, or evidence promotion."
+provider_or_quota = false
+enabled = false
+notes = "Ontology material is implemented only as local relation-trace contract vocabulary; no graph database, external ontology runtime, dependency, source-truth shortcut, or answer promotion is adopted."
 
 [[candidates]]
 name = "databricks_rag_governance_checklist"
@@ -648,6 +680,22 @@ stop_condition = "Stop if visual review launches a renderer/browser, installs de
 provider_or_quota = false
 enabled = false
 notes = "Slidev is eval/boundary-only; local visual QA can inspect already-rendered artifacts, but renderer/browser/dependency capture and Slidev runtime adoption remain staged."
+
+[[candidates]]
+name = "artifact_output_semantics_review"
+category = "control_artifact"
+owner_surface = "research_x_tool"
+adoption_shape = "eval_only"
+status = "boundary_implemented"
+source_ref = "S51"
+source_url = "https://sli.dev/"
+active_artifact = "src/research_x/control_artifacts/visual_review.py"
+first_local_step = "Run dependency-free output-semantics review for editability, text selectability, notes manifest, template adherence, regeneration cost, artifact authority, narrative hierarchy, claim support visibility, and non-evidence status."
+promotion_gate = "Output semantics review improves generated deck/spec/export review while factual authority still comes only from restored evidence and citations."
+stop_condition = "Stop if output semantics review launches renderers or browsers, installs dependencies, calls providers, treats images/PPTX/specs as source truth, grants answer support, or permits evidence promotion."
+provider_or_quota = false
+enabled = false
+notes = "Marp/Slidev/cc-rsg output semantics are eval/boundary-only; this adds review payload vocabulary for generated artifacts but no Slidev runtime, Playwright capture, ppt-master generation, provider use, or citation authority."
 
 [[candidates]]
 name = "f3_self_describing_artifact_reference"
@@ -712,6 +760,22 @@ stop_condition = "Stop before dependency install, model download, runtime import
 provider_or_quota = false
 enabled = true
 notes = "Private and unrestored X locator status blockers are implemented; source candidates are still never evidence."
+
+[[candidates]]
+name = "event_login_source_boundary"
+category = "external_source_candidate"
+owner_surface = "research_intake"
+adoption_shape = "reference_only"
+status = "boundary_implemented"
+source_ref = "S58"
+source_url = "https://aws.amazon.com/jp/events/summits/japan/"
+active_artifact = "control/research_intake/source_registry.toml"
+first_local_step = "Classify public event pages, registration portals, login-only materials, livestream archives, and user-provided exports as separate source-restoration states."
+promotion_gate = "Only fetched public content or user-provided local exports can proceed toward source-bundle restoration; login portals and event metadata remain source candidates."
+stop_condition = "Stop before login, browser automation, scraping, provider Reader, hidden API, source-bundle promotion, citation readiness, answer support, dependency install, runtime import, or evidence promotion."
+provider_or_quota = false
+enabled = false
+notes = "AWS Summit material is represented only as event/login source-boundary metadata; no event registration, login-only content access, livestream archive retrieval, or citation promotion is adopted."
 
 [[candidates]]
 name = "codex_foundation_registry_bridge"

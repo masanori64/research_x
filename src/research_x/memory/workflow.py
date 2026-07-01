@@ -16,10 +16,15 @@ from research_x.memory.context import (
     build_context_bundle,
 )
 from research_x.memory.context_budget import ContextBudgetPolicy, budgeted_json
-from research_x.memory.evidence_invariants import chunk_is_not_evidence, chunk_is_stale
+from research_x.memory.evidence_invariants import (
+    chunk_is_not_evidence,
+    chunk_is_stale,
+    citation_is_citation_ready,
+)
 from research_x.memory.llm_context import LLMContextBundle, fetch_llm_context_to_context
 from research_x.memory.query import QueryPlan, build_query_plan
 from research_x.memory.schema import ensure_memory_schema
+from research_x.memory.source_lifecycle import build_source_lifecycle_trace
 
 WORKFLOW_VERSION = "memory-workflow-v1"
 ANSWER_PROVIDER_NONE = "none"
@@ -616,9 +621,7 @@ def format_workflow(workflow: MemoryWorkflow) -> str:
         fallbacks = ",".join(
             str(route) for route in objective_plan.get("fallback_routes", []) or []
         )
-        guards = ",".join(
-            str(guard) for guard in objective_plan.get("must_run_guards", []) or []
-        )
+        guards = ",".join(str(guard) for guard in objective_plan.get("must_run_guards", []) or [])
         lines.append(
             "objective_route_plan: "
             f"primary={objective_plan.get('primary_route', '-')} "
@@ -772,9 +775,7 @@ def _llm_context_summary(bundle: LLMContextBundle) -> dict[str, Any]:
                 for chunk in bundle.context_chunks
             }
         ),
-        "source_urls": [
-            source.url for source in bundle.sources[:5] if source.url is not None
-        ],
+        "source_urls": [source.url for source in bundle.sources[:5] if source.url is not None],
         "retention_policy": bundle.retention_policy,
     }
 
@@ -945,13 +946,12 @@ def _knowledge_ops_source_state_trace(
             "stale_count": 0,
             "reflected_count": 0,
             "provider_gated_count": 0,
+            "source_lifecycle": build_source_lifecycle_trace(),
             "samples": {},
         }
     hit_ids = [str(hit.get("doc_id") or "") for hit in context_bundle.retrieved_hits]
     not_evidence_ids = [
-        chunk.source_id
-        for chunk in context_bundle.context_chunks
-        if chunk_is_not_evidence(chunk)
+        chunk.source_id for chunk in context_bundle.context_chunks if chunk_is_not_evidence(chunk)
     ]
     included_ids = [
         chunk.source_id
@@ -959,25 +959,64 @@ def _knowledge_ops_source_state_trace(
         if not chunk_is_not_evidence(chunk)
     ]
     reflected_ids = (
-        [chunk.source_id for chunk in answer.selected_context_chunks]
+        [chunk.source_id for chunk in answer.selected_context_chunks] if answer is not None else []
+    )
+    cited_ids = (
+        [citation.source_id for citation in answer.citation_annotations]
         if answer is not None
         else []
     )
+    citation_ready_ids = (
+        [
+            citation.source_id
+            for citation in answer.citation_annotations
+            if citation_is_citation_ready(citation)
+        ]
+        if answer is not None
+        else []
+    )
+    source_bundled_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if _metadata_has_source_bundle(chunk.metadata)
+    ]
     changed_ids = [
         chunk.source_id
         for chunk in context_bundle.context_chunks
         if _metadata_marks_changed(chunk.metadata)
     ]
     stale_ids = [
-        chunk.source_id
-        for chunk in context_bundle.context_chunks
-        if chunk_is_stale(chunk)
+        chunk.source_id for chunk in context_bundle.context_chunks if chunk_is_stale(chunk)
     ]
     provider_gated_ids = [
         chunk.source_id
         for chunk in context_bundle.context_chunks
         if _metadata_marks_provider_gated(chunk.metadata)
     ]
+    user_export_required_ids = [
+        chunk.source_id
+        for chunk in context_bundle.context_chunks
+        if _metadata_marks_user_export_required(chunk.metadata)
+    ]
+    source_lifecycle = build_source_lifecycle_trace(
+        discovered_ids=hit_ids,
+        eligible_ids=hit_ids,
+        fetched_ids=included_ids,
+        extracted_ids=included_ids,
+        source_bundled_ids=source_bundled_ids,
+        chunked_ids=[chunk.chunk_id for chunk in context_bundle.context_chunks],
+        indexed_ids=included_ids,
+        retrieved_ids=hit_ids,
+        included_ids=included_ids,
+        reflected_ids=reflected_ids,
+        cited_ids=cited_ids,
+        citation_ready_ids=citation_ready_ids,
+        excluded_ids=not_evidence_ids,
+        changed_ids=changed_ids,
+        stale_ids=stale_ids,
+        provider_gated_ids=provider_gated_ids,
+        user_export_required_ids=user_export_required_ids,
+    )
     return {
         "evidence_role": "control_plane_not_answer_evidence",
         "answer_support_allowed": False,
@@ -992,6 +1031,7 @@ def _knowledge_ops_source_state_trace(
         "stale_count": len(set(stale_ids)),
         "reflected_count": len(set(reflected_ids)),
         "provider_gated_count": len(set(provider_gated_ids)),
+        "source_lifecycle": source_lifecycle,
         "samples": {
             "search_hit_ids": _sample_ids(hit_ids),
             "included_source_ids": _sample_ids(included_ids),
@@ -1000,6 +1040,7 @@ def _knowledge_ops_source_state_trace(
             "stale_source_ids": _sample_ids(stale_ids),
             "reflected_source_ids": _sample_ids(reflected_ids),
             "provider_gated_source_ids": _sample_ids(provider_gated_ids),
+            "user_export_required_source_ids": _sample_ids(user_export_required_ids),
         },
     }
 
@@ -1021,10 +1062,7 @@ def _metadata_marks_changed(metadata: dict[str, Any]) -> bool:
         metadata.get("freshness_status"),
         metadata.get("answerability_status"),
     )
-    return any(
-        any(marker in str(value or "").casefold() for marker in markers)
-        for value in values
-    )
+    return any(any(marker in str(value or "").casefold() for marker in markers) for value in values)
 
 
 def _metadata_marks_provider_gated(metadata: dict[str, Any]) -> bool:
@@ -1038,6 +1076,33 @@ def _metadata_marks_provider_gated(metadata: dict[str, Any]) -> bool:
         str(value or "").strip().casefold()
         in {"provider_gated", "external_context_needed", "quota_gated"}
         for value in values
+    )
+
+
+def _metadata_marks_user_export_required(metadata: dict[str, Any]) -> bool:
+    values = (
+        metadata.get("source_access_status"),
+        metadata.get("source_restoration_status"),
+        metadata.get("privacy_status"),
+        metadata.get("storage_rights"),
+    )
+    return any(
+        str(value or "").strip().casefold()
+        in {
+            "user_export_required",
+            "private_user_export_required",
+            "login_required_user_export_required",
+            "private_locator",
+        }
+        for value in values
+    )
+
+
+def _metadata_has_source_bundle(metadata: dict[str, Any]) -> bool:
+    lineage = metadata.get("source_lineage")
+    return bool(
+        metadata.get("source_bundle_id")
+        or (isinstance(lineage, dict) and lineage.get("source_bundle_id"))
     )
 
 
@@ -1063,9 +1128,7 @@ def _stop_condition_audit(
 ) -> dict[str, Any]:
     route_plan = metadata.get("route_plan") if isinstance(metadata, dict) else {}
     wants_external_context = (
-        bool(route_plan.get("wants_external_context"))
-        if isinstance(route_plan, dict)
-        else False
+        bool(route_plan.get("wants_external_context")) if isinstance(route_plan, dict) else False
     )
     has_local_context = context_bundle is not None and _has_local_context(context_bundle)
     local_evidence_sufficient = has_local_context and not wants_external_context

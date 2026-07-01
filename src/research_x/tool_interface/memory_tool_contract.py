@@ -16,8 +16,10 @@ from research_x.memory.evidence_invariants import (
     citation_is_stale,
     citation_marks_conflict,
 )
+from research_x.memory.relation_ontology import build_relation_ontology_trace
 from research_x.memory.schema import ensure_memory_schema
 from research_x.memory.source_identity import source_bundle_id as canonical_source_bundle_id
+from research_x.memory.source_lifecycle import build_source_lifecycle_trace
 from research_x.memory.workflow import MemoryWorkflow
 from research_x.tool_interface.codex_bridge import bridge_trace_contract
 
@@ -211,8 +213,7 @@ def validate_tool_output(payload: dict[str, Any] | ToolOutput) -> list[str]:
         not_restored = _payload_citations_with_restore_issues(citations)
         if not_restored:
             errors.append(
-                f"{prefix}: answer status requires restored citations: "
-                + ", ".join(not_restored)
+                f"{prefix}: answer status requires restored citations: " + ", ".join(not_restored)
             )
         not_evidence = _payload_citations_with_not_evidence_support(citations)
         if not_evidence:
@@ -310,10 +311,7 @@ def _downgrade_unrestored_answer(output: ToolOutput, *, errors: list[str]) -> To
 
 def _downgrade_missing_db_backed_validation(output: ToolOutput) -> ToolOutput:
     errors = [
-        (
-            "research_x.memory.workflow: answer status requires DB-backed "
-            "restoration validation"
-        )
+        ("research_x.memory.workflow: answer status requires DB-backed restoration validation")
     ]
     downgraded = _with_db_backed_validation_trace(
         output,
@@ -389,8 +387,7 @@ def _workflow_evidence_level(
         return "context_chunk"
     if workflow.context_bundle is not None and workflow.context_bundle.retrieved_hits:
         if any(
-            isinstance(hit.get("evidence"), dict)
-            for hit in workflow.context_bundle.retrieved_hits
+            isinstance(hit.get("evidence"), dict) for hit in workflow.context_bundle.retrieved_hits
         ):
             return "source_bundle"
         return "candidate"
@@ -416,9 +413,7 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
     raw_citations = _raw_citations(workflow)
     stale_count = sum(1 for citation in raw_citations if citation_is_stale(citation))
     conflict_count = sum(1 for citation in raw_citations if citation_marks_conflict(citation))
-    not_evidence_count = sum(
-        1 for citation in raw_citations if citation_is_not_evidence(citation)
-    )
+    not_evidence_count = sum(1 for citation in raw_citations if citation_is_not_evidence(citation))
     if stale_count:
         eval_warnings.append("stale_evidence")
     if not_evidence_count:
@@ -484,8 +479,7 @@ def _workflow_trace(workflow: MemoryWorkflow, *, status: str) -> dict[str, Any]:
 def _tool_citations(workflow: MemoryWorkflow) -> tuple[ToolCitation, ...]:
     raw_citations, context_run_id = _raw_citations_with_context_run_id(workflow)
     return tuple(
-        _tool_citation(citation, context_run_id=context_run_id)
-        for citation in raw_citations
+        _tool_citation(citation, context_run_id=context_run_id) for citation in raw_citations
     )
 
 
@@ -518,9 +512,7 @@ def _citation_restoration_trace(
         if row["context_chunk_restored"] and row["source_restored"] and row["citation_ready"]
     )
     return {
-        "status": (
-            "restored" if rows and restored_count == len(rows) else "not_restored"
-        )
+        "status": ("restored" if rows and restored_count == len(rows) else "not_restored")
         if rows
         else "no_citations",
         "citation_count": len(rows),
@@ -564,9 +556,7 @@ def _pointer_offload_verification(
         )
     blocked_count = sum(1 for result in results if result["blocked"])
     return {
-        "status": (
-            "blocked" if blocked_count else "verified"
-        )
+        "status": ("blocked" if blocked_count else "verified")
         if results
         else "no_pointer_artifacts",
         "pointer_count": len(results),
@@ -683,6 +673,10 @@ def _relation_traversal_trace(workflow: MemoryWorkflow) -> dict[str, Any]:
         "relation_signal_count": signal_count,
         "relation_count": len(relations),
         "relation_counts": dict(sorted(relation_counts.items())),
+        "relation_ontology": build_relation_ontology_trace(
+            relations=relations,
+            relation_counts=relation_counts,
+        ),
         "relations": relations[:20],
     }
 
@@ -712,6 +706,7 @@ def _rag_governance_trace(
             "stale_count": 0,
             "reflected_count": 0,
             "provider_gated_count": 0,
+            "source_lifecycle": build_source_lifecycle_trace(),
             "samples": {},
         }
     return {
@@ -787,6 +782,10 @@ def _empty_relation_traversal_trace() -> dict[str, Any]:
         "relation_signal_count": 0,
         "relation_count": 0,
         "relation_counts": {},
+        "relation_ontology": build_relation_ontology_trace(
+            relations=[],
+            relation_counts={},
+        ),
         "relations": [],
     }
 
@@ -839,8 +838,7 @@ def _metadata_marks_relation_hint(metadata: dict[str, Any]) -> bool:
         or ""
     ).casefold()
     return any(
-        marker in relation_marker
-        for marker in ("relation", "graph_edge", "ontology")
+        marker in relation_marker for marker in ("relation", "graph_edge", "ontology")
     ) and bool(str(metadata.get("relation_type") or "").strip())
 
 
@@ -873,6 +871,21 @@ def _append_relation(
         "direction": relation.get("direction"),
         "status": relation.get("status"),
         "strength": relation.get("strength"),
+        "as_of": relation.get("as_of"),
+        "valid_from": relation.get("valid_from"),
+        "valid_to": relation.get("valid_to"),
+        "observed_at": relation.get("observed_at"),
+        "authority_source": relation.get("authority_source"),
+        "viewpoint": relation.get("viewpoint"),
+        "access_scope": relation.get("access_scope"),
+        "privacy_status": relation.get("privacy_status"),
+        "source_restoration_status": relation.get("source_restoration_status"),
+        "citation_anchor": relation.get("citation_anchor"),
+        "source_span": relation.get("source_span"),
+        "target_span": relation.get("target_span"),
+        "source_hash": relation.get("source_hash"),
+        "target_hash": relation.get("target_hash"),
+        "anchor_text_hash": relation.get("anchor_text_hash"),
         "source": source,
         "candidate_only": True,
         "promotion_requires_restored_citation": True,
@@ -925,9 +938,7 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "citation_ready": _citation_ready(citation),
             "block_reasons": list(citation_block_reasons(citation)),
             "answer_id": citation.answer_id,
-            "source_context_citation_id": citation.metadata.get(
-                "source_context_citation_id"
-            ),
+            "source_context_citation_id": citation.metadata.get("source_context_citation_id"),
             "document_id": citation.metadata.get("document_id"),
             "lineage_status": citation.metadata.get("lineage_status"),
             "source_doc_hash": citation.metadata.get("source_doc_hash"),
@@ -935,9 +946,7 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "retrieval_text_hash": citation.metadata.get("retrieval_text_hash"),
             "retrieval_text_profile": citation.metadata.get("retrieval_text_profile"),
             "retrieval_profile_kind": citation.metadata.get("retrieval_profile_kind"),
-            "retrieval_text_profile_id": citation.metadata.get(
-                "retrieval_text_profile_id"
-            ),
+            "retrieval_text_profile_id": citation.metadata.get("retrieval_text_profile_id"),
             "source_bundle_id": citation.metadata.get("source_bundle_id"),
             "source_anchor": citation.metadata.get("tweet_id")
             or citation.metadata.get("source_context_citation_id")
@@ -958,20 +967,15 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "answer_support_allowed": citation.metadata.get("answer_support_allowed"),
             "primary_evidence_identity": citation.metadata.get("primary_evidence_identity"),
             "primary_evidence_key": citation.metadata.get("primary_evidence_key"),
-            "primary_evidence_source_id": citation.metadata.get(
-                "primary_evidence_source_id"
-            ),
+            "primary_evidence_source_id": citation.metadata.get("primary_evidence_source_id"),
             "primary_evidence_hash": citation.metadata.get("primary_evidence_hash"),
             "lineage_variants": citation.metadata.get("lineage_variants") or [],
             "lineage_variant_count": citation.metadata.get("lineage_variant_count") or 0,
             "lineage_variant_warning": citation.metadata.get("lineage_variant_warning"),
-            "source_hash_variant_count": citation.metadata.get("source_hash_variant_count")
-            or 0,
+            "source_hash_variant_count": citation.metadata.get("source_hash_variant_count") or 0,
             "source_doc_hash_status": citation.metadata.get("source_doc_hash_status"),
             "freshness_variants": citation.metadata.get("freshness_variants") or [],
-            "stale_lineage_variant_present": citation.metadata.get(
-                "stale_lineage_variant_present"
-            )
+            "stale_lineage_variant_present": citation.metadata.get("stale_lineage_variant_present")
             is True,
             "conflict_lineage_variant_present": citation.metadata.get(
                 "conflict_lineage_variant_present"
@@ -986,9 +990,7 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             )
             or 0,
             "dedup_lineage_policy": citation.metadata.get("dedup_lineage_policy"),
-            "dedup_lineage_policy_scope": citation.metadata.get(
-                "dedup_lineage_policy_scope"
-            ),
+            "dedup_lineage_policy_scope": citation.metadata.get("dedup_lineage_policy_scope"),
             "dedup_lineage_source_hash_variant_policy": citation.metadata.get(
                 "dedup_lineage_source_hash_variant_policy"
             ),
@@ -998,9 +1000,7 @@ def _tool_citation(citation: CitationAnnotation, *, context_run_id: str | None) 
             "dedup_lineage_conflict_variant_policy": citation.metadata.get(
                 "dedup_lineage_conflict_variant_policy"
             ),
-            "dedup_lineage_policy_action": citation.metadata.get(
-                "dedup_lineage_policy_action"
-            ),
+            "dedup_lineage_policy_action": citation.metadata.get("dedup_lineage_policy_action"),
         },
     )
 
@@ -1351,11 +1351,7 @@ def _payload_local_x_db_restore_issue(
 ) -> bool:
     if _payload_marks_external_memory_platform(item, restore):
         return True
-    source_kind = str(
-        restore.get("source_kind")
-        or item.get("source_kind")
-        or ""
-    ).strip()
+    source_kind = str(restore.get("source_kind") or item.get("source_kind") or "").strip()
     if source_kind != LOCAL_X_DB:
         return False
     if not str(restore.get("source_doc_hash") or "").strip():

@@ -267,11 +267,15 @@ def test_external_link_boundary_candidates_do_not_become_runtime_adoptions() -> 
         "kg_typed_edge_authority": "eval_only",
         "okf_source_metadata_shape": "reference_only",
         "rag_knowledge_ops_observability": "eval_only",
+        "knowledge_ops_source_lifecycle_state_machine": "eval_only",
         "ontology_relation_traversal_eval": "eval_only",
+        "relation_ontology_contract": "eval_only",
         "databricks_rag_governance_checklist": "eval_only",
         "cc_rsg_reverse_spec_review": "reference_only",
         "slidev_visual_review_lane": "eval_only",
+        "artifact_output_semantics_review": "eval_only",
         "embedding_stabilization_eval": "eval_only",
+        "event_login_source_boundary": "reference_only",
     }
 
     for name, adoption_shape in boundary_only.items():
@@ -282,6 +286,59 @@ def test_external_link_boundary_candidates_do_not_become_runtime_adoptions() -> 
         assert item.provider_or_quota is False
         normalized_stop = item.stop_condition.replace("-", " ")
         assert "evidence promotion" in normalized_stop
+
+
+def test_event_login_source_boundary_is_metadata_only() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    item = candidates["event_login_source_boundary"]
+
+    assert item.adoption_shape == "reference_only"
+    assert item.status == "boundary_implemented"
+    assert item.enabled is False
+    assert item.provider_or_quota is False
+    assert item.owner_surface == "research_intake"
+    assert item.source_ref == "S58"
+    assert item.active_artifact == "control/research_intake/source_registry.toml"
+    assert "registration portals" in item.first_local_step
+    assert "user-provided local exports" in item.promotion_gate
+    assert "login" in item.stop_condition
+    assert "browser automation" in item.stop_condition
+    assert "citation readiness" in item.stop_condition
+    assert "event/login source-boundary metadata" in item.notes
+
+
+def test_loop8_boundary_candidates_are_trace_and_review_only() -> None:
+    candidates = {item.name: item for item in adoption_candidates(REGISTRY)}
+    expected_artifacts = {
+        "relation_ontology_contract": "src/research_x/memory/relation_ontology.py",
+        "knowledge_ops_source_lifecycle_state_machine": (
+            "src/research_x/memory/source_lifecycle.py"
+        ),
+        "artifact_output_semantics_review": (
+            "src/research_x/control_artifacts/visual_review.py"
+        ),
+    }
+
+    for name, active_artifact in expected_artifacts.items():
+        item = candidates[name]
+        assert item.adoption_shape == "eval_only"
+        assert item.status == "boundary_implemented"
+        assert item.enabled is False
+        assert item.provider_or_quota is False
+        assert item.active_artifact == active_artifact
+        assert "evidence promotion" in item.stop_condition
+        assert "answer support" in item.stop_condition
+
+    assert candidates["relation_ontology_contract"].source_ref == "S48"
+    assert "graph runtime" in candidates["relation_ontology_contract"].stop_condition
+    assert candidates["knowledge_ops_source_lifecycle_state_machine"].source_ref == "S47"
+    assert "source mutation" in candidates[
+        "knowledge_ops_source_lifecycle_state_machine"
+    ].stop_condition
+    assert candidates["artifact_output_semantics_review"].source_ref == "S51"
+    assert "renderers or browsers" in candidates[
+        "artifact_output_semantics_review"
+    ].stop_condition
 
 
 def test_cognee_reference_is_local_invariant_coverage_without_runtime_adoption() -> None:

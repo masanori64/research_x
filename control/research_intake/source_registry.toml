@@ -611,6 +611,15 @@ allow_provider = false
 storage_rights = "dependency_review_before_fetch"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S52"
+adoption_candidate = "f3_self_describing_artifact_reference"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "artifact_manifest_reference_only_no_decoder_execution"
+notes = "Disabled metadata-only reference for inert artifact manifest review; not adopted as F3 reader, Wasm decoder, dependency, archive format, evidence, or citation."
+
 [[sources]]
 source_id = "manual_sqljoiner_repo"
 source_type = "manual_url"
@@ -626,6 +635,15 @@ allow_network = false
 allow_provider = false
 storage_rights = "license_dependency_review_before_fetch"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S53"
+adoption_candidate = "sqljoiner_query_visualization_reference"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "query_plan_visualization_reference_only_no_sql_runtime"
+notes = "Disabled metadata-only UX reference; not adopted as SQLJoiner code, SQL execution, DB connection, credential store, dependency, evidence, or citation."
 
 [[sources]]
 source_id = "manual_line_embedding_stabilization"
@@ -668,6 +686,65 @@ allow_provider = false
 storage_rights = "private_user_export_required"
 prompt_injection_review = "required_before_fetch"
 
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S55"
+adoption_candidate = "x_source_restoration_status"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "private_locator_requires_user_export_or_restored_public_source"
+notes = "Private bookmark locator only; not a public help page, source bundle, citation, or answer support without a user-provided export or restored public source."
+
+[[sources]]
+source_id = "manual_aws_summit_japan_2026"
+source_type = "manual_url"
+locator = "https://aws.amazon.com/jp/events/summits/japan/"
+enabled_when = "disabled"
+title = "AWS Summit Japan 2026 official event page"
+quality_hint = "official"
+topics = ["event source", "login boundary", "source freshness"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "public_event_reference"
+prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "source_registry_only"
+source_ref = "S58"
+adoption_candidate = "event_login_source_boundary"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "public_event_metadata_only_not_login_material"
+notes = "Official public event page is separate from registration/login-only session material, livestream archives, or downloadable attendee content; event tooling and login access are not adopted."
+
+[[sources]]
+source_id = "manual_aws_summit_japan_2026_registration"
+source_type = "manual_url"
+locator = "https://registration.awsevents.com/flow/awsevents/summitjap26/genreg/login"
+enabled_when = "disabled"
+title = "AWS Summit Japan 2026 registration login portal"
+quality_hint = "official"
+topics = ["event login", "registration portal", "source restoration"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "login_required_user_export_required"
+prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_intake"
+owner_status = "source_registry_only"
+source_ref = "S58"
+adoption_candidate = "event_login_source_boundary"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "login_required_metadata_only_until_user_export_or_public_archive"
+notes = "Registration portal is a locator for gated event material only; login access is not adopted and no browser automation, scraping, provider Reader, source-bundle promotion, or citation readiness is granted."
+
 [[sources]]
 source_id = "manual_x_bookmarks_help"
 source_type = "manual_url"
@@ -681,8 +758,17 @@ topics = ["X bookmarks", "private locator", "source restoration"]
 fetch_mode = "metadata_only"
 allow_network = false
 allow_provider = false
-storage_rights = "private_user_export_required"
+storage_rights = "public_policy_reference"
 prompt_injection_review = "required_before_fetch"
+
+[sources.source_governance]
+owner_surface = "research_x_tool"
+owner_status = "adoption_registry"
+source_ref = "S55"
+adoption_candidate = "x_source_restoration_status"
+evidence_status = "not_evidence_until_fetched_and_chunked"
+promotion_boundary = "public_policy_reference_only_not_bookmark_export"
+notes = "Official public help source about bookmark behavior; separate from the private bookmark locator and not a substitute for user-provided bookmark exports or restored posts."
 
 [[sources]]
 source_id = "manual_x_mocchicc_2071109107919327339"

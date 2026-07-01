@@ -92,8 +92,7 @@ def test_validate_tool_output_rejects_provider_gated_completed_answer_text() -> 
     errors = validate_tool_output(payload)
 
     assert any(
-        "provider_gated status must not include completed answer_text" in error
-        for error in errors
+        "provider_gated status must not include completed answer_text" in error for error in errors
     )
 
 
@@ -136,9 +135,9 @@ def test_answer_trace_reports_restoration_and_fixture_limitation() -> None:
         "within_configured_limit": True,
         "stop_reason": "enough_evidence",
     }
-    assert "db_backed_restoration_validation_for_ai_output" in agent_safety[
-        "answer_support_requires"
-    ]
+    assert (
+        "db_backed_restoration_validation_for_ai_output" in agent_safety["answer_support_requires"]
+    )
 
 
 def test_validate_tool_output_requires_agent_safety_trace() -> None:
@@ -190,6 +189,10 @@ def test_relation_traversal_trace_is_candidate_only_not_promotion() -> None:
     assert trace["candidate_only"] is True
     assert trace["promotion_requires_restored_citation"] is True
     assert trace["relation_counts"]["supports"] >= 1
+    assert trace["relation_ontology"]["candidate_only"] is True
+    assert trace["relation_ontology"]["answer_support_allowed"] is False
+    assert trace["relation_ontology"]["runtime_graph_adopted"] is False
+    assert trace["relation_ontology"]["type_specs"]["supports"]["direction"] == ("source_to_target")
     assert trace["relations"][0]["candidate_only"] is True
     assert trace["relations"][0]["promotion_requires_restored_citation"] is True
 
@@ -241,9 +244,7 @@ def test_validate_tool_output_rejects_forged_external_memory_answer() -> None:
     errors = validate_tool_output(payload)
 
     assert any("answer status requires restored citations" in error for error in errors)
-    assert any(
-        "answer status cannot cite not-evidence artifacts" in error for error in errors
-    )
+    assert any("answer status cannot cite not-evidence artifacts" in error for error in errors)
 
 
 def _workflow(

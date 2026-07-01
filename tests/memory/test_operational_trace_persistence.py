@@ -134,9 +134,13 @@ def test_operational_workflow_persists_source_restored_trace(tmp_path: Path) -> 
     assert knowledge_ops["reflected_count"] >= 1
     assert knowledge_ops["stale_count"] >= 0
     assert knowledge_ops["samples"]["included_source_ids"]
-    assert output.trace["rag_governance"]["evidence_role"] == (
-        "control_plane_not_answer_evidence"
-    )
+    lifecycle = knowledge_ops["source_lifecycle"]
+    assert lifecycle["answer_support_allowed"] is False
+    assert lifecycle["runtime_source_mutation_allowed"] is False
+    assert lifecycle["state_counts"]["retrieved"] >= 1
+    assert lifecycle["state_counts"]["source_bundled"] >= 1
+    assert lifecycle["state_counts"]["citation_ready"] >= 1
+    assert output.trace["rag_governance"]["evidence_role"] == ("control_plane_not_answer_evidence")
     assert output.trace["rag_governance"]["answer_support_allowed"] is False
     assert output.trace["rag_governance"]["knowledge_ops"]["included_count"] >= 1
 

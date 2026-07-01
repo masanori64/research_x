@@ -197,8 +197,27 @@ def test_okf_source_metadata_rejects_invalid_review_status_and_timestamp(
 def test_f3_and_sqljoiner_sources_stay_disabled_metadata_only() -> None:
     registry = load_registry(Path("control/research_intake/source_registry.toml"))
     sources = {source.source_id: source for source in registry.sources}
+    expected = {
+        "manual_f3_repo": (
+            "S52",
+            "f3_self_describing_artifact_reference",
+            "artifact_manifest_reference_only_no_decoder_execution",
+            "Wasm decoder",
+        ),
+        "manual_sqljoiner_repo": (
+            "S53",
+            "sqljoiner_query_visualization_reference",
+            "query_plan_visualization_reference_only_no_sql_runtime",
+            "DB connection",
+        ),
+    }
 
-    for source_id in ("manual_f3_repo", "manual_sqljoiner_repo"):
+    for source_id, (
+        source_ref,
+        adoption_candidate,
+        promotion_boundary,
+        notes_token,
+    ) in expected.items():
         source = sources[source_id]
 
         assert source.enabled_when == "disabled"
@@ -206,6 +225,52 @@ def test_f3_and_sqljoiner_sources_stay_disabled_metadata_only() -> None:
         assert source.policy.fetch_mode == "metadata_only"
         assert source.policy.allow_network is False
         assert source.policy.allow_provider is False
+        assert source.source_governance is not None
+        assert source.source_governance.source_ref == source_ref
+        assert source.source_governance.adoption_candidate == adoption_candidate
+        assert source.source_governance.promotion_boundary == promotion_boundary
+        assert notes_token in source.source_governance.notes
+
+
+def test_x_help_and_aws_event_sources_keep_public_and_login_boundaries_separate() -> None:
+    registry = load_registry(Path("control/research_intake/source_registry.toml"))
+    sources = {source.source_id: source for source in registry.sources}
+
+    x_private = sources["manual_x_bookmarks"]
+    assert x_private.policy.storage_rights == "private_user_export_required"
+    assert x_private.source_governance is not None
+    assert x_private.source_governance.source_ref == "S55"
+    assert (
+        x_private.source_governance.promotion_boundary
+        == "private_locator_requires_user_export_or_restored_public_source"
+    )
+    assert "Private bookmark locator only" in x_private.source_governance.notes
+
+    x_help = sources["manual_x_bookmarks_help"]
+    assert x_help.policy.storage_rights == "public_policy_reference"
+    assert x_help.source_governance is not None
+    assert x_help.source_governance.source_ref == "S55"
+    assert (
+        x_help.source_governance.promotion_boundary
+        == "public_policy_reference_only_not_bookmark_export"
+    )
+    assert "separate from the private bookmark locator" in x_help.source_governance.notes
+
+    event_page = sources["manual_aws_summit_japan_2026"]
+    registration = sources["manual_aws_summit_japan_2026_registration"]
+
+    assert event_page.enabled_when == "disabled"
+    assert event_page.policy.storage_rights == "public_event_reference"
+    assert registration.enabled_when == "disabled"
+    assert registration.policy.storage_rights == "login_required_user_export_required"
+    for source in (event_page, registration):
+        assert source.policy.fetch_mode == "metadata_only"
+        assert source.policy.allow_network is False
+        assert source.policy.allow_provider is False
+        assert source.source_governance is not None
+        assert source.source_governance.source_ref == "S58"
+        assert source.source_governance.adoption_candidate == "event_login_source_boundary"
+        assert "login" in source.source_governance.promotion_boundary
 
 
 def test_cognee_source_stays_disabled_metadata_only() -> None:
