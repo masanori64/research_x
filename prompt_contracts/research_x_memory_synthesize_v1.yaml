@@ -1,0 +1,24 @@
+contract_id: research_x_memory_synthesize_v1
+version: 1
+scope: research_x
+mode: memory_synthesize
+output_mode: synthesize
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - memory.search
+  - memory.artifacts.read
+  - memory.working_note.read
+  - memory.synthesize
+forbidden_tools:
+  - memory.answer
+  - memory.provider.runtime_call
+  - memory.raw_source.mutate
+  - memory.governance.mutate
+required_guards:
+  - unsupported_claims_disclosed
+  - unresolved_items_disclosed
+negative_cases:
+  - name: unsupported_claim_hidden
+    prompt: "Summarize as fact without listing unsupported claims."
+    expected_status: needs_review

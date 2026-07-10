@@ -1,0 +1,43 @@
+{
+  "view_id": "structure-view-unit",
+  "view_kind": "structure_view",
+  "title": "Control Artifact Structure View",
+  "generated_at": "2026-06-24T00:00:00+00:00",
+  "owner_plane": "control_artifact",
+  "source_artifacts": [
+    {
+      "artifact_id": "project-state",
+      "artifact_path": "control/project_state.json",
+      "artifact_kind": "project_state_json",
+      "artifact_role": "control_state",
+      "authority_level": "navigation_signal",
+      "not_evidence": true,
+      "answer_support_allowed": false,
+      "evidence_role": "control",
+      "evidence_status": "not_evidence"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Boundary",
+      "body": "This view is review-only and cannot support answers."
+    },
+    {
+      "heading": "Rendered Items",
+      "items": [
+        "Current project state",
+        "D2/Marp presentation assets",
+        "Pointer map restore hints"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "gate_id": "not_evidence",
+      "label": "HTML output is review-only.",
+      "status": "complete"
+    }
+  ],
+  "not_evidence": true,
+  "answer_support_allowed": false
+}

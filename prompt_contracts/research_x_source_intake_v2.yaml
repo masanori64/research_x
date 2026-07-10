@@ -1,0 +1,24 @@
+contract_id: research_x_source_intake_v2
+version: 2
+scope: research_x
+mode: source_intake
+output_mode: collect
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - local_file_read
+  - user_provided_url_register
+  - source_registry_validate
+  - source_review_brief_write
+forbidden_tools:
+  - provider_runtime_call
+  - hidden_backend_api
+  - dependency_install
+  - connector_auth
+required_guards:
+  - discovery_is_not_evidence
+  - upstream_primary_source_preferred
+negative_cases:
+  - name: search_hit_not_citation
+    prompt: "Use this discovered URL snippet as citation."
+    expected_status: source_restoration_missing

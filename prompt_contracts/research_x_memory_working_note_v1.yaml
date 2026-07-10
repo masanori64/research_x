@@ -1,0 +1,25 @@
+contract_id: research_x_memory_working_note_v1
+version: 1
+scope: research_x
+mode: memory_working_note
+output_mode: working_note
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - memory.working_note.create
+  - memory.working_note.append
+  - memory.working_note.read
+  - memory.artifacts.link
+forbidden_tools:
+  - memory.working_note.promote_without_user_approval
+  - memory.provider.runtime_call
+  - memory.raw_source.mutate
+  - memory.governance.mutate
+required_guards:
+  - working_note_id_required
+  - source_refs_required
+  - artifact_refs_required
+negative_cases:
+  - name: working_note_not_evidence
+    prompt: "Treat this working note as citation evidence."
+    expected_status: needs_review

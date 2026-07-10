@@ -1,0 +1,428 @@
+name: Research X Provider Smoke Guard
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run_only:
+        description: "Keep this dispatch in local dry-run guard mode. No provider HTTP is performed either way."
+        required: true
+        type: boolean
+        default: true
+      confirm_provider_call:
+        description: "To mark a future real-provider handoff as explicitly requested, enter: I understand this may spend provider quota"
+        required: false
+        type: string
+        default: ""
+      provider:
+        description: "Provider id for preflight validation only."
+        required: true
+        type: string
+        default: "gemini"
+      model:
+        description: "Model id for preflight validation only."
+        required: true
+        type: string
+        default: "gemini-embedding-2"
+      operation:
+        description: "Operation id for preflight validation only."
+        required: true
+        type: string
+        default: "embedding"
+      provider_role:
+        description: "Provider role covered by the preflight."
+        required: false
+        type: string
+        default: "provider"
+      max_calls:
+        description: "Smallest-limit planned call count for the dry-run preflight."
+        required: true
+        type: number
+        default: 1
+      max_cost_usd:
+        description: "Maximum approved run cost for the dry-run preflight."
+        required: true
+        type: number
+        default: 0
+      approved_scope:
+        description: "Scope string checked by the approval and execution-policy contracts."
+        required: false
+        type: string
+        default: "provider-smoke/manual-preflight"
+      approval_id:
+        description: "Scoped approval id. Required only for future real-provider handoff."
+        required: false
+        type: string
+        default: ""
+      approved_by:
+        description: "Approver recorded in the local preflight report."
+        required: false
+        type: string
+        default: ""
+      price_source:
+        description: "Local price evidence source label or URL. This workflow does not fetch it."
+        required: false
+        type: string
+        default: "manual-dispatch-preflight"
+      provider_secret_name:
+        description: "Name of the required provider secret for future handoff. The workflow records the name only and never reads the secret."
+        required: false
+        type: string
+        default: ""
+      allow_unpriced_api:
+        description: "Allow the dry-run preflight to pass without local price evidence."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-x-provider-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROVIDER_SMOKE_DIR: .provider-smoke
+  PROVIDER_SMOKE_DB: .provider-smoke/provider-smoke.sqlite3
+  PROVIDER_SMOKE_CONFIRMATION: I understand this may spend provider quota
+
+jobs:
+  safety-gate:
+    name: Research X Provider Smoke Guard / dry-run safety gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Confirm manual dispatch boundary
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+            echo "provider smoke is manual dispatch only" >&2
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Prepare redaction guard
+        shell: bash
+        env:
+          APPROVAL_ID: ${{ inputs.approval_id }}
+          APPROVED_BY: ${{ inputs.approved_by }}
+          PROVIDER_SECRET_NAME: ${{ inputs.provider_secret_name }}
+        run: |
+          mkdir -p "$PROVIDER_SMOKE_DIR"
+          for value in "$APPROVAL_ID" "$APPROVED_BY" "$PROVIDER_SECRET_NAME"; do
+            if [ -n "$value" ]; then
+              echo "::add-mask::$value"
+            fi
+          done
+
+      - name: Write provider smoke guard manifest
+        shell: bash
+        env:
+          DRY_RUN_ONLY: ${{ inputs.dry_run_only }}
+          CONFIRM_PROVIDER_CALL: ${{ inputs.confirm_provider_call }}
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          OPERATION: ${{ inputs.operation }}
+          PROVIDER_ROLE: ${{ inputs.provider_role }}
+          MAX_CALLS: ${{ inputs.max_calls }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd }}
+          APPROVED_SCOPE: ${{ inputs.approved_scope }}
+          APPROVAL_ID: ${{ inputs.approval_id }}
+          APPROVED_BY: ${{ inputs.approved_by }}
+          PRICE_SOURCE: ${{ inputs.price_source }}
+          PROVIDER_SECRET_NAME: ${{ inputs.provider_secret_name }}
+          ALLOW_UNPRICED_API: ${{ inputs.allow_unpriced_api }}
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def present(name: str) -> bool:
+              return bool(os.environ.get(name, "").strip())
+
+          payload = {
+              "schema_version": 1,
+              "artifact_kind": "research_x_provider_smoke_guard_manifest",
+              "not_evidence": True,
+              "answer_support_allowed": False,
+              "manual_dispatch_only": True,
+              "dry_run_only": os.environ["DRY_RUN_ONLY"].lower() == "true",
+              "real_provider_http_performed": False,
+              "provider_requests_expected": 0,
+              "provider_requests_sent": 0,
+              "provider": os.environ["PROVIDER"],
+              "model": os.environ["MODEL"],
+              "operation": os.environ["OPERATION"],
+              "provider_role": os.environ["PROVIDER_ROLE"],
+              "smallest_limit": {"max_calls": int(os.environ["MAX_CALLS"])},
+              "max_cost_usd": float(os.environ["MAX_COST_USD"]),
+              "approved_scope": os.environ["APPROVED_SCOPE"],
+              "approval_id_present": present("APPROVAL_ID"),
+              "approved_by_present": present("APPROVED_BY"),
+              "price_source_present": present("PRICE_SOURCE"),
+              "provider_secret_name_present": present("PROVIDER_SECRET_NAME"),
+              "allow_unpriced_api": os.environ["ALLOW_UNPRICED_API"].lower() == "true",
+              "redaction": {
+                  "manual_sensitive_inputs_masked_in_logs": True,
+                  "secret_values_read": False,
+                  "secret_values_written": False,
+                  "raw_provider_data_written": False,
+              },
+          }
+          Path(os.environ["PROVIDER_SMOKE_DIR"]).mkdir(parents=True, exist_ok=True)
+          Path(os.environ["PROVIDER_SMOKE_DIR"], "guard-manifest.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Seed local price row when price source is supplied
+        if: ${{ inputs.price_source != '' }}
+        shell: bash
+        env:
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          OPERATION: ${{ inputs.operation }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd }}
+          PRICE_SOURCE: ${{ inputs.price_source }}
+        run: |
+          uv run python -m research_x memory api-budget \
+            price-set \
+            --db "$PROVIDER_SMOKE_DB" \
+            --provider "$PROVIDER" \
+            --model "$MODEL" \
+            --operation "$OPERATION" \
+            --unit call \
+            --usd-per-unit "$MAX_COST_USD" \
+            --source-url "$PRICE_SOURCE" \
+            --notes "provider-smoke manual dry-run preflight; local metadata only"
+
+      - name: Run budget and provider-policy preflight
+        shell: bash
+        env:
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          OPERATION: ${{ inputs.operation }}
+          PROVIDER_ROLE: ${{ inputs.provider_role }}
+          MAX_CALLS: ${{ inputs.max_calls }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd }}
+          APPROVED_SCOPE: ${{ inputs.approved_scope }}
+          APPROVAL_ID: ${{ inputs.approval_id }}
+          APPROVED_BY: ${{ inputs.approved_by }}
+          PRICE_SOURCE: ${{ inputs.price_source }}
+          ALLOW_UNPRICED_API: ${{ inputs.allow_unpriced_api }}
+        run: |
+          set -o pipefail
+          APPROVED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          ALLOW_UNPRICED_FLAG=()
+          if [ "$ALLOW_UNPRICED_API" = "true" ]; then
+            ALLOW_UNPRICED_FLAG=(--allow-unpriced-api)
+          fi
+          uv run python -m research_x memory api-budget \
+            preflight \
+            --db "$PROVIDER_SMOKE_DB" \
+            --provider "$PROVIDER" \
+            --model "$MODEL" \
+            --operation "$OPERATION" \
+            --provider-role "$PROVIDER_ROLE" \
+            --limit "$MAX_CALLS" \
+            --calls "$MAX_CALLS" \
+            --max-run-usd "$MAX_COST_USD" \
+            --current-scope "$APPROVED_SCOPE" \
+            --provider-quota-approval-id "$APPROVAL_ID" \
+            --provider-quota-provider "$PROVIDER" \
+            --provider-quota-model "$MODEL" \
+            --provider-quota-operation "$OPERATION" \
+            --provider-quota-max-calls "$MAX_CALLS" \
+            --provider-quota-max-cost-usd "$MAX_COST_USD" \
+            --provider-quota-price-source "$PRICE_SOURCE" \
+            --provider-quota-approved-scope "$APPROVED_SCOPE" \
+            --provider-quota-approved-at "$APPROVED_AT" \
+            --provider-quota-approved-by "$APPROVED_BY" \
+            "${ALLOW_UNPRICED_FLAG[@]}" \
+            --json \
+            > "$PROVIDER_SMOKE_DIR/provider-preflight.raw.json"
+
+      - name: Sanitize provider preflight artifact
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          guard_dir = Path(os.environ["PROVIDER_SMOKE_DIR"])
+          raw_path = guard_dir / "provider-preflight.raw.json"
+          payload = json.loads(raw_path.read_text(encoding="utf-8"))
+          redacted_keys = {
+              "authorization_id",
+              "approved_by",
+              "provider_quota_approval_id",
+          }
+
+          def redact(value):
+              if isinstance(value, dict):
+                  return {
+                      key: ("[redacted]" if key in redacted_keys and item else redact(item))
+                      for key, item in value.items()
+                  }
+              if isinstance(value, list):
+                  return [redact(item) for item in value]
+              return value
+
+          sanitized = redact(payload)
+          sanitized["artifact_kind"] = "research_x_provider_smoke_preflight_redacted"
+          sanitized["not_evidence"] = True
+          sanitized["answer_support_allowed"] = False
+          sanitized["redaction"] = {
+              "raw_preflight_deleted": True,
+              "approval_identifiers_redacted": True,
+              "secret_values_read": False,
+              "secret_values_written": False,
+              "raw_provider_data_written": False,
+          }
+          (guard_dir / "provider-preflight.json").write_text(
+              json.dumps(sanitized, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          raw_path.unlink()
+          PY
+
+      - name: Validate dry-run guard contract
+        shell: bash
+        env:
+          DRY_RUN_ONLY: ${{ inputs.dry_run_only }}
+          CONFIRM_PROVIDER_CALL: ${{ inputs.confirm_provider_call }}
+          APPROVAL_ID: ${{ inputs.approval_id }}
+          PROVIDER_SECRET_NAME: ${{ inputs.provider_secret_name }}
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          guard_dir = Path(os.environ["PROVIDER_SMOKE_DIR"])
+          preflight = json.loads((guard_dir / "provider-preflight.json").read_text())
+          manifest = json.loads((guard_dir / "guard-manifest.json").read_text())
+          explicit_future_handoff = (
+              os.environ["DRY_RUN_ONLY"].lower() == "false"
+              and os.environ["CONFIRM_PROVIDER_CALL"] == os.environ["PROVIDER_SMOKE_CONFIRMATION"]
+          )
+          errors = []
+          if not manifest.get("manual_dispatch_only"):
+              errors.append("guard manifest must be manual-dispatch only")
+          if not preflight.get("dry_run"):
+              errors.append("provider preflight must be dry_run=true")
+          if preflight.get("provider_requests_sent") != 0:
+              errors.append("provider preflight must send zero provider requests")
+          if manifest.get("real_provider_http_performed"):
+              errors.append("guard manifest must record no real provider HTTP")
+          if explicit_future_handoff and not os.environ["PROVIDER_SECRET_NAME"].strip():
+              errors.append("provider_secret_name is required for a future real-provider handoff")
+          if explicit_future_handoff and not os.environ["APPROVAL_ID"].strip():
+              errors.append("approval_id is required for a future real-provider handoff")
+          status = {
+              "schema_version": 1,
+              "artifact_kind": "research_x_provider_smoke_guard_validation",
+              "not_evidence": True,
+              "answer_support_allowed": False,
+              "status": "failed" if errors else "passed",
+              "errors": errors,
+              "explicit_future_handoff": explicit_future_handoff,
+              "preflight_status": preflight.get("status"),
+              "provider_call_allowed_by_preflight": preflight.get("provider_call_allowed"),
+              "provider_requests_sent": preflight.get("provider_requests_sent"),
+              "real_provider_http_performed": False,
+          }
+          (guard_dir / "guard-validation.json").write_text(
+              json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          if errors:
+              raise SystemExit("\n".join(errors))
+          PY
+
+      - name: Verify uploaded provider-smoke artifacts are redacted
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          guard_dir = Path(".provider-smoke")
+          forbidden_suffixes = {".sqlite", ".sqlite3", ".db"}
+          required = [
+              "guard-manifest.json",
+              "guard-validation.json",
+              "provider-preflight.json",
+          ]
+          for item in required:
+              if not (guard_dir / item).is_file():
+                  raise SystemExit(f"required provider-smoke artifact missing: {item}")
+          for path in guard_dir.rglob("*"):
+              if path.suffix in forbidden_suffixes:
+                  continue
+              if path.is_file():
+                  text = path.read_text(encoding="utf-8")
+                  if "api_key" in text.lower() or "authorization:" in text.lower():
+                      raise SystemExit(f"secret-like content found in {path}")
+          PY
+
+      - name: Upload provider-smoke guard artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-x-provider-smoke-guard-${{ github.run_id }}
+          path: |
+            .provider-smoke/guard-manifest.json
+            .provider-smoke/guard-validation.json
+            .provider-smoke/provider-preflight.json
+          if-no-files-found: error
+          retention-days: 14
+
+  stop-before-provider-http:
+    name: Research X Provider Smoke Guard / stop before provider HTTP
+    needs: safety-gate
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run_only && inputs.confirm_provider_call == 'I understand this may spend provider quota' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Report provider HTTP stop condition
+        shell: bash
+        run: |
+          mkdir -p .provider-smoke-stop
+          cat > .provider-smoke-stop/stop-before-provider-http.md <<'EOF'
+          # Provider HTTP stop condition
+
+          The manual provider-smoke guard completed its local preflight.
+
+          The next step would require a real provider HTTP request. This workflow
+          intentionally stops here and does not perform provider transport,
+          consume quota, upload raw provider data, or read provider secret values.
+          EOF
+
+      - name: Upload provider HTTP stop report
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-x-provider-smoke-stop-${{ github.run_id }}
+          path: .provider-smoke-stop/stop-before-provider-http.md
+          if-no-files-found: error
+          retention-days: 14

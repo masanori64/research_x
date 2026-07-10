@@ -1,0 +1,148 @@
+direction: down
+
+vars: {
+  actor: "#e7f0f8"
+  work: "#e7f5ed"
+  data: "#fff4cf"
+  stop: "#fbe4e4"
+  ink: "#22313f"
+}
+
+classes: {
+  box: {
+    style.border-radius: 5
+    style.stroke: "#4f6578"
+    style.font-color: ${ink}
+  }
+  actor: {
+    style.fill: ${actor}
+  }
+  work: {
+    style.fill: ${work}
+  }
+  data: {
+    style.fill: ${data}
+  }
+  stop: {
+    style.fill: ${stop}
+    style.stroke: "#b42318"
+  }
+}
+
+actors: {
+  grid-columns: 3
+  user: "人 / AI agent\n質問と output_mode を渡す" {
+    class: box
+    class: actor
+  }
+  cli: "memory workflow\n1回の検索実行" {
+    class: box
+    class: work
+  }
+  trace: "実行記録\nmode / scope / stop reason を保存" {
+    class: box
+    class: data
+  }
+}
+
+route: {
+  grid-columns: 3
+  mode: "output_mode を解決\nexplore / collect / working_note\nsynthesize / evidence_package / answer" {
+    class: box
+    class: work
+  }
+  scope: "source / artifact / participation scope\n候補に使える範囲を決める" {
+    class: box
+    class: work
+  }
+  retrieval: "mode-aware retrieval\n候補はまだ回答根拠ではない" {
+    class: box
+    class: work
+  }
+}
+
+build: {
+  grid-columns: 3
+  provider: "ProviderApiBudgetGuard\nprovider-backed候補だけ実行前に止める" {
+    class: box
+    class: stop
+  }
+  output: "mode-aware output builder\nmodeごとの返却形に整える" {
+    class: box
+    class: data
+  }
+  non_answer: "explore / collect / working_note / synthesize\n候補・作業メモとして返す" {
+    class: box
+    class: data
+  }
+}
+
+authority: {
+  grid-columns: 2
+  evidence_pkg: "optional evidence_package\nsource restore / evidence view / citation candidates" {
+    class: box
+    class: data
+  }
+  answer_gate: "optional answer branch\nclaim support とDB-backed validation" {
+    class: box
+    class: work
+  }
+}
+
+finish: {
+  grid-columns: 2
+  result: "mode status\ncandidate output / evidence_package / answer\nabstain / needs_review / provider_gated" {
+    class: box
+    class: data
+  }
+  trace_sidecar: "実行記録 sidecar\nmode / participation / guard / evidence / stop reason" {
+    class: box
+    class: data
+  }
+}
+
+halt: "途中で止まる条件\nprovider_gated・参加不可・復元不足・引用不足・主張を支えない" {
+  class: box
+  class: stop
+}
+
+actors -> route: "実行開始"
+route -> build: "候補生成"
+build -> finish: "mode出力"
+authority -> finish: "昇格結果"
+
+actors.user -> actors.cli
+actors.cli -> route.mode
+route.mode -> route.scope
+route.scope -> route.retrieval
+route.retrieval -> build.provider: "provider-backed"
+route.retrieval -> build.output: "local / restored candidates"
+build.provider -> build.output: "承認済み候補"
+build.output -> build.non_answer: "非回答mode"
+build.output -> authority.evidence_pkg: "evidence_package mode"
+authority.evidence_pkg -> authority.answer_gate: "answer mode"
+authority.answer_gate -> finish.result
+build.non_answer -> finish.result
+finish.result -> finish.trace_sidecar
+finish.trace_sidecar -> actors.trace
+
+build.provider -> halt: "承認・予算なし" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+route.scope -> halt: "参加不可" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+authority.evidence_pkg -> halt: "復元・引用できない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+authority.answer_gate -> halt: "主張を支えない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+halt -> finish.trace_sidecar: "理由を残す" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}

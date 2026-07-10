@@ -1,0 +1,49 @@
+---
+marp: true
+---
+
+# research_x
+
+<!-- claim: claim-project-purpose -->
+<!-- claim: claim-sier-context -->
+
+![architecture](assets/c4-container.svg)
+
+---
+
+# Runtime Boundary
+
+<!-- claim: claim-acquisition-chain -->
+<!-- claim: claim-runtime-architecture -->
+<!-- claim: claim-c4-container-boundary -->
+
+![runtime](assets/runtime-boundary.svg)
+
+---
+
+# Memory Flow
+
+<!-- claim: claim-bookmark-store -->
+<!-- claim: claim-evidence-invariant -->
+<!-- claim: claim-memory-schema -->
+
+![query](assets/memory-query-sequence.svg)
+![evidence](assets/memory-evidence-flow.svg)
+
+---
+
+# Workflow
+
+<!-- claim: claim-workflow-execution -->
+<!-- claim: claim-provider-gate -->
+<!-- claim: claim-dev-entrypoints -->
+
+---
+
+# Delivery Boundary
+
+<!-- claim: claim-sier-boundary -->
+<!-- claim: claim-control-artifacts -->
+<!-- claim: claim-current-open-items -->
+
+![roadmap](assets/roadmap.svg)

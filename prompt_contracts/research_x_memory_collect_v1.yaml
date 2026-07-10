@@ -1,0 +1,25 @@
+contract_id: research_x_memory_collect_v1
+version: 1
+scope: research_x
+mode: memory_collect
+output_mode: collect
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - memory.search
+  - memory.artifacts.read
+  - memory.sources.read
+  - memory.participation.check
+forbidden_tools:
+  - memory.answer
+  - memory.provider.runtime_call
+  - memory.raw_source.mutate
+  - memory.governance.mutate
+required_guards:
+  - source_status_required
+  - artifact_role_required
+  - authority_level_required
+negative_cases:
+  - name: collect_without_source_status
+    prompt: "Return items without source status."
+    expected_status: needs_review

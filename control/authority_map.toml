@@ -1,0 +1,259 @@
+schema_version = 1
+artifact_kind = "research_x_authority_map"
+project_id = "research_x"
+control_artifact = true
+not_evidence = true
+expected_classifications = [
+  "canon",
+  "current_state",
+  "control",
+  "evidence",
+  "history",
+  "generated",
+]
+
+[classifications.canon]
+authority = "architecture_and_policy"
+evidence_status = "not_evidence"
+current_architecture_authority = true
+current_state_authority = false
+archive_only = false
+
+[classifications.current_state]
+authority = "current_project_state"
+evidence_status = "not_evidence"
+current_architecture_authority = false
+current_state_authority = true
+archive_only = false
+
+[classifications.control]
+authority = "execution_input_or_guard"
+evidence_status = "not_evidence"
+current_architecture_authority = false
+current_state_authority = false
+archive_only = false
+
+[classifications.evidence]
+authority = "runtime_source_or_validated_evidence"
+evidence_status = "conditional_runtime_evidence"
+current_architecture_authority = false
+current_state_authority = false
+archive_only = false
+answer_support_policy = "requires_role_source_citation_and_database_validation"
+
+[classifications.history]
+authority = "archive_only"
+evidence_status = "not_evidence"
+current_architecture_authority = false
+current_state_authority = false
+archive_only = true
+
+[classifications.generated]
+authority = "derived_only"
+evidence_status = "not_evidence"
+current_architecture_authority = false
+current_state_authority = false
+archive_only = false
+
+[[surfaces]]
+id = "architecture_canon"
+path = "docs/research_x_canon.md"
+locator_kind = "file"
+classification = "canon"
+required = true
+current_architecture_authority = true
+current_state_authority = false
+notes = "The sole durable architecture and policy canon."
+
+[[surfaces]]
+id = "project_state"
+path = "control/project_state.json"
+locator_kind = "file"
+classification = "current_state"
+required = true
+current_architecture_authority = false
+current_state_authority = true
+notes = "The machine-readable current implementation and acceptance state."
+
+[[surfaces]]
+id = "authority_map"
+path = "control/authority_map.toml"
+locator_kind = "file"
+classification = "control"
+required = true
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "permission_profile"
+path = ".codex-project/control-profile.json"
+locator_kind = "file"
+classification = "control"
+required = true
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "agent_working_rules"
+path = "AGENTS.md"
+locator_kind = "file"
+classification = "control"
+required = true
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "adoption_registry"
+path = "control/adoption_registry.toml"
+locator_kind = "file"
+classification = "control"
+required = true
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "vendor_source_lock"
+path = "control/vendor_sources.lock.toml"
+locator_kind = "file"
+classification = "control"
+required = true
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "runtime_database"
+path = "runs/x_data.sqlite3"
+locator_kind = "runtime_file"
+classification = "evidence"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+notes = "Ignored runtime state; it must be validated in the environment where it is used."
+
+[[surfaces]]
+id = "runtime_evidence_tables"
+path = "sqlite:runs/x_data.sqlite3#memory_*"
+locator_kind = "runtime_locator"
+classification = "evidence"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+notes = "Table role and citation/source restoration determine evidentiary eligibility."
+
+[[surfaces]]
+id = "dated_root_plans"
+path = "research_x-archive@historical-commits:*_PLAN_*.md"
+locator_kind = "archive_locator"
+classification = "history"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+notes = "Dated plans and handoffs preserve chronology only."
+
+[[surfaces]]
+id = "reports_archive"
+path = "research_x-archive@historical-commits:reports/**"
+locator_kind = "archive_locator"
+classification = "history"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+notes = "Reports may document runs, but do not define current state."
+
+[[surfaces]]
+id = "legacy_wbs"
+path = "research_x-archive@historical-commits:tools/wbs_viewer/projects/research-x-work-state.json"
+locator_kind = "archive_locator"
+classification = "history"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+notes = "Legacy navigation snapshot; superseded as a current-state source."
+
+[[surfaces]]
+id = "generated_codex_control"
+path = ".codex-project/generated/**"
+locator_kind = "glob"
+classification = "generated"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "generated_review_artifacts"
+path = "docs/control/codex/**"
+locator_kind = "glob"
+classification = "generated"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "generated_presentation_assets"
+path = "docs/presentation/assets/**"
+locator_kind = "glob"
+classification = "generated"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+
+[[surfaces]]
+id = "generated_presentation_distribution"
+path = "docs/presentation/dist/**"
+locator_kind = "glob"
+classification = "generated"
+required = false
+current_architecture_authority = false
+current_state_authority = false
+
+[[conflicts]]
+id = "pre_api_reports_vs_documented_provider_runs"
+status = "resolved_by_current_state"
+older_claim = "Pre-API reports state that no real provider call had occurred."
+newer_record = "Limit-10 and limit-100 provider run reports document completed calls."
+resolution = "Treat pre-API reports as history and use control/project_state.json for current state."
+
+[[conflicts]]
+id = "legacy_wbs_vs_documented_provider_runs"
+status = "resolved_by_current_state"
+older_claim = "The legacy WBS pauses before the first real provider canary."
+newer_record = "Later reports document completed limit-10 and limit-100 runs."
+resolution = "The legacy WBS is archive-only and cannot override current state."
+
+[[conflicts]]
+id = "provider_run_preceded_abcd_completion"
+status = "mitigated_by_quarantine_not_erased"
+older_event = "The limit-100 provider run occurred before the A-D input redesign completed."
+newer_control = "Lineage-less pre-A-D rows were quarantined and marked legacy_without_projection_lineage."
+resolution = "Do not use quarantined rows for promotion evidence; provider quality remains unfinished."
+
+[[conflicts]]
+id = "generated_latest_status_vs_later_runtime_history"
+status = "resolved_by_current_state"
+older_claim = "Generated review artifacts describe a pre-provider boundary."
+newer_record = "Later run reports document provider execution and a semantic promotion hold."
+resolution = "Generated artifacts are derived navigation aids, never current-state authority."
+
+[[unknowns]]
+id = "provider_runs_after_limit_100"
+status = "unknown"
+blocking_scope = "provider_usage_and_latest_runtime_state"
+question = "Were any real provider requests executed after the documented limit-100 run?"
+
+[[unknowns]]
+id = "live_runtime_database_revalidation"
+status = "unknown"
+blocking_scope = "runtime_evidence_acceptance"
+question = "Does the live ignored database still match the documented quarantine and lineage state?"
+
+[[unknowns]]
+id = "real_provider_model_quality"
+status = "unknown"
+blocking_scope = "semantic_promotion"
+question = "Do labeled real-provider quality evaluations meet an approved promotion threshold?"
+
+[[unknowns]]
+id = "quarantined_rows_rebuilt"
+status = "unknown"
+blocking_scope = "legacy_row_reuse"
+question = "Were quarantined lineage-less rows subsequently rebuilt under the A-D contract?"

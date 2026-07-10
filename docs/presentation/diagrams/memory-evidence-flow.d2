@@ -1,0 +1,112 @@
+direction: down
+
+vars: {
+  source: "#e7f0f8"
+  candidate: "#fff4cf"
+  evidence: "#e7f5ed"
+  stop: "#fbe4e4"
+  ink: "#22313f"
+}
+
+classes: {
+  box: {
+    style.border-radius: 5
+    style.stroke: "#4f6578"
+    style.font-color: ${ink}
+  }
+  source: {
+    style.fill: ${source}
+  }
+  candidate: {
+    style.fill: ${candidate}
+  }
+  evidence: {
+    style.fill: ${evidence}
+  }
+  stop: {
+    style.fill: ${stop}
+    style.stroke: "#b42318"
+  }
+}
+
+row1: {
+  grid-columns: 3
+  raw: "原本\nXの投稿・ブックマーク・メディア\nまだ検索用ではない" {
+    class: box
+    class: source
+  }
+  doc: "検索対象\n必要な項目をそろえた文書\n作り直せる投影" {
+    class: box
+    class: candidate
+  }
+  result: "検索結果\n質問に近い候補\nまだ根拠ではない" {
+    class: box
+    class: candidate
+  }
+}
+
+row2: {
+  grid-columns: 3
+  bundle: "Evidence View\n元の投稿まで戻れる根拠束" {
+    class: box
+    class: evidence
+  }
+  chunk: "Context slice\n回答に渡せる短い文脈" {
+    class: box
+    class: evidence
+  }
+  citation: "Citation\nどこを根拠にしたか示せる状態" {
+    class: box
+    class: evidence
+  }
+}
+
+row3: {
+  grid-columns: 3
+  support: "Claim Support\n主張ごとに支えを確認" {
+    class: box
+    class: evidence
+  }
+  authority: "Answer validation\n回答modeだけDB-backedで判定" {
+    class: box
+    class: evidence
+  }
+  boundary: "Answer output status\nanswer / abstain / needs_review\nsource_not_restored / citation_missing / hypothesis_only / provider_gated" {
+    class: box
+    class: evidence
+  }
+}
+
+row4: {
+  grid-columns: 1
+  needs_review: "止まる\n引用不足・復元失敗・承認待ち" {
+    class: box
+    class: stop
+  }
+}
+
+row1 -> row2: "候補から根拠へ"
+row2 -> row3: "answer modeだけ主張支えを確認"
+row3 -> row4: "足りない時"
+
+row1.raw -> row1.doc
+row1.doc -> row1.result
+row1.result -> row2.bundle: "復元できたら"
+row2.bundle -> row2.chunk
+row2.chunk -> row2.citation
+row2.citation -> row3.support
+row3.support -> row3.authority
+row3.authority -> row3.boundary
+
+row1.result -> row4.needs_review: "根拠に戻れない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+row2.chunk -> row4.needs_review: "引用に足りない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+row3.support -> row4.needs_review: "主張を支えない" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}

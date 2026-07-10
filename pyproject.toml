@@ -1,0 +1,71 @@
+[project]
+name = "research-x"
+version = "0.1.0"
+description = "Experimental harness for comparing X acquisition adapters under one contract."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "camoufox>=0.4.11",
+    "numpy>=2.0.0",
+    "pillow>=11.0.0",
+    "gallery-dl>=1.32.5",
+    "lxml>=6.1.0",
+    "patchright>=1.61.1",
+    "playwright>=1.61.0",
+    "rebrowser-playwright>=1.52.0",
+    "scrapling>=0.4.10",
+    "scrapy>=2.16.0",
+    "Scweet>=4.0.0",
+    "twikit>=2.3.3",
+    "twscrape>=0.19.1",
+]
+
+[project.optional-dependencies]
+local-vector = [
+    "turbovec>=0.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10.0",
+    "pytest-cov>=5.0.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
+]
+
+[project.scripts]
+research-x = "research_x.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "fast: developer fast-loop checks intended to stay small and provider-free",
+    "unit: local unit tests with no provider, browser, network, or repository-setting side effects",
+    "contract: local schema, prompt, tool, workflow, CI, or artifact contract checks",
+    "integration: local integration tests such as DB, CLI, registry, and tool-interface wiring",
+    "e2e: local fake/fixture end-to-end workflow checks only",
+    "local_fixture: local fake/fixture checks that validate wiring and boundaries, not real model quality",
+    "retrieval_eval: retrieval quality fixture checks for answerability, conflict, citation support, stop-condition, dedup, and stale judgments",
+    "provider_gate: tests that verify provider/quota boundaries without real provider calls",
+    "static_guard: static scans that guard provider, network, dependency, or boundary bypasses",
+    "review_package: review ZIP, manifest, command-log, provenance, and non-evidence artifact checks",
+    "packaging: build, wheel, sdist, or artifact packaging checks",
+    "slow: tests intentionally excluded from fast local lanes unless selected",
+    "nightly: scheduled or long-regression checks; must stay provider-free unless separately gated",
+    "manual_provider_gated: disabled-by-default real provider/model quality lane requiring explicit approval and budget guard",
+    "control_artifact: Codex control artifact checks; not product evidence, citation, or answer support",
+    "browser: browser-adapter tests that must stay local/fake unless an explicit gate is lifted",
+    "canon(item): maps a test to a specific research_x canon item",
+]

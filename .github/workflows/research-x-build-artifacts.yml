@@ -1,0 +1,221 @@
+name: Research X Build Artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-x-build-artifacts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_ARTIFACT_DIR: .release-artifacts
+  RELEASE_WORK_DIR: .release-work
+
+jobs:
+  build:
+    name: Research X Build Artifacts / package and release-control bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.3.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --group dev
+
+      - name: Build package artifacts
+        run: uv build
+
+      - name: Verify build outputs
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          dist = Path("dist")
+          wheels = list(dist.glob("research_x-*.whl"))
+          sdists = list(dist.glob("research_x-*.tar.gz"))
+          if not wheels or not sdists:
+              raise SystemExit("expected both wheel and source distribution")
+          PY
+
+      - name: Prepare release-control artifact directories
+        shell: bash
+        run: |
+          mkdir -p \
+            "$RELEASE_ARTIFACT_DIR/adoption" \
+            "$RELEASE_ARTIFACT_DIR/audits" \
+            "$RELEASE_ARTIFACT_DIR/cli-help" \
+            "$RELEASE_ARTIFACT_DIR/manifests" \
+            "$RELEASE_ARTIFACT_DIR/schema" \
+            "$RELEASE_ARTIFACT_DIR/test-summary" \
+            "$RELEASE_WORK_DIR"
+
+      - name: Capture CLI help artifacts
+        shell: bash
+        run: |
+          uv run python -m research_x --help > "$RELEASE_ARTIFACT_DIR/cli-help/research-x.txt"
+          uv run python -m research_x memory --help > "$RELEASE_ARTIFACT_DIR/cli-help/research-x-memory.txt"
+          uv run python -m research_x memory api-budget --help > "$RELEASE_ARTIFACT_DIR/cli-help/research-x-memory-api-budget.txt"
+          uv run python -m research_x adoption --help > "$RELEASE_ARTIFACT_DIR/cli-help/research-x-adoption.txt"
+          uv run python -m research_x presentation --help > "$RELEASE_ARTIFACT_DIR/cli-help/research-x-presentation.txt"
+
+      - name: Capture adoption summary
+        shell: bash
+        run: >
+          uv run python -m research_x adoption audit --json
+          > "$RELEASE_ARTIFACT_DIR/adoption/adoption-audit.json"
+
+      - name: Capture local memory audit report
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          import os
+          import sqlite3
+          from pathlib import Path
+
+          from research_x.memory.schema import ensure_memory_schema
+
+          db_path = Path(os.environ["RELEASE_WORK_DIR"]) / "release-local-audit.sqlite3"
+          db_path.parent.mkdir(parents=True, exist_ok=True)
+          with sqlite3.connect(db_path) as conn:
+              ensure_memory_schema(conn)
+          PY
+          uv run python -m research_x memory audit \
+            --db "$RELEASE_WORK_DIR/release-local-audit.sqlite3" \
+            --json \
+            > "$RELEASE_ARTIFACT_DIR/audits/memory-audit-local-empty-db.json"
+
+      - name: Run release artifact test summary checks
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run pytest \
+            tests/test_github_pipeline_contract.py \
+            tests/test_adoption_registry.py \
+            tests/prompt_contracts/test_contract_schema.py \
+            --junitxml "$RELEASE_ARTIFACT_DIR/test-summary/release-local-tests.xml" \
+            | tee "$RELEASE_ARTIFACT_DIR/test-summary/release-local-tests.txt"
+
+      - name: Write schema and release manifests
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact_dir = Path(os.environ["RELEASE_ARTIFACT_DIR"])
+          ref_name = os.environ.get("GITHUB_REF_NAME", "")
+          run_id = os.environ.get("GITHUB_RUN_ID", "")
+          prompt_contracts = sorted(
+              path.as_posix() for path in Path("prompt_contracts").glob("*.yaml")
+          )
+          schema_manifest = {
+              "schema_version": 1,
+              "artifact_kind": "research_x_release_schema_manifest",
+              "not_evidence": True,
+              "answer_support_allowed": False,
+              "schema_surfaces": [
+                  "pyproject.toml",
+                  "src/research_x/memory/schema.py",
+                  "src/research_x/tool_interface/memory_tool_contract.py",
+              ] + prompt_contracts,
+          }
+          release_manifest = {
+              "schema_version": 1,
+              "artifact_kind": "research_x_release_control_artifact_bundle",
+              "not_evidence": True,
+              "answer_support_allowed": False,
+              "release_ref": ref_name,
+              "github_run_id": run_id,
+              "contains_package_dist": False,
+              "contains_secrets": False,
+              "contains_runs_directory": False,
+              "contains_raw_provider_data": False,
+              "excluded_paths": [".secrets/", "runs/", ".release-work/"],
+              "included_artifact_groups": [
+                  "adoption",
+                  "audits",
+                  "cli-help",
+                  "schema",
+                  "test-summary",
+              ],
+          }
+          (artifact_dir / "schema" / "schema-surfaces.json").write_text(
+              json.dumps(schema_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          (artifact_dir / "manifests" / "release-control-artifact-manifest.json").write_text(
+              json.dumps(release_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Verify release-control artifact boundary
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          artifact_dir = Path(".release-artifacts")
+          if not artifact_dir.exists():
+              raise SystemExit("release artifact directory missing")
+          forbidden_parts = {".secrets", "runs", ".release-work"}
+          forbidden_suffixes = {".sqlite", ".sqlite3", ".db"}
+          for path in artifact_dir.rglob("*"):
+              relative = path.relative_to(artifact_dir)
+              parts = set(relative.parts)
+              if parts & forbidden_parts:
+                  raise SystemExit(f"forbidden path in release artifact: {relative}")
+              if path.suffix in forbidden_suffixes:
+                  raise SystemExit(f"database file must not be uploaded: {relative}")
+          required = [
+              "adoption/adoption-audit.json",
+              "audits/memory-audit-local-empty-db.json",
+              "cli-help/research-x.txt",
+              "cli-help/research-x-memory.txt",
+              "cli-help/research-x-memory-api-budget.txt",
+              "manifests/release-control-artifact-manifest.json",
+              "schema/schema-surfaces.json",
+              "test-summary/release-local-tests.xml",
+              "test-summary/release-local-tests.txt",
+          ]
+          for item in required:
+              if not (artifact_dir / item).is_file():
+                  raise SystemExit(f"required release-control artifact missing: {item}")
+          PY
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-x-dist-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload release-control artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-x-release-control-${{ github.ref_name }}
+          path: .release-artifacts/
+          if-no-files-found: error
+          retention-days: 30

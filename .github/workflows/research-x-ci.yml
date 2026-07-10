@@ -1,0 +1,250 @@
+name: Research X Product CI
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_optional_dependency_checks:
+        description: "Run local optional-dependency checks such as vector, OCR, browser, and presentation lanes."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-x-product-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RESEARCH_X_CI_PROVIDER_MODE: local-only
+
+jobs:
+  local-core:
+    name: Research X Product CI / local-core lint, tests, type, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked local dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run ruff
+        run: uv run ruff check src/research_x tests
+
+      - name: Run pytest with report-only coverage
+        run: uv run pytest --cov=research_x --cov-report=term-missing --cov-report=xml
+
+      - name: Run boundary type checks
+        run: >
+          uv run python -m mypy
+          src/research_x/contracts.py
+          src/research_x/pipeline_contracts.py
+          src/research_x/session_broker.py
+          src/research_x/tool_interface/codex_bridge.py
+          --ignore-missing-imports
+          --follow-imports=silent
+
+      - name: Build package artifacts
+        run: uv build
+
+      - name: Verify build outputs
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          dist = Path("dist")
+          wheels = list(dist.glob("research_x-*.whl"))
+          sdists = list(dist.glob("research_x-*.tar.gz"))
+          if not wheels or not sdists:
+              raise SystemExit("expected both wheel and source distribution")
+          PY
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-x-local-core-coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload local build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-x-local-core-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  local-fixture-tool-prompt-adoption:
+    name: Research X Product CI / local fixture, tool, prompt, adoption
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked local dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run local workflow contract checks
+        run: >
+          uv run pytest
+          tests/cli/test_memory_tool_json_db_restoration.py
+          tests/tool_interface/test_db_backed_tool_restoration.py
+          tests/tool_interface/test_memory_tool_contract_strictness.py
+          tests/tool_interface/test_preview_cannot_be_citation.py
+          tests/memory/test_retrieval_quality_eval.py
+
+      - name: Run prompt contract checks
+        run: >
+          uv run pytest
+          tests/test_prompt_contracts.py
+          tests/prompt_contracts
+
+      - name: Run local provider and network boundary checks
+        run: >
+          uv run pytest
+          tests/provider_gate/test_fixture_provider_allowlist.py
+          tests/provider_gate/test_provider_execution_policy_blocks_provider_paths.py
+          tests/provider_gate/test_provider_request_builders.py
+          tests/provider_gate/test_provider_transport_guard.py
+          tests/research_intake/test_no_network_by_default.py
+
+      - name: Audit adoption boundary
+        run: uv run python -m research_x adoption audit
+
+  optional-local-vector:
+    name: Research X Product CI / optional local-vector
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_optional_dependency_checks }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked optional vector dependencies
+        run: uv sync --locked --group dev --extra local-vector
+
+      - name: Run local vector checks
+        run: uv run pytest tests/vector
+
+  optional-local-media-ocr:
+    name: Research X Product CI / optional local OCR and media
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_optional_dependency_checks }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked local dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run local OCR and media checks
+        run: >
+          uv run pytest
+          tests/media/test_media_signal_not_citation.py
+          tests/media/test_ocr_caption_vlm_separation.py
+          tests/media/test_ocr_local_provider.py
+
+  optional-browser-presentation:
+    name: Research X Product CI / optional browser and presentation
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_optional_dependency_checks }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install locked local dependencies
+        run: uv sync --locked --group dev
+
+      - name: Run local browser-adapter checks
+        run: >
+          uv run pytest
+          tests/test_playwright_adapter.py
+          tests/test_playwright_auth.py
+          tests/test_bookmark_adapters.py
+          tests/test_adapter_completion.py
+
+      - name: Run presentation validation checks
+        run: >
+          uv run pytest
+          tests/test_presentation_facts.py
+          tests/test_presentation_slides.py
+          tests/test_presentation_stage1.py
+
+      - name: Validate presentation facts
+        run: uv run python -m research_x presentation validate-facts --json
+
+      - name: Validate presentation slides
+        run: uv run python -m research_x presentation validate-slides --json

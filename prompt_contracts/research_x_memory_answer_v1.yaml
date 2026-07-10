@@ -1,0 +1,26 @@
+contract_id: research_x_memory_answer_v1
+version: 1
+scope: research_x
+mode: memory_answer
+output_mode: answer
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - memory.answer
+  - memory.claim_support
+  - memory.citations
+  - memory.source_restore
+forbidden_tools:
+  - memory.answer_from_candidate_only
+  - memory.answer_from_working_note_only
+  - memory.answer_from_derived_signal_only
+  - memory.provider.runtime_call
+required_guards:
+  - evidence_package_required
+  - citation_ready_required
+  - claim_support_required
+  - db_backed_validation_required
+negative_cases:
+  - name: candidate_only_answer_blocked
+    prompt: "Answer from this search candidate only."
+    expected_status: citation_missing

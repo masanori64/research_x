@@ -1,0 +1,343 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "research_x",
+    "one_liner": "既存のXコレクションDBを、AIエージェントがローカル検索できる user-controlled KnowledgeOps search foundation にするプロジェクト。",
+    "purpose": "X取得データを、出典・アカウント別ブックマーク所有・引用/メディア文脈を失わずに検索、復元、引用、回答へ接続する。",
+    "audience": "下請けSI事業者の開発者・技術リーダー",
+    "scope": "SI事業者向け開発者資料用のrepository-backed facts。current-state、生成物、diagram、PPTX、AI相談結果は回答証拠から除外する。",
+    "evidence": ["docs/research_x_canon.md", "AGENTS.md", "docs/research_x_canon.md"]
+  },
+  "runtime_surfaces": {
+    "python": {
+      "requires": ">=3.11",
+      "package_manager": "uv",
+      "evidence": ["pyproject.toml", "AGENTS.md"]
+    },
+    "node": {
+      "purpose": "D2/Marp によるrepo-owned presentation build lane。",
+      "package_surface": "package.json",
+      "scripts": [
+        "presentation:preflight",
+        "presentation:render-d2",
+        "presentation:build"
+      ],
+      "dependencies": ["@marp-team/marp-cli", "@terrastruct/d2"],
+      "evidence": [
+        "package.json",
+        "package-lock.json",
+        "scripts/presentation/preflight.mjs",
+        "scripts/presentation/render-d2.mjs",
+        "scripts/presentation/build.mjs",
+        "docs/presentation/presentation.config.yaml"
+      ]
+    }
+  },
+  "tech_stack": [
+    {
+      "name": "Python / uv",
+      "role": "primary CLI, acquisition, local app, memory workflow, eval, audit implementation.",
+      "evidence": ["pyproject.toml", "src/research_x/cli.py"]
+    },
+    {
+      "name": "SQLite",
+      "role": "raw X store, memory projections, workflow traces, citations, evals, governance, provider budget records.",
+      "evidence": ["src/research_x/x_store.py", "src/research_x/memory/schema.py"]
+    },
+    {
+      "name": "D2 / Marp",
+      "role": "presentation diagram and deck build lane only; not architecture source of truth.",
+      "evidence": ["package.json", "docs/presentation/presentation.config.yaml"]
+    }
+  ],
+  "entrypoints": [
+    {
+      "name": "research-x",
+      "command": "uv run python -m research_x",
+      "target": "research_x.cli:main",
+      "evidence": ["pyproject.toml", "src/research_x/__main__.py", "src/research_x/cli.py"]
+    },
+    {
+      "name": "memory workflow",
+      "command": "uv run python -m research_x memory ...",
+      "target": "research_x.memory.workflow:run_memory_workflow",
+      "evidence": ["src/research_x/cli.py", "src/research_x/memory/workflow.py"]
+    },
+    {
+      "name": "presentation build",
+      "command": "npm run presentation:build",
+      "target": "scripts/presentation/build.mjs",
+      "evidence": ["package.json", "scripts/presentation/build.mjs"]
+    }
+  ],
+  "modules": [
+    {
+      "name": "acquisition adapters",
+      "purpose": "profile/search/url/bookmarks の複数provider chainを構成する取得層。",
+      "evidence": ["docs/research_x_canon.md", "src/research_x/pipeline.py", "src/research_x/adapters/catalog.py"]
+    },
+    {
+      "name": "shared X store",
+      "purpose": "tweets, account_bookmarks, collection_items, tweet_edges, media を共有SQLiteへ正規化する。",
+      "evidence": ["docs/research_x_canon.md", "src/research_x/x_store.py"]
+    },
+    {
+      "name": "memory workflow",
+      "purpose": "searchable document, source restoration, context chunk, citation, answer, workflow trace を分離して扱う。",
+      "evidence": [
+        "docs/research_x_canon.md",
+        "src/research_x/memory/schema.py",
+        "src/research_x/memory/workflow.py"
+      ]
+    },
+    {
+      "name": "presentation",
+      "purpose": "facts-first deck generation boundary. slide claims are validated against repository evidence.",
+      "evidence": [
+        "src/research_x/presentation/facts.py",
+        "src/research_x/presentation/slides.py",
+        "docs/presentation/project-facts.schema.json"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "name": "Evidence invariant",
+      "rule": "raw source, searchable document, search result, source restoration, context chunk, citation, answer must remain separate.",
+      "evidence": ["docs/research_x_canon.md", "AGENTS.md", "docs/research_x_canon.md"]
+    },
+    {
+      "name": "Effective provider control",
+      "rule": "real provider/API execution is resolved from the runtime permission control, scoped ProviderExecutionPolicy, and API Budget Guard; no stale report can impose a blanket freeze.",
+      "evidence": ["AGENTS.md", "docs/research_x_canon.md", "docs/research_x_canon.md"]
+    },
+    {
+      "name": "SI work boundary",
+      "rule": "local/fake provider and deterministic tests are safe; real API, secrets, MCP/plugin/hook, model downloads, destructive DB rewrites are approval gates.",
+      "evidence": ["AGENTS.md", "docs/research_x_canon.md", "AGENTS.md"]
+    }
+  ],
+  "data_stores": [
+    {
+      "name": "X collection SQLite database",
+      "exists": true,
+      "purpose": "raw tweets/bookmarks/accounts/media/edges/collection state.",
+      "evidence": ["src/research_x/x_store.py", "docs/research_x_canon.md"]
+    },
+    {
+      "name": "Memory schema tables",
+      "exists": true,
+      "purpose": "memory documents, FTS, workflow, context, citation, answer, eval, API budget, governance state.",
+      "evidence": ["src/research_x/memory/schema.py"]
+    }
+  ],
+  "external_dependencies": [
+    {
+      "name": "X acquisition providers",
+      "status": "local implementation surface with auth/session constraints",
+      "gate": "Private bookmark acquisition depends on logged-in user session and safe secret handling.",
+      "evidence": ["docs/research_x_canon.md", "src/research_x/pipeline.py"]
+    },
+    {
+      "name": "Provider-backed memory and answer lanes",
+      "status": "gated",
+      "gate": "Runtime permission control, scoped ProviderExecutionPolicy, and API Budget Guard.",
+      "evidence": ["AGENTS.md", "docs/research_x_canon.md", "docs/research_x_canon.md"]
+    },
+    {
+      "name": "D2 and Marp Node dependencies",
+      "status": "local presentation dependency boundary",
+      "gate": "Presentation build surface only; no plugins, hooks, MCP, or provider calls.",
+      "evidence": ["package.json", "package-lock.json", "scripts/presentation/preflight.mjs"]
+    }
+  ],
+  "key_flows": [
+    {
+      "name": "Acquisition pipeline",
+      "steps": [
+        "Resolve target-specific provider chain.",
+        "Run adapters with isolated failure handling.",
+        "Write evidence JSON per attempt.",
+        "Merge/dedupe items and normalize into shared store."
+      ],
+      "source_files": ["src/research_x/pipeline.py", "docs/research_x_canon.md"],
+      "evidence": ["src/research_x/pipeline.py", "docs/research_x_canon.md"]
+    },
+    {
+      "name": "Memory workflow",
+      "steps": [
+        "Plan route from query.",
+        "Build context bundle from local search and restored source restorations.",
+        "Optionally add gated LLM context.",
+        "Optionally generate answer with citation checks.",
+        "Persist workflow run/steps/status/stop_reason."
+      ],
+      "source_files": ["src/research_x/memory/workflow.py", "src/research_x/memory/schema.py"],
+      "evidence": ["src/research_x/memory/workflow.py", "docs/research_x_canon.md"]
+    },
+    {
+      "name": "Presentation generation",
+      "steps": [
+        "Validate project-facts.json.",
+        "Validate slides claim markers and local assets.",
+        "Render D2 diagrams.",
+        "Build Marp PPTX."
+      ],
+      "source_files": [
+        "src/research_x/presentation/facts.py",
+        "src/research_x/presentation/slides.py",
+        "scripts/presentation/build.mjs"
+      ],
+      "evidence": [
+        "src/research_x/presentation/facts.py",
+        "src/research_x/presentation/slides.py",
+        "scripts/presentation/build.mjs"
+      ]
+    }
+  ],
+  "database": {
+    "exists": true,
+    "evidence": ["src/research_x/memory/schema.py", "src/research_x/x_store.py"],
+    "tables": [
+      {
+        "name": "memory_documents / memory_document_fts",
+        "purpose": "rebuildable searchable projections and FTS index.",
+        "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/corpus.py"]
+      },
+      {
+        "name": "memory_context_chunks / memory_citation_annotations",
+        "purpose": "bounded answer inputs and source-backed citation annotations.",
+        "evidence": ["src/research_x/memory/schema.py", "docs/research_x_canon.md"]
+      },
+      {
+        "name": "memory_workflow_runs / memory_workflow_steps",
+        "purpose": "route, status, stop_reason, step input/output trace.",
+        "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/workflow.py"]
+      },
+      {
+        "name": "memory_api_budget_policies / memory_api_usage_events",
+        "purpose": "provider-facing budget guard and usage ledger.",
+        "evidence": ["src/research_x/memory/schema.py", "src/research_x/memory/api_budget.py"]
+      }
+    ]
+  },
+  "claims": [
+    {
+      "id": "claim-project-purpose",
+      "claim": "research_x は既存XコレクションDBを、AIエージェントがローカル検索できる user-controlled KnowledgeOps search foundation にするプロジェクトである。",
+      "evidence": ["docs/research_x_canon.md", "AGENTS.md", "docs/research_x_canon.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-sier-context",
+      "claim": "SI事業者向けには、取得・保存・検索・引用・回答の責務境界と、承認ゲートを明確に説明する必要がある。",
+      "evidence": ["AGENTS.md", "docs/research_x_canon.md", "AGENTS.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-acquisition-chain",
+      "claim": "取得系は profile/search/url/bookmarks ごとに複数adapterのprovider chainを持ち、provider失敗を分類しながら試行証跡を残す。",
+      "evidence": ["docs/research_x_canon.md", "src/research_x/pipeline.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-runtime-architecture",
+      "claim": "research_x は利用者、AIエージェント、既存X SQLite、外部Provider/API gate、資料生成レーンと分離して説明できる。",
+      "evidence": [
+        "AGENTS.md",
+        "src/research_x/cli.py",
+        "src/research_x/pipeline.py",
+        "src/research_x/memory/workflow.py"
+      ],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-c4-container-boundary",
+      "claim": "research_x の主要実装コンテナは CLI、取得Adapter群、共有X Store、Memory DB、Memory Workflow、API Budget Guard、Presentation Lane に分けられる。",
+      "evidence": [
+        "AGENTS.md",
+        "src/research_x/cli.py",
+        "src/research_x/pipeline.py",
+        "src/research_x/x_store.py",
+        "src/research_x/memory/schema.py",
+        "src/research_x/memory/workflow.py",
+        "package.json"
+      ],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-bookmark-store",
+      "claim": "Bookmark取得はログインユーザー固有のprivate sessionに依存し、tweets/account_bookmarks/collection_items/tweet_edges/mediaへ正規化される。",
+      "evidence": ["docs/research_x_canon.md", "src/research_x/x_store.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-evidence-invariant",
+      "claim": "raw source、searchable document、search result、source restoration、context chunk、citation、answer は別物として扱う。",
+      "evidence": ["docs/research_x_canon.md", "AGENTS.md", "docs/research_x_canon.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-memory-schema",
+      "claim": "memory layer は searchable documents、FTS、workflow、context、citation、answer、eval、budget、governance をSQLiteで分離保持する。",
+      "evidence": ["src/research_x/memory/schema.py"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-workflow-execution",
+      "claim": "memory workflow は route planning、context bundle、optional LLM context、optional answer を段階実行し、status と stop_reason を保存する。",
+      "evidence": ["src/research_x/memory/workflow.py", "docs/research_x_canon.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-provider-gate",
+      "claim": "real provider/API calls はruntime permission control、scoped ProviderExecutionPolicy、API Budget Guardの実効状態で判定され、過去レポートは現在の一律停止を発生させない。",
+      "evidence": ["AGENTS.md", "docs/research_x_canon.md", "docs/research_x_canon.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-dev-entrypoints",
+      "claim": "開発者確認の入口は research-x CLI、memoryサブコマンド、test-diagnose、presentation validate/build に集約される。",
+      "evidence": ["AGENTS.md", "src/research_x/cli.py", "package.json"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-sier-boundary",
+      "claim": "SI事業者の作業では local/fake provider と deterministic tests は可、real API、secrets、MCP/plugin/hook、model download、破壊的DB変更は承認ゲートである。",
+      "evidence": ["AGENTS.md", "docs/research_x_canon.md", "AGENTS.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-control-artifacts",
+      "claim": "current-state、control view、diagram、PPTX、AI相談結果はcontrol/review artifactであり、それ自体はanswer evidenceではない。",
+      "evidence": ["docs/research_x_canon.md", "AGENTS.md", "docs/research_x_canon.md"],
+      "slide_candidate": true
+    },
+    {
+      "id": "claim-current-open-items",
+      "claim": "現時点では provider品質検証、実API使用、editable PPTX、最終運用スコープは未確定で、承認ゲート後に扱う。",
+      "evidence": ["docs/research_x_canon.md", "docs/research_x_canon.md", "docs/presentation/project-facts.schema.json"],
+      "slide_candidate": true
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "unknown-real-provider-quality",
+      "question": "実providerを使った検索品質、OCR、rerank、answer品質の評価結果。",
+      "reason": "limit-10/100実行は記録済みだが、実provider品質を確定する評価とpromotion evidenceは未完了。",
+      "promoted_to_claim": false
+    },
+    {
+      "id": "unknown-sier-delivery-scope",
+      "question": "SI事業者に委託する最終スコープ、納品物、SLA、運用責任分界。",
+      "reason": "今回の資料はプロジェクト概要と開発境界説明であり、契約スコープは別途決定が必要。",
+      "promoted_to_claim": false
+    },
+    {
+      "id": "unknown-editable-pptx",
+      "question": "PowerPoint上で完全編集可能なオブジェクトベースPPTXが必要か。",
+      "reason": "現行のrepo-owned laneはD2/Marp固定レイアウトPPTXを対象にしている。",
+      "promoted_to_claim": false
+    }
+  ]
+}

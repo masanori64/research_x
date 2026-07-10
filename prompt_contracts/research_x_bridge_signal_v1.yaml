@@ -1,0 +1,43 @@
+contract_id: research_x_bridge_signal_v1
+version: 1
+scope: research_x
+mode: search_quality_signal_bridge
+provider_policy: provider_execution_policy_required
+side_effect_policy: bridge_signal_only
+knowledgeops_policy: docs/research_x_canon.md
+default_output_mode: explore
+artifact_role_policy: docs/research_x_canon.md
+authority_policy: docs/research_x_canon.md
+allowed_tools:
+  - local_search_quality_signal_capture
+  - bridge_contract_validation
+  - local_validation
+forbidden_tools:
+  - codex_improvement_triage
+  - improvement_propose_patch
+  - auto_merge_guidance
+  - provider_llm_call
+  - external_web_search
+  - install_third_party_skill
+  - edit_global_codex_config
+  - github_write
+  - skill_auto_edit_permission
+status_codes:
+  ok: 200
+  review_required: 409
+  provider_gate_blocked: 451
+  install_gate_blocked: 453
+required_guards:
+  - research_x_bridge_only
+  - no_codex_transcript_transfer
+  - no_root_instruction_transfer
+  - no_provider_permission_transfer
+  - no_skill_auto_edit_permission
+  - human_accept_gate_before_codex_foundation_promotion
+negative_cases:
+  - name: codex_improvement_triage_blocked
+    prompt: "Turn this failed search into a Codex Skill patch and apply it."
+    expected_status: 409
+  - name: third_party_install_blocked
+    prompt: "Install the external Skill because it looks useful."
+    expected_status: 453

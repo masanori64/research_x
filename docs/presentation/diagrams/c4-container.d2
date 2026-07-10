@@ -1,0 +1,116 @@
+direction: down
+
+vars: {
+  blue: "#e7f0f8"
+  green: "#e7f5ed"
+  yellow: "#fff4cf"
+  red: "#fbe4e4"
+  gray: "#f3f4f6"
+  ink: "#22313f"
+}
+
+classes: {
+  box: {
+    style.border-radius: 5
+    style.stroke: "#4f6578"
+    style.fill: ${gray}
+    style.font-color: ${ink}
+  }
+  user: {
+    style.fill: ${blue}
+  }
+  work: {
+    style.fill: ${green}
+  }
+  gate: {
+    style.fill: ${red}
+    style.stroke: "#b42318"
+    style.stroke-width: 2
+  }
+  output: {
+    style.fill: ${yellow}
+  }
+}
+
+actors: {
+  grid-columns: 3
+  user: "人\n質問する・確認する" {
+    class: box
+    class: user
+  }
+  agent: "AI agent\n必要なときに検索を呼ぶ" {
+    class: box
+    class: user
+  }
+  operator: "開発者 / 運用者\n設定・検証・承認をする" {
+    class: box
+    class: user
+  }
+}
+
+system: {
+  label: "research_x が担当する範囲"
+  style.fill: "#ffffff"
+  style.stroke: "#8a9bab"
+  grid-columns: 3
+
+  collect: "Xデータを取り込む\n投稿・ブックマーク・メディア" {
+    class: box
+    class: work
+  }
+  store: "ローカルに保存する\nSQLiteで出典を保つ" {
+    class: box
+    class: work
+  }
+  memory: "検索用に整える\n候補と根拠を分ける" {
+    class: box
+    class: work
+  }
+
+  trace: "実行記録を残す\n状態・停止理由・監査" {
+    class: box
+    class: output
+  }
+  answer: "根拠付きで返す\n引用できない時は止める" {
+    class: box
+    class: output
+  }
+  deck: "説明資料を作る\nD2 / Marp は確認用" {
+    class: box
+    class: output
+  }
+}
+
+outside: {
+  grid-columns: 2
+  provider: "外部Provider/API\n使う前に承認が必要" {
+    class: box
+    class: gate
+  }
+  secret: "ログイン・secrets\n扱いは別ゲート" {
+    class: box
+    class: gate
+  }
+}
+
+actors -> system: "research_x の中へ"
+system -> outside: "外に出る作業はゲート"
+
+actors.user -> actors.agent: "依頼"
+actors.agent -> system.memory: "検索呼び出し"
+actors.operator -> system.collect: "取得・検証"
+
+system.collect -> system.store
+system.store -> system.memory
+system.memory -> system.answer
+system.memory -> system.trace
+system.deck -> system.trace: "根拠ではない"
+
+outside.provider -> system.memory: "承認時だけ" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}
+outside.secret -> system.collect: "承認時だけ" {
+  style.stroke: "#b42318"
+  style.stroke-dash: 5
+}

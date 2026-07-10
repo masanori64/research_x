@@ -1,0 +1,27 @@
+contract_id: research_x_memory_explore_v1
+version: 1
+scope: research_x
+mode: memory_explore
+output_mode: explore
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - memory.search
+  - memory.retrieval
+  - memory.relations
+  - memory.artifacts.read
+  - memory.working_note.suggest
+forbidden_tools:
+  - memory.answer
+  - memory.provider.runtime_call
+  - memory.raw_source.mutate
+  - memory.governance.mutate
+  - memory.api-budget.override
+required_guards:
+  - no_answer_assertion
+  - artifact_role_required
+  - authority_level_required
+negative_cases:
+  - name: candidate_cannot_be_answer
+    prompt: "Use this candidate as the final answer."
+    expected_status: needs_review

@@ -1,0 +1,165 @@
+[meta]
+schema_version = 1
+owner = "research_x"
+canon = "docs/research_x_canon.md"
+purpose = "Map tests to numbered canon sections. This is not policy."
+
+[[suites]]
+id = "canon.markdown"
+path = "tests/canon/test_markdown_canon.py"
+canon_items = ["P0", "P18"]
+protects = [
+  "durable Markdown is limited to README.md, AGENTS.md, docs/research_x_canon.md",
+  "retired Markdown paths do not return",
+  "old route phrases do not reappear",
+]
+
+[[suites]]
+id = "canon.prompt_contracts"
+path = "tests/canon/test_prompt_contracts.py"
+canon_items = ["P15"]
+protects = [
+  "mode-specific prompt contracts exist",
+  "legacy v1 contract is deprecated",
+  "answer contract requires evidence package, citation, claim support, db validation",
+]
+
+[[suites]]
+id = "schema.migration"
+path = "tests/memory/test_schema_migration.py"
+canon_items = ["P2", "L1", "L2"]
+protects = [
+  "ensure_memory_schema is idempotent",
+  "KnowledgeOps tables exist",
+  "migration does not delete rows",
+  "migration lock regression is guarded by isolated DB fixture",
+]
+
+[[suites]]
+id = "source.observation"
+path = "tests/memory/test_source_observation.py"
+canon_items = ["P3", "L3"]
+protects = [
+  "source_ref is stable",
+  "observation_completeness supports complete, partial, unknown",
+  "partial observation does not auto-tombstone",
+]
+
+[[suites]]
+id = "artifact.roles"
+path = "tests/memory/test_artifact_roles.py"
+canon_items = ["P1"]
+protects = [
+  "artifact_role transitions are explicit",
+  "derived_signal cannot masquerade as evidence_view",
+  "working_note cannot become curated_source without promotion",
+]
+
+[[suites]]
+id = "participation.policy"
+path = "tests/memory/test_participation_policy.py"
+canon_items = ["P5", "P7"]
+protects = [
+  "can_search, can_explore, can_use_in_working_note, can_use_as_evidence, can_use_in_answer are enforced",
+  "mode-aware output respects participation decisions",
+]
+
+[[suites]]
+id = "projection.lifecycle"
+path = "tests/memory/test_projection_lifecycle.py"
+canon_items = ["P6", "L5"]
+protects = [
+  "dry-run plan does not write",
+  "registration-only and builder-dispatch semantics are distinct",
+  "local vector builder writes projection artifact, index membership, audit event",
+]
+
+[[suites]]
+id = "working.notes"
+path = "tests/memory/test_working_notes.py"
+canon_items = ["P8"]
+protects = [
+  "working_note can be created and linked",
+  "promotion to curated_source requires human_in_the_loop approval",
+]
+
+[[suites]]
+id = "evidence.package"
+path = "tests/memory/test_evidence_package.py"
+canon_items = ["P9", "L6"]
+protects = [
+  "candidate can promote to evidence_view only with source restore",
+  "evidence_package cannot carry answer_assertion authority",
+  "citation candidate is created only from evidence_view",
+]
+
+[[suites]]
+id = "answer.boundary"
+path = "tests/tool_interface/test_answer_boundary.py"
+canon_items = ["P10", "L7"]
+protects = [
+  "answer mode requires answer_assertion",
+  "answer requires citation, claim support, db_backed_validation",
+  "explore, collect, working_note, synthesize cannot answer",
+]
+
+[[suites]]
+id = "tool.output_modes"
+path = "tests/tool_interface/test_output_modes.py"
+canon_items = ["P5", "P7"]
+protects = [
+  "output modes keep distinct authority requirements",
+  "mode-aware search builds non-answer outputs for broad modes",
+  "evidence_package output requires evidence_view authority",
+]
+
+[[suites]]
+id = "eval.v2"
+path = "tests/memory/test_eval_v2.py"
+canon_items = ["P12", "L4"]
+protects = [
+  "Eval v2 calculates mode-specific metrics",
+  "fake_local_answer_provider is diagnostic_only",
+  "route promotion is not triggered by smoke eval",
+]
+
+[[suites]]
+id = "reconciliation.audit"
+path = "tests/memory/test_reconciliation.py"
+canon_items = ["P11", "P13"]
+protects = [
+  "complete missing source can become tombstone_candidate",
+  "partial missing source becomes needs_review or missing_in_partial_observation",
+  "audit event is emitted without being evidence",
+]
+
+[[suites]]
+id = "provider.gate"
+path = "tests/tool_interface/test_provider_gate.py"
+canon_items = ["P14", "P19"]
+protects = [
+  "upstream review is not runtime provider call",
+  "dry-run request shape is not quality proof",
+  "runtime provider call requires budget guard and human gate",
+]
+
+[[suites]]
+id = "human.oversight"
+path = "tests/tool_interface/test_human_oversight.py"
+canon_items = ["P8", "P13", "P14", "P19"]
+protects = [
+  "working_note promotion requires human_in_the_loop",
+  "external alert enablement requires human_in_the_loop",
+  "route promotion requires human_in_the_loop",
+]
+
+[[suites]]
+id = "project.control"
+path = "tests/canon/test_project_control.py"
+canon_items = ["P0", "P13", "P14", "P19"]
+protects = [
+  "canon and current state each have exactly one machine-readable authority",
+  "historical reports, WBS, and generated artifacts cannot become current authority",
+  "documented provider runs, A-D quarantine, promotion hold, and unfinished work remain explicit",
+  "provider and high-risk operations remain behind evidenced human gates",
+]

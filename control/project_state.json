@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "research_x_project_state",
+  "project_id": "research_x",
+  "control_artifact": true,
+  "not_evidence": true,
+  "current_state_authority": true,
+  "state_basis": {
+    "architecture_canon": "docs/research_x_canon.md",
+    "authority_map": "control/authority_map.toml",
+    "historical_run_sources": [
+      "research_x-archive@7714582d:reports/final_plan/phase3_canary_wip_report.md",
+      "research_x-archive@c11717ac:reports/final_plan/phase5_limit100_post_run_report.md",
+      "research_x-archive@5cfd6813:reports/final_plan/embedding_abcd_execution_ledger.md"
+    ],
+    "interpretation": "Historical reports remain in research_x-archive; this artifact alone owns current project state."
+  },
+  "provider_execution": {
+    "status": "documented_limit_10_and_100_completed_no_blanket_provider_ban",
+    "runs": [
+      {
+        "id": "limit_10",
+        "status": "completed",
+        "provider": "gemini",
+        "model": "gemini-embedding-2",
+        "embedding_space": "text.general_memory.v1",
+        "documented_documents": 10,
+        "source": "research_x-archive@7714582d:reports/final_plan/phase3_canary_wip_report.md",
+        "source_commit": "7714582d"
+      },
+      {
+        "id": "limit_100",
+        "status": "completed",
+        "provider": "gemini",
+        "model": "gemini-embedding-2",
+        "embedding_space": "text.general_memory.v1",
+        "documented_documents": 100,
+        "source": "research_x-archive@c11717ac:reports/final_plan/phase5_limit100_post_run_report.md",
+        "source_commit": "c11717ac"
+      }
+    ],
+    "latest_documented_boundary": "no_later_provider_request_provenance_found; effective permission is resolved at runtime",
+    "provider_runs_after_limit_100": "unknown",
+    "quality_conclusion": "not_established"
+  },
+  "embedding_input_abcd": {
+    "status": "completed",
+    "lineage_disposition": "lineage_less_pre_a_d_rows_quarantined_not_deleted",
+    "legacy_status": "legacy_without_projection_lineage",
+    "reported_quarantined_rows": 55151,
+    "readiness": "ready_for_embedding_expansion",
+    "scope_limit": "embedding_input_readiness_not_provider_quality_or_promotion",
+    "source": "research_x-archive@5cfd6813:reports/final_plan/embedding_abcd_execution_ledger.md",
+    "source_commit": "5cfd6813"
+  },
+  "semantic_promotion": {
+    "status": "hold",
+    "reasons": [
+      "semantic_index_not_complete_for_the_evaluation_slice",
+      "no_citation_ready_fused_hit_available_for_promotion"
+    ],
+    "source": "research_x-archive@c11717ac:reports/final_plan/phase5_limit100_post_run_report.md"
+  },
+  "workstreams": [
+    {
+      "id": "provider_quality",
+      "status": "unfinished",
+      "scope": "Real-provider quality evaluation, thresholds, and promotion evidence.",
+      "gate": "provider_runtime"
+    },
+    {
+      "id": "skillmap",
+      "status": "unfinished",
+      "scope": "Corpus2Skill/SkillMap compiler and acceptance evidence.",
+      "gate": "content_or_route_promotion_when_applicable"
+    },
+    {
+      "id": "specialized_embedding_spaces",
+      "status": "unfinished",
+      "scope": "Provider-backed evaluation and promotion of specialized text or media spaces.",
+      "gate": "provider_runtime"
+    },
+    {
+      "id": "ocr_media_provider_lanes",
+      "status": "unfinished",
+      "scope": "Real OCR/media provider lanes with source restoration and citation-ready acceptance.",
+      "gate": "provider_runtime"
+    },
+    {
+      "id": "final_product_acceptance",
+      "status": "unfinished",
+      "scope": "End-to-end product acceptance beyond static/local contract verification.",
+      "gate": "human_review_and_any_triggered_runtime_gates"
+    }
+  ],
+  "reports_and_history": {
+    "authority": "archive_only",
+    "current_state_authority": false,
+    "not_evidence_by_default": true,
+    "rule": "Reports may support event provenance but cannot override this current-state artifact."
+  },
+  "known_conflicts": [
+    "pre_api_reports_vs_documented_provider_runs",
+    "legacy_wbs_vs_documented_provider_runs",
+    "provider_run_preceded_abcd_completion",
+    "generated_latest_status_vs_later_runtime_history"
+  ],
+  "unknowns": [
+    "provider_runs_after_limit_100",
+    "live_runtime_database_revalidation",
+    "real_provider_model_quality",
+    "quarantined_rows_rebuilt"
+  ]
+}

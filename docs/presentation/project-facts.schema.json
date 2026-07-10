@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.research-x/presentation/project-facts.schema.json",
+  "title": "research_x PresentationFacts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "runtime_surfaces",
+    "tech_stack",
+    "entrypoints",
+    "modules",
+    "boundaries",
+    "data_stores",
+    "external_dependencies",
+    "key_flows",
+    "database",
+    "claims",
+    "unknowns"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "one_liner", "purpose", "audience", "scope", "evidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "one_liner": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 },
+        "audience": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "#/$defs/evidenceList" }
+      }
+    },
+    "runtime_surfaces": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["python", "node"],
+      "properties": {
+        "python": {
+          "type": "object",
+          "required": ["requires", "package_manager", "evidence"],
+          "properties": {
+            "requires": { "type": "string", "minLength": 1 },
+            "package_manager": { "type": "string", "minLength": 1 },
+            "evidence": { "$ref": "#/$defs/evidenceList" }
+          }
+        },
+        "node": {
+          "type": "object",
+          "required": ["purpose", "package_surface", "scripts", "dependencies", "evidence"],
+          "properties": {
+            "purpose": { "type": "string", "minLength": 1 },
+            "package_surface": { "type": "string", "minLength": 1 },
+            "scripts": { "$ref": "#/$defs/stringList" },
+            "dependencies": { "$ref": "#/$defs/stringList" },
+            "evidence": { "$ref": "#/$defs/evidenceList" }
+          }
+        }
+      }
+    },
+    "tech_stack": { "type": "array", "items": { "$ref": "#/$defs/namedEvidenceObject" } },
+    "entrypoints": { "type": "array", "items": { "$ref": "#/$defs/namedEvidenceObject" } },
+    "modules": { "type": "array", "items": { "$ref": "#/$defs/namedEvidenceObject" } },
+    "boundaries": { "type": "array", "items": { "$ref": "#/$defs/namedEvidenceObject" } },
+    "data_stores": { "type": "array", "items": { "$ref": "#/$defs/namedEvidenceObject" } },
+    "external_dependencies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/namedEvidenceObject" }
+    },
+    "key_flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["name", "steps", "source_files", "evidence"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "steps": { "$ref": "#/$defs/stringList" },
+          "source_files": { "$ref": "#/$defs/evidenceList" },
+          "evidence": { "$ref": "#/$defs/evidenceList" }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["exists", "tables", "evidence"],
+      "properties": {
+        "exists": { "type": "boolean" },
+        "tables": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/namedEvidenceObject" }
+        },
+        "evidence": { "$ref": "#/$defs/evidenceList" }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "claim", "evidence", "slide_candidate"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "claim": { "type": "string", "minLength": 1 },
+          "evidence": { "$ref": "#/$defs/evidenceList" },
+          "slide_candidate": { "type": "boolean" }
+        }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "question", "reason", "promoted_to_claim"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "question": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "promoted_to_claim": { "const": false }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stringList": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidenceList": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "namedEvidenceObject": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "evidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "#/$defs/evidenceList" }
+      }
+    }
+  }
+}

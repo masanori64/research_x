@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "project_id": "research_x",
+  "gates": [
+    {
+      "gate_id": "research_x_external_fetch_beyond_scope",
+      "label": "research_x external fetch beyond approved scope",
+      "mode": "confirm_each",
+      "reason": "A fetch outside the source scope already approved for the task requires an operation-specific decision."
+    },
+    {
+      "gate_id": "research_x_working_note_promotion",
+      "label": "Promote working note to curated source",
+      "mode": "confirm_each",
+      "reason": "Promotion changes provenance and participation authority and therefore requires explicit human acceptance."
+    },
+    {
+      "gate_id": "research_x_route_promotion",
+      "label": "Promote route to project default",
+      "mode": "confirm_each",
+      "reason": "Changing the default retrieval route requires evaluation evidence and an operation-specific human decision."
+    },
+    {
+      "gate_id": "research_x_persisted_schema_or_data_migration",
+      "label": "Persisted research_x schema or data migration",
+      "mode": "confirm_each",
+      "reason": "A migration of the user's persisted research_x data requires a rollback plan and post-migration verification."
+    },
+    {
+      "gate_id": "research_x_high_risk_answer_assertion",
+      "label": "High-risk answer assertion",
+      "mode": "confirm_each",
+      "reason": "A high-risk assertion requires a restored evidence package, citations, and applicable database validation."
+    }
+  ]
+}

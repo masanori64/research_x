@@ -1,0 +1,177 @@
+registry_id = "research_x_default_dry_run_sources"
+
+[[sources]]
+source_id = "local_research_x_evidence_architecture"
+source_type = "local_note"
+locator = "docs/research_x_canon.md"
+enabled_when = "always"
+title = "research_x evidence workflow architecture"
+quality_hint = "high"
+topics = ["source candidates", "evidence workflow", "source restorations"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "project_private"
+prompt_injection_review = "not_applicable_local_note"
+
+[[sources]]
+source_id = "local_x_store_schema"
+source_type = "local_note"
+locator = "src/research_x/x_store.py"
+enabled_when = "always"
+title = "Local X raw source schema"
+quality_hint = "high"
+topics = ["source candidates", "raw X source", "source restorations"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "project_private"
+prompt_injection_review = "not_applicable_local_note"
+
+[[sources]]
+source_id = "fake_x_source_candidate_discovery"
+source_type = "fake_search"
+locator = "X bookmark source candidate discovery"
+enabled_when = "always"
+title = "Synthetic X source candidate discovery"
+quality_hint = "unknown"
+topics = ["external search", "source candidates", "dry-run research intake"]
+
+[sources.policy]
+fetch_mode = "metadata_only"
+allow_network = false
+allow_provider = false
+storage_rights = "synthetic"
+prompt_injection_review = "not_applicable_synthetic"
+
+[[sources]]
+source_id = "future_serper_external_search"
+source_type = "serper"
+locator = "research_x external source candidates"
+enabled_when = "provider_execution_policy"
+title = "Future Serper external-search candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_brave_llm_context"
+source_type = "brave"
+locator = "research_x current-context candidates"
+enabled_when = "provider_execution_policy"
+title = "Future Brave LLM Context candidate lane"
+quality_hint = "unknown"
+topics = ["external context", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_jina_reader"
+source_type = "jina_reader"
+locator = "research_x reader extraction candidates"
+enabled_when = "provider_execution_policy"
+title = "Future Jina Reader extraction candidate lane"
+quality_hint = "unknown"
+topics = ["reader", "source extraction"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_firecrawl"
+source_type = "external_search_provider"
+locator = "https://www.firecrawl.dev/"
+enabled_when = "provider_execution_policy"
+title = "Future Firecrawl source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "reader", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_tavily"
+source_type = "external_search_provider"
+locator = "https://docs.tavily.com/documentation/api-reference/introduction"
+enabled_when = "provider_execution_policy"
+title = "Future Tavily source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_exa"
+source_type = "external_search_provider"
+locator = "https://exa.ai/docs/reference/search-api-guide"
+enabled_when = "provider_execution_policy"
+title = "Future Exa source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_perplexity"
+source_type = "external_search_provider"
+locator = "https://docs.perplexity.ai/docs/search/quickstart"
+enabled_when = "provider_execution_policy"
+title = "Future Perplexity source candidate lane"
+quality_hint = "unknown"
+topics = ["external search", "answer provider", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "requires_fetch_artifact_review"
+prompt_injection_review = "required_before_fetch"
+
+[[sources]]
+source_id = "future_searxng_local"
+source_type = "searxng"
+locator = "Self-hosted SearXNG remains a dependency/network staging candidate; no query is executed by this registry."
+enabled_when = "provider_execution_policy"
+title = "Future SearXNG local discovery candidate"
+quality_hint = "unknown"
+topics = ["local discovery", "source candidates"]
+
+[sources.policy]
+fetch_mode = "authorized_candidate_fetch"
+allow_network = true
+allow_provider = true
+storage_rights = "dependency_review_before_fetch"
+prompt_injection_review = "required_before_fetch"

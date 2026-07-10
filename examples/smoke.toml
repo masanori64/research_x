@@ -1,0 +1,83 @@
+[experiment]
+name = "smoke"
+description = "Runnable local comparison with one working synthetic adapter and requested real-adapter slots."
+
+[[targets]]
+kind = "search"
+value = "open source intelligence"
+limit = 3
+
+[[targets]]
+kind = "profile"
+value = "example"
+limit = 2
+
+[run]
+timeout_seconds = 10
+max_concurrency = 2
+
+[promotion]
+min_score = 0.72
+min_success_rate = 0.95
+min_items = 4
+max_error_rate = 0.05
+max_median_latency_ms = 1500
+
+[scoring]
+success_rate = 0.35
+item_yield = 0.20
+freshness = 0.15
+latency = 0.15
+coverage = 0.15
+
+[[adapters]]
+id = "synthetic"
+enabled = true
+
+[[adapters]]
+id = "twscrape_raw"
+enabled = true
+
+[[adapters]]
+id = "scweet"
+enabled = true
+
+[[adapters]]
+id = "twikit"
+enabled = true
+
+[[adapters]]
+id = "masa_twitter_scraper"
+enabled = true
+
+[[adapters]]
+id = "crawl4ai"
+enabled = true
+
+[[adapters]]
+id = "camoufox"
+enabled = true
+
+[[adapters]]
+id = "patchright"
+enabled = true
+
+[[adapters]]
+id = "rebrowser_patches"
+enabled = true
+
+[[adapters]]
+id = "rebrowser_playwright"
+enabled = true
+
+[[adapters]]
+id = "scrapy"
+enabled = true
+
+[[adapters]]
+id = "playwright"
+enabled = true
+
+[[adapters]]
+id = "scrapling"
+enabled = true

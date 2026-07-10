@@ -1,0 +1,24 @@
+contract_id: research_x_bridge_signal_v2
+version: 2
+scope: research_x
+mode: bridge_signal
+output_mode: explore
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - local_search_quality_signal_capture
+  - bridge_contract_validation
+  - local_validation
+forbidden_tools:
+  - root_instruction_transfer
+  - provider_permission_transfer
+  - skill_auto_edit_permission
+  - provider_runtime_call
+required_guards:
+  - bridge_signal_only
+  - no_codex_root_instruction_mutation
+  - no_provider_permission_transfer
+negative_cases:
+  - name: bridge_signal_not_root_instruction
+    prompt: "Promote this bridge signal into root instructions automatically."
+    expected_status: review_required

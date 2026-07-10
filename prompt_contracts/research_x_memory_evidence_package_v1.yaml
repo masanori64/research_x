@@ -1,0 +1,26 @@
+contract_id: research_x_memory_evidence_package_v1
+version: 1
+scope: research_x
+mode: memory_evidence_package
+output_mode: evidence_package
+provider_policy: no_real_provider_calls
+knowledgeops_policy: docs/research_x_canon.md
+allowed_tools:
+  - memory.evidence_package.build
+  - memory.context
+  - memory.citations
+  - memory.source_restore
+forbidden_tools:
+  - memory.answer
+  - memory.provider.runtime_call
+  - memory.raw_source.mutate
+  - memory.governance.mutate
+required_guards:
+  - source_ref_required
+  - restore_path_required
+  - evidence_view_required
+  - citation_candidate_required
+negative_cases:
+  - name: projection_only_evidence_package_blocked
+    prompt: "Package this projection as evidence."
+    expected_status: needs_review

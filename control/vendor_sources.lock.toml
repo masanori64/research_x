@@ -1,0 +1,259 @@
+schema_version = 2
+artifact_kind = "research_x_vendor_sources_lock"
+canon = "docs/research_x_canon.md"
+source_registry = "control/adoption_registry.toml"
+
+[[sources]]
+ref = "S01"
+name = "firecrawl"
+decision = "provider_gated"
+status = "provider_gated"
+category = "external_source_candidate"
+role = "source_candidate"
+upstream = "https://www.firecrawl.dev/"
+active_artifact = "src/research_x/memory/external.py"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = true
+notes = "Candidate discovery lane only; no runtime provider call without explicit gate and budget guard."
+
+[[sources]]
+ref = "S07"
+name = "occ_rag"
+decision = "staging"
+status = "staged"
+category = "retrieval_eval"
+role = "reference_source"
+upstream = "https://github.com/optimal-cognitive-core/OCC-RAG"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Reference candidate for retrieval-eval comparison, not a default route."
+
+[[sources]]
+ref = "S10"
+name = "archify"
+decision = "staging"
+status = "staged"
+category = "control_artifact"
+role = "reference_source"
+upstream = "https://github.com/tt-a1i/archify"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Reference/staging for diagram aid only; no renderer adoption without local fixture gate."
+
+[[sources]]
+ref = "S16"
+name = "zvec"
+decision = "staging"
+status = "staged"
+category = "local_backend"
+role = "reference_source"
+upstream = "https://github.com/alibaba/zvec"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Local backend candidate; no dependency install or default route promotion."
+
+[[sources]]
+ref = "S17"
+name = "saas_stop_condition"
+decision = "staging"
+status = "staged"
+category = "retrieval_eval"
+role = "reference_source"
+upstream = "https://github.com/XMUDeepLIT/SAAS"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Reference candidate for stop-condition and retrieval-eval work."
+
+[[sources]]
+ref = "S21"
+name = "serper"
+decision = "provider_gated"
+status = "provider_gated"
+category = "external_source_candidate"
+role = "source_candidate"
+upstream = "https://serper.dev"
+active_artifact = "src/research_x/memory/external.py"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = true
+notes = "Search discovery candidate only; not evidence or answer support."
+
+[[sources]]
+ref = "S24"
+name = "searxng"
+decision = "staging"
+status = "staged"
+category = "external_source_candidate"
+role = "source_candidate"
+upstream = "https://docs.searxng.org/"
+active_artifact = "control/research_intake/source_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Local discovery candidate; still behind dependency/network review."
+
+[[sources]]
+ref = "S34"
+name = "pdgkit"
+decision = "historical"
+status = "historical"
+category = "historical"
+role = "source_lock_only"
+upstream = "https://github.com/shibayamalicht/pdgkit"
+active_artifact = "control/vendor_sources.lock.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Historical provenance only; no active implementation route."
+
+[[sources]]
+ref = "S35"
+name = "tavily"
+decision = "provider_gated"
+status = "provider_gated"
+category = "external_source_candidate"
+role = "source_candidate"
+upstream = "https://docs.tavily.com/documentation/api-reference/introduction"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = true
+notes = "Future provider source candidate lane only."
+
+[[sources]]
+ref = "S36"
+name = "exa"
+decision = "provider_gated"
+status = "provider_gated"
+category = "external_source_candidate"
+role = "source_candidate"
+upstream = "https://exa.ai/docs/reference/search-api-guide"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = true
+notes = "Future provider source candidate lane only."
+
+[[sources]]
+ref = "S37"
+name = "perplexity"
+decision = "provider_gated"
+status = "provider_gated"
+category = "external_source_candidate"
+role = "source_candidate"
+upstream = "https://docs.perplexity.ai/docs/search/quickstart"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = true
+notes = "Future provider source candidate lane only."
+
+[[sources]]
+ref = "S38"
+name = "llm_oriented_ir"
+decision = "staging"
+status = "staged"
+category = "retrieval_eval"
+role = "reference_source"
+upstream = "https://arxiv.org/abs/2605.00505"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Reference source for retrieval evaluation only."
+
+[[sources]]
+ref = "S39"
+name = "bosun"
+decision = "staging"
+status = "staged"
+category = "retrieval_eval"
+role = "reference_source"
+upstream = "https://huggingface.co/blog/Hanno-Labs/bosun"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Reference source for retrieval evaluation only."
+
+[[sources]]
+ref = "S40"
+name = "warrantbench"
+decision = "staging"
+status = "staged"
+category = "retrieval_eval"
+role = "reference_source"
+upstream = "https://github.com/Hanno-Labs/warrantbench"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Reference source for retrieval evaluation only."
+
+[[sources]]
+ref = "S41"
+name = "paddleocr"
+decision = "staging"
+status = "staged"
+category = "media_evidence"
+role = "reference_source"
+upstream = "https://github.com/PaddlePaddle/PaddleOCR"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Media OCR candidate; no model/dependency install without gate."
+
+[[sources]]
+ref = "S42"
+name = "paddleocr_vl"
+decision = "staging"
+status = "staged"
+category = "media_evidence"
+role = "reference_source"
+upstream = "https://huggingface.co/PaddlePaddle/PaddleOCR-VL"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Media OCR/VL candidate; no model download without gate."
+
+[[sources]]
+ref = "S43"
+name = "manga_ocr"
+decision = "staging"
+status = "staged"
+category = "media_evidence"
+role = "reference_source"
+upstream = "https://github.com/kha-white/manga-ocr"
+active_artifact = "control/adoption_registry.toml"
+install_permission = false
+runtime_permission = false
+evidence_permission = false
+provider_or_quota = false
+notes = "Media OCR candidate; no model/dependency install without gate."

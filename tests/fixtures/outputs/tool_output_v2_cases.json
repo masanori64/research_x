@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "explore_candidate",
+      "output_mode": "explore",
+      "artifact_role": "projection",
+      "authority_level": "candidate",
+      "valid_boundary": true
+    },
+    {
+      "id": "evidence_package_view",
+      "output_mode": "evidence_package",
+      "artifact_role": "evidence_view",
+      "authority_level": "evidence_view",
+      "valid_boundary": true
+    },
+    {
+      "id": "answer_assertion",
+      "output_mode": "answer",
+      "artifact_role": "evidence_view",
+      "authority_level": "answer_assertion",
+      "requires": [
+        "citation",
+        "claim_support",
+        "db_backed_validation"
+      ],
+      "valid_boundary": true
+    }
+  ]
+}
