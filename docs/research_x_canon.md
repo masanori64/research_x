@@ -255,10 +255,13 @@ baseline says:
 - 55,151 lineage-less pre-A-D rows were quarantined, not deleted, as
   `legacy_without_projection_lineage`;
 - semantic promotion remains `hold`;
+- the migrated local database and required runtime references were revalidated:
+  SQLite quick-check and foreign keys passed, required source/evidence files were
+  present, and one reproducible provider work directory remains intentionally
+  excluded as credential-derived scratch;
 - provider quality, SkillMap, specialized embedding spaces, OCR/media provider
   lanes, and final product acceptance remain unfinished;
-- activity after the documented limit-100 boundary and live database
-  revalidation remain explicit unknowns.
+- activity after the documented limit-100 boundary remains an explicit unknown.
 
 This list is a readable snapshot, not a second state owner. When it disagrees
 with the validated current-state JSON, update this summary or remove it; do not

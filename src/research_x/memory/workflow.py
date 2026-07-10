@@ -209,7 +209,8 @@ def run_memory_workflow(
             "semantic_dimensions": semantic_dimensions,
             "semantic_profile": semantic_profile,
             "semantic_template_version": semantic_template_version,
-            "semantic_api_key_env": semantic_api_key_env,
+            # Keep credential locators out of workflow metadata and persisted traces.
+            "semantic_api_key_configured": bool(semantic_api_key_env),
             "semantic_base_url": semantic_base_url,
             "semantic_weight": semantic_weight,
             "semantic_candidates": semantic_candidates,

@@ -651,7 +651,17 @@ def test_api_budget_status_aggregates_all_api_units_and_filters_run_id(
     assert {event["run_id"] for event in status["recent_events"]} == {"run-a"}
     assert {row["run_id"] for row in status["recent_provider_preflights"]} == {"run-a"}
     assert {row["run_id"] for row in status["recent_provider_transport_events"]} == {"run-a"}
-    assert status["price_catalog_coverage"]["unpriced_observed_api_count"] == 0
+    coverage = status["price_catalog_coverage"]
+    assert coverage["unpriced_observed_api_count"] == 0
+    assert {
+        "provider": "openai",
+        "model": "gpt-test",
+        "operation": "answer",
+    } in coverage["priced_api_keys"]
+    assert all(
+        set(item) == {"provider", "model", "operation"}
+        for item in coverage["priced_api_keys"]
+    )
 
 
 def test_api_budget_status_exposes_active_reserved_exposure(tmp_path: Path) -> None:

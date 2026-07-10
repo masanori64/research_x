@@ -241,12 +241,6 @@ blocking_scope = "provider_usage_and_latest_runtime_state"
 question = "Were any real provider requests executed after the documented limit-100 run?"
 
 [[unknowns]]
-id = "live_runtime_database_revalidation"
-status = "unknown"
-blocking_scope = "runtime_evidence_acceptance"
-question = "Does the live ignored database still match the documented quarantine and lineage state?"
-
-[[unknowns]]
 id = "real_provider_model_quality"
 status = "unknown"
 blocking_scope = "semantic_promotion"

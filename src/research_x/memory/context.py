@@ -166,7 +166,10 @@ def build_context_bundle(
         "semantic_dimensions": semantic_dimensions,
         "semantic_profile": semantic_profile,
         "semantic_template_version": semantic_template_version,
-        "semantic_api_key_env": semantic_api_key_env,
+        # The environment-variable locator is runtime-only. Persisting or hashing
+        # it adds no retrieval identity and can expose a credential configuration
+        # detail when bundles or traces are exported.
+        "semantic_api_key_configured": bool(semantic_api_key_env),
         "semantic_base_url": semantic_base_url,
         "semantic_weight": semantic_weight,
         "semantic_candidates": semantic_candidates,

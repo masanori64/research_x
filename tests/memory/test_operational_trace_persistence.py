@@ -5,8 +5,14 @@ import sqlite3
 from pathlib import Path
 
 from research_x.cli import main
+from research_x.memory import context as memory_context
 from research_x.memory.answer import build_memory_answer
-from research_x.memory.context import CitationAnnotation, ContextBundle, ContextChunk
+from research_x.memory.context import (
+    CitationAnnotation,
+    ContextBundle,
+    ContextChunk,
+    build_context_bundle,
+)
 from research_x.memory.corpus import build_memory_corpus
 from research_x.memory.evals import EvalCase, run_memory_eval
 from research_x.memory.relations import build_memory_relations
@@ -175,6 +181,63 @@ def test_trace_persistence_keeps_audit_without_derived_artifacts(tmp_path: Path)
         "memory_external_items",
     ):
         assert after[table] == before[table]
+
+
+def test_semantic_credential_locator_is_not_hashed_or_persisted(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = _seed_memory_db(tmp_path)
+    monkeypatch.setattr(memory_context, "_utc_now", lambda: CREATED_AT)
+
+    first = build_context_bundle(
+        db_path,
+        "強化学習 ロボット",
+        semantic_api_key_env="PRIVATE_PROVIDER_PASSWORD_A",
+        store=True,
+    )
+    second = build_context_bundle(
+        db_path,
+        "強化学習 ロボット",
+        semantic_api_key_env="PRIVATE_PROVIDER_PASSWORD_B",
+        store=False,
+    )
+
+    assert first.run_id == second.run_id
+    assert first.parameters["semantic_api_key_configured"] is True
+    assert second.parameters["semantic_api_key_configured"] is True
+    assert "semantic_api_key_env" not in first.parameters
+    with sqlite3.connect(db_path) as conn:
+        stored = conn.execute(
+            "SELECT parameters_json FROM memory_search_runs WHERE run_id = ?",
+            (first.run_id,),
+        ).fetchone()[0]
+    assert "PRIVATE_PROVIDER_PASSWORD" not in stored
+    assert json.loads(stored)["semantic_api_key_configured"] is True
+
+
+def test_workflow_trace_does_not_persist_semantic_credential_locator(tmp_path: Path) -> None:
+    db_path = _seed_memory_db(tmp_path)
+    locator = "PRIVATE_PROVIDER_PASSWORD"
+
+    workflow = run_memory_workflow(
+        db_path,
+        "強化学習 ロボット",
+        semantic_api_key_env=locator,
+        answer_provider="fake",
+        persistence="artifacts",
+    )
+
+    parameters = workflow.metadata["parameters"]
+    assert parameters["semantic_api_key_configured"] is True
+    assert "semantic_api_key_env" not in parameters
+    with sqlite3.connect(db_path) as conn:
+        stored = conn.execute(
+            "SELECT metadata_json FROM memory_workflow_runs WHERE workflow_id = ?",
+            (workflow.workflow_id,),
+        ).fetchone()[0]
+    assert locator not in stored
+    assert json.loads(stored)["parameters"]["semantic_api_key_configured"] is True
 
 
 def test_explicit_persistence_mode_overrides_legacy_store_flag(tmp_path: Path) -> None:

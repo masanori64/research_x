@@ -1303,26 +1303,37 @@ def _citation_source_lineage_missing(row: sqlite3.Row) -> bool:
     chunk_metadata = _loads_json(row["chunk_metadata_json"], default={})
     if not isinstance(citation_metadata, dict) or not isinstance(chunk_metadata, dict):
         return True
-    required = ("source_doc_hash", "source_restore_id")
     if any(
-        not str(citation_metadata.get(key) or "").strip()
-        or not str(chunk_metadata.get(key) or "").strip()
-        for key in required
+        not _source_lineage_value(metadata, "source_doc_hash")
+        or not (
+            _source_lineage_value(metadata, "source_bundle_id")
+            or _source_lineage_value(metadata, "source_restore_id")
+        )
+        for metadata in (citation_metadata, chunk_metadata)
     ):
         return True
-    if str(citation_metadata.get("lineage_status") or "").strip() != "restored":
+    if _source_lineage_value(citation_metadata, "lineage_status") != "restored":
         return True
-    if str(chunk_metadata.get("lineage_status") or "").strip() != "restored":
+    if _source_lineage_value(chunk_metadata, "lineage_status") != "restored":
         return True
     citation_has_retrieval = bool(
-        str(citation_metadata.get("retrieval_text_hash") or "").strip()
-        or str(citation_metadata.get("retrieval_text_profile_id") or "").strip()
+        _source_lineage_value(citation_metadata, "retrieval_text_hash")
+        or _source_lineage_value(citation_metadata, "retrieval_text_profile_id")
     )
     chunk_has_retrieval = bool(
-        str(chunk_metadata.get("retrieval_text_hash") or "").strip()
-        or str(chunk_metadata.get("retrieval_text_profile_id") or "").strip()
+        _source_lineage_value(chunk_metadata, "retrieval_text_hash")
+        or _source_lineage_value(chunk_metadata, "retrieval_text_profile_id")
     )
     return not (citation_has_retrieval and chunk_has_retrieval)
+
+
+def _source_lineage_value(metadata: dict[str, Any], key: str) -> str:
+    value = metadata.get(key)
+    if value is None:
+        source_lineage = metadata.get("source_lineage")
+        if isinstance(source_lineage, dict):
+            value = source_lineage.get(key)
+    return str(value or "").strip()
 
 
 def _is_nonclaim_answer_line(line: str) -> bool:

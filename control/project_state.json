@@ -15,6 +15,43 @@
     ],
     "interpretation": "Historical reports remain in research_x-archive; this artifact alone owns current project state."
   },
+  "runtime_validation": {
+    "status": "local_runtime_revalidated",
+    "validated_at": "2026-07-11",
+    "database": {
+      "path": "runs/x_data.sqlite3",
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "user_tables": 91,
+      "counts": {
+        "tweets": 16229,
+        "media": 21901,
+        "provider_runs": 14,
+        "memory_documents": 55036,
+        "memory_embeddings": 55151,
+        "projection_artifacts": 2
+      }
+    },
+    "runtime_files": {
+      "required_files": 18008,
+      "required_bytes": 3168226185,
+      "missing_required_references": 0,
+      "path_escape_references": 0,
+      "derived_work_dir_scratch_exceptions": 1
+    },
+    "secret_store_copy": {
+      "files": 8562,
+      "bytes": 1195498748,
+      "source_destination_totals_match": true,
+      "values_inspected": false
+    },
+    "local_checks": {
+      "knowledge_artifacts": "ok_275279",
+      "local_search": "ok",
+      "memory_audit_local_no_provider": "ok"
+    },
+    "interpretation": "The migrated local runtime is usable and internally consistent. One provider work_dir is intentionally excluded as reproducible credential-derived scratch, not source evidence."
+  },
   "provider_execution": {
     "status": "documented_limit_10_and_100_completed_no_blanket_provider_ban",
     "runs": [
@@ -107,7 +144,6 @@
   ],
   "unknowns": [
     "provider_runs_after_limit_100",
-    "live_runtime_database_revalidation",
     "real_provider_model_quality",
     "quarantined_rows_rebuilt"
   ]

@@ -29,6 +29,7 @@ def test_context_and_citation_store_generation_time_lineage_snapshot(
     citation = bundle.citation_annotations[0]
 
     for metadata in (chunk.metadata, citation.metadata):
+        source_lineage = metadata["source_lineage"]
         assert metadata["source_doc_hash"]
         assert metadata["embedding_text_hash"]
         assert metadata["retrieval_text_hash"]
@@ -46,6 +47,8 @@ def test_context_and_citation_store_generation_time_lineage_snapshot(
             metadata["document_id"],
             metadata["source_doc_hash"],
         )
+        assert source_lineage["source_bundle_id"] == metadata["source_bundle_id"]
+        assert source_lineage["source_restore_id"] == metadata["source_restore_id"]
 
 
 def test_context_fallback_lineage_uses_canonical_source_bundle_id() -> None:

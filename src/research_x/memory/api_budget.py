@@ -3053,40 +3053,48 @@ def _price_catalog_coverage(
     *,
     run_id: str | None = None,
 ) -> dict[str, Any]:
-    observed_keys, observed_by_source = _observed_api_keys(conn, run_id=run_id)
+    observed_operations, observed_by_source = _observed_provider_operations(
+        conn, run_id=run_id
+    )
     price_rows = conn.execute(
         """
         SELECT provider, model, operation, unit
         FROM memory_api_price_catalog
         """
     ).fetchall()
-    price_keys = {
+    price_operations = {
         (str(row["provider"]), str(row["model"]), str(row["operation"])) for row in price_rows
     }
-    priced_keys = {
-        key
-        for key in observed_keys
-        if any(_price_key_covers(price_key, key) for price_key in price_keys)
+    priced_operations = {
+        operation
+        for operation in observed_operations
+        if any(
+            _price_operation_covers(price_operation, operation)
+            for price_operation in price_operations
+        )
     }
-    missing_keys = sorted(observed_keys - priced_keys)
+    missing_operations = sorted(observed_operations - priced_operations)
     return {
-        "observed_api_count": len(observed_keys),
-        "priced_observed_api_count": len(priced_keys),
-        "unpriced_observed_api_count": len(missing_keys),
+        "observed_api_count": len(observed_operations),
+        "priced_observed_api_count": len(priced_operations),
+        "unpriced_observed_api_count": len(missing_operations),
         "price_rows": len(price_rows),
+        # These legacy JSON field names mean provider/model/operation tuples, not
+        # credential API keys. Keep them for consumers while using precise names
+        # internally so secrets cannot be confused with price-catalog identities.
         "priced_api_keys": [
-            _api_key_payload(provider, model, operation)
-            for provider, model, operation in sorted(priced_keys)
+            _provider_operation_payload(provider, model, operation)
+            for provider, model, operation in sorted(priced_operations)
         ],
         "missing_price_api_keys": [
-            _api_key_payload(provider, model, operation)
-            for provider, model, operation in missing_keys
+            _provider_operation_payload(provider, model, operation)
+            for provider, model, operation in missing_operations
         ],
         "observed_by_source": observed_by_source,
     }
 
 
-def _observed_api_keys(
+def _observed_provider_operations(
     conn: sqlite3.Connection,
     *,
     run_id: str | None = None,
@@ -3121,17 +3129,19 @@ def _observed_api_keys(
     return observed, by_source
 
 
-def _price_key_covers(
-    price_key: tuple[str, str, str],
-    api_key: tuple[str, str, str],
+def _price_operation_covers(
+    price_operation: tuple[str, str, str],
+    observed_operation: tuple[str, str, str],
 ) -> bool:
     return all(
-        price_value in {api_value, "*"}
-        for price_value, api_value in zip(price_key, api_key, strict=True)
+        price_value in {observed_value, "*"}
+        for price_value, observed_value in zip(
+            price_operation, observed_operation, strict=True
+        )
     )
 
 
-def _api_key_payload(provider: str, model: str, operation: str) -> dict[str, str]:
+def _provider_operation_payload(provider: str, model: str, operation: str) -> dict[str, str]:
     return {"provider": provider, "model": model, "operation": operation}
 
 
