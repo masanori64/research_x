@@ -8,7 +8,7 @@
     "presentation:build": "node scripts/presentation/build.mjs"
   },
   "devDependencies": {
-    "@marp-team/marp-cli": "4.4.1",
+    "@marp-team/marp-cli": "4.5.0",
     "@terrastruct/d2": "0.1.33"
   }
 }
